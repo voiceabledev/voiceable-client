@@ -367,10 +367,7 @@ export default function Assistants() {
   };
 
   return (
-    <div className={cn(
-      "flex relative overflow-hidden",
-      isMobile ? "absolute top-[73px] left-0 right-0 bottom-0 h-[calc(100vh-73px)]" : "h-screen"
-    )}>
+    <div className="flex h-full overflow-hidden">
       {/* Create Assistant Panel Overlay */}
       {showCreatePanel && (
         <>
@@ -525,7 +522,7 @@ export default function Assistants() {
 
       {/* Assistants List Panel - Always visible, collapsible on mobile */}
       <div className={cn(
-        "border-r border-border flex flex-col transition-all duration-300 h-full overflow-hidden",
+        "border-r border-border flex flex-col transition-all duration-300 overflow-hidden flex-shrink-0",
         isMobile 
           ? (isExpanded ? "w-64" : "w-16")
           : "w-80"
