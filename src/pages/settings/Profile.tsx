@@ -14,67 +14,67 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl">
-      <div className="flex items-center gap-3 mb-6">
-        <User className="h-5 w-5 text-muted-foreground" />
-        <h1 className="text-xl font-semibold">Account</h1>
+      <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+        <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+        <h1 className="text-lg md:text-xl font-semibold">Account</h1>
       </div>
 
       {/* Settings Card */}
-      <div className="bg-secondary/30 border border-border rounded-lg p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-2">Settings</h2>
-        <p className="text-muted-foreground text-sm mb-6">Customize your account details.</p>
+      <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6 mb-4 md:mb-6">
+        <h2 className="text-base md:text-lg font-semibold mb-2">Settings</h2>
+        <p className="text-muted-foreground text-xs md:text-sm mb-4 md:mb-6">Customize your account details.</p>
 
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="space-y-2">
-            <Label>Email</Label>
+            <Label className="text-xs md:text-sm">Email</Label>
             <Input 
               value={email}
-              className="bg-secondary/50"
+              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
               readOnly
             />
           </div>
 
           <div className="space-y-2">
-            <Label>New Password</Label>
+            <Label className="text-xs md:text-sm">New Password</Label>
             <Input 
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="bg-secondary/50"
+              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
             />
           </div>
 
-          <Button variant="accent" className="w-full">
+          <Button variant="accent" className="w-full text-xs md:text-sm">
             Update New Password
           </Button>
         </div>
       </div>
 
       {/* Delete Account Card */}
-      <div className="bg-secondary/30 border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-2">Delete Account</h2>
-        <p className="text-muted-foreground text-sm mb-4">
+      <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold mb-2">Delete Account</h2>
+        <p className="text-muted-foreground text-xs md:text-sm mb-3 md:mb-4">
           Permanently remove your account and all its contents. Upon deletion of your account, any orgs without any members will be deleted immediately. Neither the account, nor the orgs will be recoverable. Proceed with caution.
         </p>
 
-        <p className="text-sm mb-4">
+        <p className="text-xs md:text-sm mb-3 md:mb-4">
           To confirm, please type your email address: <span className="font-semibold">{email}</span>
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <Input 
             placeholder="Enter your email"
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
-            className="bg-secondary/50"
+            className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
           />
 
           <Button 
             variant="destructive" 
             disabled={confirmEmail !== email}
-            className="bg-destructive/80 hover:bg-destructive"
+            className="bg-destructive/80 hover:bg-destructive w-full text-xs md:text-sm"
           >
-            <AlertTriangle className="h-4 w-4 mr-2" />
+            <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
             Delete Account
           </Button>
         </div>

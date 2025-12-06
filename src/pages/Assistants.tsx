@@ -540,25 +540,25 @@ export default function Assistants() {
           
           {/* Expand/Collapse Button - Fixed at Bottom */}
           {isMobile && (
-            <div className="mt-auto pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0 px-3 md:px-4">
+            <div className="mt-auto pt-3 md:pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "w-full h-8",
-                  !showFullContent && "justify-center"
+                  "w-full h-9 md:h-8 flex items-center justify-center",
+                  !showFullContent ? "px-0" : "px-3 md:px-4"
                 )}
                 onClick={() => setIsExpanded(!isExpanded)}
                 title={isExpanded ? "Collapse menu" : "Expand menu"}
               >
                 {isExpanded ? (
                   <>
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4 flex-shrink-0" />
                     {showFullContent && <span className="ml-2 text-sm">Collapse</span>}
                   </>
                 ) : (
                   <>
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
                     {showFullContent && <span className="ml-2 text-sm">Expand</span>}
                   </>
                 )}

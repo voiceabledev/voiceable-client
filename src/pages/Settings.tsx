@@ -69,10 +69,11 @@ export default function Settings() {
 
   const SettingsMenuContent = () => (
     <>
+      <div className="flex items-center gap-2 mb-4 md:mb-6 flex-shrink-0">
+        {showFullContent && (<><SettingsIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" /><h1 className="text-lg font-semibold">Settings</h1></>)}
+      </div>
+
       <nav className="flex-1 overflow-y-auto space-y-4 md:space-y-6 min-h-0">
-        <div className="flex items-center gap-2 mb-4 md:mb-6 flex-shrink-0">
-          {showFullContent && (<><SettingsIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" /><h1 className="text-lg font-semibold">Settings</h1></>)}
-        </div>
         <div>
           {showFullContent && <p className="section-label mb-2">Org Settings</p>}
           <div className="space-y-1">
@@ -114,25 +115,25 @@ export default function Settings() {
           
           {/* Expand/Collapse Button - Fixed at Bottom */}
           {isMobile && (
-            <div className="mt-auto pt-4 border-t border-border flex-shrink-0">
+            <div className="mt-auto pt-3 md:pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "w-full h-8",
-                  !showFullContent && "justify-center"
+                  "w-full h-9 md:h-8 flex items-center justify-center",
+                  !showFullContent ? "px-0" : "px-3 md:px-4"
                 )}
                 onClick={() => setIsExpanded(!isExpanded)}
                 title={isExpanded ? "Collapse menu" : "Expand menu"}
               >
                 {isExpanded ? (
                   <>
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-4 w-4 flex-shrink-0" />
                     {showFullContent && <span className="ml-2 text-sm">Collapse</span>}
                   </>
                 ) : (
                   <>
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
                     {showFullContent && <span className="ml-2 text-sm">Expand</span>}
                   </>
                 )}

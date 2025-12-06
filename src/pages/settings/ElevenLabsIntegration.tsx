@@ -24,25 +24,25 @@ export default function ElevenLabsIntegration() {
   return (
     <div className="max-w-2xl">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-2 md:gap-4 mb-6 md:mb-8">
         <button
           onClick={() => navigate("/settings/integrations")}
-          className="text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
         </button>
-        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-white font-bold text-lg">
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0">
           ⫾
         </div>
-        <h1 className="text-xl font-semibold">ElevenLabs</h1>
+        <h1 className="text-lg md:text-xl font-semibold">ElevenLabs</h1>
       </div>
 
       {/* Integration Card */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <div className="flex items-start justify-between mb-4">
+      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3 md:mb-4">
           <div>
-            <h2 className="text-lg font-semibold mb-1">ElevenLabs</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-base md:text-lg font-semibold mb-1">ElevenLabs</h2>
+            <p className="text-xs md:text-sm text-muted-foreground">
               AI voice cloning and generation with natural speech synthesis.
             </p>
           </div>
@@ -50,21 +50,21 @@ export default function ElevenLabsIntegration() {
             href="https://elevenlabs.io"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex-shrink-0"
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </a>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="space-y-2">
-            <label className="text-sm text-muted-foreground">API Key</label>
+            <label className="text-xs md:text-sm text-muted-foreground">API Key</label>
             <Input
               type="password"
               placeholder="Enter API Key"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              className="bg-secondary/50 border-border"
+              className="bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm"
             />
           </div>
 
@@ -73,6 +73,7 @@ export default function ElevenLabsIntegration() {
               variant="outline"
               onClick={handleSave}
               disabled={!apiKey.trim() || isSaving}
+              className="w-full sm:w-auto text-xs md:text-sm"
             >
               {isSaving ? "Saving..." : "Save"}
             </Button>
