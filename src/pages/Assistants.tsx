@@ -369,7 +369,7 @@ export default function Assistants() {
   return (
     <div className={cn(
       "flex relative overflow-hidden",
-      isMobile ? "absolute top-[73px] left-0 right-0 bottom-0" : "h-screen"
+      isMobile ? "absolute top-[73px] left-0 right-0 bottom-0 h-[calc(100vh-73px)]" : "h-screen"
     )}>
       {/* Create Assistant Panel Overlay */}
       {showCreatePanel && (
