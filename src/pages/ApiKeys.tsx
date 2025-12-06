@@ -41,15 +41,20 @@ export default function ApiKeys() {
     });
   };
   return (
-    <div className="min-h-screen">
-      <div className="p-4 md:p-6">
-        <div className="flex items-center gap-2 md:gap-3 mb-6 md:mb-8">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
           <Key className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           <h1 className="text-lg md:text-xl font-semibold">API Keys</h1>
         </div>
+      </div>
 
-        {/* Private API Keys Section */}
-        <div className="mb-6 md:mb-8">
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 md:p-6">
+          {/* Private API Keys Section */}
+          <div className="mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex items-center gap-2 md:gap-3">
               <button
@@ -163,6 +168,7 @@ export default function ApiKeys() {
               <p><span className="font-medium text-foreground">Transient Assistants:</span> Allowed</p>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

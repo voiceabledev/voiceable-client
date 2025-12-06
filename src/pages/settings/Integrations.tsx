@@ -103,33 +103,39 @@ export default function Integrations() {
   );
 
   return (
-    <div className="max-w-5xl pt-4 md:pt-6 pl-4 md:pl-6 pr-4 md:pr-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
-        <div className="flex items-center gap-2 md:gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/settings")}
-            className="flex-shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <Link2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-          <h1 className="text-lg md:text-xl font-semibold">Integrations</h1>
-        </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search integrations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-secondary/50 pr-9 h-9 md:h-10 text-xs md:text-sm"
-          />
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/settings")}
+              className="flex-shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Link2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <h1 className="text-lg md:text-xl font-semibold">Integrations</h1>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search integrations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-secondary/50 pr-9 h-9 md:h-10 text-xs md:text-sm"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Voice Providers Section */}
-      <div className="mb-4 md:mb-6">
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 md:p-6 pr-4 md:pr-6">
+          {/* Voice Providers Section */}
+          <div className="mb-4 md:mb-6">
         <button
           onClick={() => setIsVoiceProvidersOpen(!isVoiceProvidersOpen)}
           className="flex items-center gap-2 text-muted-foreground text-xs md:text-sm mb-3 md:mb-4 hover:text-foreground"
@@ -166,6 +172,8 @@ export default function Integrations() {
             ))}
           </div>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

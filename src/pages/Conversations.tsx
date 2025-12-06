@@ -302,9 +302,9 @@ export default function Conversations() {
   }, [selectedConversation]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border">
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 md:gap-3 mb-4 md:mb-6">
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             <h1 className="text-xl md:text-2xl font-bold">Conversation history</h1>

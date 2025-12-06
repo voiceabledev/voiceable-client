@@ -33,26 +33,36 @@ export default function Billing() {
   }, [searchParams, setSearchParams]);
 
   return (
-    <div className="max-w-6xl pt-4 md:pt-6 pl-4 md:pl-6 pr-4 md:pr-6">
-      {/* Header with Back Button */}
-      <div className="flex items-center gap-3 mb-6 md:mb-8">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/settings")}
-          className="flex-shrink-0"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h2 className="text-xl md:text-2xl font-semibold mb-2">Plans</h2>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
-          </p>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings")}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h2 className="text-xl md:text-2xl font-semibold mb-2">Plans</h2>
+            <p className="hidden md:block text-sm md:text-base text-muted-foreground">
+              Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Plans Grid */}
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-6xl p-4 md:p-6 pr-4 md:pr-6">
+          {/* Description - Mobile only */}
+          <p className="md:hidden text-sm text-muted-foreground mb-4 md:mb-6">
+            Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
+          </p>
+          
+          {/* Plans Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
         {/* Usage Based Plan */}
         <div className="bg-secondary/50 border border-accent rounded-lg p-4 md:p-6">
@@ -240,6 +250,8 @@ export default function Billing() {
               </>
             )}
           </div>
+        </div>
+        </div>
         </div>
       </div>
 

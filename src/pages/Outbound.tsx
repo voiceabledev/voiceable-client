@@ -17,9 +17,10 @@ export default function Outbound() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-3">
             <PhoneOutgoing className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <h1 className="text-lg md:text-xl font-semibold">Outbound</h1>
@@ -34,8 +35,12 @@ export default function Outbound() {
             <span className="hidden md:inline">Create Campaign</span>
           </Button>
         </div>
+      </div>
 
-        {!hasCampaigns ? (
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 md:p-6 pr-4 md:pr-6">
+          {!hasCampaigns ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
             <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
               <Phone className="h-5 w-5 md:h-7 md:w-7 text-muted-foreground" />
@@ -55,6 +60,7 @@ export default function Outbound() {
             {/* Campaigns list would go here */}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

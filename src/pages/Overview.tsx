@@ -33,18 +33,23 @@ const metrics = [
 
 export default function Overview() {
   return (
-    <div className="min-h-screen">
-      <Header showDocs />
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex-shrink-0">
+        <Header showDocs />
+      </div>
       
-      <div className="p-4 md:p-8">
-        {/* Welcome Section */}
-        <div className="mb-6 md:mb-8">
-          <p className="text-muted-foreground text-xs md:text-sm">email@example.com's Org</p>
-          <h1 className="text-2xl md:text-4xl font-bold mt-1">Welcome Vbrazo</h1>
-        </div>
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 md:p-8">
+          {/* Welcome Section */}
+          <div className="mb-6 md:mb-8">
+            <p className="text-muted-foreground text-xs md:text-sm">email@example.com's Org</p>
+            <h1 className="text-2xl md:text-4xl font-bold mt-1">Welcome Vbrazo</h1>
+          </div>
 
-        {/* Metrics Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 gap-4">
+          {/* Metrics Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 gap-4">
           <h2 className="text-lg md:text-xl font-semibold">Metrics</h2>
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             <Select defaultValue="all">
@@ -101,6 +106,7 @@ export default function Overview() {
             <p className="text-base md:text-lg font-medium">Oops...</p>
             <p className="text-muted-foreground text-xs md:text-sm">You don't have any calls yet</p>
           </div>
+        </div>
         </div>
       </div>
 

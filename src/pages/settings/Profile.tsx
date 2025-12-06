@@ -16,21 +16,27 @@ export default function Profile() {
   const [confirmEmail, setConfirmEmail] = useState("");
 
   return (
-    <div className="max-w-2xl pt-4 md:pt-6 pl-4 md:pl-6 pr-4 md:pr-6 pb-4 md:pb-6">
-      <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/settings")}
-          className="flex-shrink-0"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-        <h1 className="text-lg md:text-xl font-semibold">Account</h1>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings")}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          <h1 className="text-lg md:text-xl font-semibold">Account</h1>
+        </div>
       </div>
 
-      {/* Settings Card */}
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-2xl p-4 md:p-6 pr-4 md:pr-6 pb-4 md:pb-6">
+          {/* Settings Card */}
       <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6 mb-4 md:mb-6">
         <h2 className="text-base md:text-lg font-semibold mb-2">Settings</h2>
         <p className="text-muted-foreground text-xs md:text-sm mb-4 md:mb-6">Customize your account details.</p>
@@ -88,6 +94,8 @@ export default function Profile() {
             <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
             Delete Account
           </Button>
+        </div>
+      </div>
         </div>
       </div>
     </div>

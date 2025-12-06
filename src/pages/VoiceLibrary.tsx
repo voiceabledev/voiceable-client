@@ -38,9 +38,10 @@ export default function VoiceLibrary() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="min-h-screen">
-      <div className="p-6 pt-10 md:pt-12 pl-4 md:pl-6 pr-6 pb-6">
-        <div className="flex items-center gap-3 mb-6">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-3 mb-4 md:mb-6">
           <Button
             variant="ghost"
             size="icon"
@@ -54,7 +55,7 @@ export default function VoiceLibrary() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
@@ -96,38 +97,43 @@ export default function VoiceLibrary() {
             </SelectContent>
           </Select>
         </div>
+      </div>
 
-        {/* Voice Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {voices.map((voice, index) => (
-            <div
-              key={index}
-              className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer group animate-fade-in"
-              style={{ animationDelay: `${index * 30}ms` }}
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                  <AudioLines className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium truncate">{voice.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs bg-secondary px-2 py-0.5 rounded text-muted-foreground">
-                      {voice.gender}
-                    </span>
-                    {voice.accent && (
-                      <span className="text-xs bg-secondary px-2 py-0.5 rounded text-muted-foreground">
-                        {voice.accent}
-                      </span>
-                    )}
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 md:p-6">
+          {/* Voice Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {voices.map((voice, index) => (
+              <div
+                key={index}
+                className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer group animate-fade-in"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                    <AudioLines className="h-5 w-5 text-primary" />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium truncate">{voice.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+                        {voice.gender}
+                      </span>
+                      {voice.accent && (
+                        <span className="text-xs bg-secondary px-2 py-0.5 rounded text-muted-foreground">
+                          {voice.accent}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-md">
+                    <Play className="h-4 w-4" />
+                  </button>
                 </div>
-                <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-md">
-                  <Play className="h-4 w-4" />
-                </button>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

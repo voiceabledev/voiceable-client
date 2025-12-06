@@ -35,9 +35,10 @@ export default function Files() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FolderOpen className="h-5 w-5 text-muted-foreground" />
             <h1 className="text-xl font-semibold">Files</h1>
@@ -49,16 +50,20 @@ export default function Files() {
             </Button>
           </div>
         </div>
+      </div>
 
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          onChange={handleFileSelect}
-          multiple
-        />
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 md:p-6">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            onChange={handleFileSelect}
+            multiple
+          />
 
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
           {/* Drag and Drop Area */}
           <div 
             className={`w-full max-w-md border-2 border-dashed rounded-lg p-8 mb-6 transition-colors cursor-pointer ${
@@ -94,6 +99,7 @@ export default function Files() {
                 Choose File
               </Button>
             </div>
+          </div>
           </div>
         </div>
       </div>
