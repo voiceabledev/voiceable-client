@@ -213,7 +213,7 @@ const Pricing = () => {
           <div className="hidden md:flex items-center gap-8">
             <a href="/custom-agents" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Custom Agents</a>
             <a href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            <a href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
+            <a href="https://contextor.mintlify.app/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
           </div>
           
           <Link to="/overview">

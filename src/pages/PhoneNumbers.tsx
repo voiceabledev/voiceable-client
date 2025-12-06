@@ -14,31 +14,35 @@ export default function PhoneNumbers() {
 
   return (
     <div className="min-h-screen">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Phone className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">Phone Numbers</h1>
+      <div className="p-4 md:p-6">
+        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+          <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          <h1 className="text-lg md:text-xl font-semibold">Phone Numbers</h1>
         </div>
 
         {!hasNumbers ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="w-20 h-20 rounded-2xl border-2 border-muted flex items-center justify-center mb-6">
-              <Phone className="h-8 w-8 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl border-2 border-muted flex items-center justify-center mb-4 md:mb-6">
+              <Phone className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
             </div>
-            <h2 className="text-2xl font-semibold mb-3">Phone Numbers</h2>
-            <p className="text-muted-foreground text-center max-w-md mb-2">
+            <h2 className="text-xl md:text-2xl font-semibold mb-2 md:mb-3 text-center">Phone Numbers</h2>
+            <p className="text-muted-foreground text-center max-w-md mb-2 text-sm md:text-base">
               Assistants are able to be connected to phone numbers for calls.
             </p>
-            <p className="text-muted-foreground text-center max-w-md mb-6">
-              You can import from Twilio, vonage, or create a free number directly from Vapi for use with your assistants.
+            <p className="text-muted-foreground text-center max-w-md mb-4 md:mb-6 text-sm md:text-base">
+              You can import from Twilio, vonage, or create a free number directly from Contextor for use with your assistants.
             </p>
             
-            <Button variant="outline" className="mb-4" onClick={() => setModalOpen(true)}>
+            <Button 
+              variant="outline" 
+              className="mb-4 w-full sm:w-auto" 
+              onClick={() => setModalOpen(true)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create Phone Number
             </Button>
             
-            <div className="relative w-80">
+            <div className="relative w-full sm:w-80 max-w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                 placeholder="Search Phone Numbers" 

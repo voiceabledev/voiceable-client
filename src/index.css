@@ -159,6 +159,15 @@
     @apply absolute inset-0 bg-white/10 opacity-0 transition-opacity duration-300;
   }
 
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .btn-elegant:hover::after {
     @apply opacity-100;
   }

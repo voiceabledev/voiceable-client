@@ -40,45 +40,47 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-card border-border">
+      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="sr-only">Phone Number Options</DialogTitle>
         </DialogHeader>
         
-        <div className="flex gap-6">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Left sidebar - options */}
-          <div className="w-48 space-y-1">
+          <div className="w-full md:w-48 space-y-1 flex-shrink-0">
             <p className="text-sm font-medium text-foreground mb-3">Phone Number Options</p>
-            {phoneOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => setSelectedOption(option.id)}
-                className={cn(
-                  "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
-                  selectedOption === option.id
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+            <div className="flex md:flex-col gap-2 md:gap-1">
+              {phoneOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setSelectedOption(option.id)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
+                    selectedOption === option.id
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Right content - form */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-4 min-w-0">
             {selectedOption === "import-twilio" && (
               <>
                 <div className="space-y-2">
                   <Label>Twilio Phone Number</Label>
                   <div className="flex gap-2">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-border rounded-md">
-                      <span className="text-lg">🇺🇸</span>
+                    <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-secondary/50 border border-border rounded-md flex-shrink-0">
+                      <span className="text-base md:text-lg">🇺🇸</span>
                     </div>
                     <Input 
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="bg-secondary/50 flex-1"
+                      className="bg-secondary/50 flex-1 text-sm md:text-base"
                       placeholder="+14156021922"
                     />
                   </div>
@@ -89,7 +91,7 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   <Input 
                     value={accountSid}
                     onChange={(e) => setAccountSid(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Twilio Account SID"
                   />
                 </div>
@@ -100,7 +102,7 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                     type="password"
                     value={authToken}
                     onChange={(e) => setAuthToken(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Twilio Auth Token"
                   />
                 </div>
@@ -110,26 +112,26 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   <Input 
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Label for Phone Number"
                   />
                 </div>
 
-                <div className="bg-secondary/30 border border-border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
+                <div className="bg-secondary/30 border border-border rounded-lg p-3 md:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <p className="font-medium">SMS Enabled</p>
-                      <p className="text-sm text-muted-foreground">Enable SMS messaging for this phone number</p>
+                      <p className="font-medium text-sm md:text-base">SMS Enabled</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Enable SMS messaging for this phone number</p>
                     </div>
                     <Switch checked={smsEnabled} onCheckedChange={setSmsEnabled} />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button variant="accent">
+                  <Button variant="accent" className="w-full sm:w-auto">
                     Import from Twilio
                   </Button>
                 </div>
@@ -141,13 +143,13 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                 <div className="space-y-2">
                   <Label>Vonage Phone Number</Label>
                   <div className="flex gap-2">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-border rounded-md">
-                      <span className="text-lg">🇺🇸</span>
+                    <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-secondary/50 border border-border rounded-md flex-shrink-0">
+                      <span className="text-base md:text-lg">🇺🇸</span>
                     </div>
                     <Input 
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="bg-secondary/50 flex-1"
+                      className="bg-secondary/50 flex-1 text-sm md:text-base"
                       placeholder="+14156021922"
                     />
                   </div>
@@ -158,7 +160,7 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   <Input 
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Enter API Key"
                   />
                 </div>
@@ -169,7 +171,7 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                     type="password"
                     value={apiSecret}
                     onChange={(e) => setApiSecret(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Enter API Secret"
                   />
                 </div>
@@ -179,16 +181,16 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   <Input 
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Label for Phone Number"
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button variant="accent">
+                  <Button variant="accent" className="w-full sm:w-auto">
                     Import from Vonage
                   </Button>
                 </div>
@@ -200,13 +202,13 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                 <div className="space-y-2">
                   <Label>Telnyx Phone Number</Label>
                   <div className="flex gap-2">
-                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 border border-border rounded-md">
-                      <span className="text-lg">🇺🇸</span>
+                    <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-secondary/50 border border-border rounded-md flex-shrink-0">
+                      <span className="text-base md:text-lg">🇺🇸</span>
                     </div>
                     <Input 
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="bg-secondary/50 flex-1"
+                      className="bg-secondary/50 flex-1 text-sm md:text-base"
                       placeholder="+14156021922"
                     />
                   </div>
@@ -217,7 +219,7 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   <Input 
                     value={telnyxApiKey}
                     onChange={(e) => setTelnyxApiKey(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Enter API Key"
                   />
                 </div>
@@ -227,16 +229,16 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   <Input 
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
-                    className="bg-secondary/50"
+                    className="bg-secondary/50 text-sm md:text-base"
                     placeholder="Label for Phone Number"
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
+                  <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                     Cancel
                   </Button>
-                  <Button variant="accent">
+                  <Button variant="accent" className="w-full sm:w-auto">
                     Import from Telnyx
                   </Button>
                 </div>

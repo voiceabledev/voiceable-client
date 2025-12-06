@@ -22,7 +22,7 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
           <Link to="/home" className="text-2xl font-bold text-foreground">
-            VAPI
+            Contextor
           </Link>
         </div>
 
@@ -113,7 +113,7 @@ export default function Login() {
         </div>
 
         <div className="absolute bottom-8 left-8 text-xs text-muted-foreground">
-          By using Vapi you agree to our Terms of Service,<br />
+          By using Contextor you agree to our Terms of Service,<br />
           Privacy, and Security policies and practices.
         </div>
       </div>
@@ -149,10 +149,10 @@ export default function Login() {
             </div>
           </div>
           <p className="text-slate-300 text-sm leading-relaxed">
-            I used <span className="text-primary">Vapi</span> to build a Shopify app to help recover abandoned checkouts and it made the entire process extremely simple. If you've tried to build a voice product before you know you need to connect a bunch of APIs and then still have to tune the latency down and make it sound natural, specifically when the speaker is cut off, etc.
+            I used <span className="text-primary">Contextor</span> to build a Shopify app to help recover abandoned checkouts and it made the entire process extremely simple. If you've tried to build a voice product before you know you need to connect a bunch of APIs and then still have to tune the latency down and make it sound natural, specifically when the speaker is cut off, etc.
           </p>
           <p className="text-slate-300 text-sm leading-relaxed mt-3">
-            These guys care about building something great which is awesome to see! They even went out of their way to open a direct line of communication for support and feedback. Keep killing it Jordan, Nikhil, and the Vapi team!
+            These guys care about building something great which is awesome to see! They even went out of their way to open a direct line of communication for support and feedback.
           </p>
         </div>
       </div>

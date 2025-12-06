@@ -35,7 +35,7 @@ export function PurchaseCreditsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">Purchase Vapi Credits</DialogTitle>
+          <DialogTitle className="text-xl">Purchase Contextor Credits</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">

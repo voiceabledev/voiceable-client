@@ -27,6 +27,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SEO } from "@/components/SEO";
 
 const faqs = [
   {
@@ -142,20 +143,26 @@ const communityStats = [
 ];
 
 const communityLinks = [
-  { icon: BookOpen, title: "Docs", href: "#" },
-  { icon: Users, title: "Community", href: "#" },
-  { icon: Linkedin, title: "LinkedIn", href: "#" }
+  { icon: BookOpen, title: "Docs", href: "https://contextor.mintlify.app/" },
+  { icon: Github, title: "GitHub", href: "https://github.com" },
+  { icon: Users, title: "Community", href: "https://discord.com" },
 ];
 
 const footerLinks = {
-  product: ["Docs", "Pricing", "Features", "Security"],
-  company: ["Blog", "Careers", "Community", "Contact"],
+  product: ["Docs", "Pricing"],
   legal: ["Privacy Policy", "Terms"]
 };
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <SEO
+        title="Voice AI Agents for Developers - Build Intelligent Voice Assistants"
+        description="Create, deploy, and manage AI-powered voice agents with sub-500ms latency. Build multilingual voice assistants with API-native architecture, automated testing, and enterprise-grade reliability. Join 250,000+ developers building the future of voice AI."
+        keywords="voice AI, AI agents, voice assistants, conversational AI, voice automation, AI telephony, voice API, speech recognition, text to speech, voice AI platform, developer tools, API-first voice AI, enterprise voice AI, voice bot platform"
+        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com"
+      />
+      <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -169,7 +176,7 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-8">
             <a href="/custom-agents" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Custom Agents</a>
             <a href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            <a href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
+            <a href="https://contextor.mintlify.app/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
           </div>
           
           <Link to="/overview">
@@ -191,11 +198,17 @@ export default function Home() {
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full" asChild>
-              <Link to="/sign-up">
+              <Link to="/sign-up" onClick={() => {
+                window.location.href = "/sign-up";
+              }}>
                 SIGN UP <Sparkles className="ml-2 w-4 h-4" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2">
+            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2"
+              onClick={() => {
+                window.location.href = "https://contextor.mintlify.app/";
+              }}
+            >
               READ THE DOCS <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
@@ -521,7 +534,16 @@ async function createCall() {
                   ))}
                 </div>
                 
-                <h3 className="text-2xl font-bold text-foreground">{communityLinks[index].title}</h3>
+                {communityLinks[index] && (
+                  <a 
+                    href={communityLinks[index].href} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-2xl font-bold text-foreground hover:text-primary transition-colors"
+                  >
+                    {communityLinks[index].title}
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -562,10 +584,18 @@ async function createCall() {
           </h2>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full">
+            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full"
+              onClick={() => {
+                window.location.href = "/sign-up";
+              }}
+            >
               SIGN UP <Sparkles className="ml-2 w-4 h-4" />
             </Button>
-            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2">
+            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2"
+              onClick={() => {
+                window.location.href = "https://contextor.mintlify.app/";
+              }}
+            >
               READ THE DOCS <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
@@ -612,17 +642,6 @@ async function createCall() {
             </div>
             
             <div>
-              <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">COMPANY</h4>
-              <ul className="space-y-2">
-                {footerLinks.company.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-foreground hover:text-primary transition-colors text-sm">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
               <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">LEGAL</h4>
               <ul className="space-y-2">
                 {footerLinks.legal.map((link) => (
@@ -652,5 +671,6 @@ async function createCall() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

@@ -550,13 +550,18 @@ const CustomAgents = () => {
           <h2 className="text-5xl md:text-7xl font-light mb-12">Get started today</h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button className="uppercase tracking-wider text-xs py-6 px-12" asChild>
-              <Link to="/">
+              <Link to="/sign-up" onClick={() => {
+                window.location.href = "/sign-up";
+              }}>
                 Sign Up <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
             <Button
               variant="outline"
               className="uppercase tracking-wider text-xs py-6 px-12"
+              onClick={() => {
+                window.location.href = "https://contextor.mintlify.app/";
+              }}
             >
               Read the Docs
             </Button>

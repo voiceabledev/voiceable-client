@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Overview from "@/pages/Overview";
@@ -32,45 +33,47 @@ import Login from "@/pages/auth/Login";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/sign-up" element={<SignUp />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/custom-agents" element={<CustomAgents />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route element={<DashboardLayout />}>
-            <Route path="/account" element={<Account />} />
-            <Route path="/overview" element={<Overview />} />
-            <Route path="/assistants" element={<Assistants />} />
-            <Route path="/phone-numbers" element={<PhoneNumbers />} />
-            <Route path="/voice-library" element={<VoiceLibrary />} />
-            <Route path="/api-keys" element={<ApiKeys />} />
-            <Route path="/files" element={<Files />} />
-            <Route path="/outbound" element={<Outbound />} />
-            <Route path="/outbound/new" element={<NewCampaign />} />
-            <Route path="/conversations" element={<Conversations />} />
-            <Route path="/settings" element={<Settings />}>
-              <Route index element={<Navigate to="/settings/billing" replace />} />
-              <Route path="org" element={<OrgSettings />} />
-              <Route path="billing" element={<Billing />} />
-              <Route path="members" element={<Members />} />
-              <Route path="integrations" element={<Integrations />} />
-              <Route path="integrations/elevenlabs" element={<ElevenLabsIntegration />} />
-              <Route path="voice-library" element={<VoiceLibrary />} />
-              <Route path="profile" element={<Profile />} />
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/sign-up" element={<SignUp />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/custom-agents" element={<CustomAgents />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route element={<DashboardLayout />}>
+              <Route path="/account" element={<Account />} />
+              <Route path="/overview" element={<Overview />} />
+              <Route path="/assistants" element={<Assistants />} />
+              <Route path="/phone-numbers" element={<PhoneNumbers />} />
+              <Route path="/voice-library" element={<VoiceLibrary />} />
+              <Route path="/api-keys" element={<ApiKeys />} />
+              <Route path="/files" element={<Files />} />
+              <Route path="/outbound" element={<Outbound />} />
+              <Route path="/outbound/new" element={<NewCampaign />} />
+              <Route path="/conversations" element={<Conversations />} />
+              <Route path="/settings" element={<Settings />}>
+                <Route index element={<Navigate to="/settings/billing" replace />} />
+                <Route path="org" element={<OrgSettings />} />
+                <Route path="billing" element={<Billing />} />
+                <Route path="members" element={<Members />} />
+                <Route path="integrations" element={<Integrations />} />
+                <Route path="integrations/elevenlabs" element={<ElevenLabsIntegration />} />
+                <Route path="voice-library" element={<VoiceLibrary />} />
+                <Route path="profile" element={<Profile />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

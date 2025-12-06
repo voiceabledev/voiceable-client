@@ -65,7 +65,9 @@ export default function Workflows() {
             <Upload className="h-4 w-4 mr-2" />
             Upload JSON
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            window.location.href = "https://contextor.mintlify.app/";
+          }}>
             <FileText className="h-4 w-4 mr-2" />
             Docs
           </Button>

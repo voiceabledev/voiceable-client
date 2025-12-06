@@ -42,62 +42,63 @@ export default function ApiKeys() {
   };
   return (
     <div className="min-h-screen">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <Key className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">API Keys</h1>
+      <div className="p-4 md:p-6">
+        <div className="flex items-center gap-2 md:gap-3 mb-6 md:mb-8">
+          <Key className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          <h1 className="text-lg md:text-xl font-semibold">API Keys</h1>
         </div>
 
         {/* Private API Keys Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => setPrivateKeyVisible(!privateKeyVisible)}
-                className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors cursor-pointer"
+                className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors cursor-pointer flex-shrink-0"
               >
                 {privateKeyVisible ? (
-                  <EyeOff className="h-5 w-5 text-muted-foreground" />
+                  <EyeOff className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                 ) : (
-                  <Lock className="h-5 w-5 text-muted-foreground" />
+                  <Lock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                 )}
               </button>
               <div>
-                <h2 className="font-semibold">Private API Keys</h2>
-                <p className="text-sm text-muted-foreground">Server-side API access</p>
+                <h2 className="font-semibold text-sm md:text-base">Private API Keys</h2>
+                <p className="text-xs md:text-sm text-muted-foreground">Server-side API access</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setShowPrivateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Key
+            <Button variant="outline" size="sm" onClick={() => setShowPrivateModal(true)} className="w-full sm:w-auto text-xs md:text-sm">
+              <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+              <span className="hidden sm:inline">Add Key</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
 
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium mb-2">Private Key</p>
+          <div className="bg-card border border-border rounded-lg p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium mb-2 text-sm md:text-base">Private Key</p>
                 <div className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground tracking-widest font-mono">
+                  <Key className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs md:text-sm text-muted-foreground tracking-widest font-mono truncate">
                     {privateKeyVisible ? privateKey : maskKey(privateKey)}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="text-muted-foreground">
-                  <Eye className="h-4 w-4" />
+              <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8 md:h-10 md:w-10">
+                  <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-muted-foreground"
+                  className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                   onClick={() => handleCopy(privateKey, "private")}
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground">
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8 md:h-10 md:w-10">
+                  <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
               </div>
             </div>
@@ -106,54 +107,57 @@ export default function ApiKeys() {
 
         {/* Public API Keys Section */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => setPublicKeyVisible(!publicKeyVisible)}
-                className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors cursor-pointer"
+                className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors cursor-pointer flex-shrink-0"
               >
                 {publicKeyVisible ? (
-                  <EyeOff className="h-5 w-5 text-muted-foreground" />
+                  <EyeOff className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                 ) : (
-                  <Lock className="h-5 w-5 text-muted-foreground" />
+                  <Lock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                 )}
               </button>
               <div>
-                <h2 className="font-semibold">Public API Keys</h2>
-                <p className="text-sm text-muted-foreground">Client-side SDK access</p>
+                <h2 className="font-semibold text-sm md:text-base">Public API Keys</h2>
+                <p className="text-xs md:text-sm text-muted-foreground">Client-side SDK access</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setShowPublicModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Key
+            <Button variant="outline" size="sm" onClick={() => setShowPublicModal(true)} className="w-full sm:w-auto text-xs md:text-sm">
+              <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+              <span className="hidden sm:inline">Add Key</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
 
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="font-medium mb-2">Public Key</p>
-            <div className="flex items-center gap-2 mb-4">
-              <Key className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground tracking-widest font-mono">
-                {publicKeyVisible ? publicKey : maskKey(publicKey)}
-              </span>
-              <div className="ml-auto flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="text-muted-foreground">
-                  <Eye className="h-4 w-4" />
+          <div className="bg-card border border-border rounded-lg p-3 md:p-4">
+            <p className="font-medium mb-2 text-sm md:text-base">Public Key</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 md:mb-4">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Key className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs md:text-sm text-muted-foreground tracking-widest font-mono truncate">
+                  {publicKeyVisible ? publicKey : maskKey(publicKey)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8 md:h-10 md:w-10">
+                  <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-muted-foreground"
+                  className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                   onClick={() => handleCopy(publicKey, "public")}
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground">
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8 md:h-10 md:w-10">
+                  <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
               </div>
             </div>
-            <div className="space-y-1 text-sm text-muted-foreground">
+            <div className="space-y-1 text-xs md:text-sm text-muted-foreground">
               <p><span className="font-medium text-foreground">Origins:</span> All domains allowed</p>
               <p><span className="font-medium text-foreground">Assistants:</span> All Assistants allowed</p>
               <p><span className="font-medium text-foreground">Transient Assistants:</span> Allowed</p>
@@ -221,18 +225,18 @@ function AddApiKeyModal({ open, onOpenChange, type }: AddApiKeyModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-muted-foreground" />
-            <DialogTitle>New {type === "private" ? "Private" : "Public"} API Key</DialogTitle>
+            <Search className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+            <DialogTitle className="text-base md:text-lg">New {type === "private" ? "Private" : "Public"} API Key</DialogTitle>
           </div>
-          <DialogDescription>
+          <DialogDescription className="text-xs md:text-sm">
             Add a new API Key to restrict access.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-4 md:space-y-6 py-4">
           {/* Name Field */}
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -330,11 +334,11 @@ function AddApiKeyModal({ open, onOpenChange, type }: AddApiKeyModalProps) {
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={!name}>
+            <Button onClick={handleSubmit} disabled={!name} className="w-full sm:w-auto">
               Create {type === "private" ? "Private" : "Public"} Token
             </Button>
           </div>
