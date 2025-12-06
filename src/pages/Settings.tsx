@@ -99,17 +99,13 @@ export default function Settings() {
   );
 
   return (
-    <div className={cn(
-      "flex overflow-hidden",
-      isMobile ? "absolute top-[73px] left-0 right-0 bottom-0 h-[calc(100vh-73px)]" : "absolute inset-0 h-full"
-    )}>
+    <div className="flex h-full overflow-hidden">
       {/* Settings Sidebar - Always visible, collapsible on mobile */}
       <div className={cn(
-        "border-r border-border flex flex-col transition-all duration-300 overflow-hidden",
+        "border-r border-border flex flex-col transition-all duration-300 overflow-hidden flex-shrink-0",
         isMobile 
           ? (isExpanded ? "w-64" : "w-16")
-          : "w-64",
-        "h-full"
+          : "w-64"
       )}>
         <div className="p-3 md:p-4 flex flex-col h-full overflow-hidden">
           <SettingsMenuContent />
