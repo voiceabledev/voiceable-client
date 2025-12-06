@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Elegant Light Theme - Warm & Sophisticated (softer, not stark white) */
+    --background: 45 30% 96%;
+    --foreground: 240 10% 15%;
+
+    --card: 45 25% 98%;
+    --card-foreground: 240 10% 15%;
+
+    --popover: 45 25% 98%;
+    --popover-foreground: 240 10% 15%;
+
+    /* Deep Indigo as primary */
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 45 15% 91%;
+    --secondary-foreground: 240 10% 25%;
+
+    --muted: 45 12% 88%;
+    --muted-foreground: 240 5% 45%;
+
+    /* Warm violet accent */
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 15% 85%;
+    --input: 45 15% 85%;
+    --ring: 243 75% 59%;
+
+    --radius: 0.625rem;
+
+    /* Sidebar - warm cream tones */
+    --sidebar-background: 45 25% 94%;
+    --sidebar-foreground: 240 5% 40%;
+    --sidebar-primary: 243 75% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 243 60% 95%;
+    --sidebar-accent-foreground: 243 75% 40%;
+    --sidebar-border: 45 15% 88%;
+    --sidebar-ring: 243 75% 59%;
+
+    /* Custom tokens */
+    --success: 152 69% 40%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+    
+    /* Elegant gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(243 75% 59%) 0%, hsl(262 83% 58%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(45 30% 96%) 0%, hsl(45 15% 92%) 100%);
+    
+    /* Refined shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(240 5% 50% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(240 5% 50% / 0.08), 0 2px 4px -2px hsl(240 5% 50% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(240 5% 50% / 0.1), 0 4px 6px -4px hsl(240 5% 50% / 0.08);
+    --shadow-glow: 0 0 20px hsl(243 75% 59% / 0.15);
+  }
+
+  .dark {
+    --background: 240 10% 8%;
+    --foreground: 0 0% 95%;
+    
+    --card: 240 10% 10%;
+    --card-foreground: 0 0% 95%;
+    
+    --popover: 240 10% 10%;
+    --popover-foreground: 0 0% 95%;
+    
+    --primary: 243 75% 65%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 240 6% 18%;
+    --secondary-foreground: 0 0% 90%;
+    
+    --muted: 240 6% 18%;
+    --muted-foreground: 240 5% 55%;
+    
+    --accent: 262 83% 65%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 6% 20%;
+    --input: 240 6% 20%;
+    
+    --sidebar-background: 240 10% 8%;
+    --sidebar-foreground: 240 5% 55%;
+    --sidebar-accent: 243 50% 15%;
+    --sidebar-accent-foreground: 243 75% 75%;
+    --sidebar-border: 240 6% 15%;
+    
+    --shadow-glow: 0 0 20px hsl(243 75% 65% / 0.25);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+  }
+
+  /* Elegant scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-item-active {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground font-semibold;
+  }
+
+  .metric-card {
+    @apply bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-2 px-3;
+  }
+
+  /* Elegant button hover effects */
+  .btn-elegant {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+
+  .btn-elegant::after {
+    content: '';
+    @apply absolute inset-0 bg-white/10 opacity-0 transition-opacity duration-300;
+  }
+
+  .btn-elegant:hover::after {
+    @apply opacity-100;
+  }
+
+  /* Glass effect for cards */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg;
+  }
+
+  /* Subtle hover scale */
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+  }
+}
