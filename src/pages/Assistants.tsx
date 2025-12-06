@@ -528,16 +528,18 @@ export default function Assistants() {
           : "w-80"
       )}>
         <div className="flex flex-col h-full overflow-hidden">
-          <AssistantsListContent 
-            selectedAssistant={selectedAssistant}
-            setSelectedAssistant={setSelectedAssistant}
-            setShowCreatePanel={setShowCreatePanel}
-            showFullContent={showFullContent}
-          />
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <AssistantsListContent 
+              selectedAssistant={selectedAssistant}
+              setSelectedAssistant={setSelectedAssistant}
+              setShowCreatePanel={setShowCreatePanel}
+              showFullContent={showFullContent}
+            />
+          </div>
           
           {/* Expand/Collapse Button - Fixed at Bottom */}
           {isMobile && (
-            <div className="mt-auto pt-3 md:pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0">
+            <div className="pt-3 md:pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
