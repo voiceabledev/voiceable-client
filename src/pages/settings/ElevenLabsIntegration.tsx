@@ -22,15 +22,17 @@ export default function ElevenLabsIntegration() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl pt-4 md:pt-6 pl-4 md:pl-6">
       {/* Header */}
       <div className="flex items-center gap-2 md:gap-4 mb-6 md:mb-8">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => navigate("/settings/integrations")}
-          className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          className="flex-shrink-0"
         >
-          <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
-        </button>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0">
           ⫾
         </div>

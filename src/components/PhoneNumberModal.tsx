@@ -4,11 +4,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface PhoneNumberModalProps {
@@ -21,13 +29,14 @@ type PhoneOption =
   | "import-vonage" 
   | "import-telnyx"
 
-const phoneOptions: { id: PhoneOption; label: string }[] = [
-  { id: "import-twilio", label: "Import Twilio" },
-  { id: "import-vonage", label: "Import Vonage" },
-  { id: "import-telnyx", label: "Import Telnyx" },
+const phoneOptions: { id: PhoneOption; label: string; importLabel: string }[] = [
+  { id: "import-twilio", label: "Twilio", importLabel: "Import Twilio" },
+  { id: "import-vonage", label: "Vonage", importLabel: "Import Vonage" },
+  { id: "import-telnyx", label: "Telnyx", importLabel: "Import Telnyx" },
 ];
 
 export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) {
+  const isMobile = useIsMobile();
   const [selectedOption, setSelectedOption] = useState<PhoneOption>("import-twilio");
   const [phoneNumber, setPhoneNumber] = useState("+14156021922");
   const [accountSid, setAccountSid] = useState("");
@@ -40,34 +49,52 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto p-4 md:p-6">
         <DialogHeader>
-          <DialogTitle className="sr-only">Phone Number Options</DialogTitle>
+          <DialogTitle>Phone Number Options</DialogTitle>
         </DialogHeader>
         
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          {/* Left sidebar - options */}
-          <div className="w-full md:w-48 space-y-1 flex-shrink-0">
-            <p className="text-sm font-medium text-foreground mb-3">Phone Number Options</p>
-            <div className="flex md:flex-col gap-2 md:gap-1">
-              {phoneOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setSelectedOption(option.id)}
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
-                    selectedOption === option.id
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
+        <div className="flex flex-col gap-4 md:gap-6">
+          {/* Provider Selection - Mobile: Centered Select, Desktop: Horizontal Row */}
+          {isMobile ? (
+            <div className="space-y-2">
+              <Label className="text-center block">Provider</Label>
+              <Select value={selectedOption} onValueChange={(value) => setSelectedOption(value as PhoneOption)}>
+                <SelectTrigger className="w-full text-center">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {phoneOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id} className="text-center">
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
+          ) : (
+            <div className="w-full space-y-2">
+              <p className="text-sm font-medium text-foreground">Provider</p>
+              <div className="flex flex-row gap-2">
+                {phoneOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSelectedOption(option.id)}
+                    className={cn(
+                      "flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors",
+                      selectedOption === option.id
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    )}
+                  >
+                    {option.importLabel}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Right content - form */}
+          {/* Form Content */}
           <div className="flex-1 space-y-4 min-w-0">
             {selectedOption === "import-twilio" && (
               <>

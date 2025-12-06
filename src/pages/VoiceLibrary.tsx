@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Search,
   Play,
-  AudioLines
+  AudioLines,
+  ArrowLeft
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -31,12 +34,21 @@ const voices = [
 ];
 
 export default function VoiceLibrary() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
     <div className="min-h-screen">
-      <div className="p-6">
+      <div className="p-6 pt-10 md:pt-12 pl-4 md:pl-6 pr-6 pb-6">
         <div className="flex items-center gap-3 mb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings")}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <AudioLines className="h-5 w-5 text-muted-foreground" />
           <h1 className="text-xl font-semibold">Voice Library</h1>
         </div>

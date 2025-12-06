@@ -196,12 +196,12 @@ const ConversationDetailPanel = ({
     </div>
 
     {/* Tab Content */}
-    <div className="flex-1 overflow-auto p-3 md:p-4">
+    <div className="flex-1 overflow-auto p-3 md:p-4 min-h-0">
       {activeDetailTab === "overview" && (
-        <div className="space-y-3 md:space-y-4">
+        <div className="space-y-3 md:space-y-4 pb-4">
           <div>
             <h3 className="text-xs md:text-sm font-semibold mb-2">Summary</h3>
-            <p className="text-xs md:text-sm text-muted-foreground">
+            <p className="text-xs md:text-sm text-muted-foreground whitespace-normal">
               {selectedConversation.summary}
             </p>
           </div>
@@ -225,6 +225,33 @@ const ConversationDetailPanel = ({
             <span className="text-xs md:text-sm font-mono text-muted-foreground truncate ml-2">
               {selectedConversation.userId}
             </span>
+          </div>
+
+          {/* Metadata Section */}
+          <div className="border-t border-border pt-3 md:pt-4 mt-3 md:mt-4">
+            <h3 className="text-xs md:text-sm font-semibold mb-2 md:mb-3">Metadata</h3>
+            <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date</span>
+                <span className="truncate ml-2">{selectedConversation.date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Connection duration</span>
+                <span>{selectedConversation.duration}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Credits (call)</span>
+                <span>{selectedConversation.credits.call}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Credits (LLM)</span>
+                <span>{selectedConversation.credits.llm}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">LLM Cost</span>
+                <span>{selectedConversation.llmCost}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -257,33 +284,6 @@ const ConversationDetailPanel = ({
           </div>
         </div>
       )}
-    </div>
-
-    {/* Metadata Sidebar */}
-    <div className="border-t border-border p-3 md:p-4 bg-secondary/20 flex-shrink-0">
-      <h3 className="text-xs md:text-sm font-semibold mb-2 md:mb-3">Metadata</h3>
-      <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Date</span>
-          <span className="truncate ml-2">{selectedConversation.date}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Connection duration</span>
-          <span>{selectedConversation.duration}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Credits (call)</span>
-          <span>{selectedConversation.credits.call}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Credits (LLM)</span>
-          <span>{selectedConversation.credits.llm}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">LLM Cost</span>
-          <span>{selectedConversation.llmCost}</span>
-        </div>
-      </div>
     </div>
   </div>
 );
@@ -416,7 +416,7 @@ export default function Conversations() {
                     setSelectedConversation(null);
                   }}
                 />
-                <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg md:hidden overflow-hidden">
+                <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg md:hidden overflow-hidden min-h-0">
                   <ConversationDetailPanel
                     selectedConversation={selectedConversation}
                     onClose={() => {

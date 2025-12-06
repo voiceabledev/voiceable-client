@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Users,
   Mail,
   User,
   Shield,
-  Plus
+  Plus,
+  ArrowLeft
 } from "lucide-react";
 import {
   Table,
@@ -41,6 +43,7 @@ const members = [
 ];
 
 export default function Members() {
+  const navigate = useNavigate();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Admin");
@@ -74,9 +77,17 @@ export default function Members() {
   };
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full max-w-4xl pt-4 md:pt-6 px-4 md:pl-6 pr-4 md:pr-0">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
         <div className="flex items-center gap-2 md:gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings")}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <Users className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           <h1 className="text-lg md:text-xl font-semibold">Members</h1>
         </div>
@@ -87,7 +98,54 @@ export default function Members() {
         </Button>
       </div>
 
-      <div className="bg-secondary/30 border border-border rounded-lg overflow-hidden">
+      {/* Mobile Card Layout */}
+      <div className="md:hidden space-y-3">
+        {members.map((member, index) => (
+          <div
+            key={index}
+            className="bg-secondary/30 border border-border rounded-lg p-4 space-y-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground">Email</span>
+                </div>
+                <p className="font-medium text-sm truncate">{member.email}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground">Name</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{member.name || "—"}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground">Role</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{member.role}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        {members.length === 0 && (
+          <div className="bg-secondary/30 border border-border rounded-lg p-8 text-center">
+            <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No members yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block bg-secondary/30 border border-border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

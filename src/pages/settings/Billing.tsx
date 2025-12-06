@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { 
   CreditCard,
   Info,
-  Pencil
+  Pencil,
+  ArrowLeft
 } from "lucide-react";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 
@@ -32,13 +33,23 @@ export default function Billing() {
   }, [searchParams, setSearchParams]);
 
   return (
-    <div className="max-w-6xl">
-      {/* Plans Header */}
-      <div className="mb-6 md:mb-8">
-        <h2 className="text-xl md:text-2xl font-semibold mb-2">Plans</h2>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
-        </p>
+    <div className="max-w-6xl pt-4 md:pt-6 pl-4 md:pl-6 pr-4 md:pr-6">
+      {/* Header with Back Button */}
+      <div className="flex items-center gap-3 mb-6 md:mb-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/settings")}
+          className="flex-shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h2 className="text-xl md:text-2xl font-semibold mb-2">Plans</h2>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
+          </p>
+        </div>
       </div>
 
       {/* Plans Grid */}
@@ -196,7 +207,7 @@ export default function Billing() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 pb-2 md:pb-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm md:text-base">Enable Auto Reload</Label>
                 <Switch checked={autoReload} onCheckedChange={setAutoReload} />

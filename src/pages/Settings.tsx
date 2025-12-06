@@ -141,7 +141,7 @@ export default function Settings() {
       </div>
 
       {/* Settings Content - Scrollable */}
-      <div className="flex-1 p-4 md:p-6 relative min-w-0 overflow-y-auto">
+      <div className="flex-1 p-4 pr-4 md:p-6 md:pr-6 relative min-w-0 overflow-y-auto">
         <Outlet />
       </div>
     </div>

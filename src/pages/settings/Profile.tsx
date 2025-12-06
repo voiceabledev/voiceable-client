@@ -1,20 +1,31 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   User,
-  AlertTriangle
+  AlertTriangle,
+  ArrowLeft
 } from "lucide-react";
 
 export default function Profile() {
+  const navigate = useNavigate();
   const [email] = useState("vbrazo@gmail.com");
   const [newPassword, setNewPassword] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl pt-4 md:pt-6 pl-4 md:pl-6 pr-4 md:pr-6 pb-4 md:pb-6">
       <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/settings")}
+          className="flex-shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
         <h1 className="text-lg md:text-xl font-semibold">Account</h1>
       </div>
