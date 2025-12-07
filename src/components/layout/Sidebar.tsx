@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   Users,
@@ -57,10 +58,13 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
     }
   }, [location.pathname, isMobile, onMobileMenuChange]);
 
-  const handleSignOut = () => {
-    // Handle sign out logic here (clear tokens, session, etc.)
-    // For now, just navigate to login
-    navigate("/login");
+  const { signOut } = useAuth();
+  
+  const handleSignOut = async () => {
+    const redirectPath = await signOut();
+    if (redirectPath) {
+      navigate(redirectPath);
+    }
   };
   
   const renderNavItem = (item: { icon: any; label: string; path: string; badge?: string }) => {

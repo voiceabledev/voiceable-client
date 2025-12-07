@@ -1,19 +1,33 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn } = useAuth();
+
   const navigate = useNavigate();
-  const handleSubmit = (e: React.FormEvent) => {
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login
-    navigate("/overview");
+    setIsLoading(true);
+    
+    try {
+      const redirectPath = await signIn(email, password);
+      if (redirectPath) {
+        navigate(redirectPath);
+      }
+    } catch (error) {
+      // Error handling is done in AuthContext
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -36,7 +50,7 @@ export default function Login() {
 
           {/* Social Login Buttons */}
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 gap-2">
+            <Button variant="outline" className="flex-1 gap-2" disabled>
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -76,6 +90,8 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-secondary/50"
+                required
+                disabled={isLoading}
               />
             </div>
 
@@ -88,16 +104,23 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-secondary/50"
+                required
+                disabled={isLoading}
               />
             </div>
 
-            <Button type="submit" variant="accent" className="w-full" onClick={handleSubmit}>
-              Sign in
+            <Button 
+              type="submit" 
+              variant="accent" 
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
           <div className="text-center space-y-2">
-            <Button variant="ghost" className="text-muted-foreground">
+            <Button variant="ghost" className="text-muted-foreground" disabled>
               Sign in with SSO
             </Button>
             <div className="text-sm text-muted-foreground">

@@ -1,18 +1,30 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { resetPassword } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle reset password
-    navigate("/overview");
+    setIsLoading(true);
+    
+    try {
+      const redirectPath = await resetPassword(email);
+      if (redirectPath) {
+        navigate(redirectPath);
+      }
+    } catch (error) {
+      // Error handling is done in AuthContext
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -43,11 +55,18 @@ export default function ResetPassword() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-secondary/50"
+                required
+                disabled={isLoading}
               />
             </div>
 
-            <Button type="submit" variant="accent" className="w-full" onClick={handleSubmit}>
-              Reset Password
+            <Button 
+              type="submit" 
+              variant="accent" 
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Sending...' : 'Reset Password'}
             </Button>
           </form>
 
