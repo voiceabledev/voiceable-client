@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,63 +12,21 @@ import {
   RotateCw,
   MoreHorizontal,
   Info,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { conversationsApi, Conversation } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-interface Conversation {
-  id: string;
-  date: string;
+interface ConversationDisplay extends Conversation {
   agent: string;
-  duration: string;
-  messages: number;
-  status: "Successful" | "Failed" | "In Progress";
-  summary: string;
   userId: string;
-  credits: {
+  credits?: {
     call: number;
     llm: number;
   };
-  llmCost: string;
+  llmCost?: string;
 }
-
-const conversations: Conversation[] = [
-  {
-    id: "conv_6501kbhxyve3f3htf1n31mkfdnv9",
-    date: "Dec 3, 2025, 3:01 AM",
-    agent: "Rosane Agent",
-    duration: "0:13",
-    messages: 3,
-    status: "Successful",
-    summary: "The user greeted the AI in Italian, asking how it was doing. The AI responded in Italian, explaining that as an AI, it doesn't have feelings.",
-    userId: "leCia3tU7jgwP3ItTe2pHQppCXA2",
-    credits: { call: 77, llm: 15 },
-    llmCost: "$0.00697 / min",
-  },
-  {
-    id: "conv_7602lchyzwf4g4iug2o42nlgenw0",
-    date: "Dec 2, 2025, 11:45 PM",
-    agent: "Alex Assistant",
-    duration: "2:34",
-    messages: 12,
-    status: "Successful",
-    summary: "User inquired about product pricing and availability. The assistant provided detailed information and helped schedule a follow-up call.",
-    userId: "user_abc123xyz",
-    credits: { call: 154, llm: 42 },
-    llmCost: "$0.01245 / min",
-  },
-  {
-    id: "conv_8703mdiazxg5h5jvh3p53omhfox1",
-    date: "Dec 2, 2025, 9:22 AM",
-    agent: "Riley Support",
-    duration: "0:45",
-    messages: 5,
-    status: "Failed",
-    summary: "Call was disconnected due to network issues before the conversation could complete.",
-    userId: "user_def456abc",
-    credits: { call: 23, llm: 8 },
-    llmCost: "$0.00234 / min",
-  },
-];
 
 const filterOptions = [
   "Date After",
@@ -86,13 +44,15 @@ const filterOptions = [
 
 const ConversationDetailPanel = ({
   selectedConversation,
+  conversationDetails,
   onClose,
   activeDetailTab,
   setActiveDetailTab,
   isPlaying,
   setIsPlaying,
 }: {
-  selectedConversation: Conversation;
+  selectedConversation: ConversationDisplay;
+  conversationDetails: Conversation | null;
   onClose: () => void;
   activeDetailTab: "overview" | "transcription" | "client";
   setActiveDetailTab: (tab: "overview" | "transcription" | "client") => void;
@@ -239,18 +199,24 @@ const ConversationDetailPanel = ({
                 <span className="text-muted-foreground">Connection duration</span>
                 <span>{selectedConversation.duration}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Credits (call)</span>
-                <span>{selectedConversation.credits.call}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Credits (LLM)</span>
-                <span>{selectedConversation.credits.llm}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">LLM Cost</span>
-                <span>{selectedConversation.llmCost}</span>
-              </div>
+              {selectedConversation.credits && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Credits (call)</span>
+                    <span>{selectedConversation.credits.call}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Credits (LLM)</span>
+                    <span>{selectedConversation.credits.llm}</span>
+                  </div>
+                </>
+              )}
+              {selectedConversation.llmCost && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">LLM Cost</span>
+                  <span>{selectedConversation.llmCost}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -258,17 +224,32 @@ const ConversationDetailPanel = ({
 
       {activeDetailTab === "transcription" && (
         <div className="space-y-3 md:space-y-4">
-          <div className="p-2 md:p-3 rounded-lg bg-secondary/30">
-            <p className="text-xs text-muted-foreground mb-1">User</p>
-            <p className="text-xs md:text-sm">Ciao, come stai?</p>
-          </div>
-          <div className="p-2 md:p-3 rounded-lg bg-primary/10">
-            <p className="text-xs text-primary mb-1">Agent</p>
-            <p className="text-xs md:text-sm">
-              Ciao! Come AI, non ho sentimenti, ma sono qui per aiutarti. Come posso
-              assisterti oggi?
-            </p>
-          </div>
+          {conversationDetails?.transcript && conversationDetails.transcript.length > 0 ? (
+            conversationDetails.transcript.map((turn, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "p-2 md:p-3 rounded-lg",
+                  turn.role === 'user' ? "bg-secondary/30" : "bg-primary/10"
+                )}
+              >
+                <p className={cn(
+                  "text-xs mb-1",
+                  turn.role === 'user' ? "text-muted-foreground" : "text-primary"
+                )}>
+                  {turn.role === 'user' ? 'User' : 'Agent'}
+                  {turn.time_in_call_secs !== undefined && (
+                    <span className="ml-2 text-muted-foreground">
+                      [{Math.floor(turn.time_in_call_secs)}s]
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs md:text-sm">{turn.message}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs md:text-sm text-muted-foreground">No transcript available</p>
+          )}
         </div>
       )}
 
@@ -289,10 +270,71 @@ const ConversationDetailPanel = ({
 );
 
 export default function Conversations() {
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const { toast } = useToast();
+  const [conversations, setConversations] = useState<ConversationDisplay[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
+  const [conversationDetails, setConversationDetails] = useState<Conversation | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription" | "client">("overview");
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const fetchConversations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await conversationsApi.list({ summary_mode: 'include' });
+      if (response.data) {
+        const formattedConversations: ConversationDisplay[] = response.data.map(conv => ({
+          ...conv,
+          agent: conv.agent_name || 'Unknown Agent',
+          userId: conv.user_id || 'Unknown User',
+          status: conv.call_successful === 'success' ? 'Successful' : 
+                  conv.call_successful === 'failure' ? 'Failed' : 
+                  'In Progress' as "Successful" | "Failed" | "In Progress",
+        }));
+        setConversations(formattedConversations);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversations';
+      console.error('Error fetching conversations:', err);
+      toast({
+        title: 'Error loading conversations',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setConversations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  const fetchConversationDetails = useCallback(async (conversationId: string) => {
+    try {
+      const response = await conversationsApi.get(conversationId);
+      if (response.data) {
+        setConversationDetails(response.data);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversation details';
+      toast({
+        title: 'Error loading conversation details',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  // Fetch conversation details when one is selected
+  useEffect(() => {
+    if (selectedConversation?.id) {
+      fetchConversationDetails(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, fetchConversationDetails]);
 
   // Show detail panel when conversation is selected on mobile
   useEffect(() => {
@@ -301,6 +343,12 @@ export default function Conversations() {
     }
   }, [selectedConversation]);
 
+  const filteredConversations = conversations.filter(conv =>
+    conv.agent?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    conv.summary?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
@@ -308,13 +356,6 @@ export default function Conversations() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 md:gap-3 mb-4 md:mb-6">
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             <h1 className="text-xl md:text-2xl font-bold">Conversation history</h1>
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
-              New
-            </Badge>
-            <button className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground hover:text-foreground">
-              View new features
-              <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-            </button>
           </div>
         </div>
 
@@ -324,6 +365,8 @@ export default function Conversations() {
           <Input
             placeholder="Search conversations..."
             className="pl-9 md:pl-10 bg-secondary/50 border-border h-10 md:h-12 text-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
@@ -365,39 +408,58 @@ export default function Conversations() {
                 </tr>
               </thead>
               <tbody>
-                {conversations.map((conv) => (
-                  <tr
-                    key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
-                    className={cn(
-                      "border-b border-border cursor-pointer transition-colors",
-                      selectedConversation?.id === conv.id
-                        ? "bg-sidebar-accent"
-                        : "hover:bg-secondary/30"
-                    )}
-                  >
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.date}</td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.agent}</td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.duration}</td>
-                    <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.messages}</td>
-                    <td className="px-3 md:px-6 py-3 md:py-4">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-xs",
-                          conv.status === "Successful" &&
-                            "bg-success/10 text-success border-success/20",
-                          conv.status === "Failed" &&
-                            "bg-destructive/10 text-destructive border-destructive/20",
-                          conv.status === "In Progress" &&
-                            "bg-warning/10 text-warning border-warning/20"
-                        )}
-                      >
-                        {conv.status}
-                      </Badge>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 md:px-6 py-8 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">Loading conversations...</span>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                ) : filteredConversations.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 md:px-6 py-8 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {searchQuery ? 'No conversations found matching your search.' : 'No conversations found.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredConversations.map((conv) => (
+                    <tr
+                      key={conv.id}
+                      onClick={() => setSelectedConversation(conv)}
+                      className={cn(
+                        "border-b border-border cursor-pointer transition-colors",
+                        selectedConversation?.id === conv.id
+                          ? "bg-sidebar-accent"
+                          : "hover:bg-secondary/30"
+                      )}
+                    >
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.date || 'N/A'}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.agent || 'Unknown Agent'}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.duration || '0:00'}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm">{conv.messages || 0}</td>
+                      <td className="px-3 md:px-6 py-3 md:py-4">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            conv.status === "Successful" &&
+                              "bg-success/10 text-success border-success/20",
+                            conv.status === "Failed" &&
+                              "bg-destructive/10 text-destructive border-destructive/20",
+                            conv.status === "In Progress" &&
+                              "bg-warning/10 text-warning border-warning/20"
+                          )}
+                        >
+                          {conv.status || 'Unknown'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -419,9 +481,11 @@ export default function Conversations() {
                 <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg md:hidden overflow-hidden min-h-0">
                   <ConversationDetailPanel
                     selectedConversation={selectedConversation}
+                    conversationDetails={conversationDetails}
                     onClose={() => {
                       setShowDetailPanel(false);
                       setSelectedConversation(null);
+                      setConversationDetails(null);
                     }}
                     activeDetailTab={activeDetailTab}
                     setActiveDetailTab={setActiveDetailTab}
@@ -433,10 +497,14 @@ export default function Conversations() {
             )}
             
             {/* Desktop: Side Panel */}
-            <div className="hidden md:flex w-[500px] border-l border-border flex flex-col">
+            <div className="hidden md:flex w-[500px] border-l border-border flex-col">
               <ConversationDetailPanel
                 selectedConversation={selectedConversation}
-                onClose={() => setSelectedConversation(null)}
+                conversationDetails={conversationDetails}
+                onClose={() => {
+                  setSelectedConversation(null);
+                  setConversationDetails(null);
+                }}
                 activeDetailTab={activeDetailTab}
                 setActiveDetailTab={setActiveDetailTab}
                 isPlaying={isPlaying}

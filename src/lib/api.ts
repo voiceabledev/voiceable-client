@@ -247,3 +247,402 @@ export const integrationsApi = {
     return response;
   },
 };
+
+// Agents API methods
+export interface AgentFilters {
+  page_size?: number;
+  search?: string;
+  sort_direction?: 'asc' | 'desc';
+  sort_by?: 'name' | 'created_at';
+  cursor?: string;
+}
+
+export interface Agent {
+  id: string;
+  name?: string;
+  created_at?: string;
+  updated_at?: string;
+  tags?: string[];
+  conversation_config?: Record<string, unknown>;
+  platform_settings?: Record<string, unknown>;
+  published?: boolean;
+  published_at?: string;
+  elevenlabs_agent_id?: string;
+  version?: number;
+}
+
+export interface CreateAgentParams {
+  name: string;
+  conversation_config?: Record<string, unknown>;
+  platform_settings?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export interface UpdateAgentParams {
+  name?: string;
+  conversation_config?: Record<string, unknown>;
+  platform_settings?: Record<string, unknown>;
+  tags?: string[];
+}
+
+export const agentsApi = {
+  list: async (filters?: AgentFilters) => {
+    const params = new URLSearchParams();
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sort_direction) params.append('sort_direction', filters.sort_direction);
+    if (filters?.sort_by) params.append('sort_by', filters.sort_by);
+    if (filters?.cursor) params.append('cursor', filters.cursor);
+
+    const queryString = params.toString();
+    const endpoint = `/agents${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await apiClient.get<Agent[]>(endpoint);
+    return response;
+  },
+
+  get: async (id: string) => {
+    const response = await apiClient.get<Agent>(`/agents/${id}`);
+    return response;
+  },
+
+  create: async (params: CreateAgentParams) => {
+    const response = await apiClient.post<Agent>('/agents', {
+      agent: params,
+    });
+    return response;
+  },
+
+  update: async (id: string, params: UpdateAgentParams) => {
+    const response = await apiClient.put<Agent>(`/agents/${id}`, {
+      agent: params,
+    });
+    return response;
+  },
+
+  publish: async (id: string) => {
+    const response = await apiClient.post<Agent>(`/agents/${id}/publish`);
+    return response;
+  },
+
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`/agents/${id}`);
+    return response;
+  },
+};
+
+// Agent Files API
+export interface AgentFile {
+  id: number;
+  file_name: string;
+  s3_key: string;
+  s3_url?: string;
+  elevenlabs_document_id?: string;
+  file_size?: number;
+  content_type?: string;
+  agent_id?: number;
+  agent_name?: string;
+}
+
+export interface PresignedUploadResponse {
+  url: string;
+  key: string;
+  public_url: string;
+}
+
+export interface FileUsageInfo {
+  file_name: string;
+  agents: Array<{
+    id: number;
+    name: string;
+    agent_file_id?: number;
+  }>;
+}
+
+export const agentFilesApi = {
+  list: async (agentId: string) => {
+    const response = await apiClient.get<AgentFile[]>(`/agents/${agentId}/agent_files`);
+    return response;
+  },
+
+  listAll: async () => {
+    const response = await apiClient.get<AgentFile[]>(`/agent_files`);
+    return response;
+  },
+
+  checkUsage: async (fileId: number) => {
+    const response = await apiClient.get<FileUsageInfo>(`/agent_files/${fileId}/usage`);
+    return response;
+  },
+
+  create: async (agentId: string, params: {
+    s3_key: string;
+    s3_url: string;
+    file_name: string;
+    file_size: number;
+    content_type: string;
+  }) => {
+    const response = await apiClient.post<AgentFile>(`/agents/${agentId}/agent_files`, {
+      s3_key: params.s3_key,
+      s3_url: params.s3_url,
+      file_name: params.file_name,
+      file_size: params.file_size,
+      content_type: params.content_type,
+    });
+    return response;
+  },
+
+  createAndSync: async (agentId: string, params: {
+    s3_key: string;
+    s3_url: string;
+    file_name: string;
+    file_size: number;
+    content_type: string;
+  }) => {
+    const requestBody: any = {
+      s3_key: params.s3_key,
+      s3_url: params.s3_url,
+      file_name: params.file_name,
+      file_size: params.file_size,
+      content_type: params.content_type,
+    };
+    
+    // Only include agent_id if it's provided
+    if (agentId && agentId.trim() !== "") {
+      requestBody.agent_id = agentId;
+    }
+    
+    const response = await apiClient.post<AgentFile>(`/agent_files/create_and_sync`, requestBody);
+    return response;
+  },
+
+  delete: async (agentId: string, fileId: number) => {
+    const response = await apiClient.delete(`/agents/${agentId}/agent_files/${fileId}`);
+    return response;
+  },
+
+  deleteDirect: async (fileId: number) => {
+    const response = await apiClient.delete(`/agent_files/${fileId}`);
+    return response;
+  },
+};
+
+export const awsS3Api = {
+  getPresignedUrl: async (filename: string, content_type: string, key_name?: string) => {
+    const url = `${API_BASE_URL}/aws_s3/direct_upload`;
+    const token = apiClient.getToken();
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        filename,
+        content_type,
+        key_name,
+      }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || 'Failed to get presigned URL';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return {
+      status: { code: response.status, message: 'OK' },
+      data: data as PresignedUploadResponse,
+    };
+  },
+};
+
+// Conversations API methods
+export interface ConversationFilters {
+  page_size?: number;
+  agent_id?: string;
+  call_successful?: 'success' | 'failure' | 'unknown';
+  call_start_before_unix?: number;
+  call_start_after_unix?: number;
+  user_id?: string;
+  summary_mode?: 'exclude' | 'include';
+  cursor?: string;
+}
+
+export interface Conversation {
+  id: string;
+  agent_id?: string;
+  agent_name?: string;
+  status?: string;
+  call_successful?: string;
+  duration?: string;
+  messages?: number;
+  date?: string;
+  summary?: string;
+  user_id?: string;
+  direction?: string;
+  has_audio?: boolean;
+  transcript?: Array<{
+    role: 'user' | 'assistant';
+    message: string;
+    time_in_call_secs?: number;
+  }>;
+  metadata?: Record<string, unknown>;
+}
+
+export const conversationsApi = {
+  list: async (filters?: ConversationFilters) => {
+    const params = new URLSearchParams();
+    if (filters?.page_size) params.append('page_size', filters.page_size.toString());
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id);
+    if (filters?.call_successful) params.append('call_successful', filters.call_successful);
+    if (filters?.call_start_before_unix) params.append('call_start_before_unix', filters.call_start_before_unix.toString());
+    if (filters?.call_start_after_unix) params.append('call_start_after_unix', filters.call_start_after_unix.toString());
+    if (filters?.user_id) params.append('user_id', filters.user_id);
+    if (filters?.summary_mode) params.append('summary_mode', filters.summary_mode);
+    if (filters?.cursor) params.append('cursor', filters.cursor);
+
+    const queryString = params.toString();
+    const endpoint = `/conversations${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await apiClient.get<Conversation[]>(endpoint);
+    return response;
+  },
+
+  get: async (id: string) => {
+    const response = await apiClient.get<Conversation>(`/conversations/${id}`);
+    return response;
+  },
+};
+
+export interface ApiKey {
+  id: number;
+  key_type: 'private' | 'public';
+  name: string;
+  key_value: string;
+  allowed_origins: string[];
+  allowed_assistants: string[];
+  transient_assistant: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApiKeyParams {
+  key_type: 'private' | 'public';
+  name: string;
+  allowed_origins?: string[];
+  allowed_assistants?: string[];
+  transient_assistant?: boolean;
+}
+
+export interface UpdateApiKeyParams {
+  name?: string;
+  allowed_origins?: string[];
+  allowed_assistants?: string[];
+  transient_assistant?: boolean;
+}
+
+export const apiKeysApi = {
+  list: async () => {
+    const response = await apiClient.get<ApiKey[]>('/api_keys');
+    return response;
+  },
+
+  get: async (id: number) => {
+    const response = await apiClient.get<ApiKey>(`/api_keys/${id}`);
+    return response;
+  },
+
+  create: async (params: CreateApiKeyParams) => {
+    const response = await apiClient.post<ApiKey>('/api_keys', {
+      api_key: params,
+    });
+    return response;
+  },
+
+  update: async (id: number, params: UpdateApiKeyParams) => {
+    const response = await apiClient.put<ApiKey>(`/api_keys/${id}`, {
+      api_key: params,
+    });
+    return response;
+  },
+
+  delete: async (id: number) => {
+    const response = await apiClient.delete(`/api_keys/${id}`);
+    return response;
+  },
+};
+
+// Phone Numbers API methods
+export interface PhoneNumber {
+  id: number;
+  phone_number: string;
+  label: string;
+  provider: string;
+  elevenlabs_phone_number_id?: string;
+  agent_id?: number;
+  agent_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePhoneNumberParams {
+  phone_number: string;
+  label: string;
+  provider: 'twilio' | 'vonage' | 'telnyx';
+  twilio_sid?: string;
+  twilio_token?: string;
+  agent_id?: string;
+}
+
+export interface UpdatePhoneNumberParams {
+  agent_id?: string;
+  label?: string;
+}
+
+export const phoneNumbersApi = {
+  list: async () => {
+    const response = await apiClient.get<PhoneNumber[]>('/phone_numbers');
+    return response;
+  },
+
+  get: async (id: number) => {
+    const response = await apiClient.get<PhoneNumber>(`/phone_numbers/${id}`);
+    return response;
+  },
+
+  create: async (params: CreatePhoneNumberParams) => {
+    // Send params at top level to match backend expectations
+    const response = await apiClient.post<PhoneNumber>('/phone_numbers', {
+      phone_number: params.phone_number,
+      label: params.label,
+      provider: params.provider,
+      twilio_sid: params.twilio_sid,
+      twilio_token: params.twilio_token,
+      agent_id: params.agent_id,
+    });
+    return response;
+  },
+
+  update: async (id: number, params: UpdatePhoneNumberParams) => {
+    // Send params at top level to match backend expectations
+    const response = await apiClient.put<PhoneNumber>(`/phone_numbers/${id}`, {
+      agent_id: params.agent_id,
+      label: params.label,
+    });
+    return response;
+  },
+
+  delete: async (id: number) => {
+    const response = await apiClient.delete(`/phone_numbers/${id}`);
+    return response;
+  },
+};

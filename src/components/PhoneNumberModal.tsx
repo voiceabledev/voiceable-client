@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { phoneNumbersApi, agentsApi, Agent } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface PhoneNumberModalProps {
   open: boolean;
@@ -37,8 +40,9 @@ const phoneOptions: { id: PhoneOption; label: string; importLabel: string }[] = 
 
 export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   const [selectedOption, setSelectedOption] = useState<PhoneOption>("import-twilio");
-  const [phoneNumber, setPhoneNumber] = useState("+14156021922");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [accountSid, setAccountSid] = useState("");
   const [authToken, setAuthToken] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -46,9 +50,116 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
   const [telnyxApiKey, setTelnyxApiKey] = useState("");
   const [label, setLabel] = useState("");
   const [smsEnabled, setSmsEnabled] = useState(true);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("none");
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetchAgents();
+    }
+  }, [open]);
+
+  const fetchAgents = async () => {
+    setLoadingAgents(true);
+    try {
+      const response = await agentsApi.list();
+      if (response.data) {
+        setAgents(response.data);
+      }
+    } catch (err) {
+      toast({
+        title: 'Error loading agents',
+        description: err instanceof Error ? err.message : 'Failed to fetch agents',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAgents(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!phoneNumber || !label) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (selectedOption === "import-twilio" && (!accountSid || !authToken)) {
+      toast({
+        title: 'Error',
+        description: 'Twilio Account SID and Auth Token are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const provider = selectedOption === "import-twilio" ? "twilio" : 
+                      selectedOption === "import-vonage" ? "vonage" : "telnyx";
+      
+      const params: any = {
+        phone_number: phoneNumber,
+        label: label,
+        provider: provider,
+      };
+
+      if (selectedOption === "import-twilio") {
+        params.twilio_sid = accountSid;
+        params.twilio_token = authToken;
+      }
+
+      if (selectedAgentId !== "none") {
+        params.agent_id = selectedAgentId;
+      }
+
+      const response = await phoneNumbersApi.create(params);
+      
+      if (response.data) {
+        toast({
+          title: 'Success',
+          description: 'Phone number imported successfully.',
+        });
+        onOpenChange(false);
+        resetForm();
+      }
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to import phone number',
+        variant: 'destructive',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setPhoneNumber("");
+    setAccountSid("");
+    setAuthToken("");
+    setApiKey("");
+    setApiSecret("");
+    setTelnyxApiKey("");
+    setLabel("");
+    setSmsEnabled(true);
+    setSelectedAgentId("none");
+  };
+
+  const handleClose = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    onOpenChange(open);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto p-4 md:p-6">
         <DialogHeader>
           <DialogTitle>Phone Number Options</DialogTitle>
@@ -144,6 +255,23 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Agent (Optional)</Label>
+                  <Select value={selectedAgentId} onValueChange={setSelectedAgentId} disabled={loadingAgents}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an agent (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No agent (unassigned)</SelectItem>
+                      {agents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id.toString()}>
+                          {agent.name || `Agent ${agent.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="bg-secondary/30 border border-border rounded-lg p-3 md:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
@@ -155,11 +283,18 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                 </div>
 
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto" disabled={importing}>
                     Cancel
                   </Button>
-                  <Button variant="accent" className="w-full sm:w-auto">
-                    Import from Twilio
+                  <Button variant="accent" className="w-full sm:w-auto" onClick={handleImport} disabled={importing || loadingAgents}>
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      'Import from Twilio'
+                    )}
                   </Button>
                 </div>
               </>
@@ -213,12 +348,36 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Agent (Optional)</Label>
+                  <Select value={selectedAgentId} onValueChange={setSelectedAgentId} disabled={loadingAgents}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an agent (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No agent (unassigned)</SelectItem>
+                      {agents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id.toString()}>
+                          {agent.name || `Agent ${agent.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto" disabled={importing}>
                     Cancel
                   </Button>
-                  <Button variant="accent" className="w-full sm:w-auto">
-                    Import from Vonage
+                  <Button variant="accent" className="w-full sm:w-auto" onClick={handleImport} disabled={importing || loadingAgents}>
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      'Import from Vonage'
+                    )}
                   </Button>
                 </div>
               </>
@@ -261,12 +420,36 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Agent (Optional)</Label>
+                  <Select value={selectedAgentId} onValueChange={setSelectedAgentId} disabled={loadingAgents}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an agent (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No agent (unassigned)</SelectItem>
+                      {agents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id.toString()}>
+                          {agent.name || `Agent ${agent.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto" disabled={importing}>
                     Cancel
                   </Button>
-                  <Button variant="accent" className="w-full sm:w-auto">
-                    Import from Telnyx
+                  <Button variant="accent" className="w-full sm:w-auto" onClick={handleImport} disabled={importing || loadingAgents}>
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      'Import from Telnyx'
+                    )}
                   </Button>
                 </div>
               </>

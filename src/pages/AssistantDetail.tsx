@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Select,
@@ -17,8 +16,9 @@ import {
 import { 
   ArrowLeft,
   Copy, 
-  ExternalLink,
   ChevronDown,
+  Globe,
+  CheckCircle2,
   Code,
   MessageSquare,
   Phone,
@@ -26,13 +26,9 @@ import {
   AudioLines,
   Settings,
   X,
-  Layout,
   Info,
   Volume2,
   VolumeX,
-  GripVertical,
-  Target,
-  Clock,
   Shield,
   Quote,
   Music,
@@ -42,39 +38,31 @@ import {
   Trash2,
   Send,
   User,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
 import ConversationsTab from "@/components/assistants/ConversationsTab";
-
-// Mock data - in real app, this would come from an API
-const assistants = [
-  {
-    id: "9ca34dcd-1ccb-4f13-bc65-60d31553eab0",
-    name: "Alex",
-    providers: ["deepgram", "openai", "vapi"],
-  },
-  {
-    id: "2f24e154-b38d-487e-b4a1-123456789abc",
-    name: "Riley",
-    providers: ["deepgram", "openai", "vapi"],
-  },
-];
+import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
+import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const tabs = [
   { id: "model", label: "Model", icon: Code },
   { id: "voice", label: "Voice", icon: AudioLines },
   { id: "transcriber", label: "Transcriber", icon: Mic },
   { id: "conversations", label: "Conversations", icon: MessageSquare },
-  { id: "widget", label: "Widget", icon: Layout },
-  { id: "advanced", label: "Advanced", icon: Settings },
+  // { id: "widget", label: "Widget", icon: Layout },
+  // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 
 const providers = [
+  { value: "elevenlabs", label: "ElevenLabs", icon: "🎙️" },
+  { value: "google", label: "Google", icon: "🔷" },
   { value: "openai", label: "OpenAI", icon: "🤖" },
   { value: "anthropic", label: "Anthropic", icon: "🧠" },
-  { value: "google", label: "Google", icon: "🔷" },
+  { value: "custom", label: "Custom", icon: "⚙️" },
   { value: "meta", label: "Meta", icon: "🦙" },
   { value: "mistral", label: "Mistral", icon: "🌊" },
   { value: "cohere", label: "Cohere", icon: "⚡" },
@@ -83,24 +71,45 @@ const providers = [
 ];
 
 const modelsByProvider: Record<string, { value: string; label: string }[]> = {
+  elevenlabs: [
+    { value: "glm-45-air-fp8", label: "GLM-4.5-Air" },
+    { value: "qwen3-30b-a3b", label: "Qwen3-30B-A3B" },
+    { value: "qwen3-4b", label: "Qwen3-4B" },
+    { value: "gpt-oss-120b", label: "GPT-OSS-120B" },
+    { value: "gpt-oss-20b", label: "GPT-OSS-20B" },
+    { value: "custom-llm", label: "Custom LLM" },
+  ],
+  google: [
+    { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+  ],
   openai: [
-    { value: "gpt-4o-cluster", label: "GPT 4o Cluster" },
+    { value: "gpt-5", label: "GPT-5" },
+    { value: "gpt-5.1", label: "GPT-5.1" },
+    { value: "gpt-5-mini", label: "GPT-5 Mini" },
+    { value: "gpt-5-nano", label: "GPT-5 Nano" },
+    { value: "gpt-4.1", label: "GPT-4.1" },
+    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+    { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
     { value: "gpt-4o", label: "GPT-4o" },
     { value: "gpt-4o-mini", label: "GPT-4o Mini" },
     { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-    { value: "gpt-4", label: "GPT-4" },
     { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+    { value: "gpt-4o-cluster", label: "GPT 4o Cluster" },
+    { value: "gpt-4", label: "GPT-4" },
   ],
   anthropic: [
-    { value: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet" },
-    { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
-    { value: "claude-3-sonnet-20240229", label: "Claude 3 Sonnet" },
-    { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku" },
-  ],
-  google: [
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-    { value: "gemini-pro", label: "Gemini Pro" },
+    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+    { value: "claude-sonnet-4", label: "Claude Sonnet 4" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    { value: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet" },
+    { value: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
+    { value: "claude-3-haiku", label: "Claude 3 Haiku" },
   ],
   meta: [
     { value: "llama-3-70b", label: "Llama 3 70B" },
@@ -126,22 +135,56 @@ const modelsByProvider: Record<string, { value: string; label: string }[]> = {
     { value: "llama-3-sonar-large-32k-online", label: "Sonar Large 32k Online" },
     { value: "llama-3-sonar-small-32k-online", label: "Sonar Small 32k Online" },
   ],
+  custom: [
+    { value: "custom-llm", label: "Custom LLM" },
+  ],
 };
 
 export default function AssistantDetail() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [agent, setAgent] = useState<Agent | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("model");
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const isMobile = useIsMobile();
   
-  // Check if this is a new assistant
-  const isNew = id === "new";
+  // Check if this is a new assistant - check both route param and pathname
+  const isNew = location.pathname === "/assistants/create" || id === "create";
   
-  // Find the assistant by ID, or create a new empty one
-  const selectedAssistant = isNew 
-    ? { id: "new", name: "New Assistant", providers: [] }
-    : assistants.find(a => a.id === id) || assistants[0];
+  // Get agent name and ID for display
+  const agentName = agent?.name || "Enter a name for your assistant.";
+  const agentId = agent?.id || (isNew ? "new" : "");
+  
+  // State for name editing
+  const [editingName, setEditingName] = useState(false);
+  const [tempName, setTempName] = useState("");
+  const nameInitializedRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+  
+  // Initialize tempName when agent loads or when creating new
+  useEffect(() => {
+    if (!nameInitializedRef.current) {
+      if (agent?.name) {
+        setTempName(agent.name);
+        nameInitializedRef.current = true;
+      } else if (isNew) {
+        // For new agents, start with empty string so validation works correctly
+        setTempName("");
+        nameInitializedRef.current = true;
+      }
+    } else if (agent?.name && !editingName) {
+      // Only update tempName if it's empty or matches a default value
+      // Don't reset if user just edited it (tempName will be different until save)
+      const currentTemp = tempName || "";
+      if (!currentTemp || currentTemp === "New Assistant" || currentTemp === "Loading...") {
+        setTempName(agent.name);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent?.name, isNew, editingName]);
   
   const [modelExpanded, setModelExpanded] = useState(true);
   const [voiceConfigExpanded, setVoiceConfigExpanded] = useState(true);
@@ -159,11 +202,391 @@ export default function AssistantDetail() {
   const [transcript, setTranscript] = useState(true);
   const [videoRecording, setVideoRecording] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("# Customer Service & Support Agent Prompt\n");
+  const [firstMessage, setFirstMessage] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [agentFiles, setAgentFiles] = useState<AgentFile[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-cluster");
   const [firstMessageMode, setFirstMessageMode] = useState("assistant-speaks-first");
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>("");
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
+  
+  // Track saved configuration to detect changes
+  const [savedConfig, setSavedConfig] = useState<{
+    name: string;
+    config: ReturnType<typeof buildConfiguration>;
+  } | null>(null);
+
+  // Extract system prompt and first message from agent data
+  const extractAgentData = useCallback((agentData: Agent) => {
+    if (agentData.conversation_config) {
+      const config = agentData.conversation_config as Record<string, unknown>;
+      
+      // Extract system prompt from conversation_config
+      let systemPromptFound = false;
+      
+      // First check for direct system_prompt
+      if (typeof config.system_prompt === 'string' && config.system_prompt.trim()) {
+        setSystemPrompt(config.system_prompt);
+        systemPromptFound = true;
+      } 
+      // Then check in model.messages array
+      else if (config.model && typeof config.model === 'object') {
+        const modelConfig = config.model as Record<string, unknown>;
+        
+        if (Array.isArray(modelConfig.messages)) {
+          const messages = modelConfig.messages as Array<Record<string, unknown>>;
+          const systemMessage = messages.find((msg) => msg.role === 'system');
+          if (systemMessage && typeof systemMessage.content === 'string' && systemMessage.content.trim()) {
+            setSystemPrompt(systemMessage.content);
+            systemPromptFound = true;
+          }
+        }
+      }
+      
+      // If no system prompt found, use default
+      if (!systemPromptFound) {
+        setSystemPrompt("# Customer Service & Support Agent Prompt\n");
+      }
+      
+      // Extract first message
+      if (typeof config.first_message === 'string') {
+        setFirstMessage(config.first_message);
+      } else {
+        setFirstMessage("");
+      }
+      
+      // Extract first message mode
+      if (typeof config.first_message_mode === 'string') {
+        const mode = config.first_message_mode as "assistant-speaks-first" | "assistant-waits-for-user" | "assistant-speaks-first-model-generated";
+        setFirstMessageMode(mode);
+      } else {
+        setFirstMessageMode("assistant-speaks-first");
+      }
+      
+      // Extract model/provider if available
+      if (config.model && typeof config.model === 'object') {
+        const modelConfig = config.model as Record<string, unknown>;
+        if (typeof modelConfig.model === 'string') {
+          setSelectedModel(modelConfig.model);
+        }
+        if (typeof modelConfig.provider === 'string') {
+          setSelectedProvider(modelConfig.provider);
+        }
+      }
+      
+      // Extract voice information
+      if (typeof config.voice_id === 'string') {
+        setSelectedVoiceId(config.voice_id);
+        // Try to get name from voice object if available
+        if (config.voice && typeof config.voice === 'object') {
+          const voiceConfig = config.voice as Record<string, unknown>;
+          if (typeof voiceConfig.name === 'string') {
+            setSelectedVoiceName(voiceConfig.name);
+          }
+        }
+      } else if (config.voice && typeof config.voice === 'object') {
+        const voiceConfig = config.voice as Record<string, unknown>;
+        if (typeof voiceConfig.voice_id === 'string') {
+          setSelectedVoiceId(voiceConfig.voice_id);
+        }
+        if (typeof voiceConfig.name === 'string') {
+          setSelectedVoiceName(voiceConfig.name);
+        }
+      }
+      
+      // Extract transcriber configuration
+      if (config.transcriber && typeof config.transcriber === 'object') {
+        const transcriberConfig = config.transcriber as Record<string, unknown>;
+        if (typeof transcriberConfig.language === 'string') {
+          setSelectedLanguage(transcriberConfig.language);
+        }
+        if (typeof transcriberConfig.background_denoising_enabled === 'boolean') {
+          setBackgroundDenoising(transcriberConfig.background_denoising_enabled);
+        }
+        if (typeof transcriberConfig.confidence_threshold === 'number') {
+          setConfidenceThreshold([transcriberConfig.confidence_threshold]);
+        }
+        if (Array.isArray(transcriberConfig.keyterms)) {
+          setKeyterms(transcriberConfig.keyterms.join(', '));
+        } else if (typeof transcriberConfig.keyterms === 'string') {
+          setKeyterms(transcriberConfig.keyterms);
+        }
+        if (transcriberConfig.end_of_turn && typeof transcriberConfig.end_of_turn === 'object') {
+          const endOfTurn = transcriberConfig.end_of_turn as Record<string, unknown>;
+          if (typeof endOfTurn.confidence_threshold === 'number') {
+            setEndOfTurnConfidence([endOfTurn.confidence_threshold]);
+          }
+          if (typeof endOfTurn.timeout_ms === 'number') {
+            setEndOfTurnTimeout([endOfTurn.timeout_ms]);
+          }
+        }
+      }
+    }
+    
+    // Also check platform_settings for voice info
+    if (agentData.platform_settings) {
+      const platformSettings = agentData.platform_settings as Record<string, unknown>;
+      if (typeof platformSettings.voice_id === 'string' && !selectedVoiceId) {
+        setSelectedVoiceId(platformSettings.voice_id);
+      }
+      // Check for language in platform_settings
+      if (typeof platformSettings.language === 'string' && !selectedLanguage) {
+        setSelectedLanguage(platformSettings.language);
+      }
+    }
+    
+    // Extract privacy settings
+    if (agentData.conversation_config) {
+      const config = agentData.conversation_config as Record<string, unknown>;
+      if (typeof config.hipaa_compliance === 'boolean') {
+        setHipaaCompliance(config.hipaa_compliance);
+      }
+      if (typeof config.audio_recording === 'boolean') {
+        setAudioRecording(config.audio_recording);
+      }
+      if (typeof config.logging === 'boolean') {
+        setLogging(config.logging);
+      }
+      if (typeof config.transcript === 'boolean') {
+        setTranscript(config.transcript);
+      }
+      if (typeof config.video_recording === 'boolean') {
+        setVideoRecording(config.video_recording);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Fetch voices list
+  useEffect(() => {
+    const fetchVoices = async () => {
+      setLoadingVoices(true);
+      try {
+        const response = await voicesApi.list();
+        if (response.data) {
+          setVoices(response.data);
+          
+          // Set default voice for new assistants if no voice is selected
+          if (isNew && !selectedVoiceId && response.data.length > 0) {
+            const firstVoice = response.data[0];
+            setSelectedVoiceId(firstVoice.id);
+            if (firstVoice.name) {
+              setSelectedVoiceName(firstVoice.name);
+            }
+          }
+          
+          // If we have a selectedVoiceId but no name, try to find it in the voices list
+          if (selectedVoiceId && !selectedVoiceName) {
+            const voice = response.data.find(v => v.id === selectedVoiceId);
+            if (voice?.name) {
+              setSelectedVoiceName(voice.name);
+            }
+          }
+        }
+      } catch (err) {
+        toast({
+          title: 'Error loading voices',
+          description: err instanceof Error ? err.message : 'Failed to fetch voices',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingVoices(false);
+      }
+    };
+    
+    fetchVoices();
+  }, [toast, isNew, selectedVoiceId, selectedVoiceName]);
+
+  // Fetch voice name if we have voice_id but no name
+  useEffect(() => {
+    const fetchVoiceName = async () => {
+      if (selectedVoiceId && !selectedVoiceName && voices.length > 0) {
+        // First try to find in voices list
+        const voice = voices.find(v => v.id === selectedVoiceId);
+        if (voice?.name) {
+          setSelectedVoiceName(voice.name);
+          return;
+        }
+      }
+      
+      // If still no name and we have a voice_id, try to fetch from API
+      if (selectedVoiceId && !selectedVoiceName) {
+        try {
+          const response = await voicesApi.get(selectedVoiceId);
+          if (response.data?.name) {
+            setSelectedVoiceName(response.data.name);
+          }
+        } catch (err) {
+          // Silently fail - voice name is optional
+          console.warn('Could not fetch voice name:', err);
+        }
+      }
+    };
+    
+    fetchVoiceName();
+  }, [selectedVoiceId, selectedVoiceName, voices]);
+
+  // Fetch agent details when ID changes
+  const fetchAgentDetails = useCallback(async (agentId: string) => {
+    if (isNew) return;
+    
+    setLoading(true);
+    try {
+      const response = await agentsApi.get(agentId);
+      if (response.data) {
+        setAgent(response.data);
+        // Extract agent data after setting agent to ensure state is ready
+        extractAgentData(response.data);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch agent details';
+      toast({
+        title: 'Error loading agent',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [isNew, extractAgentData, toast]);
+
+  useEffect(() => {
+    if (isNew) {
+      setLoading(false);
+      return;
+    }
+    if (id && !isNew) {
+      fetchAgentDetails(id);
+      fetchAgentFiles(id);
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isNew, fetchAgentDetails, location.pathname]);
+
+  // Fetch agent files
+  const fetchAgentFiles = useCallback(async (agentId: string) => {
+    try {
+      const response = await agentFilesApi.list(agentId);
+      if (response.data) {
+        setAgentFiles(response.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch agent files:', err);
+    }
+  }, []);
+
+  // Load files when agent changes
+  useEffect(() => {
+    if (agent?.id && !isNew) {
+      fetchAgentFiles(agent.id.toString());
+    } else {
+      setAgentFiles([]);
+    }
+  }, [agent?.id, isNew, fetchAgentFiles]);
+
+  // Handle file upload
+  const handleFileUpload = useCallback(async (files: File[]) => {
+    // For new agents, just add files to attachedFiles state (will be uploaded after save)
+    if (isNew || !agent?.id) {
+      setAttachedFiles(prev => [...prev, ...files]);
+      toast({
+        title: 'Files added',
+        description: `Added ${files.length} file(s). They will be uploaded when you save the agent.`,
+      });
+      return;
+    }
+
+    const agentId = agent.id.toString();
+
+    for (const file of files) {
+      const fileKey = `${file.name}-${Date.now()}`;
+      setUploadingFiles(prev => new Set(prev).add(fileKey));
+
+      try {
+        // Get presigned URL
+        const presignedResponse = await awsS3Api.getPresignedUrl(
+          file.name,
+          file.type || 'application/octet-stream',
+          fileKey
+        );
+
+        if (!presignedResponse.data) {
+          throw new Error('Failed to get presigned URL');
+        }
+
+        // Upload to S3
+        const uploadResponse = await fetch(presignedResponse.data.url, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file to S3');
+        }
+
+        // Associate file with agent and sync to ElevenLabs
+        const associateResponse = await agentFilesApi.createAndSync(agentId.toString(), {
+          s3_key: presignedResponse.data.key,
+          s3_url: presignedResponse.data.public_url,
+          file_name: file.name,
+          file_size: file.size,
+          content_type: file.type || 'application/octet-stream',
+        });
+
+        if (associateResponse.data) {
+          setAgentFiles(prev => [...prev, associateResponse.data!]);
+          toast({
+            title: 'Success',
+            description: `File "${file.name}" uploaded and synced with ElevenLabs successfully.`,
+          });
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to upload file';
+        toast({
+          title: 'Error',
+          description: `Failed to upload "${file.name}": ${errorMessage}`,
+          variant: 'destructive',
+        });
+      } finally {
+        setUploadingFiles(prev => {
+          const next = new Set(prev);
+          next.delete(fileKey);
+          return next;
+        });
+      }
+    }
+  }, [agent?.id, isNew, toast]);
+
+  // Handle file deletion
+  const handleFileDelete = useCallback(async (fileId: number) => {
+    if (!agent?.id) return;
+
+    try {
+      await agentFilesApi.delete(agent.id.toString(), fileId);
+      setAgentFiles(prev => prev.filter(f => f.id !== fileId));
+      toast({
+        title: 'Success',
+        description: 'File removed successfully.',
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete file';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  }, [agent?.id, toast]);
   const [showPreviewChat, setShowPreviewChat] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ role: "assistant" | "user"; content: string; timestamp: Date }>>([
@@ -195,6 +618,7 @@ export default function AssistantDetail() {
       setTranscript(true);
       setVideoRecording(false);
       setSystemPrompt("# Customer Service & Support Agent Prompt\n");
+      setFirstMessage("");
       setAttachedFiles([]);
       setSelectedProvider("openai");
       setSelectedModel("gpt-4o-cluster");
@@ -208,10 +632,9 @@ export default function AssistantDetail() {
       setCallInProgress(false);
       setCallTimer(0);
       setShowConfigPanel(false);
-    } else {
-      // When viewing an existing assistant, you could load their data here
-      // For now, we'll just ensure state is reset when switching between assistants
-      // In a real app, you'd fetch the assistant data and populate the form
+      setEditingName(false);
+      setTempName("");
+      nameInitializedRef.current = false;
     }
   }, [id, isNew]);
 
@@ -240,28 +663,187 @@ export default function AssistantDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  const configJson = {
-    "id": isNew ? "new" : selectedAssistant.id,
-    "orgId": "c9a0e480-7a37-4470-9ef7-a84995517924",
-    "name": selectedAssistant.name,
-    "voice": {
-      "voiceId": "Elliot",
-      "provider": "vapi"
-    },
-    ...(isNew ? {} : {
-      "createdAt": "2025-12-06T02:51:35.891Z",
-      "updatedAt": "2025-12-06T02:51:35.891Z"
-    }),
-    "model": {
-      "model": selectedModel,
-      "messages": [
-        {
-          "role": "system",
-          "content": systemPrompt
+  // Build the complete configuration payload
+  const buildConfiguration = useCallback(() => {
+    const conversationConfig: Record<string, unknown> = {
+      model: {
+        model: selectedModel,
+        provider: selectedProvider,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt || "# Customer Service & Support Agent Prompt\n"
+          }
+        ]
+      },
+      transcriber: {
+        provider: "elevenlabs",
+        language: selectedLanguage || "english",
+        model: "flux-general",
+        background_denoising_enabled: backgroundDenoising,
+        confidence_threshold: confidenceThreshold[0],
+        ...(keyterms && { keyterms: keyterms.split(',').map(k => k.trim()).filter(k => k) }),
+        end_of_turn: {
+          confidence_threshold: endOfTurnConfidence[0],
+          timeout_ms: endOfTurnTimeout[0]
         }
-      ],
-      "provider": selectedProvider
-    },
+      },
+      first_message_mode: firstMessageMode,
+      ...(firstMessage && firstMessage.trim() && { first_message: firstMessage.trim() }),
+      ...(selectedVoiceId && {
+        voice_id: selectedVoiceId
+      }),
+      ...(selectedVoiceId && {
+        voice: {
+          voice_id: selectedVoiceId,
+          ...(selectedVoiceName && { name: selectedVoiceName })
+        }
+      })
+    };
+
+    const platformSettings: Record<string, unknown> = {
+      ...(selectedVoiceId && { voice_id: selectedVoiceId }),
+      language: selectedLanguage || "english"
+    };
+
+    const privacySettings: Record<string, unknown> = {
+      hipaa_compliance: hipaaCompliance,
+      audio_recording: audioRecording,
+      logging: logging,
+      transcript: transcript,
+      video_recording: videoRecording
+    };
+
+    return {
+      conversation_config: {
+        ...conversationConfig,
+        ...privacySettings
+      },
+      platform_settings: platformSettings
+    };
+  }, [
+    selectedModel,
+    selectedProvider,
+    systemPrompt,
+    selectedLanguage,
+    backgroundDenoising,
+    confidenceThreshold,
+    keyterms,
+    endOfTurnConfidence,
+    endOfTurnTimeout,
+    firstMessage,
+    firstMessageMode,
+    selectedVoiceId,
+    selectedVoiceName,
+    hipaaCompliance,
+    audioRecording,
+    logging,
+    transcript,
+    videoRecording
+  ]);
+
+  // Update saved config when agent loads (only when agent ID changes)
+  useEffect(() => {
+    if (agent && !isNew && agent.id) {
+      // Use a ref to track if we've already saved config for this agent
+      const config = buildConfiguration();
+      const nameToSave = agent.name || "";
+      setSavedConfig({
+        name: nameToSave,
+        config: JSON.parse(JSON.stringify(config)) // Deep clone
+      });
+    } else if (isNew) {
+      // For new agents, clear saved config
+      setSavedConfig(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent?.id, isNew]); // Only update when agent ID changes or when switching to/from new
+
+  // Check if form is valid for new agents (computed value, not a function)
+  const isFormValid = useMemo(() => {
+    // Use tempName if it exists and is not empty, otherwise fall back to agentName
+    const nameToUse = tempName?.trim() || agentName?.trim() || "";
+    // Check if name is valid (not empty and not one of the default placeholder values)
+    const hasValidName = nameToUse !== "" && 
+                        nameToUse !== "New Assistant" && 
+                        nameToUse !== "Enter a name for your assistant." &&
+                        nameToUse !== "Loading...";
+    const hasValidVoice = selectedVoiceId && selectedVoiceId.trim() !== "";
+    return hasValidName && hasValidVoice;
+  }, [tempName, agentName, selectedVoiceId]);
+
+  // Get missing fields for save button
+  const getMissingSaveFields = useMemo(() => {
+    if (isNew) {
+      const missing: string[] = [];
+      const nameToUse = tempName?.trim() || agentName?.trim() || "";
+      const hasValidName = nameToUse !== "" && 
+                          nameToUse !== "New Assistant" && 
+                          nameToUse !== "Enter a name for your assistant." &&
+                          nameToUse !== "Loading...";
+      
+      if (!hasValidName) {
+        missing.push("Name");
+      }
+      if (!selectedVoiceId || selectedVoiceId.trim() === "") {
+        missing.push("Voice");
+      }
+      return missing;
+    }
+    // For existing agents, if there are no unsaved changes, return empty array
+    // (we don't need to show a tooltip for "no changes")
+    return [];
+  }, [isNew, tempName, agentName, selectedVoiceId]);
+
+  // Check if all required fields are filled for deployment
+  const isDeployValid = useMemo(() => {
+    const hasLanguage = selectedLanguage && selectedLanguage.trim() !== "";
+    const hasModel = selectedModel && selectedModel.trim() !== "";
+    const hasFirstMessage = firstMessage && firstMessage.trim() !== "";
+    const hasSystemPrompt = systemPrompt && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
+    const hasVoice = selectedVoiceId && selectedVoiceId.trim() !== "";
+    return hasLanguage && hasModel && hasFirstMessage && hasSystemPrompt && hasVoice;
+  }, [selectedLanguage, selectedModel, firstMessage, systemPrompt, selectedVoiceId]);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = useCallback(() => {
+    if (isNew) {
+      // For new agents, check if form is valid (all required fields filled)
+      return isFormValid;
+    }
+    
+    if (!savedConfig) {
+      // No saved config yet, assume no changes
+      return false;
+    }
+    
+    // Compare name
+    const nameToUse = (tempName && tempName.trim()) || agent?.name || "";
+    if (nameToUse !== savedConfig.name) {
+      return true;
+    }
+    
+    // Compare configuration
+    const currentConfig = buildConfiguration();
+    const savedConfigStr = JSON.stringify(savedConfig.config);
+    const currentConfigStr = JSON.stringify(currentConfig);
+    
+    return savedConfigStr !== currentConfigStr;
+  }, [isNew, tempName, agent?.name, savedConfig, buildConfiguration, isFormValid]);
+
+  const configJson = agent ? {
+    "id": agent.id,
+    "name": agent.name || "Unnamed Agent",
+    ...buildConfiguration(),
+    ...(agent.tags && {
+      "tags": agent.tags
+    }),
+    ...(agent.created_at && {
+      "created_at": agent.created_at
+    }),
+    ...(agent.updated_at && {
+      "updated_at": agent.updated_at
+    }),
     ...(attachedFiles.length > 0 && {
       "files": attachedFiles.map(file => ({
         "name": file.name,
@@ -269,7 +851,280 @@ export default function AssistantDetail() {
         "type": file.type
       }))
     })
+  } : {
+    "id": isNew ? "new" : agentId,
+    "name": agentName,
+    ...buildConfiguration()
   };
+
+  // Handle save/update
+  const handleSave = useCallback(async () => {
+    const nameToUse = (tempName && tempName.trim()) || agentName;
+    
+    if (!nameToUse || nameToUse === "New Assistant" || nameToUse === "Enter a name for your assistant." || nameToUse.trim() === "") {
+      toast({
+        title: 'Name required',
+        description: 'Please provide a name for the assistant.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedVoiceId) {
+      toast({
+        title: 'Voice required',
+        description: 'Please select a voice for the assistant.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const config = buildConfiguration();
+      
+      if (isNew) {
+        // Create new agent
+        const response = await agentsApi.create({
+          name: nameToUse.trim(),
+          ...config
+        });
+        
+        if (response.data) {
+          // Upload and sync attached files if any
+          if (attachedFiles.length > 0 && response.data.id) {
+            const agentId = response.data.id.toString();
+            
+            for (const file of attachedFiles) {
+              const fileKey = `${file.name}-${Date.now()}`;
+              setUploadingFiles(prev => new Set(prev).add(fileKey));
+              
+              try {
+                // Get presigned URL
+                const presignedResponse = await awsS3Api.getPresignedUrl(
+                  file.name,
+                  file.type || 'application/octet-stream',
+                  fileKey
+                );
+
+                if (!presignedResponse.data) {
+                  throw new Error('Failed to get presigned URL');
+                }
+
+                // Upload to S3
+                const uploadResponse = await fetch(presignedResponse.data.url, {
+                  method: 'PUT',
+                  body: file,
+                  headers: {
+                    'Content-Type': file.type || 'application/octet-stream',
+                  },
+                });
+
+                if (!uploadResponse.ok) {
+                  throw new Error('Failed to upload file to S3');
+                }
+
+                // Create file and sync to ElevenLabs
+                await agentFilesApi.createAndSync(agentId, {
+                  s3_key: presignedResponse.data.key,
+                  s3_url: presignedResponse.data.public_url,
+                  file_name: file.name,
+                  file_size: file.size,
+                  content_type: file.type || 'application/octet-stream',
+                });
+              } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'Failed to upload file';
+                toast({
+                  title: 'Warning',
+                  description: `Failed to upload "${file.name}": ${errorMessage}`,
+                  variant: 'destructive',
+                });
+              } finally {
+                setUploadingFiles(prev => {
+                  const next = new Set(prev);
+                  next.delete(fileKey);
+                  return next;
+                });
+              }
+            }
+            
+            // Clear attached files after upload
+            setAttachedFiles([]);
+          }
+          
+          toast({
+            title: 'Success',
+            description: 'Assistant created successfully.',
+          });
+          // Navigate to the new agent's detail page
+          navigate(`/assistants/${response.data.id}`);
+        }
+      } else if (agent?.id) {
+        // Update existing agent
+        const response = await agentsApi.update(agent.id, {
+          name: nameToUse.trim(),
+          ...config
+        });
+        
+        if (response.data) {
+          setAgent(response.data);
+          extractAgentData(response.data);
+          setTempName(""); // Clear temp name after successful save
+          // Update saved config after successful save (use the config that was actually saved)
+          setSavedConfig({
+            name: nameToUse.trim(),
+            config: JSON.parse(JSON.stringify(config)) // Deep clone of the config that was saved
+          });
+          toast({
+            title: 'Success',
+            description: 'Assistant updated successfully.',
+          });
+        }
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save assistant';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [isNew, agent, agentName, tempName, selectedVoiceId, buildConfiguration, navigate, toast, extractAgentData, attachedFiles]);
+
+  // Handle publish/unpublish
+  const handlePublish = useCallback(async () => {
+    const nameToUse = (tempName && tempName.trim()) || agentName;
+    
+    if (!nameToUse || nameToUse === "New Assistant" || nameToUse === "Enter a name for your assistant." || nameToUse.trim() === "") {
+      toast({
+        title: 'Name required',
+        description: 'Please provide a name for the assistant.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate all required fields for deployment
+    const missingFields: string[] = [];
+    if (!selectedLanguage || selectedLanguage.trim() === "") {
+      missingFields.push("Language");
+    }
+    if (!selectedModel || selectedModel.trim() === "") {
+      missingFields.push("Model");
+    }
+    if (!firstMessage || firstMessage.trim() === "") {
+      missingFields.push("First Message");
+    }
+    if (!systemPrompt || systemPrompt.trim() === "" || systemPrompt.trim() === "# Customer Service & Support Agent Prompt\n") {
+      missingFields.push("System Prompt");
+    }
+    if (!selectedVoiceId || selectedVoiceId.trim() === "") {
+      missingFields.push("Voice");
+    }
+
+    if (missingFields.length > 0) {
+      toast({
+        title: 'Missing required fields',
+        description: `Please fill in the following fields before deploying: ${missingFields.join(", ")}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const config = buildConfiguration();
+      let agentToPublish = agent;
+
+      // If it's a new agent or not saved yet, save it first
+      if (isNew || !agent?.id) {
+        const saveResponse = await agentsApi.create({
+          name: nameToUse.trim(),
+          ...config
+        });
+        
+        if (!saveResponse.data) {
+          throw new Error('Failed to save agent before publishing');
+        }
+        
+        agentToPublish = saveResponse.data;
+        setAgent(agentToPublish);
+        
+        // Navigate to the agent's detail page if it was new
+        if (isNew) {
+          navigate(`/assistants/${agentToPublish.id}`);
+        }
+      } else {
+        // Update existing agent in database first
+        const updateResponse = await agentsApi.update(agent.id, {
+          name: nameToUse.trim(),
+          ...config
+        });
+        
+        if (updateResponse.data) {
+          agentToPublish = updateResponse.data;
+          setAgent(agentToPublish);
+        } else {
+          throw new Error('Failed to update agent before deploying');
+        }
+      }
+
+      // Small delay to ensure database update is committed
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Deploy to ElevenLabs (creates a new version)
+      const response = await agentsApi.publish(agentToPublish.id);
+      if (response.data) {
+        setAgent(response.data);
+        const version = response.data.version || 1;
+        toast({
+          title: 'Success',
+          description: `Assistant deployed successfully to ElevenLabs (Version ${version}).`,
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to publish assistant';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [isNew, agent, agentName, tempName, selectedVoiceId, selectedLanguage, selectedModel, firstMessage, systemPrompt, buildConfiguration, navigate, toast]);
+
+  // Show wizard for new agents, regular interface for existing agents
+  if (isNew) {
+    return (
+      <div className="flex h-full overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="border-b border-border p-3 md:p-4 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/assistants")}
+                className="flex-shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-xl md:text-2xl font-bold">Create New Assistant</h1>
+            </div>
+          </div>
+          <CreateAgentWizard
+            onComplete={(agentId) => {
+              navigate(`/assistants/${agentId}`);
+            }}
+            voices={voices}
+            loadingVoices={loadingVoices}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -287,17 +1142,83 @@ export default function AssistantDetail() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold truncate">{selectedAssistant.name}</h1>
-              {!isNew && (
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground mt-1">
-                  <span className="truncate">{selectedAssistant.id.slice(0, 20)}...</span>
-                  <button className="hover:text-foreground">
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                  <button className="hover:text-foreground">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </button>
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <h1 className="text-xl md:text-2xl font-bold">Loading...</h1>
                 </div>
+              ) : editingName ? (
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Input
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    onBlur={async () => {
+                      if (tempName.trim() && tempName.trim() !== agentName) {
+                        // Name changed, save it if we have an agent
+                        if (agent?.id && !isNew) {
+                          try {
+                            const response = await agentsApi.update(agent.id, {
+                              name: tempName.trim()
+                            });
+                            if (response.data) {
+                              setAgent(response.data);
+                            }
+                          } catch (err) {
+                            // If save fails, revert to original name
+                            setTempName(agentName);
+                            toast({
+                              title: 'Error',
+                              description: err instanceof Error ? err.message : 'Failed to update name',
+                              variant: 'destructive',
+                            });
+                          }
+                        }
+                        setEditingName(false);
+                      } else if (!tempName.trim()) {
+                        setTempName(agentName);
+                        setEditingName(false);
+                      } else {
+                        setEditingName(false);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      } else if (e.key === 'Escape') {
+                        setTempName(agentName);
+                        setEditingName(false);
+                      }
+                    }}
+                    className="text-xl md:text-2xl font-bold h-auto py-1 px-2"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    // When clicking to edit, use tempName if it's a valid name, otherwise use agentName
+                    // But if tempName is a placeholder, start with empty string so user can type fresh
+                    const currentName = tempName?.trim() || "";
+                    const nameToEdit = (currentName && 
+                                       currentName !== "New Assistant" && 
+                                       currentName !== "Enter a name for your assistant." &&
+                                       currentName !== "Loading...") 
+                                      ? currentName 
+                                      : "";
+                    setTempName(nameToEdit);
+                    setEditingName(true);
+                  }}
+                  className="text-left w-full"
+                >
+                  <h1 className="text-xl md:text-2xl font-bold truncate hover:opacity-80 transition-opacity">
+                    {(tempName?.trim() && 
+                      tempName !== "New Assistant" && 
+                      tempName !== "Enter a name for your assistant." &&
+                      tempName !== "Loading...") 
+                      ? tempName 
+                      : agentName}
+                  </h1>
+                </button>
               )}
             </div>
           </div>
@@ -331,10 +1252,124 @@ export default function AssistantDetail() {
                 <span className="hidden sm:inline">Preview</span>
                 <span className="sm:hidden">Call</span>
               </Button>
-              <Button variant="subtle" size="sm" className="text-xs md:text-sm">
-                <span className="hidden sm:inline">Published</span>
-                <span className="sm:hidden">Pub</span>
+              {agent?.published ? (
+                <Button 
+                  variant="subtle" 
+                  size="sm" 
+                  className="text-xs md:text-sm text-success"
+                  disabled
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+                  <span className="hidden sm:inline">
+                    Deployed {agent.version ? `v${agent.version}` : ''}
+                  </span>
+                  <span className="sm:hidden">
+                    {agent.version ? `v${agent.version}` : 'Deployed'}
+                  </span>
               </Button>
+              ) : (
+                <Button 
+                  variant="subtle" 
+                  size="sm" 
+                  className="text-xs md:text-sm text-muted-foreground"
+                  disabled
+                >
+                  <span className="hidden sm:inline">Not Deployed</span>
+                  <span className="sm:hidden">Not Deployed</span>
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!saving && !loading && (isNew ? !isFormValid : !hasUnsavedChanges()) && getMissingSaveFields.length > 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="inline-block">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={handleSave}
+                        disabled={true}
+                        className="text-xs md:text-sm"
+                      >
+                        <span className="hidden sm:inline">{isNew ? 'Create' : 'Save'}</span>
+                        <span className="sm:hidden">{isNew ? 'Create' : 'Save'}</span>
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Please fill in the following fields: {getMissingSaveFields.join(", ")}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving || loading || (isNew ? !isFormValid : !hasUnsavedChanges())}
+                  className="text-xs md:text-sm"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Saving...</span>
+                      <span className="sm:hidden">Save</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">{isNew ? 'Create' : 'Save'}</span>
+                      <span className="sm:hidden">{isNew ? 'Create' : 'Save'}</span>
+                    </>
+                  )}
+                </Button>
+              )}
+              {!isNew && agent?.id && (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={saving || loading || !isDeployValid}
+                  className="text-xs md:text-sm"
+                  title={!isDeployValid ? "Please fill in all required fields (Language, Model, First Message, System Prompt, Voice) to deploy" : "Deploy agent to ElevenLabs (creates a new version)"}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Deploying...</span>
+                      <span className="sm:hidden">Deploy</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+                      <span className="hidden sm:inline">Deploy</span>
+                      <span className="sm:hidden">Deploy</span>
+                    </>
+                  )}
+                </Button>
+              )}
+              {isNew && (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={saving || loading || !isDeployValid}
+                  className="text-xs md:text-sm"
+                  title={!isDeployValid ? "Please fill in all required fields (Language, Model, First Message, System Prompt, Voice) to deploy" : "Save and deploy agent to ElevenLabs"}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Deploying...</span>
+                      <span className="sm:hidden">Deploy</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+                      <span className="hidden sm:inline">Save & Deploy</span>
+                      <span className="sm:hidden">Deploy</span>
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -365,9 +1400,9 @@ export default function AssistantDetail() {
         <div className="flex-1 flex overflow-hidden min-w-0 relative">
           {/* Tab Content - I'll include the key sections, but you can add the rest from the original file */}
           {activeTab === "widget" ? (
-            <WidgetTab />
+            <WidgetTab agent={agent} agentId={agentId} />
           ) : activeTab === "conversations" ? (
-            <ConversationsTab assistantName={selectedAssistant.name} />
+            <ConversationsTab assistantName={agentName} agentId={agent?.id} />
           ) : activeTab === "voice" ? (
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               {/* Cost & Latency Indicators */}
@@ -422,109 +1457,65 @@ export default function AssistantDetail() {
                     <div className="mt-4 md:mt-6 space-y-4">
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">Provider</label>
-                        <Select defaultValue="vapi">
+                        <Select value="elevenlabs" disabled={!!agent}>
                           <SelectTrigger className="bg-secondary/50 border-border">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="vapi">Vapi</SelectItem>
-                            <SelectItem value="openai">OpenAI</SelectItem>
-                            <SelectItem value="deepgram">Deepgram</SelectItem>
                             <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
                           </SelectContent>
                         </Select>
+                        {agent && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Provider is set to ElevenLabs for this agent
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">Voice</label>
-                        <Select defaultValue="elliot">
-                          <SelectTrigger className="bg-secondary/50 border-border">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="elliot">Elliot</SelectItem>
-                            <SelectItem value="sarah">Sarah</SelectItem>
-                            <SelectItem value="michael">Michael</SelectItem>
-                            <SelectItem value="emily">Emily</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Additional Configuration */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <button 
-                    className="w-full flex items-start justify-between gap-2"
-                    onClick={() => setAdditionalConfigExpanded(!additionalConfigExpanded)}
-                  >
-                    <div className="text-left flex-1">
-                      <h3 className="text-base md:text-lg font-semibold">Additional Configuration</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">Configure additional settings for the voice of your assistant.</p>
-                    </div>
-                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", additionalConfigExpanded && "rotate-180")} />
-                  </button>
-                  
-                  {additionalConfigExpanded && (
-                    <div className="mt-4 md:mt-6 space-y-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="text-sm text-muted-foreground">Background Sound</label>
-                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                        <Select defaultValue="default">
-                          <SelectTrigger className="bg-secondary/50 border-border">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="default">Default</SelectItem>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="text-sm text-muted-foreground">Background Sound URL</label>
-                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                        <Input 
-                          defaultValue="https://www.soundjay.com/ar"
-                          className="bg-secondary/50 border-border"
-                        />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="text-sm text-muted-foreground">Input Min Characters</label>
-                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                        <Input 
-                          type="number"
-                          defaultValue="30"
-                          className="bg-secondary/50 border-border"
-                        />
-                      </div>
-                      
-                      {/* Punctuation Boundaries */}
-                      <div className="pt-4 border-t border-border">
-                        <div className="mb-2">
-                          <h4 className="text-sm font-semibold mb-1">Punctuation Boundaries</h4>
-                          <p className="text-xs text-muted-foreground">
-                            These are the punctuations that are considered valid boundaries or delimiters. This helps decides the chunks that are sent to the voice provider for the voice generation as the LLM tokens are streaming in.
+                        {loadingVoices ? (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Loading voices...</span>
+                          </div>
+                        ) : (
+                          <Select 
+                            value={selectedVoiceId || ""} 
+                            onValueChange={(value) => {
+                              setSelectedVoiceId(value);
+                              const selectedVoice = voices.find(v => v.id === value);
+                              if (selectedVoice) {
+                                setSelectedVoiceName(selectedVoice.name);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="bg-secondary/50 border-border">
+                              <SelectValue placeholder="Select a voice">
+                                {selectedVoiceId ? (
+                                  selectedVoiceName || voices.find(v => v.id === selectedVoiceId)?.name || selectedVoiceId
+                                ) : (
+                                  "Select a voice"
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {voices.length > 0 ? (
+                                voices.map((voice) => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name || voice.id}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="" disabled>No voices available</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {selectedVoiceId && selectedVoiceName && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Selected: {selectedVoiceName} ({selectedVoiceId})
                           </p>
-                        </div>
-                        <Select defaultValue="none">
-                          <SelectTrigger className="bg-secondary/50 border-border">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No Punctuation Boundaries Added</SelectItem>
-                            <SelectItem value="period">Period (.)</SelectItem>
-                            <SelectItem value="comma">Comma (,)</SelectItem>
-                            <SelectItem value="question">Question Mark (?)</SelectItem>
-                            <SelectItem value="exclamation">Exclamation Mark (!)</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        )}
                       </div>
                     </div>
                   )}
@@ -585,23 +1576,23 @@ export default function AssistantDetail() {
                       {/* Provider */}
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">Provider</label>
-                        <Select defaultValue="deepgram">
+                        <Select value="elevenlabs" disabled>
                           <SelectTrigger className="bg-secondary/50 border-border">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="deepgram">Deepgram</SelectItem>
-                            <SelectItem value="openai">OpenAI</SelectItem>
-                            <SelectItem value="vapi">Vapi</SelectItem>
                             <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ElevenLabs is the primary transcriber provider
+                        </p>
                       </div>
 
                       {/* Language */}
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">Language</label>
-                        <Select defaultValue="english">
+                        <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
                           <SelectTrigger className="bg-secondary/50 border-border">
                             <SelectValue />
                           </SelectTrigger>
@@ -610,6 +1601,18 @@ export default function AssistantDetail() {
                             <SelectItem value="spanish">Spanish</SelectItem>
                             <SelectItem value="french">French</SelectItem>
                             <SelectItem value="german">German</SelectItem>
+                            <SelectItem value="italian">Italian</SelectItem>
+                            <SelectItem value="portuguese">Portuguese</SelectItem>
+                            <SelectItem value="polish">Polish</SelectItem>
+                            <SelectItem value="turkish">Turkish</SelectItem>
+                            <SelectItem value="russian">Russian</SelectItem>
+                            <SelectItem value="dutch">Dutch</SelectItem>
+                            <SelectItem value="czech">Czech</SelectItem>
+                            <SelectItem value="arabic">Arabic</SelectItem>
+                            <SelectItem value="chinese">Chinese</SelectItem>
+                            <SelectItem value="japanese">Japanese</SelectItem>
+                            <SelectItem value="hungarian">Hungarian</SelectItem>
+                            <SelectItem value="korean">Korean</SelectItem>
                             <SelectItem value="multi">Multi</SelectItem>
                           </SelectContent>
                         </Select>
@@ -618,156 +1621,6 @@ export default function AssistantDetail() {
                         </p>
                       </div>
 
-                      {/* Model */}
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-2 block">Model</label>
-                        <Select defaultValue="flux-general">
-                          <SelectTrigger className="bg-secondary/50 border-border">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="flux-general">Flux General English</SelectItem>
-                            <SelectItem value="nova-2">Nova 2</SelectItem>
-                            <SelectItem value="enhanced">Enhanced</SelectItem>
-                            <SelectItem value="base">Base</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <div className="flex items-start gap-2 mt-2 p-3 bg-secondary/30 rounded-md border border-border">
-                          <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-muted-foreground">
-                            Make sure your Smart Endpointing Plan in Advanced &gt; Start Speaking Plan is disabled to leverage Flux end-of-turn detection.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Background Denoising Enabled */}
-                      <div className="flex items-start justify-between pt-4 border-t border-border">
-                        <div className="flex items-start gap-3 flex-1">
-                          <Volume2 className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold mb-1">Background Denoising Enabled</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Filter background noise while the user is talking.
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={backgroundDenoising}
-                          onCheckedChange={setBackgroundDenoising}
-                        />
-                      </div>
-
-                      {/* Confidence Threshold */}
-                      <div className="pt-4 border-t border-border">
-                        <div className="flex items-start gap-3 mb-4">
-                          <GripVertical className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold mb-1">Confidence Threshold</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Transcripts with a confidence score below this threshold will be filtered out.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Slider
-                            value={confidenceThreshold}
-                            onValueChange={setConfidenceThreshold}
-                            min={0}
-                            max={1}
-                            step={0.1}
-                            className="flex-1"
-                          />
-                          <div className="w-16 px-3 py-1.5 bg-secondary/50 rounded-md border border-border text-sm font-medium text-center">
-                            {confidenceThreshold[0].toFixed(1)}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                          <span>0</span>
-                          <span>1.0</span>
-                        </div>
-                      </div>
-
-                      {/* Keyterms */}
-                      <div className="pt-4 border-t border-border">
-                        <div className="flex items-start gap-3 mb-4">
-                          <GripVertical className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold mb-1">Keyterms</h4>
-                          </div>
-                        </div>
-                        <Textarea
-                          value={keyterms}
-                          onChange={(e) => setKeyterms(e.target.value)}
-                          placeholder="Enter keywords separated by commas. These will be used as key terms for transcription."
-                          className="bg-secondary/50 border-border min-h-[100px]"
-                        />
-                        <p className="text-xs text-muted-foreground mt-2">
-                          ~{Math.ceil(keyterms.length / 4)} tokens
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Enter keywords separated by commas. These will be used as key terms for transcription.
-                        </p>
-                      </div>
-
-                      {/* End of turn confidence threshold */}
-                      <div className="pt-4 border-t border-border">
-                        <div className="flex items-start gap-3 mb-4">
-                          <Target className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold mb-1">End of turn confidence threshold</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Confidence threshold required to finish a turn.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Slider
-                            value={endOfTurnConfidence}
-                            onValueChange={setEndOfTurnConfidence}
-                            min={0.5}
-                            max={0.9}
-                            step={0.1}
-                            className="flex-1"
-                          />
-                          <div className="w-16 px-3 py-1.5 bg-secondary/50 rounded-md border border-border text-sm font-medium text-center">
-                            {endOfTurnConfidence[0].toFixed(1)}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                          <span>0.5</span>
-                          <span>0.9</span>
-                        </div>
-                      </div>
-
-                      {/* End of turn timeout */}
-                      <div className="pt-4 border-t border-border">
-                        <div className="flex items-start gap-3 mb-4">
-                          <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold mb-1">End of turn timeout</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Maximum time to wait after speech before finishing a turn.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Slider
-                            value={endOfTurnTimeout}
-                            onValueChange={setEndOfTurnTimeout}
-                            min={500}
-                            max={10000}
-                            step={100}
-                            className="flex-1"
-                          />
-                          <div className="w-20 px-3 py-1.5 bg-secondary/50 rounded-md border border-border text-sm font-medium text-center">
-                            {endOfTurnTimeout[0] >= 1000 ? `${(endOfTurnTimeout[0] / 1000).toFixed(1)}s` : `${endOfTurnTimeout[0]}ms`}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                          <span>500ms</span>
-                          <span>10s</span>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -997,15 +1850,19 @@ export default function AssistantDetail() {
                   
                   {modelExpanded && (
                     <div className="mt-4 md:mt-6 space-y-4">
+                      {/* Provider */}
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">Provider</label>
-                        <Select value={selectedProvider} onValueChange={(value) => {
-                          setSelectedProvider(value);
-                          const models = modelsByProvider[value];
-                          if (models && models.length > 0) {
-                            setSelectedModel(models[0].value);
-                          }
-                        }}>
+                        <Select 
+                          value={selectedProvider || 'openai'} 
+                          onValueChange={(value) => {
+                              setSelectedProvider(value);
+                              const models = modelsByProvider[value];
+                              if (models && models.length > 0) {
+                                setSelectedModel(models[0].value);
+                            }
+                          }}
+                        >
                           <SelectTrigger className="bg-secondary/50 border-border">
                             <SelectValue />
                           </SelectTrigger>
@@ -1021,12 +1878,16 @@ export default function AssistantDetail() {
                           </SelectContent>
                         </Select>
                       </div>
+                      {/* Model */}
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <label className="text-sm text-muted-foreground">Model</label>
                           <Info className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
-                        <Select value={selectedModel} onValueChange={setSelectedModel}>
+                        <Select 
+                          value={selectedModel} 
+                          onValueChange={setSelectedModel}
+                        >
                           <SelectTrigger className="bg-secondary/50 border-border">
                             <SelectValue />
                           </SelectTrigger>
@@ -1039,6 +1900,7 @@ export default function AssistantDetail() {
                           </SelectContent>
                         </Select>
                       </div>
+                      {/* System Prompt */}
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">System Prompt</label>
                         <Textarea
@@ -1048,10 +1910,12 @@ export default function AssistantDetail() {
                           className="bg-secondary/50 border-border min-h-[150px] font-mono text-sm"
                         />
                       </div>
+                      {/* Files */}
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">Files</label>
                         <div className="space-y-3">
-                          {attachedFiles.length > 0 && (
+                          {/* Show attached files for new agents (before save) */}
+                          {isNew && attachedFiles.length > 0 && (
                             <div className="space-y-2">
                               {attachedFiles.map((file, index) => (
                                 <div
@@ -1061,14 +1925,56 @@ export default function AssistantDetail() {
                                   <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                   <span className="text-sm flex-1 truncate">{file.name}</span>
                                   <span className="text-xs text-muted-foreground">
-                                    {(file.size / 1024).toFixed(1)} KB
+                                    {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ''}
                                   </span>
+                                  <span className="text-xs text-muted-foreground italic">Pending</span>
                                   <button
-                                    onClick={() => setAttachedFiles(attachedFiles.filter((_, i) => i !== index))}
+                                    onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== index))}
                                     className="text-muted-foreground hover:text-destructive transition-colors"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Show saved agent files for existing agents */}
+                          {!isNew && agentFiles.length > 0 && (
+                            <div className="space-y-2">
+                              {agentFiles.map((file) => (
+                                <div
+                                  key={file.id}
+                                  className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border"
+                                >
+                                  <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-sm flex-1 truncate">{file.file_name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {file.file_size ? `${(file.file_size / 1024).toFixed(1)} KB` : ''}
+                                  </span>
+                                  {file.elevenlabs_document_id && (
+                                    <span className="text-xs text-success">Synced</span>
+                                  )}
+                                  <button
+                                    onClick={() => handleFileDelete(file.id)}
+                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                    disabled={uploadingFiles.has(file.file_name)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {uploadingFiles.size > 0 && (
+                            <div className="space-y-2">
+                              {Array.from(uploadingFiles).map((fileKey) => (
+                                <div
+                                  key={fileKey}
+                                  className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border opacity-50"
+                                >
+                                  <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />
+                                  <span className="text-sm flex-1 truncate">{fileKey.split('-').slice(0, -1).join('-')}</span>
+                                  <span className="text-xs text-muted-foreground">Uploading...</span>
                                 </div>
                               ))}
                             </div>
@@ -1092,15 +1998,19 @@ export default function AssistantDetail() {
                             ref={fileInputRef}
                             className="hidden"
                             multiple
+                            accept=".pdf,.txt,.docx,.md"
                             onChange={(e) => {
                               if (e.target.files) {
                                 const newFiles = Array.from(e.target.files);
-                                setAttachedFiles([...attachedFiles, ...newFiles]);
+                                handleFileUpload(newFiles);
+                                // Reset input
+                                e.target.value = '';
                               }
                             }}
                           />
                         </div>
                       </div>
+                      {/* First Message Mode */}
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <label className="text-sm text-muted-foreground">First Message Mode</label>
@@ -1119,9 +2029,12 @@ export default function AssistantDetail() {
                       </div>
                       <div>
                         <label className="text-sm text-muted-foreground mb-2 block">First Message</label>
-                        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
-                          <span className="text-sm">Hi there, this is {selectedAssistant.name} from TechSolutions customer su...</span>
-                        </div>
+                        <Textarea
+                          value={firstMessage}
+                          onChange={(e) => setFirstMessage(e.target.value)}
+                          placeholder={agentName ? `Hi there, this is ${agentName}...` : "Enter the first message for the assistant..."}
+                          className="bg-secondary/50 border-border min-h-[80px] font-mono text-sm"
+                        />
                       </div>
                     </div>
                   )}
@@ -1245,7 +2158,7 @@ export default function AssistantDetail() {
               />
               <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg overflow-hidden">
                 <PreviewChatContent
-                  selectedAssistant={selectedAssistant}
+                  selectedAssistant={{ id: agentId, name: agentName }}
                   showPreviewChat={showPreviewChat}
                   setShowPreviewChat={setShowPreviewChat}
                   callInProgress={callInProgress}
@@ -1265,7 +2178,7 @@ export default function AssistantDetail() {
           ) : (
             <div className="w-[400px] lg:w-[400px] md:w-[350px] border-l border-border flex flex-col bg-card flex-shrink-0 h-full overflow-hidden">
               <PreviewChatContent
-                selectedAssistant={selectedAssistant}
+                selectedAssistant={{ id: agentId, name: agentName }}
                 showPreviewChat={showPreviewChat}
                 setShowPreviewChat={setShowPreviewChat}
                 callInProgress={callInProgress}
@@ -1305,7 +2218,7 @@ const PreviewChatContent = ({
   setChatInput,
   messagesEndRef,
 }: {
-  selectedAssistant: typeof assistants[0];
+  selectedAssistant: { id: string; name: string };
   showPreviewChat: boolean;
   setShowPreviewChat: (show: boolean) => void;
   callInProgress: boolean;

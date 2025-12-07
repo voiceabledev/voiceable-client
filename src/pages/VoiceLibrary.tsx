@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Search,
   Play,
+  Square,
   AudioLines,
   ArrowLeft,
   AlertCircle,
@@ -24,10 +25,22 @@ export default function VoiceLibrary() {
   const [genderFilter, setGenderFilter] = useState<string>("all-gender");
   const [accentFilter, setAccentFilter] = useState<string>("all-accent");
   const [providerFilter, setProviderFilter] = useState<string>("11labs");
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     fetchVoices();
   }, [genderFilter, accentFilter]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchVoices = async () => {
     setLoading(true);
@@ -72,17 +85,54 @@ export default function VoiceLibrary() {
   };
 
   const handlePlayPreview = (voice: Voice) => {
-    if (voice.preview_url) {
-      const audio = new Audio(voice.preview_url);
-      audio.play().catch((err) => {
-        console.error('Error playing preview:', err);
-        toast({
-          title: 'Preview unavailable',
-          description: 'Could not play voice preview.',
-          variant: 'destructive',
-        });
-      });
+    if (!voice.preview_url) return;
+
+    // Stop currently playing audio if any
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+      setPlayingVoiceId(null);
     }
+
+    // If clicking the same voice that's playing, just stop it
+    if (playingVoiceId === voice.id) {
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    // Create and play new audio
+    const audio = new Audio(voice.preview_url);
+    currentAudioRef.current = audio;
+    setPlayingVoiceId(voice.id || null);
+
+    // Handle when audio ends
+    audio.addEventListener('ended', () => {
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+    });
+
+    // Handle errors
+    audio.addEventListener('error', () => {
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+      toast({
+        title: 'Preview unavailable',
+        description: 'Could not play voice preview.',
+        variant: 'destructive',
+      });
+    });
+
+    audio.play().catch((err) => {
+      console.error('Error playing preview:', err);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+      toast({
+        title: 'Preview unavailable',
+        description: 'Could not play voice preview.',
+        variant: 'destructive',
+      });
+    });
   };
 
   const getGenderLabel = (voice: Voice): string => {
@@ -235,9 +285,13 @@ export default function VoiceLibrary() {
                             handlePlayPreview(voice);
                           }}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-secondary rounded-md"
-                          title="Play preview"
+                          title={playingVoiceId === voice.id ? "Stop preview" : "Play preview"}
                         >
-                          <Play className="h-4 w-4" />
+                          {playingVoiceId === voice.id ? (
+                            <Square className="h-4 w-4 text-primary fill-primary" />
+                          ) : (
+                            <Play className="h-4 w-4" />
+                          )}
                         </button>
                       )}
                     </div>

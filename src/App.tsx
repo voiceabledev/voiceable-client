@@ -56,7 +56,7 @@ const App = () => (
                 <Route path="/account" element={<Account />} />
                 <Route path="/overview" element={<Overview />} />
                 <Route path="/assistants" element={<AssistantsList />} />
-                <Route path="/assistants/new" element={<AssistantDetail />} />
+                <Route path="/assistants/create" element={<AssistantDetail />} />
                 <Route path="/assistants/:id" element={<AssistantDetail />} />
                 <Route path="/phone-numbers" element={<PhoneNumbers />} />
                 <Route path="/voice-library" element={<VoiceLibrary />} />

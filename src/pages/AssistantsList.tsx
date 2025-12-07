@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,28 +7,50 @@ import {
   Search, 
   ExternalLink,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
-
-const assistants = [
-  {
-    id: "9ca34dcd-1ccb-4f13-bc65-60d31553eab0",
-    name: "Alex",
-    providers: ["deepgram", "openai", "vapi"],
-  },
-  {
-    id: "2f24e154-b38d-487e-b4a1-123456789abc",
-    name: "Riley",
-    providers: ["deepgram", "openai", "vapi"],
-  },
-];
+import { agentsApi, Agent } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AssistantsList() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [assistants, setAssistants] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const fetchAgents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await agentsApi.list();
+      
+      if (response.data && Array.isArray(response.data)) {
+        setAssistants(response.data);
+      } else {
+        setAssistants([]);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch agents';
+      setAssistants([]);
+      toast({
+        title: 'Error loading agents',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
+
   const filteredAssistants = assistants.filter((assistant) =>
-    assistant.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (assistant.name || 'Unnamed Agent').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    assistant.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    assistant.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleAssistantClick = (assistantId: string) => {
@@ -36,7 +58,31 @@ export default function AssistantsList() {
   };
 
   const handleCreateAssistant = () => {
-    navigate("/assistants/new");
+    navigate("/assistants/create");
+  };
+
+  const handleDeleteAssistant = async (assistant: Agent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Are you sure you want to delete "${assistant.name || 'this assistant'}"? This will delete the agent from both ElevenLabs and your local database.`)) {
+      return;
+    }
+
+    try {
+      await agentsApi.delete(assistant.id);
+      toast({
+        title: 'Success',
+        description: 'Agent deleted successfully.',
+      });
+      // Refresh the list
+      fetchAgents();
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to delete agent',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -81,7 +127,12 @@ export default function AssistantsList() {
 
       {/* Assistants List */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        {filteredAssistants.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p className="text-sm text-muted-foreground">Loading agents...</p>
+          </div>
+        ) : filteredAssistants.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
               <Search className="h-8 w-8 text-muted-foreground" />
@@ -107,10 +158,12 @@ export default function AssistantsList() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-1">{assistant.name}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {assistant.providers.join(" · ")}
-                    </p>
+                    <h3 className="text-lg font-semibold mb-1">{assistant.name || 'Unnamed Agent'}</h3>
+                    {assistant.tags && assistant.tags.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {assistant.tags.join(" · ")}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button
@@ -129,11 +182,7 @@ export default function AssistantsList() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Handle delete logic here
-                        console.log("Delete assistant:", assistant.id);
-                      }}
+                      onClick={(e) => handleDeleteAssistant(assistant, e)}
                       title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -141,7 +190,7 @@ export default function AssistantsList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="truncate">{assistant.id.slice(0, 20)}...</span>
+                  <span className="truncate">{assistant.id?.slice(0, 20) || 'N/A'}...</span>
                 </div>
               </div>
             ))}

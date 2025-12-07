@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,24 +48,14 @@ import {
   Calendar,
   FileDown,
   Star,
-  Send
+  Send,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
 import ConversationsTab from "@/components/assistants/ConversationsTab";
-
-const assistants = [
-  {
-    id: "9ca34dcd-1ccb-4f13-bc65-60d31553eab0",
-    name: "Alex",
-    providers: ["deepgram", "openai", "vapi"],
-  },
-  {
-    id: "2f24e154-b38d-487e-b4a1-123456789abc",
-    name: "Riley",
-    providers: ["deepgram", "openai", "vapi"],
-  },
-];
+import { agentsApi, Agent } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const tabs = [
   { id: "model", label: "Model", icon: Code },
@@ -134,15 +124,21 @@ const modelsByProvider: Record<string, { value: string; label: string }[]> = {
 };
 
 const AssistantsListContent = ({ 
+  assistants,
   selectedAssistant, 
   setSelectedAssistant, 
   setShowCreatePanel,
-  showFullContent
+  showFullContent,
+  loading,
+  handleDeleteAgent
 }: { 
-  selectedAssistant: typeof assistants[0]; 
-  setSelectedAssistant: (assistant: typeof assistants[0]) => void;
+  assistants: Agent[];
+  selectedAssistant: Agent | null; 
+  setSelectedAssistant: (assistant: Agent) => void;
   setShowCreatePanel: (show: boolean) => void;
   showFullContent: boolean;
+  loading: boolean;
+  handleDeleteAgent: (agent: Agent) => void;
 }) => (
   <>
     <div className="p-3 md:p-4 border-b border-border flex-shrink-0">
@@ -183,40 +179,76 @@ const AssistantsListContent = ({
     </div>
 
     <div className="flex-1 overflow-y-auto p-2 min-h-0">
-      {showFullContent ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : assistants.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <p className="text-sm text-muted-foreground mb-2">No agents found</p>
+          <p className="text-xs text-muted-foreground">Create your first agent to get started</p>
+        </div>
+      ) : showFullContent ? (
         assistants.map((assistant) => (
-          <button
+          <div
             key={assistant.id}
-            onClick={() => setSelectedAssistant(assistant)}
             className={cn(
-              "w-full text-left p-2 md:p-3 rounded-lg transition-colors",
-              selectedAssistant.id === assistant.id 
+              "w-full flex items-center gap-2 p-2 md:p-3 rounded-lg transition-colors group",
+              selectedAssistant?.id === assistant.id 
                 ? "bg-sidebar-accent" 
                 : "hover:bg-secondary/50"
             )}
           >
-            <p className="font-medium text-sm md:text-base">{assistant.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {assistant.providers.join(" · ")}
-            </p>
-          </button>
+            <button
+              onClick={() => setSelectedAssistant(assistant)}
+              className="flex-1 text-left"
+            >
+              <p className="font-medium text-sm md:text-base">{assistant.name || 'Unnamed Agent'}</p>
+              {assistant.tags && assistant.tags.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {assistant.tags.join(" · ")}
+                </p>
+              )}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteAgent(assistant);
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
+              title="Delete agent"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         ))
       ) : (
         <div className="flex flex-col items-center gap-2">
           {assistants.map((assistant) => (
-            <button
-              key={assistant.id}
-              onClick={() => setSelectedAssistant(assistant)}
-              className={cn(
-                "w-10 h-10 rounded-lg flex items-center justify-center transition-colors text-xs font-semibold",
-                selectedAssistant.id === assistant.id 
-                  ? "bg-sidebar-accent text-foreground" 
-                  : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
-              )}
-              title={assistant.name}
-            >
-              {assistant.name.charAt(0).toUpperCase()}
-            </button>
+            <div key={assistant.id} className="relative group">
+              <button
+                onClick={() => setSelectedAssistant(assistant)}
+                className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center transition-colors text-xs font-semibold",
+                  selectedAssistant?.id === assistant.id 
+                    ? "bg-sidebar-accent text-foreground" 
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                )}
+                title={assistant.name || 'Unnamed Agent'}
+              >
+                {(assistant.name || 'A').charAt(0).toUpperCase()}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteAgent(assistant);
+                }}
+                className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-destructive text-destructive-foreground rounded-full p-0.5 hover:bg-destructive/90"
+                title="Delete agent"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -270,7 +302,11 @@ const assistantTemplates = [
 ];
 
 export default function Assistants() {
-  const [selectedAssistant, setSelectedAssistant] = useState(assistants[0]);
+  const { toast } = useToast();
+  const [assistants, setAssistants] = useState<Agent[]>([]);
+  const [selectedAssistant, setSelectedAssistant] = useState<Agent | null>(null);
+  const [selectedAssistantDetails, setSelectedAssistantDetails] = useState<Agent | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("model");
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [showCreatePanel, setShowCreatePanel] = useState(false);
@@ -312,6 +348,96 @@ export default function Assistants() {
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const fetchAgents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await agentsApi.list();
+      
+      if (response.data && Array.isArray(response.data)) {
+        setAssistants(response.data);
+        // Only set first assistant if none is selected
+        setSelectedAssistant(prev => {
+          if (!prev && response.data.length > 0) {
+            return response.data[0];
+          }
+          // If the selected assistant was deleted, clear selection
+          if (prev && !response.data.find(a => a.id === prev.id)) {
+            return null;
+          }
+          return prev;
+        });
+      } else {
+        setAssistants([]);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch agents';
+      setAssistants([]);
+      toast({
+        title: 'Error loading agents',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  const handleDeleteAgent = useCallback(async (agent: Agent) => {
+    if (!window.confirm(`Are you sure you want to delete "${agent.name || 'this agent'}"? This will delete it from both ElevenLabs and your local database.`)) {
+      return;
+    }
+
+    try {
+      await agentsApi.delete(agent.id);
+      toast({
+        title: 'Success',
+        description: 'Agent deleted successfully.',
+      });
+      // Refresh the agents list
+      fetchAgents();
+      // Clear selection if the deleted agent was selected
+      if (selectedAssistant?.id === agent.id) {
+        setSelectedAssistant(null);
+        setSelectedAssistantDetails(null);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete agent';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  }, [toast, fetchAgents, selectedAssistant]);
+
+  const fetchAgentDetails = useCallback(async (agentId: string) => {
+    try {
+      const response = await agentsApi.get(agentId);
+      if (response.data) {
+        setSelectedAssistantDetails(response.data);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch agent details';
+      toast({
+        title: 'Error loading agent details',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  // Fetch agents on mount
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
+
+  // Fetch agent details when assistant is selected
+  useEffect(() => {
+    if (selectedAssistant?.id) {
+      fetchAgentDetails(selectedAssistant.id);
+    }
+  }, [selectedAssistant?.id, fetchAgentDetails]);
+
   // Timer effect
   useEffect(() => {
     if (callInProgress) {
@@ -337,34 +463,25 @@ export default function Assistants() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  const configJson = {
-    "id": selectedAssistant.id,
-    "orgId": "c9a0e480-7a37-4470-9ef7-a84995517924",
-    "name": selectedAssistant.name,
-    "voice": {
-      "voiceId": "Elliot",
-      "provider": "vapi"
-    },
-    "createdAt": "2025-12-06T02:51:35.891Z",
-    "updatedAt": "2025-12-06T02:51:35.891Z",
-    "model": {
-      "model": "gpt-4o",
-      "messages": [
-        {
-          "role": "system",
-          "content": systemPrompt
-        }
-      ],
-      "provider": "openai"
-    },
-    ...(attachedFiles.length > 0 && {
-      "files": attachedFiles.map(file => ({
-        "name": file.name,
-        "size": file.size,
-        "type": file.type
-      }))
-    })
-  };
+  const configJson = selectedAssistantDetails || selectedAssistant ? {
+    "id": selectedAssistant?.id || selectedAssistantDetails?.id,
+    "name": selectedAssistant?.name || selectedAssistantDetails?.name || "Unnamed Agent",
+    ...(selectedAssistantDetails?.conversation_config && {
+      "conversation_config": selectedAssistantDetails.conversation_config
+    }),
+    ...(selectedAssistantDetails?.platform_settings && {
+      "platform_settings": selectedAssistantDetails.platform_settings
+    }),
+    ...(selectedAssistantDetails?.tags && {
+      "tags": selectedAssistantDetails.tags
+    }),
+    ...(selectedAssistantDetails?.created_at && {
+      "created_at": selectedAssistantDetails.created_at
+    }),
+    ...(selectedAssistantDetails?.updated_at && {
+      "updated_at": selectedAssistantDetails.updated_at
+    }),
+  } : {};
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -530,10 +647,13 @@ export default function Assistants() {
         <div className="flex flex-col h-full overflow-hidden">
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <AssistantsListContent 
+              assistants={assistants}
               selectedAssistant={selectedAssistant}
               setSelectedAssistant={setSelectedAssistant}
               setShowCreatePanel={setShowCreatePanel}
               showFullContent={showFullContent}
+              loading={loading}
+              handleDeleteAgent={handleDeleteAgent}
             />
           </div>
           
@@ -572,21 +692,30 @@ export default function Assistants() {
         {/* Assistant Header */}
         <div className="border-b border-border p-3 md:p-4">
           {/* Mobile: Assistant name only (no menu button since sidebar is always visible) */}
-          {isMobile && (
+          {isMobile && selectedAssistant && (
             <div className="mb-3">
-              <h1 className="text-lg font-bold truncate">{selectedAssistant.name}</h1>
+              <h1 className="text-lg font-bold truncate">{selectedAssistant.name || 'Unnamed Agent'}</h1>
             </div>
           )}
           
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            {!isMobile && (
+            {!isMobile && selectedAssistant && (
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl md:text-2xl font-bold">{selectedAssistant.name}</h1>
+                  <h1 className="text-xl md:text-2xl font-bold">{selectedAssistant.name || 'Unnamed Agent'}</h1>
                 </div>
                 <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground mt-1">
                   <span className="truncate">{selectedAssistant.id.slice(0, 20)}...</span>
-                  <button className="hover:text-foreground">
+                  <button 
+                    className="hover:text-foreground"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedAssistant.id);
+                      toast({
+                        title: 'Copied',
+                        description: 'Agent ID copied to clipboard',
+                      });
+                    }}
+                  >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
                   <button className="hover:text-foreground">
@@ -659,7 +788,7 @@ export default function Assistants() {
           {activeTab === "widget" ? (
             <WidgetTab />
           ) : activeTab === "conversations" ? (
-            <ConversationsTab assistantName={selectedAssistant.name} />
+            <ConversationsTab assistantName={selectedAssistant?.name || 'Unnamed Agent'} />
           ) : activeTab === "voice" ? (
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               {/* Cost & Latency Indicators */}
@@ -1274,6 +1403,69 @@ export default function Assistants() {
                 <Code className="h-4 w-4" />
                 <span>MODEL</span>
               </div>
+
+              {/* ElevenLabs Agent Details */}
+              {selectedAssistantDetails && (
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <div className="mb-4">
+                    <h3 className="text-base md:text-lg font-semibold mb-2">ElevenLabs Agent Details</h3>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Configuration and settings from your ElevenLabs agent
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {selectedAssistantDetails.name && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Agent Name</label>
+                        <div className="px-3 py-2 bg-secondary/50 rounded-md border border-border text-sm">
+                          {selectedAssistantDetails.name}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedAssistantDetails.tags && selectedAssistantDetails.tags.length > 0 && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedAssistantDetails.tags.map((tag, index) => (
+                            <span key={index} className="px-2 py-1 bg-secondary/50 rounded-md text-xs border border-border">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedAssistantDetails.conversation_config && Object.keys(selectedAssistantDetails.conversation_config).length > 0 && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Conversation Config</label>
+                        <pre className="px-3 py-2 bg-secondary/50 rounded-md border border-border text-xs font-mono overflow-x-auto">
+                          {JSON.stringify(selectedAssistantDetails.conversation_config, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+
+                    {selectedAssistantDetails.platform_settings && Object.keys(selectedAssistantDetails.platform_settings).length > 0 && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Platform Settings</label>
+                        <pre className="px-3 py-2 bg-secondary/50 rounded-md border border-border text-xs font-mono overflow-x-auto">
+                          {JSON.stringify(selectedAssistantDetails.platform_settings, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+
+                    {selectedAssistantDetails.created_at && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Created At</label>
+                        <div className="px-3 py-2 bg-secondary/50 rounded-md border border-border text-sm">
+                          {new Date(selectedAssistantDetails.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div className="bg-card border border-border rounded-lg p-4 md:p-6">
                 <button 
@@ -1413,7 +1605,7 @@ export default function Assistants() {
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block">First Message</label>
                     <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
-                      <span className="text-sm">Hi there, this is {selectedAssistant.name} from TechSolutions customer su...</span>
+                      <span className="text-sm">Hi there, this is {selectedAssistant?.name || 'Agent'} from TechSolutions customer su...</span>
                     </div>
                   </div>
                 </div>
@@ -1597,7 +1789,7 @@ const PreviewChatContent = ({
   setChatInput,
   messagesEndRef,
 }: {
-  selectedAssistant: typeof assistants[0];
+  selectedAssistant: Agent | null;
   showPreviewChat: boolean;
   setShowPreviewChat: (show: boolean) => void;
   callInProgress: boolean;

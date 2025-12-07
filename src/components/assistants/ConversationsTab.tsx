@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,11 +8,13 @@ import {
   Pause,
   RotateCcw,
   RotateCw,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { conversationsApi, Conversation } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-interface Conversation {
-  id: string;
+interface ConversationDisplay extends Conversation {
   date: string;
   duration: string;
   messages: number;
@@ -23,48 +25,91 @@ interface Conversation {
 
 interface ConversationsTabProps {
   assistantName: string;
+  agentId?: string;
 }
 
-const mockConversations: Conversation[] = [
-  {
-    id: "conv_001abc",
-    date: "Dec 5, 2025, 2:15 PM",
-    duration: "1:45",
-    messages: 8,
-    status: "Successful",
-    summary: "User asked about account settings and password reset. The assistant guided them through the process successfully.",
-    userId: "user_xyz123",
-  },
-  {
-    id: "conv_002def",
-    date: "Dec 4, 2025, 10:30 AM",
-    duration: "0:32",
-    messages: 4,
-    status: "Successful",
-    summary: "Quick inquiry about business hours and location.",
-    userId: "user_abc456",
-  },
-  {
-    id: "conv_003ghi",
-    date: "Dec 3, 2025, 4:50 PM",
-    duration: "3:12",
-    messages: 15,
-    status: "Failed",
-    summary: "Complex technical support request. Call dropped due to connection issues.",
-    userId: "user_def789",
-  },
-];
-
-export default function ConversationsTab({ assistantName }: ConversationsTabProps) {
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+export default function ConversationsTab({ assistantName, agentId }: ConversationsTabProps) {
+  const { toast } = useToast();
+  const [conversations, setConversations] = useState<ConversationDisplay[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
+  const [conversationDetails, setConversationDetails] = useState<Conversation | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription" | "client">("overview");
   const [isPlaying, setIsPlaying] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredConversations = mockConversations.filter(
+  const fetchConversations = useCallback(async () => {
+    if (!agentId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await conversationsApi.list({ 
+        agent_id: agentId,
+        summary_mode: 'include' 
+      });
+      
+      if (response.data) {
+        const formattedConversations: ConversationDisplay[] = response.data.map(conv => ({
+          ...conv,
+          date: conv.date || 'N/A',
+          duration: conv.duration || '0:00',
+          messages: conv.messages || 0,
+          status: conv.call_successful === 'success' ? 'Successful' : 
+                  conv.call_successful === 'failure' ? 'Failed' : 
+                  'In Progress' as "Successful" | "Failed" | "In Progress",
+          summary: conv.summary || 'No summary available',
+          userId: conv.user_id || 'Unknown User',
+        }));
+        setConversations(formattedConversations);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversations';
+      toast({
+        title: 'Error loading conversations',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setConversations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [agentId, toast]);
+
+  const fetchConversationDetails = useCallback(async (conversationId: string) => {
+    try {
+      const response = await conversationsApi.get(conversationId);
+      if (response.data) {
+        setConversationDetails(response.data);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversation details';
+      toast({
+        title: 'Error loading conversation details',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  // Fetch conversation details when one is selected
+  useEffect(() => {
+    if (selectedConversation?.id) {
+      fetchConversationDetails(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, fetchConversationDetails]);
+
+  const filteredConversations = conversations.filter(
     (conv) =>
-      conv.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.id.toLowerCase().includes(searchQuery.toLowerCase())
+      conv.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conv.agent_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -96,45 +141,58 @@ export default function ConversationsTab({ assistantName }: ConversationsTabProp
               </tr>
             </thead>
             <tbody>
-              {filteredConversations.map((conv) => (
-                <tr
-                  key={conv.id}
-                  onClick={() => setSelectedConversation(conv)}
-                  className={cn(
-                    "border-b border-border cursor-pointer transition-colors",
-                    selectedConversation?.id === conv.id
-                      ? "bg-sidebar-accent"
-                      : "hover:bg-secondary/30"
-                  )}
-                >
-                  <td className="px-4 py-3 text-sm">{conv.date}</td>
-                  <td className="px-4 py-3 text-sm">{conv.duration}</td>
-                  <td className="px-4 py-3 text-sm">{conv.messages}</td>
-                  <td className="px-4 py-3">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        conv.status === "Successful" &&
-                          "bg-success/10 text-success border-success/20",
-                        conv.status === "Failed" &&
-                          "bg-destructive/10 text-destructive border-destructive/20",
-                        conv.status === "In Progress" &&
-                          "bg-warning/10 text-warning border-warning/20"
-                      )}
-                    >
-                      {conv.status}
-                    </Badge>
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Loading conversations...</span>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredConversations.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                      <p className="text-sm">{searchQuery ? 'No conversations found matching your search.' : agentId ? 'No conversations found for this agent.' : 'Please select an agent to view conversations.'}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredConversations.map((conv) => (
+                  <tr
+                    key={conv.id}
+                    onClick={() => setSelectedConversation(conv)}
+                    className={cn(
+                      "border-b border-border cursor-pointer transition-colors",
+                      selectedConversation?.id === conv.id
+                        ? "bg-sidebar-accent"
+                        : "hover:bg-secondary/30"
+                    )}
+                  >
+                    <td className="px-4 py-3 text-sm">{conv.date || 'N/A'}</td>
+                    <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
+                    <td className="px-4 py-3 text-sm">{conv.messages || 0}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          conv.status === "Successful" &&
+                            "bg-success/10 text-success border-success/20",
+                          conv.status === "Failed" &&
+                            "bg-destructive/10 text-destructive border-destructive/20",
+                          conv.status === "In Progress" &&
+                            "bg-warning/10 text-warning border-warning/20"
+                        )}
+                      >
+                        {conv.status || 'Unknown'}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-
-          {filteredConversations.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <p>No conversations found</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -265,27 +323,32 @@ export default function ConversationsTab({ assistantName }: ConversationsTabProp
 
             {activeDetailTab === "transcription" && (
               <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-secondary/30">
-                  <p className="text-xs text-muted-foreground mb-1">User</p>
-                  <p className="text-sm">Hi, I need help with my account.</p>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <p className="text-xs text-primary mb-1">{assistantName}</p>
-                  <p className="text-sm">
-                    Hello! I'd be happy to help you with your account. What seems to be the issue?
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary/30">
-                  <p className="text-xs text-muted-foreground mb-1">User</p>
-                  <p className="text-sm">I forgot my password and need to reset it.</p>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <p className="text-xs text-primary mb-1">{assistantName}</p>
-                  <p className="text-sm">
-                    No problem! I can guide you through the password reset process. First, could you
-                    please confirm the email address associated with your account?
-                  </p>
-                </div>
+                {conversationDetails?.transcript && conversationDetails.transcript.length > 0 ? (
+                  conversationDetails.transcript.map((turn, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "p-3 rounded-lg",
+                        turn.role === 'user' ? "bg-secondary/30" : "bg-primary/10"
+                      )}
+                    >
+                      <p className={cn(
+                        "text-xs mb-1",
+                        turn.role === 'user' ? "text-muted-foreground" : "text-primary"
+                      )}>
+                        {turn.role === 'user' ? 'User' : assistantName}
+                        {turn.time_in_call_secs !== undefined && (
+                          <span className="ml-2 text-muted-foreground">
+                            [{Math.floor(turn.time_in_call_secs)}s]
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-sm">{turn.message}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No transcript available</p>
+                )}
               </div>
             )}
 

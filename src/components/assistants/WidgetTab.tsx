@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,8 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Phone } from "lucide-react";
+import { Phone, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Agent } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface ColorInputProps {
   label: string;
@@ -64,7 +66,14 @@ interface WidgetConfig {
   buttonRadius: string;
 }
 
-export default function WidgetTab() {
+interface WidgetTabProps {
+  agent?: Agent | null;
+  agentId?: string;
+}
+
+export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
     variant: "full",
     placement: "bottom-right",
@@ -95,6 +104,98 @@ If you do not wish to have your conversations recorded, please refrain from usin
     buttonRadius: "18px",
   });
 
+  // Extract widget configuration from agent data
+  const extractWidgetConfig = useCallback((agentData: Agent) => {
+    if (!agentData.platform_settings) return;
+
+    const platformSettings = agentData.platform_settings as Record<string, unknown>;
+    
+    // Extract widget configuration
+    if (platformSettings.widget && typeof platformSettings.widget === 'object') {
+      const widgetConfig = platformSettings.widget as Record<string, unknown>;
+      
+      // Extract variant
+      if (typeof widgetConfig.variant === 'string' && ['tiny', 'compact', 'full'].includes(widgetConfig.variant)) {
+        setConfig((prev) => ({ ...prev, variant: widgetConfig.variant as "tiny" | "compact" | "full" }));
+      }
+      
+      // Extract placement
+      if (typeof widgetConfig.placement === 'string') {
+        setConfig((prev) => ({ ...prev, placement: widgetConfig.placement as string }));
+      }
+      
+      // Extract avatar type
+      if (typeof widgetConfig.avatar_type === 'string' && ['orb', 'link', 'image'].includes(widgetConfig.avatar_type)) {
+        setConfig((prev) => ({ ...prev, avatarType: widgetConfig.avatar_type as "orb" | "link" | "image" }));
+      }
+      
+      // Extract orb colors
+      if (typeof widgetConfig.orb_first_color === 'string') {
+        setConfig((prev) => ({ ...prev, orbFirstColor: widgetConfig.orb_first_color as string }));
+      }
+      if (typeof widgetConfig.orb_second_color === 'string') {
+        setConfig((prev) => ({ ...prev, orbSecondColor: widgetConfig.orb_second_color as string }));
+      }
+      
+      // Extract terms
+      const termsEnabled = widgetConfig.terms_enabled;
+      if (typeof termsEnabled === 'boolean') {
+        setConfig((prev) => ({ ...prev, termsEnabled }));
+      }
+      const termsContent = widgetConfig.terms_content;
+      if (typeof termsContent === 'string') {
+        setConfig((prev) => ({ ...prev, termsContent }));
+      }
+      
+      // Extract colors
+      if (widgetConfig.colors && typeof widgetConfig.colors === 'object') {
+        const colors = widgetConfig.colors as Record<string, unknown>;
+        const colorKeys: (keyof WidgetConfig["colors"])[] = [
+          'base', 'baseHover', 'baseActive', 'baseBorder', 'baseSubtle', 'basePrimary', 'baseError',
+          'accent', 'accentHover', 'accentActive', 'accentBorder', 'accentSubtle', 'accentPrimary'
+        ];
+        
+        colorKeys.forEach((key) => {
+          const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          const colorValue = colors[snakeKey];
+          if (typeof colorValue === 'string') {
+            setConfig((prev) => ({
+              ...prev,
+              colors: { ...prev.colors, [key]: colorValue }
+            }));
+          }
+        });
+      }
+      
+      // Extract other settings
+      const overlayPadding = widgetConfig.overlay_padding;
+      if (typeof overlayPadding === 'string') {
+        setConfig((prev) => ({ ...prev, overlayPadding }));
+      }
+      const buttonRadius = widgetConfig.button_radius;
+      if (typeof buttonRadius === 'string') {
+        setConfig((prev) => ({ ...prev, buttonRadius }));
+      }
+    }
+    
+    // Also check for widget settings at root level of platform_settings
+    const widgetVariant = platformSettings.widget_variant;
+    if (typeof widgetVariant === 'string' && ['tiny', 'compact', 'full'].includes(widgetVariant)) {
+      setConfig((prev) => ({ ...prev, variant: widgetVariant as "tiny" | "compact" | "full" }));
+    }
+    const widgetPlacement = platformSettings.widget_placement;
+    if (typeof widgetPlacement === 'string') {
+      setConfig((prev) => ({ ...prev, placement: widgetPlacement }));
+    }
+  }, []);
+
+  // Extract widget config when agent data changes
+  useEffect(() => {
+    if (agent) {
+      extractWidgetConfig(agent);
+    }
+  }, [agent, extractWidgetConfig]);
+
   const updateColor = (key: keyof WidgetConfig["colors"], value: string) => {
     setConfig((prev) => ({
       ...prev,
@@ -104,6 +205,28 @@ If you do not wish to have your conversations recorded, please refrain from usin
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      {/* ElevenLabs Widget Info */}
+      {agent && (
+        <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+          <h4 className="text-sm font-semibold mb-2 text-primary">ElevenLabs Widget Configuration</h4>
+          <p className="text-xs text-muted-foreground">
+            Widget settings are loaded from your ElevenLabs agent. You can customize the widget appearance below.
+            {agentId && (
+              <span className="block mt-1 font-mono text-xs">
+                Agent ID: {agentId}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+      
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading widget configuration...</span>
+        </div>
+      )}
+      
       <div className="max-w-4xl mx-auto space-y-6 md:space-y-8">
         {/* Avatar Section */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-16">
