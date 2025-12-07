@@ -594,12 +594,23 @@ export interface PhoneNumber {
   updated_at: string;
 }
 
+export interface AvailablePhoneNumber {
+  phone_number: string;
+  friendly_name?: string;
+  region?: string;
+  iso_country?: string;
+  capabilities?: {
+    voice?: boolean;
+    sms?: boolean;
+    mms?: boolean;
+  };
+  monthly_price?: string;
+}
+
 export interface CreatePhoneNumberParams {
   phone_number: string;
   label: string;
-  provider: 'twilio' | 'vonage' | 'telnyx';
-  twilio_sid?: string;
-  twilio_token?: string;
+  provider: 'twilio';
   agent_id?: string;
 }
 
@@ -619,14 +630,31 @@ export const phoneNumbersApi = {
     return response;
   },
 
+  // Fetch phone numbers available in the user's Twilio account (already purchased, not assigned)
+  getAccountNumbers: async () => {
+    const response = await apiClient.get<AvailablePhoneNumber[]>('/phone_numbers/account');
+    return response;
+  },
+
+  // Fetch available Twilio numbers for purchase
+  getAvailable: async (countryCode?: string, areaCode?: string) => {
+    const params = new URLSearchParams();
+    if (countryCode) params.append('country_code', countryCode);
+    if (areaCode) params.append('area_code', areaCode);
+    
+    const queryString = params.toString();
+    const endpoint = `/phone_numbers/available${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<AvailablePhoneNumber[]>(endpoint);
+    return response;
+  },
+
+  // Purchase and assign a phone number
   create: async (params: CreatePhoneNumberParams) => {
     // Send params at top level to match backend expectations
     const response = await apiClient.post<PhoneNumber>('/phone_numbers', {
       phone_number: params.phone_number,
       label: params.label,
       provider: params.provider,
-      twilio_sid: params.twilio_sid,
-      twilio_token: params.twilio_token,
       agent_id: params.agent_id,
     });
     return response;

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,47 +17,49 @@ import {
 } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { phoneNumbersApi, agentsApi, Agent } from "@/lib/api";
+import { phoneNumbersApi, agentsApi, Agent, AvailablePhoneNumber } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, Phone, Check, ShoppingCart, CheckCircle2 } from "lucide-react";
 
 interface PhoneNumberModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type PhoneOption = 
-  | "import-twilio" 
-  | "import-vonage" 
-  | "import-telnyx"
-
-const phoneOptions: { id: PhoneOption; label: string; importLabel: string }[] = [
-  { id: "import-twilio", label: "Twilio", importLabel: "Import Twilio" },
-  { id: "import-vonage", label: "Vonage", importLabel: "Import Vonage" },
-  { id: "import-telnyx", label: "Telnyx", importLabel: "Import Telnyx" },
-];
-
 export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
-  const [selectedOption, setSelectedOption] = useState<PhoneOption>("import-twilio");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [accountSid, setAccountSid] = useState("");
-  const [authToken, setAuthToken] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [apiSecret, setApiSecret] = useState("");
-  const [telnyxApiKey, setTelnyxApiKey] = useState("");
+  const [step, setStep] = useState<"account" | "assign">("account");
+  const [accountNumbers, setAccountNumbers] = useState<AvailablePhoneNumber[]>([]);
+  const [availableNumbers, setAvailableNumbers] = useState<AvailablePhoneNumber[]>([]);
+  const [loadingAccountNumbers, setLoadingAccountNumbers] = useState(false);
+  const [loadingNumbers, setLoadingNumbers] = useState(false);
+  const [selectedNumber, setSelectedNumber] = useState<AvailablePhoneNumber | null>(null);
   const [label, setLabel] = useState("");
-  const [smsEnabled, setSmsEnabled] = useState(true);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("none");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [countryCode, setCountryCode] = useState("US");
+  const [areaCode, setAreaCode] = useState("");
 
   useEffect(() => {
     if (open) {
       fetchAgents();
+      fetchAccountNumbers();
+      // Reset available numbers when modal opens
+      setAvailableNumbers([]);
+    } else {
+      // Reset state when modal closes
+      setStep("account");
+      setSelectedNumber(null);
+      setLabel("");
+      setSelectedAgentId("none");
+      setAreaCode("");
+      setAccountNumbers([]);
+      setAvailableNumbers([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const fetchAgents = async () => {
@@ -79,383 +80,376 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
     }
   };
 
-  const handleImport = async () => {
-    if (!phoneNumber || !label) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (selectedOption === "import-twilio" && (!accountSid || !authToken)) {
-      toast({
-        title: 'Error',
-        description: 'Twilio Account SID and Auth Token are required.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setImporting(true);
+  const fetchAccountNumbers = async () => {
+    setLoadingAccountNumbers(true);
     try {
-      const provider = selectedOption === "import-twilio" ? "twilio" : 
-                      selectedOption === "import-vonage" ? "vonage" : "telnyx";
-      
-      const params: any = {
-        phone_number: phoneNumber,
-        label: label,
-        provider: provider,
+      const response = await phoneNumbersApi.getAccountNumbers();
+      if (response.data) {
+        setAccountNumbers(response.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch account numbers:', err);
+    } finally {
+      setLoadingAccountNumbers(false);
+    }
+  };
+
+  const fetchAvailableNumbers = async () => {
+    setLoadingNumbers(true);
+    try {
+      const response = await phoneNumbersApi.getAvailable(countryCode, areaCode || undefined);
+      if (response.data) {
+        setAvailableNumbers(response.data);
+      }
+    } catch (err) {
+      toast({
+        title: 'Error loading available numbers',
+        description: err instanceof Error ? err.message : 'Failed to fetch available phone numbers',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingNumbers(false);
+    }
+  };
+
+  const handleSearch = () => {
+    fetchAvailableNumbers();
+  };
+
+  const handleSelectNumber = (number: AvailablePhoneNumber) => {
+    setSelectedNumber(number);
+    setStep("assign");
+  };
+
+  const handleAssign = async () => {
+    if (!selectedNumber || !label.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please select a number and provide a label.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setAssigning(true);
+    try {
+      const params = {
+        phone_number: selectedNumber.phone_number,
+        label: label.trim(),
+        provider: 'twilio' as const,
+        agent_id: selectedAgentId !== "none" ? selectedAgentId : undefined,
       };
-
-      if (selectedOption === "import-twilio") {
-        params.twilio_sid = accountSid;
-        params.twilio_token = authToken;
-      }
-
-      if (selectedAgentId !== "none") {
-        params.agent_id = selectedAgentId;
-      }
 
       const response = await phoneNumbersApi.create(params);
       
       if (response.data) {
         toast({
           title: 'Success',
-          description: 'Phone number imported successfully.',
+          description: accountNumbers.some(n => n.phone_number === selectedNumber.phone_number)
+            ? 'Phone number assigned successfully.'
+            : 'Phone number purchased and assigned successfully.',
         });
         onOpenChange(false);
-        resetForm();
       }
     } catch (err) {
       toast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to import phone number',
+        description: err instanceof Error ? err.message : 'Failed to assign phone number',
         variant: 'destructive',
       });
     } finally {
-      setImporting(false);
+      setAssigning(false);
     }
   };
 
-  const resetForm = () => {
-    setPhoneNumber("");
-    setAccountSid("");
-    setAuthToken("");
-    setApiKey("");
-    setApiSecret("");
-    setTelnyxApiKey("");
-    setLabel("");
-    setSmsEnabled(true);
-    setSelectedAgentId("none");
+  const handleBack = () => {
+    if (step === "assign") {
+      // Go back to account step
+      setStep("account");
+      setSelectedNumber(null);
+      setLabel("");
+    }
   };
 
-  const handleClose = (open: boolean) => {
-    if (!open) {
-      resetForm();
-    }
-    onOpenChange(open);
-  };
+  const isFromAccount = selectedNumber && accountNumbers.some(n => n.phone_number === selectedNumber.phone_number);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto p-4 md:p-6">
         <DialogHeader>
-          <DialogTitle>Phone Number Options</DialogTitle>
+          <DialogTitle>
+            {step === "account" ? "Phone Numbers" :
+             "Assign Phone Number"}
+          </DialogTitle>
         </DialogHeader>
         
-        <div className="flex flex-col gap-4 md:gap-6">
-          {/* Provider Selection - Mobile: Centered Select, Desktop: Horizontal Row */}
-          {isMobile ? (
-            <div className="space-y-2">
-              <Label className="text-center block">Provider</Label>
-              <Select value={selectedOption} onValueChange={(value) => setSelectedOption(value as PhoneOption)}>
-                <SelectTrigger className="w-full text-center">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {phoneOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id} className="text-center">
-                      {option.label}
-                    </SelectItem>
+        {step === "account" ? (
+          <div className="flex flex-col gap-4 md:gap-6">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                These are phone numbers available in your Twilio account that haven't been assigned yet.
+              </p>
+
+              {loadingAccountNumbers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : accountNumbers.length > 0 ? (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <p className="text-sm font-medium">
+                      {accountNumbers.length} number{accountNumbers.length !== 1 ? 's' : ''} available in your account
+                    </p>
+                  </div>
+                  {accountNumbers.map((number, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSelectNumber(number)}
+                      className={cn(
+                        "w-full p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors text-left relative",
+                        selectedNumber?.phone_number === number.phone_number && "border-primary bg-primary/5"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Phone className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium text-base">{number.phone_number}</div>
+                            {number.friendly_name && (
+                              <div className="text-sm text-muted-foreground">{number.friendly_name}</div>
+                            )}
+                            {number.region && (
+                              <div className="text-xs text-muted-foreground">{number.region}</div>
+                            )}
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-md">
+                          In Account
+                        </span>
+                      </div>
+                      {number.capabilities && (
+                        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+                          {number.capabilities.voice && <span>Voice</span>}
+                          {number.capabilities.sms && <span>SMS</span>}
+                          {number.capabilities.mms && <span>MMS</span>}
+                        </div>
+                      )}
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No numbers available in your account.</p>
+                </div>
+              )}
+
+              <div className="space-y-4 pt-4 border-t border-border">
+                <p className="text-sm text-muted-foreground">
+                  Search for additional phone numbers to purchase from Twilio.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Select value={countryCode} onValueChange={setCountryCode}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="US">United States</SelectItem>
+                        <SelectItem value="CA">Canada</SelectItem>
+                        <SelectItem value="GB">United Kingdom</SelectItem>
+                        <SelectItem value="AU">Australia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Area Code (Optional)</Label>
+                    <Input
+                      value={areaCode}
+                      onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                      placeholder="e.g., 415"
+                      className="bg-secondary/50"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSearch}
+                  disabled={loadingNumbers}
+                  className="w-full"
+                >
+                  {loadingNumbers ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4 mr-2" />
+                      Search Available Numbers
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Available Numbers List */}
+              {loadingNumbers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : availableNumbers.length > 0 ? (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShoppingCart className="h-4 w-4 text-blue-500" />
+                    <p className="text-sm font-medium">
+                      {availableNumbers.length} available number{availableNumbers.length !== 1 ? 's' : ''} found for purchase
+                    </p>
+                  </div>
+                  {availableNumbers.map((number, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSelectNumber(number)}
+                      className={cn(
+                        "w-full p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors text-left relative",
+                        selectedNumber?.phone_number === number.phone_number && "border-primary bg-primary/5"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Phone className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium text-base">{number.phone_number}</div>
+                            {number.friendly_name && (
+                              <div className="text-sm text-muted-foreground">{number.friendly_name}</div>
+                            )}
+                            {number.region && (
+                              <div className="text-xs text-muted-foreground">{number.region}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {number.monthly_price && (
+                            <div className="text-sm font-medium text-muted-foreground">
+                              ${number.monthly_price}/mo
+                            </div>
+                          )}
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md">
+                            Purchase
+                          </span>
+                        </div>
+                      </div>
+                      {number.capabilities && (
+                        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+                          {number.capabilities.voice && <span>Voice</span>}
+                          {number.capabilities.sms && <span>SMS</span>}
+                          {number.capabilities.mms && <span>MMS</span>}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : availableNumbers.length === 0 && !loadingNumbers && accountNumbers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No available numbers found. Try adjusting your search criteria.</p>
+                </div>
+              ) : null}
             </div>
-          ) : (
-            <div className="w-full space-y-2">
-              <p className="text-sm font-medium text-foreground">Provider</p>
-              <div className="flex flex-row gap-2">
-                {phoneOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => setSelectedOption(option.id)}
-                    className={cn(
-                      "flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors",
-                      selectedOption === option.id
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 md:gap-6">
+            {/* Selected Number Display */}
+            {selectedNumber && (
+              <div className="p-4 bg-secondary/30 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <div className="font-medium text-base">{selectedNumber.phone_number}</div>
+                    {selectedNumber.friendly_name && (
+                      <div className="text-sm text-muted-foreground">{selectedNumber.friendly_name}</div>
                     )}
-                  >
-                    {option.importLabel}
-                  </button>
-                ))}
+                    {isFromAccount && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        From your Twilio account
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Assignment Form */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Label *</Label>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g., Main Support Line"
+                  className="bg-secondary/50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  A descriptive label to identify this phone number
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Agent (Optional)</Label>
+                <Select
+                  value={selectedAgentId}
+                  onValueChange={setSelectedAgentId}
+                  disabled={loadingAgents}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an agent (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No agent (unassigned)</SelectItem>
+                    {agents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id.toString()}>
+                        {agent.name || `Agent ${agent.id}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Assign this number to an agent. You can change this later.
+                </p>
               </div>
             </div>
-          )}
 
-          {/* Form Content */}
-          <div className="flex-1 space-y-4 min-w-0">
-            {selectedOption === "import-twilio" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Twilio Phone Number</Label>
-                  <div className="flex gap-2">
-                    <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-secondary/50 border border-border rounded-md flex-shrink-0">
-                      <span className="text-base md:text-lg">🇺🇸</span>
-                    </div>
-                    <Input 
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="bg-secondary/50 flex-1 text-sm md:text-base"
-                      placeholder="+14156021922"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Twilio Account SID</Label>
-                  <Input 
-                    value={accountSid}
-                    onChange={(e) => setAccountSid(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Twilio Account SID"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Twilio Auth Token</Label>
-                  <Input 
-                    type="password"
-                    value={authToken}
-                    onChange={(e) => setAuthToken(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Twilio Auth Token"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Label</Label>
-                  <Input 
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Label for Phone Number"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Agent (Optional)</Label>
-                  <Select value={selectedAgentId} onValueChange={setSelectedAgentId} disabled={loadingAgents}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an agent (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No agent (unassigned)</SelectItem>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id.toString()}>
-                          {agent.name || `Agent ${agent.id}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="bg-secondary/30 border border-border rounded-lg p-3 md:p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-sm md:text-base">SMS Enabled</p>
-                      <p className="text-xs md:text-sm text-muted-foreground">Enable SMS messaging for this phone number</p>
-                    </div>
-                    <Switch checked={smsEnabled} onCheckedChange={setSmsEnabled} />
-                  </div>
-                </div>
-
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto" disabled={importing}>
-                    Cancel
-                  </Button>
-                  <Button variant="accent" className="w-full sm:w-auto" onClick={handleImport} disabled={importing || loadingAgents}>
-                    {importing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Importing...
-                      </>
-                    ) : (
-                      'Import from Twilio'
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {selectedOption === "import-vonage" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Vonage Phone Number</Label>
-                  <div className="flex gap-2">
-                    <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-secondary/50 border border-border rounded-md flex-shrink-0">
-                      <span className="text-base md:text-lg">🇺🇸</span>
-                    </div>
-                    <Input 
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="bg-secondary/50 flex-1 text-sm md:text-base"
-                      placeholder="+14156021922"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>API Key</Label>
-                  <Input 
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Enter API Key"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>API Secret</Label>
-                  <Input 
-                    type="password"
-                    value={apiSecret}
-                    onChange={(e) => setApiSecret(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Enter API Secret"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Label</Label>
-                  <Input 
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Label for Phone Number"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Agent (Optional)</Label>
-                  <Select value={selectedAgentId} onValueChange={setSelectedAgentId} disabled={loadingAgents}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an agent (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No agent (unassigned)</SelectItem>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id.toString()}>
-                          {agent.name || `Agent ${agent.id}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto" disabled={importing}>
-                    Cancel
-                  </Button>
-                  <Button variant="accent" className="w-full sm:w-auto" onClick={handleImport} disabled={importing || loadingAgents}>
-                    {importing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Importing...
-                      </>
-                    ) : (
-                      'Import from Vonage'
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {selectedOption === "import-telnyx" && (
-              <>
-                <div className="space-y-2">
-                  <Label>Telnyx Phone Number</Label>
-                  <div className="flex gap-2">
-                    <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-secondary/50 border border-border rounded-md flex-shrink-0">
-                      <span className="text-base md:text-lg">🇺🇸</span>
-                    </div>
-                    <Input 
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="bg-secondary/50 flex-1 text-sm md:text-base"
-                      placeholder="+14156021922"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>API Key</Label>
-                  <Input 
-                    value={telnyxApiKey}
-                    onChange={(e) => setTelnyxApiKey(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Enter API Key"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Label</Label>
-                  <Input 
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    className="bg-secondary/50 text-sm md:text-base"
-                    placeholder="Label for Phone Number"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Agent (Optional)</Label>
-                  <Select value={selectedAgentId} onValueChange={setSelectedAgentId} disabled={loadingAgents}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an agent (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No agent (unassigned)</SelectItem>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id.toString()}>
-                          {agent.name || `Agent ${agent.id}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => handleClose(false)} className="w-full sm:w-auto" disabled={importing}>
-                    Cancel
-                  </Button>
-                  <Button variant="accent" className="w-full sm:w-auto" onClick={handleImport} disabled={importing || loadingAgents}>
-                    {importing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Importing...
-                      </>
-                    ) : (
-                      'Import from Telnyx'
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-border">
+              <Button variant="outline" onClick={handleBack} disabled={assigning}>
+                Back
+              </Button>
+              <Button
+                variant="accent"
+                onClick={handleAssign}
+                disabled={assigning || !label.trim() || loadingAgents}
+                className="w-full sm:w-auto"
+              >
+                {assigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {isFromAccount ? 'Assigning...' : 'Purchasing...'}
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    {isFromAccount ? 'Assign' : 'Purchase & Assign'}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

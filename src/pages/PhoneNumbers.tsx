@@ -17,7 +17,7 @@ import {
   User
 } from "lucide-react";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
-import { phoneNumbersApi, PhoneNumber, agentsApi, Agent } from "@/lib/api";
+import { phoneNumbersApi, PhoneNumber, agentsApi, Agent, UpdatePhoneNumberParams } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PhoneNumbers() {
@@ -93,12 +93,9 @@ export default function PhoneNumbers() {
 
   const handleAgentChange = async (phoneNumber: PhoneNumber, agentId: string) => {
     try {
-      const updateParams: any = {};
-      if (agentId !== "none") {
-        updateParams.agent_id = agentId;
-      } else {
-        updateParams.agent_id = "";
-      }
+      const updateParams: UpdatePhoneNumberParams = {
+        agent_id: agentId !== "none" ? agentId : "",
+      };
 
       await phoneNumbersApi.update(phoneNumber.id, updateParams);
       toast({
@@ -148,7 +145,7 @@ export default function PhoneNumbers() {
                 Assistants are able to be connected to phone numbers for calls.
               </p>
               <p className="text-muted-foreground text-center max-w-md mb-4 md:mb-6 text-sm md:text-base">
-                You can import from Twilio, vonage, or create a free number directly from Contextor for use with your assistants.
+                Browse and purchase available phone numbers from Twilio and assign them to your assistants.
               </p>
               
               <Button 
@@ -157,7 +154,7 @@ export default function PhoneNumbers() {
                 onClick={() => setModalOpen(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create Phone Number
+                Purchase Phone Number
               </Button>
               
               <div className="relative w-full sm:w-80 max-w-full">

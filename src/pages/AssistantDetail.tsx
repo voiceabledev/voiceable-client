@@ -39,7 +39,8 @@ import {
   Send,
   User,
   FileText,
-  Loader2
+  Loader2,
+  Layout
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
@@ -53,7 +54,7 @@ const tabs = [
   { id: "voice", label: "Voice", icon: AudioLines },
   { id: "transcriber", label: "Transcriber", icon: Mic },
   { id: "conversations", label: "Conversations", icon: MessageSquare },
-  // { id: "widget", label: "Widget", icon: Layout },
+  { id: "widget", label: "Widget", icon: Layout },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 
@@ -1225,7 +1226,7 @@ export default function AssistantDetail() {
           
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Button 
+              {/* <Button 
                 variant={showConfigPanel ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => setShowConfigPanel(!showConfigPanel)}
@@ -1233,7 +1234,7 @@ export default function AssistantDetail() {
               >
                 <Code className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
                 <span className="hidden sm:inline">Code</span>
-              </Button>
+              </Button> */}
               <Button 
                 variant={showPreviewChat ? "secondary" : "accent"} 
                 size="sm"

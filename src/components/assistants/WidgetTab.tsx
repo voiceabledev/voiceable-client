@@ -13,6 +13,9 @@ import { Phone, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Agent } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import WidgetPreview from "./WidgetPreview";
+import { WidgetConfig } from "@/utils/widgetPreview";
 
 interface ColorInputProps {
   label: string;
@@ -39,33 +42,6 @@ function ColorInput({ label, value, onChange }: ColorInputProps) {
   );
 }
 
-interface WidgetConfig {
-  variant: "tiny" | "compact" | "full";
-  placement: string;
-  avatarType: "orb" | "link" | "image";
-  orbFirstColor: string;
-  orbSecondColor: string;
-  termsEnabled: boolean;
-  termsContent: string;
-  colors: {
-    base: string;
-    baseHover: string;
-    baseActive: string;
-    baseBorder: string;
-    baseSubtle: string;
-    basePrimary: string;
-    baseError: string;
-    accent: string;
-    accentHover: string;
-    accentActive: string;
-    accentBorder: string;
-    accentSubtle: string;
-    accentPrimary: string;
-  };
-  overlayPadding: string;
-  buttonRadius: string;
-}
-
 interface WidgetTabProps {
   agent?: Agent | null;
   agentId?: string;
@@ -73,7 +49,9 @@ interface WidgetTabProps {
 
 export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [config, setConfig] = useState<WidgetConfig>({
     variant: "full",
     placement: "bottom-right",
@@ -539,6 +517,18 @@ If you do not wish to have your conversations recorded, please refrain from usin
                 color: config.colors.accentPrimary,
                 borderRadius: config.buttonRadius,
               }}
+              onClick={() => {
+                // Check if agent is published and has elevenlabs_agent_id
+                if (!agent?.elevenlabs_agent_id || !agent?.published) {
+                  toast({
+                    title: 'Agent Not Published',
+                    description: 'Please deploy the agent to ElevenLabs before previewing the widget.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                setShowPreview(true);
+              }}
             >
               <Phone className="h-3.5 w-3.5 md:h-4 md:w-4" />
               Start a call
@@ -546,6 +536,35 @@ If you do not wish to have your conversations recorded, please refrain from usin
           </div>
         </div>
       </div>
+
+      {/* Widget Preview Panel */}
+      {showPreview && (
+        <>
+          {isMobile ? (
+            <>
+              <div 
+                className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+                onClick={() => setShowPreview(false)}
+              />
+              <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg overflow-hidden">
+                <WidgetPreview
+                  agent={agent}
+                  config={config}
+                  onClose={() => setShowPreview(false)}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="w-[500px] lg:w-[600px] md:w-[450px] border-l border-border flex flex-col bg-card flex-shrink-0 h-full overflow-hidden fixed right-0 top-0 bottom-0 z-50">
+              <WidgetPreview
+                agent={agent}
+                config={config}
+                onClose={() => setShowPreview(false)}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -182,8 +182,6 @@ export default function VoiceLibrary() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="11labs">11labs</SelectItem>
-              <SelectItem value="vapi">Vapi</SelectItem>
-              <SelectItem value="deepgram">Deepgram</SelectItem>
             </SelectContent>
           </Select>
           <Select value={genderFilter} onValueChange={setGenderFilter}>
