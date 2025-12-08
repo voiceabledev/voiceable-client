@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { conversationsApi, Conversation } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import ReactPlayer from "react-player";
 
 interface ConversationDisplay extends Conversation {
   agent: string;
@@ -29,17 +30,17 @@ interface ConversationDisplay extends Conversation {
 }
 
 const filterOptions = [
-  "Date After",
-  "Date Before",
-  "Call status",
-  "Criteria",
-  "Data",
-  "Duration",
-  "Rating",
-  "Comments",
-  "Agent",
-  "Tools",
-  "User",
+  // "Date After",
+  // "Date Before",
+  // "Call status",
+  // "Criteria",
+  // "Data",
+  // "Duration",
+  // "Rating",
+  // "Comments",
+  // "Agent",
+  // "Tools",
+  // "User",
 ];
 
 const ConversationDetailPanel = ({
@@ -50,6 +51,13 @@ const ConversationDetailPanel = ({
   setActiveDetailTab,
   isPlaying,
   setIsPlaying,
+  playerRef,
+  currentTime,
+  duration,
+  audioUrl,
+  toast,
+  onProgress,
+  onDuration,
 }: {
   selectedConversation: ConversationDisplay;
   conversationDetails: Conversation | null;
@@ -58,7 +66,37 @@ const ConversationDetailPanel = ({
   setActiveDetailTab: (tab: "overview" | "transcription" | "client") => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
-}) => (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  playerRef: React.RefObject<any>;
+  currentTime: number;
+  duration: number;
+  audioUrl: string | null;
+  toast: ReturnType<typeof useToast>['toast'];
+  onProgress: (state: { played: number; playedSeconds: number }) => void;
+  onDuration: (duration: number) => void;
+}) => {
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleSeekBack = () => {
+    if (playerRef.current) {
+      const newTime = Math.max(0, currentTime - 10);
+      playerRef.current.seekTo(newTime, 'seconds');
+    }
+  };
+
+  const handleSeekForward = () => {
+    if (playerRef.current) {
+      const newTime = Math.min(duration, currentTime + 10);
+      playerRef.current.seekTo(newTime, 'seconds');
+    }
+  };
+
+  return (
   <div className="flex flex-col h-full">
     {/* Header */}
     <div className="p-3 md:p-4 border-b border-border flex-shrink-0">
@@ -83,7 +121,7 @@ const ConversationDetailPanel = ({
       <div className="bg-secondary/30 rounded-lg p-3 md:p-4">
         <div className="flex items-center gap-2 mb-2 md:mb-3">
           <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded">
-            0:00
+            {formatTime(currentTime)}
           </span>
         </div>
         {/* Waveform placeholder */}
@@ -99,8 +137,27 @@ const ConversationDetailPanel = ({
         {/* Controls */}
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0"
+            onClick={() => {
+              if (!selectedConversation.has_audio) {
+                toast({
+                  title: 'Audio not available',
+                  description: 'This conversation does not have audio available.',
+                  variant: 'destructive',
+                });
+                return;
+              }
+              if (!audioUrl) {
+                toast({
+                  title: 'Loading audio',
+                  description: 'Audio is still loading. Please wait...',
+                  variant: 'default',
+                });
+                return;
+              }
+              setIsPlaying(!isPlaying);
+            }}
+            className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!selectedConversation.has_audio}
           >
             {isPlaying ? (
               <Pause className="h-4 w-4 md:h-5 md:w-5" />
@@ -109,14 +166,22 @@ const ConversationDetailPanel = ({
             )}
           </button>
           <span className="text-xs md:text-sm">1.0x</span>
-          <button className="text-muted-foreground hover:text-foreground">
+          <button 
+            onClick={handleSeekBack}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={!selectedConversation.has_audio}
+          >
             <RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
-          <button className="text-muted-foreground hover:text-foreground">
+          <button 
+            onClick={handleSeekForward}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={!selectedConversation.has_audio}
+          >
             <RotateCw className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
           <span className="text-xs md:text-sm text-muted-foreground ml-auto">
-            0:00 / {selectedConversation.duration}
+            {formatTime(currentTime)} / {formatTime(duration) || selectedConversation.duration}
           </span>
           <button className="text-muted-foreground hover:text-foreground">
             <MoreHorizontal className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -267,7 +332,8 @@ const ConversationDetailPanel = ({
       )}
     </div>
   </div>
-);
+  );
+};
 
 export default function Conversations() {
   const { toast } = useToast();
@@ -279,6 +345,11 @@ export default function Conversations() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const playerRef = useRef<any>(null);
 
   const fetchConversations = useCallback(async () => {
     setLoading(true);
@@ -343,6 +414,97 @@ export default function Conversations() {
     }
   }, [selectedConversation]);
 
+  // Handle progress updates from ReactPlayer
+  const handleProgress = useCallback((state: { played: number; playedSeconds: number; loaded: number; loadedSeconds: number }) => {
+    setCurrentTime(state.playedSeconds);
+  }, []);
+
+  // Handle duration updates from ReactPlayer
+  const handleDuration = useCallback((duration: number) => {
+    setDuration(duration);
+  }, []);
+
+  // Handle errors from ReactPlayer
+  const handleError = useCallback(() => {
+    console.error('Audio playback error');
+    setIsPlaying(false);
+    toast({
+      title: 'Audio playback error',
+      description: 'Could not play conversation audio.',
+      variant: 'destructive',
+    });
+  }, [toast]);
+
+  // Handle when audio ends
+  const handleEnded = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, []);
+
+  // Reset audio when conversation changes
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.seekTo(0, 'seconds');
+    }
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setAudioUrl(null);
+  }, [selectedConversation?.id]);
+
+  // Get audio URL and handle authentication
+  useEffect(() => {
+    if (!selectedConversation?.id || !selectedConversation?.has_audio) {
+      setAudioUrl(null);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+
+    const fetchAudioUrl = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+        const token = localStorage.getItem('auth_token');
+        const url = `${API_BASE_URL}/conversations/${selectedConversation.id}/audio`;
+        
+        // Fetch audio as blob to include Authorization header
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          objectUrl = URL.createObjectURL(blob);
+          setAudioUrl(objectUrl);
+        } else {
+          setAudioUrl(null);
+        }
+      } catch (error) {
+        console.error('Error fetching audio:', error);
+        setAudioUrl(null);
+      }
+    };
+
+    fetchAudioUrl();
+
+    // Cleanup object URL when component unmounts or conversation changes
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      // Also cleanup any existing audioUrl state
+      setAudioUrl((prevUrl) => {
+        if (prevUrl) {
+          URL.revokeObjectURL(prevUrl);
+        }
+        return null;
+      });
+    };
+  }, [selectedConversation?.id, selectedConversation?.has_audio]);
+
   const filteredConversations = conversations.filter(conv =>
     conv.agent?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -385,10 +547,10 @@ export default function Conversations() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex relative min-h-0 overflow-hidden">
         {/* Table */}
         <div className={cn(
-          "flex-1 overflow-auto",
+          "flex-1 overflow-auto min-h-0",
           selectedConversation && "hidden md:block"
         )}>
           <div className="overflow-x-auto">
@@ -491,13 +653,37 @@ export default function Conversations() {
                     setActiveDetailTab={setActiveDetailTab}
                     isPlaying={isPlaying}
                     setIsPlaying={setIsPlaying}
+                    playerRef={playerRef}
+                    currentTime={currentTime}
+                    duration={duration}
+                    audioUrl={audioUrl}
+                    toast={toast}
+                    onProgress={handleProgress}
+                    onDuration={handleDuration}
                   />
+                  {selectedConversation.has_audio && audioUrl && (
+                    <div style={{ display: 'none' }}>
+                      {/* @ts-expect-error - react-player types are incorrect */}
+                      <ReactPlayer
+                        ref={playerRef}
+                        url={audioUrl}
+                        playing={isPlaying}
+                        // @ts-expect-error - react-player callback types
+                        onProgress={handleProgress}
+                        // @ts-expect-error - react-player callback types
+                        onDuration={handleDuration}
+                        // @ts-expect-error - react-player callback types
+                        onError={handleError}
+                        onEnded={handleEnded}
+                      />
+                    </div>
+                  )}
                 </div>
               </>
             )}
             
             {/* Desktop: Side Panel */}
-            <div className="hidden md:flex w-[500px] border-l border-border flex-col">
+            <div className="hidden md:flex w-[500px] border-l border-border flex-col h-full overflow-hidden">
               <ConversationDetailPanel
                 selectedConversation={selectedConversation}
                 conversationDetails={conversationDetails}
@@ -509,7 +695,31 @@ export default function Conversations() {
                 setActiveDetailTab={setActiveDetailTab}
                 isPlaying={isPlaying}
                 setIsPlaying={setIsPlaying}
+                playerRef={playerRef}
+                currentTime={currentTime}
+                duration={duration}
+                audioUrl={audioUrl}
+                toast={toast}
+                onProgress={handleProgress}
+                onDuration={handleDuration}
               />
+              {selectedConversation.has_audio && audioUrl && (
+                <div style={{ display: 'none' }}>
+                  {/* @ts-expect-error - react-player types are incorrect */}
+                  <ReactPlayer
+                    ref={playerRef}
+                    url={audioUrl}
+                    playing={isPlaying}
+                    // @ts-expect-error - react-player callback types
+                    onProgress={handleProgress}
+                    // @ts-expect-error - react-player callback types
+                    onDuration={handleDuration}
+                    // @ts-expect-error - react-player callback types
+                    onError={handleError}
+                    onEnded={handleEnded}
+                  />
+                </div>
+              )}
             </div>
           </>
         )}

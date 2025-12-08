@@ -42,9 +42,13 @@ class ApiClient {
     const token = this.getToken();
 
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    // Only set Content-Type for JSON, let browser set it for FormData
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -76,10 +80,12 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 
-  async post<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<ApiResponse<T>> {
+    const isFormData = body instanceof FormData;
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
+      ...options,
     });
   }
 
@@ -671,6 +677,130 @@ export const phoneNumbersApi = {
 
   delete: async (id: number) => {
     const response = await apiClient.delete(`/phone_numbers/${id}`);
+    return response;
+  },
+};
+
+// Campaigns API
+export interface Campaign {
+  id: number;
+  name: string;
+  status: string;
+  elevenlabs_batch_call_id?: string;
+  agent_id: number;
+  agent_name?: string;
+  phone_number_id: number;
+  phone_number?: string;
+  recipients_count: number;
+  scheduled_at?: string;
+  send_immediately: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCampaignParams {
+  name: string;
+  phone_number_id: string;
+  agent_id: string;
+  recipients_file: File;
+  send_immediately: boolean;
+  schedule_date?: string;
+  schedule_time?: string;
+}
+
+export const campaignsApi = {
+  list: async () => {
+    const response = await apiClient.get<Campaign[]>('/campaigns');
+    return response;
+  },
+
+  get: async (id: number) => {
+    const response = await apiClient.get<Campaign>(`/campaigns/${id}`);
+    return response;
+  },
+
+  create: async (params: CreateCampaignParams) => {
+    const formData = new FormData();
+    formData.append('name', params.name);
+    formData.append('phone_number_id', params.phone_number_id);
+    formData.append('agent_id', params.agent_id);
+    formData.append('recipients_file', params.recipients_file);
+    formData.append('send_immediately', params.send_immediately.toString());
+    if (!params.send_immediately && params.schedule_date && params.schedule_time) {
+      formData.append('schedule_date', params.schedule_date);
+      formData.append('schedule_time', params.schedule_time);
+    }
+
+    const response = await apiClient.post<Campaign>('/campaigns', formData);
+    return response;
+  },
+};
+
+export interface Payment {
+  id: number;
+  amount_cents: string;
+  amount_dollars: number;
+  currency: string;
+  status: string;
+  description?: string;
+  stripe_payment_intent_id: string;
+  payment_method?: {
+    id: number;
+    last4: string;
+    brand: string;
+  };
+  created_at: string;
+}
+
+export interface PaymentIntentResponse {
+  client_secret: string;
+  payment_intent_id: string;
+}
+
+export interface CreatePaymentIntentParams {
+  amount_cents: number;
+  currency?: string;
+}
+
+export interface ConfirmPaymentParams {
+  payment_intent_id: string;
+  payment_method_id?: string;
+  amount_cents: string;
+  save_payment_method?: boolean;
+}
+
+export interface SavePaymentMethodParams {
+  payment_method_id: string;
+}
+
+export const paymentsApi = {
+  list: async () => {
+    const response = await apiClient.get<Payment[]>('/payments');
+    return response;
+  },
+
+  createIntent: async (params: CreatePaymentIntentParams) => {
+    const response = await apiClient.post<PaymentIntentResponse>('/payments/create_intent', {
+      amount_cents: params.amount_cents,
+      currency: params.currency || 'usd',
+    });
+    return response;
+  },
+
+  confirm: async (params: ConfirmPaymentParams) => {
+    const response = await apiClient.post<Payment>('/payments/confirm', {
+      payment_intent_id: params.payment_intent_id,
+      payment_method_id: params.payment_method_id,
+      amount_cents: params.amount_cents,
+      save_payment_method: params.save_payment_method || false,
+    });
+    return response;
+  },
+
+  saveMethod: async (params: SavePaymentMethodParams) => {
+    const response = await apiClient.post('/payments/save_method', {
+      payment_method_id: params.payment_method_id,
+    });
     return response;
   },
 };

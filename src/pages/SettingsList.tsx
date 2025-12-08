@@ -11,9 +11,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const orgSettings = [
-  { icon: Building2, label: "Org Settings", path: "/settings/org", description: "Manage your organization details and preferences" },
+  // { icon: Building2, label: "Org Settings", path: "/settings/org", description: "Manage your organization details and preferences" },
   { icon: CreditCard, label: "Billing & Add-Ons", path: "/settings/billing", description: "Manage your subscription, payment methods, and add-ons" },
-  { icon: Users, label: "Members", path: "/settings/members", description: "Invite and manage team members" },
+  // { icon: Users, label: "Members", path: "/settings/members", description: "Invite and manage team members" },
   { icon: Link2, label: "Integrations", path: "/settings/integrations", description: "Connect and configure third-party services" },
 ];
 
@@ -79,14 +79,14 @@ export default function SettingsList() {
           </div>
 
           {/* Community */}
-          <div>
+          {/* <div>
             <h2 className="text-xs md:text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3 md:mb-4">
               Community
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {communitySettings.map(renderSettingCard)}
             </div>
-          </div>
+          </div> */}
 
           {/* Account Settings */}
           <div>
