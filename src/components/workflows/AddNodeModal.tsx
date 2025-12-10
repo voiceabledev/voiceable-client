@@ -4,7 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MessageSquare, Zap, PhoneForwarded, PhoneOff, Wrench } from "lucide-react";
+import { MessageSquare, Zap, PhoneForwarded, PhoneOff, Wrench, User } from "lucide-react";
 import type { WorkflowNode } from "@/pages/WorkflowEditor";
 
 interface AddNodeModalProps {
@@ -20,6 +20,13 @@ const nodeTypes = [
     shortcut: "⌘ + shift + C",
     icon: MessageSquare,
     iconBg: "bg-orange-500"
+  },
+  {
+    type: "subagent" as const,
+    name: "Subagent",
+    shortcut: "⌘ + shift + S",
+    icon: User,
+    iconBg: "bg-blue-500"
   },
   {
     type: "api-request" as const,

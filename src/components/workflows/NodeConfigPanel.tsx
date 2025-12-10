@@ -64,6 +64,7 @@ export function NodeConfigPanel({ node, onClose, onUpdate }: NodeConfigPanelProp
       case "transfer-call": return "Transfer Call";
       case "api-request": return "API Request";
       case "conversation": return "Conversation";
+      case "subagent": return "Subagent";
       case "tool": return "Tool";
       default: return node.type;
     }
@@ -98,6 +99,7 @@ export function NodeConfigPanel({ node, onClose, onUpdate }: NodeConfigPanelProp
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="conversation">Conversation</SelectItem>
+              <SelectItem value="subagent">Subagent</SelectItem>
               <SelectItem value="api-request">API Request</SelectItem>
               <SelectItem value="transfer-call">Transfer Call</SelectItem>
               <SelectItem value="end-call">End Call</SelectItem>

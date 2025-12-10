@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  GitBranch,
 } from "lucide-react";
 import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { paymentsApi } from "@/lib/api";
 
 const buildItems = [
   { icon: Users, label: "Assistants", path: "/assistants" },
+  // { icon: GitBranch, label: "Workflows", path: "/workflows" },
   { icon: Phone, label: "Phone Numbers", path: "/phone-numbers" },
   { icon: FileText, label: "Knowledge Base", path: "/files" },
   { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
@@ -330,7 +332,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
   return (
     <>
       <aside className={cn(
-        "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 hidden md:flex",
+        "h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 hidden md:flex flex-col",
         isCollapsed ? "w-16" : "w-60"
       )}>
         <SidebarContent />

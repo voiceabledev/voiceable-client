@@ -40,7 +40,15 @@ import {
   User,
   FileText,
   Loader2,
-  Layout
+  Layout,
+  GitBranch,
+  Plus,
+  Search,
+  Edit,
+  MoreHorizontal,
+  Play,
+  Pause,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
@@ -51,9 +59,8 @@ import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api,
 import { useToast } from "@/hooks/use-toast";
 
 const tabs = [
-  { id: "model", label: "Model", icon: Code },
-  { id: "voice", label: "Voice", icon: AudioLines },
-  { id: "transcriber", label: "Transcriber", icon: Mic },
+  { id: "configuration", label: "Configuration", icon: Settings },
+  { id: "prompt-logic", label: "Prompt Logic", icon: FileText },
   { id: "conversations", label: "Conversations", icon: MessageSquare },
   // { id: "widget", label: "Widget", icon: Layout },
   // { id: "advanced", label: "Advanced", icon: Settings },
@@ -149,7 +156,7 @@ export default function AssistantDetail() {
   const { toast } = useToast();
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("model");
+  const [activeTab, setActiveTab] = useState("configuration");
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const isMobile = useIsMobile();
   
@@ -188,10 +195,10 @@ export default function AssistantDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent?.name, isNew, editingName]);
   
-  const [modelExpanded, setModelExpanded] = useState(true);
-  const [voiceConfigExpanded, setVoiceConfigExpanded] = useState(true);
+  const [modelExpanded, setModelExpanded] = useState(false);
+  const [voiceConfigExpanded, setVoiceConfigExpanded] = useState(false);
   const [additionalConfigExpanded, setAdditionalConfigExpanded] = useState(true);
-  const [transcriberExpanded, setTranscriberExpanded] = useState(true);
+  const [transcriberExpanded, setTranscriberExpanded] = useState(false);
   const [backgroundDenoising, setBackgroundDenoising] = useState(false);
   const [confidenceThreshold, setConfidenceThreshold] = useState([0.4]);
   const [keyterms, setKeyterms] = useState("");
@@ -217,6 +224,17 @@ export default function AssistantDetail() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
+
+  // System tools state
+  const [systemTools, setSystemTools] = useState<Record<string, boolean>>({
+    "end-conversation": false,
+    "detect-language": false,
+    "skip-turn": false,
+    "transfer-to-agent": false,
+    "transfer-to-number": false,
+    "play-keypad-touch-tone": false,
+    "voicemail-detection": false,
+  });
   
   // Track saved configuration to detect changes
   const [savedConfig, setSavedConfig] = useState<{
@@ -269,6 +287,18 @@ export default function AssistantDetail() {
         setFirstMessageMode(mode);
       } else {
         setFirstMessageMode("assistant-speaks-first");
+      }
+      
+      // Extract system tools
+      if (Array.isArray(config.system_tools)) {
+        const tools = config.system_tools as string[];
+        setSystemTools(prev => {
+          const newTools = { ...prev };
+          Object.keys(newTools).forEach(key => {
+            newTools[key] = tools.includes(key);
+          });
+          return newTools;
+        });
       }
       
       // Extract model/provider if available
@@ -457,7 +487,7 @@ export default function AssistantDetail() {
 
   // Restore voice name when voice tab becomes active
   useEffect(() => {
-    if (activeTab === "voice" && selectedVoiceId && !selectedVoiceName) {
+    if (activeTab === "configuration" && selectedVoiceId && !selectedVoiceName) {
       // First try to find in voices list if it's loaded
       if (voices.length > 0) {
         const voice = voices.find(v => v.id === selectedVoiceId);
@@ -742,6 +772,11 @@ export default function AssistantDetail() {
       },
       first_message_mode: firstMessageMode,
       ...(firstMessage && firstMessage.trim() && { first_message: firstMessage.trim() }),
+      ...(Object.keys(systemTools).some(key => systemTools[key]) && {
+        system_tools: Object.entries(systemTools)
+          .filter(([_, enabled]) => enabled)
+          .map(([key]) => key)
+      }),
       ...(selectedVoiceId && {
         voice_id: selectedVoiceId
       }),
@@ -777,6 +812,7 @@ export default function AssistantDetail() {
     selectedModel,
     selectedProvider,
     systemPrompt,
+    systemTools,
     selectedLanguage,
     backgroundDenoising,
     confidenceThreshold,
@@ -1431,10 +1467,13 @@ export default function AssistantDetail() {
           <div className="flex items-center gap-1 mt-3 md:mt-4 overflow-x-auto scrollbar-hide -mx-3 md:mx-0 px-3 md:px-0">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const handleTabClick = () => {
+                setActiveTab(tab.id);
+              };
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={handleTabClick}
                   className={cn(
                     "flex items-center gap-1 md:gap-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors flex-shrink-0",
                     activeTab === tab.id
@@ -1457,7 +1496,7 @@ export default function AssistantDetail() {
             <WidgetTab agent={agent} agentId={agentId} />
           ) : activeTab === "conversations" ? (
             <ConversationsTab assistantName={agentName} agentId={agent?.id} />
-          ) : activeTab === "voice" ? (
+          ) : activeTab === "configuration" ? (
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               {/* Cost & Latency Indicators */}
               <CostAndLatency
@@ -1507,154 +1546,184 @@ export default function AssistantDetail() {
                 }}
               />
 
-              {/* Voice Section */}
               <div className="space-y-6">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <AudioLines className="h-4 w-4" />
-                  <span>VOICE</span>
-                </div>
-                
-                {/* Voice Configuration */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <button 
-                    className="w-full flex items-start justify-between gap-2"
-                    onClick={() => setVoiceConfigExpanded(!voiceConfigExpanded)}
-                  >
-                    <div className="text-left flex-1">
-                      <h3 className="text-base md:text-lg font-semibold">Voice Configuration</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">Select a voice from the list, or sync your voice library if it's missing. If errors persist, enable custom voice and add a voice ID.</p>
-                    </div>
-                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", voiceConfigExpanded && "rotate-180")} />
-                  </button>
+                {/* Model Section */}
+                <div>
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+                    <Code className="h-4 w-4" />
+                    <span>MODEL</span>
+                  </div>
                   
-                  {voiceConfigExpanded && (
-                    <div className="mt-4 md:mt-6 space-y-4">
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-2 block">Voice</label>
-                        {loadingVoices ? (
-                          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Loading voices...</span>
-                          </div>
-                        ) : (
+                  <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                    <button 
+                      className="w-full flex items-start justify-between gap-2"
+                      onClick={() => setModelExpanded(!modelExpanded)}
+                    >
+                      <div className="text-left flex-1">
+                        <h3 className="text-base md:text-lg font-semibold">Model</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">Configure the behavior of the assistant.</p>
+                      </div>
+                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", modelExpanded && "rotate-180")} />
+                    </button>
+                    
+                    {modelExpanded && (
+                      <div className="mt-4 md:mt-6 space-y-4">
+                        {/* Provider and Model in same row */}
+                        <div className="flex flex-col md:flex-row gap-4">
+                        {/* Provider */}
+                          <div className="flex-1">
+                          <label className="text-sm text-muted-foreground mb-2 block">Provider</label>
                           <Select 
-                            value={selectedVoiceId || ""} 
+                            value={selectedProvider || 'openai'} 
                             onValueChange={(value) => {
-                              setSelectedVoiceId(value);
-                              const selectedVoice = voices.find(v => v.id === value);
-                              if (selectedVoice) {
-                                setSelectedVoiceName(selectedVoice.name || "");
-                              } else {
-                                // If voice not found in list, clear the name and try to fetch it
-                                setSelectedVoiceName("");
-                                // Try to fetch the voice name from API
-                                voicesApi.get(value).then((response) => {
-                                  if (response.data?.name) {
-                                    setSelectedVoiceName(response.data.name);
-                                  }
-                                }).catch(() => {
-                                  // Silently fail
-                                });
+                                setSelectedProvider(value);
+                                const models = modelsByProvider[value];
+                                if (models && models.length > 0) {
+                                  setSelectedModel(models[0].value);
                               }
                             }}
                           >
                             <SelectTrigger className="bg-white border-border">
-                              <SelectValue placeholder="Select a voice" />
+                              <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {(() => {
-                                // Create a set of voice IDs to avoid duplicates
-                                const voiceIds = new Set(voices.map(v => v.id));
-                                
-                                // If we have a selected voice that's not in the list, add it
-                                const voicesToShow = [...voices];
-                                if (selectedVoiceId && !voiceIds.has(selectedVoiceId)) {
-                                  voicesToShow.push({
-                                    id: selectedVoiceId,
-                                    name: selectedVoiceName || selectedVoiceId
-                                  } as Voice);
-                                }
-                                
-                                if (voicesToShow.length > 0) {
-                                  return voicesToShow.map((voice) => (
-                                  <SelectItem key={voice.id} value={voice.id}>
-                                    {voice.name || voice.id}
-                                  </SelectItem>
-                                  ));
-                                } else {
-                                  return <SelectItem value="" disabled>No voices available</SelectItem>;
-                                }
-                              })()}
+                              {providers.map((provider) => (
+                                <SelectItem key={provider.value} value={provider.value}>
+                                  <span className="flex items-center gap-2">
+                                    <span>{provider.icon}</span>
+                                    <span>{provider.label}</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
-                        )}
-                        {selectedVoiceId && selectedVoiceName && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Selected: {selectedVoiceName} ({selectedVoiceId})
-                          </p>
-                        )}
+                        </div>
+                        {/* Model */}
+                          <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <label className="text-sm text-muted-foreground">Model</label>
+                            <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                          <Select 
+                            value={selectedModel} 
+                            onValueChange={setSelectedModel}
+                          >
+                            <SelectTrigger className="bg-white border-border">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {modelsByProvider[selectedProvider]?.map((model) => (
+                                <SelectItem key={model.value} value={model.value}>
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          ) : activeTab === "transcriber" ? (
-            <div className="flex-1 overflow-y-auto p-4 md:p-6">
-              {/* Cost & Latency Indicators */}
-              <CostAndLatency
-                cost={{
-                  value: "~$0.14",
-                  unit: "/min",
-                  segments: [
-                    {
-                      className: "h-2 flex-1 rounded-full bg-success",
-                      tooltip: { label: "Hosting", value: "Cost (USD): 0.05" }
-                    },
-                    {
-                      className: "h-2 w-8 rounded-full bg-warning",
-                      tooltip: { label: "Transcribe", value: "Cost (USD): 0.02" }
-                    },
-                    {
-                      className: "h-2 flex-1 rounded-full bg-destructive/60",
-                      tooltip: { label: "Model", value: "Cost (USD): 0.04" }
-                    },
-                    {
-                      className: "h-2 flex-1 rounded-full bg-muted",
-                      tooltip: { label: "Voice", value: "Cost (USD): 0.03" }
-                    }
-                  ]
-                }}
-                latency={{
-                  value: "~1050",
-                  unit: "ms",
-                  segments: [
-                    {
-                      className: "h-2 flex-1 rounded-full bg-success",
-                      tooltip: { label: "Transcriber", value: "Latency (ms): 150" }
-                    },
-                    {
-                      className: "h-2 flex-1 rounded-full bg-primary",
-                      tooltip: { label: "Model", value: "Latency (ms): 400" }
-                    },
-                    {
-                      className: "h-2 flex-1 rounded-full bg-warning",
-                      tooltip: { label: "Voice", value: "Latency (ms): 300" }
-                    },
-                    {
-                      className: "h-2 w-12 rounded-full bg-destructive/60",
-                      tooltip: { label: "Transport", value: "Latency (ms): 200" }
-                    }
-                  ]
-                }}
-              />
 
-              {/* Transcriber Section */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Mic className="h-4 w-4" />
-                  <span>TRANSCRIBER</span>
+                {/* Voice Section */}
+                <div>
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+                    <AudioLines className="h-4 w-4" />
+                    <span>VOICE</span>
+                  </div>
+                  
+                  {/* Voice Configuration */}
+                  <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                    <button 
+                      className="w-full flex items-start justify-between gap-2"
+                      onClick={() => setVoiceConfigExpanded(!voiceConfigExpanded)}
+                    >
+                      <div className="text-left flex-1">
+                        <h3 className="text-base md:text-lg font-semibold">Voice Configuration</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">Select a voice from the list, or sync your voice library if it's missing. If errors persist, enable custom voice and add a voice ID.</p>
+                      </div>
+                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", voiceConfigExpanded && "rotate-180")} />
+                    </button>
+                    
+                    {voiceConfigExpanded && (
+                      <div className="mt-4 md:mt-6 space-y-4">
+                        <div>
+                          <label className="text-sm text-muted-foreground mb-2 block">Voice</label>
+                          {loadingVoices ? (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Loading voices...</span>
+                            </div>
+                          ) : (
+                            <Select 
+                              value={selectedVoiceId || ""} 
+                              onValueChange={(value) => {
+                                setSelectedVoiceId(value);
+                                const selectedVoice = voices.find(v => v.id === value);
+                                if (selectedVoice) {
+                                  setSelectedVoiceName(selectedVoice.name || "");
+                                } else {
+                                  // If voice not found in list, clear the name and try to fetch it
+                                  setSelectedVoiceName("");
+                                  // Try to fetch the voice name from API
+                                  voicesApi.get(value).then((response) => {
+                                    if (response.data?.name) {
+                                      setSelectedVoiceName(response.data.name);
+                                    }
+                                  }).catch(() => {
+                                    // Silently fail
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="bg-white border-border">
+                                <SelectValue placeholder="Select a voice" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(() => {
+                                  // Create a set of voice IDs to avoid duplicates
+                                  const voiceIds = new Set(voices.map(v => v.id));
+                                  
+                                  // If we have a selected voice that's not in the list, add it
+                                  const voicesToShow = [...voices];
+                                  if (selectedVoiceId && !voiceIds.has(selectedVoiceId)) {
+                                    voicesToShow.push({
+                                      id: selectedVoiceId,
+                                      name: selectedVoiceName || selectedVoiceId
+                                    } as Voice);
+                                  }
+                                  
+                                  if (voicesToShow.length > 0) {
+                                    return voicesToShow.map((voice) => (
+                                    <SelectItem key={voice.id} value={voice.id}>
+                                      {voice.name || voice.id}
+                                    </SelectItem>
+                                    ));
+                                  } else {
+                                    return <SelectItem value="" disabled>No voices available</SelectItem>;
+                                  }
+                                })()}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {selectedVoiceId && selectedVoiceName && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Selected: {selectedVoiceName} ({selectedVoiceId})
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Transcriber Section */}
+                <div>
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+                    <Mic className="h-4 w-4" />
+                    <span>TRANSCRIBER</span>
+                  </div>
                 
                 <div className="bg-card border border-border rounded-lg p-4 md:p-6">
                   <button 
@@ -1704,6 +1773,237 @@ export default function AssistantDetail() {
 
                     </div>
                   )}
+                </div>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === "prompt-logic" ? (
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <FileText className="h-4 w-4" />
+                  <span>PROMPT LOGIC</span>
+                </div>
+                
+                {/* First Message Mode */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-base md:text-lg font-semibold">First Message Mode</h3>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <Select value={firstMessageMode} onValueChange={setFirstMessageMode}>
+                    <SelectTrigger className="bg-white border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="assistant-speaks-first">Assistant speaks first</SelectItem>
+                      <SelectItem value="assistant-waits-for-user">Assistant waits for user</SelectItem>
+                      <SelectItem value="assistant-speaks-first-model-generated">Assistant speaks first with model generated message</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* First Message */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <h3 className="text-base md:text-lg font-semibold mb-4">First Message</h3>
+                  <Textarea
+                    value={firstMessage}
+                    onChange={(e) => setFirstMessage(e.target.value)}
+                    placeholder={agentName ? `Hi there, this is ${agentName}...` : "Enter the first message for the assistant..."}
+                    className="bg-white border-border min-h-[80px] font-mono text-sm"
+                  />
+                </div>
+
+                {/* System Prompt */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <h3 className="text-base md:text-lg font-semibold mb-4">System Prompt</h3>
+                  <Textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder="Enter the system prompt for the assistant..."
+                    className="bg-white border-border min-h-[350px] font-mono text-sm"
+                  />
+                </div>
+
+                {/* Files */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <h3 className="text-base md:text-lg font-semibold mb-4">Files</h3>
+                  <div className="space-y-3">
+                    {/* Show attached files for new agents (before save) */}
+                    {isNew && attachedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        {attachedFiles.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border"
+                          >
+                            <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm flex-1 truncate">{file.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ''}
+                            </span>
+                            <span className="text-xs text-muted-foreground italic">Pending</span>
+                            <button
+                              onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== index))}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Show saved agent files for existing agents */}
+                    {!isNew && agentFiles.length > 0 && (
+                      <div className="space-y-2">
+                        {agentFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border"
+                          >
+                            <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm flex-1 truncate">{file.file_name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {file.file_size ? `${(file.file_size / 1024).toFixed(1)} KB` : ''}
+                            </span>
+                            {file.elevenlabs_document_id && (
+                              <span className="text-xs text-success">Synced</span>
+                            )}
+                            <button
+                              onClick={() => handleFileDelete(file.id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              disabled={uploadingFiles.has(file.file_name)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {uploadingFiles.size > 0 && (
+                      <div className="space-y-2">
+                        {Array.from(uploadingFiles).map((fileKey) => (
+                          <div
+                            key={fileKey}
+                            className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border opacity-50"
+                          >
+                            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />
+                            <span className="text-sm flex-1 truncate">{fileKey.split('-').slice(0, -1).join('-')}</span>
+                            <span className="text-xs text-muted-foreground">Uploading...</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div
+                      className="border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer hover:border-muted-foreground/50 border-border"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <Upload className="h-5 w-5 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop files
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Supported formats: PDF, TXT, DOCX, MD
+                        </p>
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      multiple
+                      accept=".pdf,.txt,.docx,.md"
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          const newFiles = Array.from(e.target.files);
+                          handleFileUpload(newFiles);
+                          // Reset input
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* System Tools */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <div className="mb-4">
+                    <h3 className="text-base md:text-lg font-semibold mb-1">System tools</h3>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Allow the agent perform built-in actions.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {Object.values(systemTools).filter(Boolean).length} active tool{Object.values(systemTools).filter(Boolean).length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {/* End conversation */}
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                      <div className="flex items-center gap-3">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">End conversation</span>
+                      </div>
+                      <Switch
+                        checked={systemTools["end-conversation"]}
+                        onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "end-conversation": checked }))}
+                      />
+                    </div>
+
+                    {/* Detect language */}
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                      <div className="flex items-center gap-3">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Detect language</span>
+                      </div>
+                      <Switch
+                        checked={systemTools["detect-language"]}
+                        onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "detect-language": checked }))}
+                      />
+                    </div>
+
+                    {/* Transfer to number */}
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                      <div className="flex items-center gap-3">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Transfer to number</span>
+                      </div>
+                      <Switch
+                        checked={systemTools["transfer-to-number"]}
+                        onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "transfer-to-number": checked }))}
+                      />
+                    </div>
+
+                    {/* Voicemail detection */}
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                      <div className="flex items-center gap-3">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Voicemail detection</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {systemTools["voicemail-detection"] && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              // TODO: Open settings modal for voicemail detection
+                              toast({
+                                title: "Settings",
+                                description: "Voicemail detection settings coming soon",
+                              });
+                            }}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Switch
+                          checked={systemTools["voicemail-detection"]}
+                          onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "voicemail-detection": checked }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2023,142 +2323,6 @@ export default function AssistantDetail() {
                           </SelectContent>
                         </Select>
                         </div>
-                      </div>
-                      {/* System Prompt */}
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-2 block">System Prompt</label>
-                        <Textarea
-                          value={systemPrompt}
-                          onChange={(e) => setSystemPrompt(e.target.value)}
-                          placeholder="Enter the system prompt for the assistant..."
-                          className="bg-white border-border min-h-[350px] font-mono text-sm"
-                        />
-                      </div>
-                      {/* Files */}
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-2 block">Files</label>
-                        <div className="space-y-3">
-                          {/* Show attached files for new agents (before save) */}
-                          {isNew && attachedFiles.length > 0 && (
-                            <div className="space-y-2">
-                              {attachedFiles.map((file, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border"
-                                >
-                                  <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <span className="text-sm flex-1 truncate">{file.name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ''}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground italic">Pending</span>
-                                  <button
-                                    onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== index))}
-                                    className="text-muted-foreground hover:text-destructive transition-colors"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {/* Show saved agent files for existing agents */}
-                          {!isNew && agentFiles.length > 0 && (
-                            <div className="space-y-2">
-                              {agentFiles.map((file) => (
-                                <div
-                                  key={file.id}
-                                  className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border"
-                                >
-                                  <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <span className="text-sm flex-1 truncate">{file.file_name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {file.file_size ? `${(file.file_size / 1024).toFixed(1)} KB` : ''}
-                                  </span>
-                                  {file.elevenlabs_document_id && (
-                                    <span className="text-xs text-success">Synced</span>
-                                  )}
-                                  <button
-                                    onClick={() => handleFileDelete(file.id)}
-                                    className="text-muted-foreground hover:text-destructive transition-colors"
-                                    disabled={uploadingFiles.has(file.file_name)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {uploadingFiles.size > 0 && (
-                            <div className="space-y-2">
-                              {Array.from(uploadingFiles).map((fileKey) => (
-                                <div
-                                  key={fileKey}
-                                  className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md border border-border opacity-50"
-                                >
-                                  <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />
-                                  <span className="text-sm flex-1 truncate">{fileKey.split('-').slice(0, -1).join('-')}</span>
-                                  <span className="text-xs text-muted-foreground">Uploading...</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div
-                            className="border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer hover:border-muted-foreground/50 border-border"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            <div className="flex flex-col items-center text-center">
-                              <Upload className="h-5 w-5 text-muted-foreground mb-2" />
-                              <p className="text-sm text-muted-foreground">
-                                Click to upload or drag and drop files
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Supported formats: PDF, TXT, DOCX, MD
-                              </p>
-                            </div>
-                          </div>
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            multiple
-                            accept=".pdf,.txt,.docx,.md"
-                            onChange={(e) => {
-                              if (e.target.files) {
-                                const newFiles = Array.from(e.target.files);
-                                handleFileUpload(newFiles);
-                                // Reset input
-                                e.target.value = '';
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                      {/* First Message Mode */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="text-sm text-muted-foreground">First Message Mode</label>
-                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                        <Select value={firstMessageMode} onValueChange={setFirstMessageMode}>
-                          <SelectTrigger className="bg-white border-border">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="assistant-speaks-first">Assistant speaks first</SelectItem>
-                            <SelectItem value="assistant-waits-for-user">Assistant waits for user</SelectItem>
-                            <SelectItem value="assistant-speaks-first-model-generated">Assistant speaks first with model generated message</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-2 block">First Message</label>
-                        <Textarea
-                          value={firstMessage}
-                          onChange={(e) => setFirstMessage(e.target.value)}
-                          placeholder={agentName ? `Hi there, this is ${agentName}...` : "Enter the first message for the assistant..."}
-                          className="bg-white border-border min-h-[80px] font-mono text-sm"
-                        />
                       </div>
                     </div>
                   )}
