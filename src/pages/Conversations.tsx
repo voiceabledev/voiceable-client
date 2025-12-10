@@ -17,7 +17,6 @@ import {
 import { cn } from "@/lib/utils";
 import { conversationsApi, Conversation } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import ReactPlayer from "react-player";
 
 interface ConversationDisplay extends Conversation {
   agent: string;
@@ -51,83 +50,34 @@ const ConversationDetailPanel = ({
   setActiveDetailTab,
   isPlaying,
   setIsPlaying,
-  playerRef,
   currentTime,
   duration,
   audioUrl,
   toast,
-  onProgress,
+  isPlayerReady,
+  onSeekBack,
+  onSeekForward,
 }: {
   selectedConversation: ConversationDisplay;
   conversationDetails: Conversation | null;
   onClose: () => void;
-  activeDetailTab: "overview" | "transcription" | "client";
-  setActiveDetailTab: (tab: "overview" | "transcription" | "client") => void;
+  activeDetailTab: "overview" | "transcription";
+  setActiveDetailTab: (tab: "overview" | "transcription") => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  playerRef: React.RefObject<any>;
   currentTime: number;
   duration: number;
   audioUrl: string | null;
   toast: ReturnType<typeof useToast>['toast'];
-  onProgress: (state: { played: number; playedSeconds: number }) => void;
+  isPlayerReady: boolean;
+  onSeekBack: () => void;
+  onSeekForward: () => void;
 }) => {
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const handleSeekBack = () => {
-    if (!playerRef.current) return;
-    
-    const newTime = Math.max(0, currentTime - 10);
-    
-    // Try ReactPlayer's seekTo method
-    if (typeof playerRef.current.seekTo === 'function') {
-      try {
-        playerRef.current.seekTo(newTime, 'seconds');
-      } catch (e) {
-        console.warn('Could not seek back:', e);
-      }
-    } else {
-      // Fallback: try to access internal player
-      try {
-        const internalPlayer = playerRef.current.getInternalPlayer?.();
-        if (internalPlayer && 'currentTime' in internalPlayer) {
-          (internalPlayer as HTMLMediaElement).currentTime = newTime;
-        }
-      } catch (e) {
-        console.warn('Could not seek back via internal player:', e);
-      }
-    }
-  };
-
-  const handleSeekForward = () => {
-    if (!playerRef.current) return;
-    
-    const newTime = Math.min(duration || 0, currentTime + 10);
-    
-    // Try ReactPlayer's seekTo method
-    if (typeof playerRef.current.seekTo === 'function') {
-      try {
-        playerRef.current.seekTo(newTime, 'seconds');
-      } catch (e) {
-        console.warn('Could not seek forward:', e);
-      }
-    } else {
-      // Fallback: try to access internal player
-      try {
-        const internalPlayer = playerRef.current.getInternalPlayer?.();
-        if (internalPlayer && 'currentTime' in internalPlayer) {
-          (internalPlayer as HTMLMediaElement).currentTime = newTime;
-        }
-      } catch (e) {
-        console.warn('Could not seek forward via internal player:', e);
-      }
-    }
   };
 
   return (
@@ -171,7 +121,7 @@ const ConversationDetailPanel = ({
         {/* Controls */}
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <button
-            onClick={() => {
+            onClick={async () => {
               if (!audioUrl) {
                 toast({
                   title: audioUrl === null ? 'Audio not available' : 'Loading audio',
@@ -182,6 +132,16 @@ const ConversationDetailPanel = ({
                 });
                 return;
               }
+              
+              if (!isPlayerReady) {
+                toast({
+                  title: 'Audio not ready',
+                  description: 'Please wait for the audio to finish loading.',
+                  variant: 'default',
+                });
+                return;
+              }
+              
               console.log('Play button clicked, current isPlaying:', isPlaying, 'audioUrl:', audioUrl);
               setIsPlaying(!isPlaying);
             }}
@@ -196,14 +156,14 @@ const ConversationDetailPanel = ({
           </button>
           <span className="text-xs md:text-sm">1.0x</span>
           <button 
-            onClick={handleSeekBack}
+            onClick={onSeekBack}
             className="text-muted-foreground hover:text-foreground"
             disabled={!audioUrl}
           >
             <RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
           <button 
-            onClick={handleSeekForward}
+            onClick={onSeekForward}
             className="text-muted-foreground hover:text-foreground"
             disabled={!audioUrl}
           >
@@ -219,20 +179,10 @@ const ConversationDetailPanel = ({
       </div>
     </div>
 
-    {/* Info Banner */}
-    <div className="mx-3 md:mx-4 mt-3 md:mt-4 p-2 md:p-3 rounded-lg bg-secondary/50 border border-border flex items-start gap-2 md:gap-3 flex-shrink-0">
-      <Info className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-      <p className="text-xs md:text-sm text-muted-foreground">
-        You can now ensure your agent returns high quality responses to conversations like
-        this one. Try Tests in the{" "}
-        <span className="text-primary cursor-pointer">Transcription tab</span>.
-      </p>
-    </div>
-
     {/* Tabs */}
     <div className="px-3 md:px-4 mt-3 md:mt-4 flex-shrink-0">
       <div className="flex gap-2 md:gap-4 border-b border-border overflow-x-auto scrollbar-hide">
-        {(["overview", "transcription", "client"] as const).map((tab) => (
+        {(["overview", "transcription"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveDetailTab(tab)}
@@ -243,7 +193,7 @@ const ConversationDetailPanel = ({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {tab === "client" ? "Client data" : tab}
+            {tab}
           </button>
         ))}
       </div>
@@ -370,15 +320,15 @@ export default function Conversations() {
   const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
   const [conversationDetails, setConversationDetails] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription" | "client">("overview");
+  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription">("overview");
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const playerRef = useRef<any>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchConversations = useCallback(async () => {
     setLoading(true);
@@ -443,74 +393,158 @@ export default function Conversations() {
     }
   }, [selectedConversation]);
 
-  // Handle progress updates from ReactPlayer
-  const handleProgress = useCallback((state: { played: number; playedSeconds: number; loaded: number; loadedSeconds: number }) => {
-    setCurrentTime(state.playedSeconds);
-    // Duration is available in the progress state
-    if (state.loadedSeconds > 0 && duration === 0) {
-      setDuration(state.loadedSeconds);
-    }
-  }, [duration]) as unknown as (state: { played: number; playedSeconds: number; loaded: number; loadedSeconds: number }) => void;
-
-  // Handle errors from ReactPlayer
-  const handleError = useCallback((error: unknown) => {
-    console.error('Audio playback error:', error);
-    setIsPlaying(false);
-    toast({
-      title: 'Audio playback error',
-      description: 'Could not play conversation audio. Please try again.',
-      variant: 'destructive',
-    });
-  }, [toast]);
-
-  // Handle when audio ends
-  const handleEnded = useCallback(() => {
-    console.log('Audio playback ended');
-    setIsPlaying(false);
-    setCurrentTime(0);
-  }, []);
-
-  // Handle when audio is ready to play
-  const handleReady = useCallback(() => {
-    console.log('Audio player ready');
-    // Try to get duration when ready - use a small delay to ensure player is fully initialized
-    setTimeout(() => {
-      if (playerRef.current) {
-        try {
-          // ReactPlayer exposes getInternalPlayer method
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const internalPlayer = (playerRef.current as any)?.getInternalPlayer?.();
-          if (internalPlayer && 'duration' in internalPlayer) {
-            const dur = (internalPlayer as HTMLMediaElement).duration;
-            if (dur && isFinite(dur) && dur > 0) {
-              setDuration(dur);
-            }
-          }
-        } catch (e) {
-          // Ignore errors getting internal player - duration will come from progress updates
-        }
+  // Initialize and manage audio element
+  useEffect(() => {
+    if (!audioUrl) {
+      // Clean up if no audio URL
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
       }
-    }, 100);
-  }, []);
+      setIsPlayerReady(false);
+      return;
+    }
 
-  // Handle when audio starts playing
-  const handlePlay = useCallback(() => {
-    console.log('Audio started playing');
-    setIsPlaying(true);
-  }, []);
+    // Create new audio element if it doesn't exist
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
 
-  // Handle when audio is paused
-  const handlePause = useCallback(() => {
-    console.log('Audio paused');
-    setIsPlaying(false);
-  }, []);
+    const audio = audioRef.current;
+    
+    // Set up event listeners (only once)
+    const handleTimeUpdate = () => {
+      if (audio.currentTime !== undefined) {
+        setCurrentTime(audio.currentTime);
+      }
+    };
+    
+    const handleLoadedMetadata = () => {
+      console.log('Audio metadata loaded');
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+      setIsPlayerReady(true);
+    };
+    
+    const handleCanPlay = () => {
+      console.log('Audio can play');
+      setIsPlayerReady(true);
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+    };
+    
+    const handleEnded = () => {
+      console.log('Audio playback ended');
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    
+    const handleError = (e: Event) => {
+      console.error('Audio playback error:', e, audio.error);
+      setIsPlaying(false);
+      setIsPlayerReady(false);
+      toast({
+        title: 'Audio playback error',
+        description: 'Could not play conversation audio. Please try again.',
+        variant: 'destructive',
+      });
+    };
+    
+    const handlePlay = () => {
+      console.log('Audio started playing');
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      console.log('Audio paused');
+      setIsPlaying(false);
+    };
+    
+    // Remove old listeners and add new ones
+    audio.removeEventListener('timeupdate', handleTimeUpdate);
+    audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.removeEventListener('canplay', handleCanPlay);
+    audio.removeEventListener('ended', handleEnded);
+    audio.removeEventListener('error', handleError);
+    audio.removeEventListener('play', handlePlay);
+    audio.removeEventListener('pause', handlePause);
+    
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    
+    // Set source and preload
+    audio.src = audioUrl;
+    audio.preload = 'auto';
+    setIsPlayerReady(false);
+    audio.load();
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+        audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audioRef.current.removeEventListener('canplay', handleCanPlay);
+        audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.removeEventListener('error', handleError);
+        audioRef.current.removeEventListener('play', handlePlay);
+        audioRef.current.removeEventListener('pause', handlePause);
+      }
+    };
+  }, [audioUrl, toast]);
+  
+  // Control playback based on isPlaying state
+  useEffect(() => {
+    if (!audioRef.current || !isPlayerReady) return;
+    
+    if (isPlaying) {
+      audioRef.current.play().catch((error) => {
+        console.error('Error playing audio:', error);
+        setIsPlaying(false);
+        toast({
+          title: 'Playback error',
+          description: 'Could not start playback. Please try again.',
+          variant: 'destructive',
+        });
+      });
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, isPlayerReady, toast]);
+
+  // Seek functions
+  const handleSeekBack = useCallback(() => {
+    if (!audioRef.current) return;
+    
+    const newTime = Math.max(0, currentTime - 10);
+    audioRef.current.currentTime = newTime;
+  }, [currentTime]);
+
+  const handleSeekForward = useCallback(() => {
+    if (!audioRef.current) return;
+    
+    const newTime = Math.min(duration || 0, currentTime + 10);
+    audioRef.current.currentTime = newTime;
+  }, [currentTime, duration]);
 
   // Reset audio when conversation changes
   useEffect(() => {
     // Stop any playing audio first
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setIsPlayerReady(false);
     // Don't clear audioUrl immediately - let it clear naturally when new one loads
     // setAudioUrl(null);
   }, [selectedConversation?.id]);
@@ -618,6 +652,10 @@ export default function Conversations() {
     // Cleanup object URL when component unmounts or conversation changes
     return () => {
       // Stop any playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
       setIsPlaying(false);
       
       if (objectUrl) {
@@ -781,32 +819,14 @@ export default function Conversations() {
                     setActiveDetailTab={setActiveDetailTab}
                     isPlaying={isPlaying}
                     setIsPlaying={setIsPlaying}
-                    playerRef={playerRef}
                     currentTime={currentTime}
                     duration={duration}
                     audioUrl={audioUrl}
                     toast={toast}
-                    onProgress={handleProgress}
+                    isPlayerReady={isPlayerReady}
+                    onSeekBack={handleSeekBack}
+                    onSeekForward={handleSeekForward}
                   />
-                  {audioUrl && (
-                <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                  {/* @ts-expect-error - ReactPlayer type definitions are incorrect */}
-                  <ReactPlayer
-                    ref={playerRef}
-                    url={audioUrl}
-                    playing={isPlaying}
-                    controls={false}
-                    width="1"
-                    height="1"
-                    onProgress={handleProgress}
-                    onError={handleError}
-                    onEnded={handleEnded}
-                    onReady={handleReady}
-                    onPlay={handlePlay}
-                    onPause={handlePause}
-                  />
-                </div>
-                  )}
                 </div>
               </>
             )}
@@ -824,33 +844,16 @@ export default function Conversations() {
                 setActiveDetailTab={setActiveDetailTab}
                 isPlaying={isPlaying}
                 setIsPlaying={setIsPlaying}
-                playerRef={playerRef}
                 currentTime={currentTime}
                 duration={duration}
                 audioUrl={audioUrl}
                 toast={toast}
-                onProgress={handleProgress}
+                isPlayerReady={isPlayerReady}
+                onSeekBack={handleSeekBack}
+                onSeekForward={handleSeekForward}
               />
-              {audioUrl && (
-                <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
-                  {/* @ts-expect-error - ReactPlayer type definitions are incorrect */}
-                  <ReactPlayer
-                    ref={playerRef}
-                    url={audioUrl}
-                    playing={isPlaying}
-                    controls={false}
-                    width="1"
-                    height="1"
-                    onProgress={handleProgress}
-                    onError={handleError}
-                    onEnded={handleEnded}
-                    onReady={handleReady}
-                    onPlay={handlePlay}
-                    onPause={handlePause}
-                  />
-                </div>
-              )}
             </div>
+            
           </>
         )}
       </div>

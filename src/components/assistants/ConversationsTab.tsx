@@ -34,7 +34,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
   const [conversationDetails, setConversationDetails] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription" | "client">("overview");
+  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription">("overview");
   const [isPlaying, setIsPlaying] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -259,7 +259,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
           {/* Tabs */}
           <div className="px-4 pt-3">
             <div className="flex gap-4 border-b border-border">
-              {(["overview", "transcription", "client"] as const).map((tab) => (
+              {(["overview", "transcription"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveDetailTab(tab)}
@@ -270,7 +270,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {tab === "client" ? "Client data" : tab}
+                  {tab}
                 </button>
               ))}
             </div>
@@ -352,22 +352,6 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
               </div>
             )}
 
-            {activeDetailTab === "client" && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">User ID</span>
-                  <span className="text-sm font-mono">{selectedConversation.userId}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Session ID</span>
-                  <span className="text-sm font-mono">{selectedConversation.id}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-border">
-                  <span className="text-sm text-muted-foreground">Date</span>
-                  <span className="text-sm">{selectedConversation.date}</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
