@@ -1,6 +1,53 @@
 import type { UserIntegration, IntegrationSchema, IntegrationConfig } from '@/types/integrations';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+/**
+ * Determines the API base URL at runtime.
+ * Priority:
+ * 1. VITE_API_BASE_URL env var (if set at build time)
+ * 2. Runtime env var from window (for Heroku/dynamic configs)
+ * 3. Auto-detect based on current hostname (for production)
+ * 4. Localhost fallback (for development)
+ */
+function getApiBaseUrl(): string {
+  // Use env var if available (set at build time)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  // Check for runtime config (useful for Heroku where env vars might not be available at build time)
+  if (typeof window !== 'undefined') {
+    // Check if there's a runtime config set via a script tag or global variable
+    const runtimeConfig = (window as any).__API_BASE_URL__;
+    if (runtimeConfig) {
+      return runtimeConfig;
+    }
+
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If on Heroku or production domain, construct API URL
+    if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
+      // For same-domain deployments, use relative path
+      // If your backend is on a different Heroku app, you'll need to set VITE_API_BASE_URL
+      // or use a runtime config. For now, assume same domain or set via env var.
+      return '/api/v1';
+    }
+    
+    // For localhost development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3000/api/v1';
+    }
+    
+    // For other production domains, try to construct API URL
+    // Assumes API is on same domain with /api/v1 path
+    return `${protocol}//${hostname}/api/v1`;
+  }
+
+  // Default fallback
+  return 'http://localhost:3000/api/v1';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface ApiResponse<T> {
   status: {
