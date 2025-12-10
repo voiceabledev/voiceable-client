@@ -31,8 +31,8 @@ import { SEO } from "@/components/SEO";
 
 const faqs = [
   {
-    question: "What is Voice AI Studio?",
-    answer: "Voice AI Studio is a comprehensive platform for building, deploying, and managing AI-powered voice agents. It provides everything you need to create natural-sounding voice interactions at scale."
+    question: "What is Voiceable Studio?",
+    answer: "Voiceable Studio is a comprehensive platform for building, deploying, and managing AI-powered voice agents. It provides everything you need to create natural-sounding voice interactions at scale."
   },
   {
     question: "How is this more cost-effective for my organisation?",
@@ -157,9 +157,9 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Voice AI Agents for Developers - Build Intelligent Voice Assistants"
-        description="Create, deploy, and manage AI-powered voice agents with sub-500ms latency. Build multilingual voice assistants with API-native architecture, automated testing, and enterprise-grade reliability. Join 250,000+ developers building the future of voice AI."
-        keywords="voice AI, AI agents, voice assistants, conversational AI, voice automation, AI telephony, voice API, speech recognition, text to speech, voice AI platform, developer tools, API-first voice AI, enterprise voice AI, voice bot platform"
+        title="Voiceable Agents for Developers - Build Intelligent Voice Assistants"
+        description="Create, deploy, and manage AI-powered voice agents with sub-500ms latency. Build multilingual voice assistants with API-native architecture, automated testing, and enterprise-grade reliability. Join 250,000+ developers building the future of Voiceable."
+        keywords="Voiceable, AI agents, voice assistants, conversational AI, voice automation, AI telephony, voice API, speech recognition, text to speech, Voiceable platform, developer tools, API-first Voiceable, enterprise Voiceable, voice bot platform"
         url="https://voice-agent-ai-4288599ce3fe.herokuapp.com"
       />
       <div className="min-h-screen bg-background">
@@ -170,7 +170,7 @@ export default function Home() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-xl text-foreground">Voice AI</span>
+            <span className="font-bold text-xl text-foreground">Voiceable</span>
           </div>
           
           <div className="hidden md:flex items-center gap-8">
@@ -193,7 +193,7 @@ export default function Home() {
         
         <div className="max-w-7xl mx-auto text-center relative z-10">
           <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight">
-            Voice AI agents<br />for developers
+            Voiceable agents<br />for developers
           </h1>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
@@ -255,7 +255,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <p className="text-primary font-semibold text-sm tracking-widest uppercase mb-4 text-center">API</p>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground text-center mb-12">
-            Making voice AI simple<br />and accessible.
+            Making Voiceable simple<br />and accessible.
           </h2>
           
           <div className="bg-muted/50 rounded-2xl border border-border overflow-hidden max-w-4xl mx-auto">
@@ -336,7 +336,7 @@ async function createCall() {
               <div className="space-y-6">
                 <p className="text-primary font-medium">Inbound calls</p>
                 <p className="text-2xl md:text-3xl font-bold text-foreground">
-                  <span className="text-primary">Voice AI</span> powers 400,000+ daily calls.<br />
+                  <span className="text-primary">Voiceable</span> powers 400,000+ daily calls.<br />
                   <span className="font-normal text-muted-foreground">FleetWorks saves 100s<br />of engineering hours monthly.</span>
                 </p>
                 
@@ -351,7 +351,7 @@ async function createCall() {
                 
                 <div className="border-t border-border pt-6 mt-8">
                   <blockquote className="text-muted-foreground italic">
-                    "A key technical requirement was the ability to bring our own stack — Voice AI's developer-friendly API-first approach made this possible."
+                    "A key technical requirement was the ability to bring our own stack — Voiceable's developer-friendly API-first approach made this possible."
                   </blockquote>
                   <div className="flex items-center gap-3 mt-4">
                     <div className="w-10 h-10 rounded-full bg-primary/20" />
@@ -623,10 +623,10 @@ async function createCall() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="font-bold text-xl text-foreground">Voice AI</span>
+                <span className="font-bold text-xl text-foreground">Voiceable</span>
               </div>
               <p className="text-muted-foreground text-sm">
-                Voice AI is the most configurable platform for engineering teams to deploy voice agents at scale.
+                Voiceable is the most configurable platform for engineering teams to deploy voice agents at scale.
               </p>
             </div>
             
@@ -655,7 +655,7 @@ async function createCall() {
           
           {/* World map placeholder */}
           <div className="border-t border-border pt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">© 2025 Voice AI, Inc. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">© 2025 Voiceable, Inc. All rights reserved.</p>
             <div className="flex items-center gap-4">
               <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Twitter className="w-5 h-5" />

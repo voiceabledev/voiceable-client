@@ -291,7 +291,7 @@ const CustomAgents = () => {
       category: "Company News",
       date: "Aug 07, 2025",
       title: "GPT-5 Now Live",
-      description: "Build GPT-5 powered Voice AI agents",
+      description: "Build GPT-5 powered Voiceable agents",
     },
     {
       category: "Agent Building",
@@ -310,7 +310,7 @@ const CustomAgents = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-xl text-foreground">Voice AI</span>
+            <span className="font-bold text-xl text-foreground">Voiceable</span>
           </div>
           
           <div className="hidden md:flex items-center gap-8">
@@ -578,10 +578,10 @@ const CustomAgents = () => {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="font-bold text-xl text-foreground">Voice AI</span>
+                <span className="font-bold text-xl text-foreground">Voiceable</span>
               </div>
               <p className="text-muted-foreground text-sm">
-                Voice AI is the most configurable platform for engineering teams to deploy voice agents at scale.
+                Voiceable is the most configurable platform for engineering teams to deploy voice agents at scale.
               </p>
             </div>
             
@@ -621,7 +621,7 @@ const CustomAgents = () => {
           
           {/* World map placeholder */}
           <div className="border-t border-border pt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">© 2025 Voice AI, Inc. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">© 2025 Voiceable, Inc. All rights reserved.</p>
             <div className="flex items-center gap-4">
               <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Twitter className="w-5 h-5" />

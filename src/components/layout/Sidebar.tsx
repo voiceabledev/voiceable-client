@@ -162,7 +162,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
                 <span className="text-white font-bold text-sm">VA</span>
               </div>
               {showFullContent && (
-                <span className="text-xl font-bold tracking-tight text-foreground truncate">Voice AI</span>
+                <span className="text-xl font-bold tracking-tight text-foreground truncate">Voiceable</span>
               )}
             </div>
             {!isMobile && (

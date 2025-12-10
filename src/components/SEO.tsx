@@ -12,13 +12,13 @@ interface SEOProps {
 }
 
 export function SEO({
-  title = "Voice AI Studio - Build Intelligent Voice Agents for Developers",
+  title = "Voiceable Studio - Build Intelligent Voice Agents for Developers",
   description = "Create, deploy, and manage AI-powered voice agents with sub-500ms latency. Build multilingual voice assistants with API-native architecture, automated testing, and enterprise-grade reliability.",
-  keywords = "voice AI, AI agents, voice assistants, conversational AI, voice automation, AI telephony, voice API, speech recognition, text to speech, voice AI platform",
+  keywords = "Voiceable, AI agents, voice assistants, conversational AI, voice automation, AI telephony, voice API, speech recognition, text to speech, Voiceable platform",
   image = "/og-image.png",
   url = "https://voice-agent-ai-4288599ce3fe.herokuapp.com",
   type = "website",
-  siteName = "Voice AI Studio",
+  siteName = "Voiceable Studio",
   twitterHandle = "@voiceaistudio",
 }: SEOProps) {
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
