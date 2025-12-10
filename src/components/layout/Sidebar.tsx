@@ -18,10 +18,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { paymentsApi } from "@/lib/api";
 
 const buildItems = [
   { icon: Users, label: "Assistants", path: "/assistants" },
@@ -48,8 +49,52 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMobileMenuChange }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [currentBalance] = useState(10);
+  const [currentBalance, setCurrentBalance] = useState(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const isMobile = useIsMobile();
+
+  // Fetch credit balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        setIsLoadingBalance(true);
+        const response = await paymentsApi.creditBalance();
+        if (response.data) {
+          setCurrentBalance(response.data.balance || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching credit balance:", error);
+        setCurrentBalance(0);
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    };
+
+    fetchBalance();
+    
+    // Refresh balance every 30 seconds
+    const interval = setInterval(fetchBalance, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh balance when payment modal closes (in case a payment was made)
+  useEffect(() => {
+    if (!showPaymentMethodModal) {
+      const fetchBalance = async () => {
+        try {
+          const response = await paymentsApi.creditBalance();
+          if (response.data) {
+            setCurrentBalance(response.data.balance || 0);
+          }
+        } catch (error) {
+          console.error("Error fetching credit balance:", error);
+        }
+      };
+      fetchBalance();
+    }
+  }, [showPaymentMethodModal]);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -67,7 +112,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
     }
   };
   
-  const renderNavItem = (item: { icon: any; label: string; path: string; badge?: string }) => {
+  const renderNavItem = (item: { icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; label: string; path: string; badge?: string }) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.path;
     // On mobile, always show full content (not collapsed)
@@ -210,14 +255,20 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           <div className="flex items-center justify-between px-3 py-1">
             <span className="text-xs bg-secondary px-2 py-1 rounded font-medium text-muted-foreground">PAYG</span>
             <span className="text-sm text-foreground">
-              <span className="font-medium">{currentBalance.toFixed(2)}</span>
-              <span className="text-muted-foreground"> Credits</span>
+              {isLoadingBalance ? (
+                <span className="text-muted-foreground">Loading...</span>
+              ) : (
+                <>
+                  <span className="font-medium">{currentBalance.toFixed(2)}</span>
+                  <span className="text-muted-foreground"> Credits</span>
+                </>
+              )}
             </span>
           </div>
         )}
         <button 
           onClick={() => {
-            navigate("/settings/billing?openModal=true");
+            setShowPaymentMethodModal(true);
             if (isMobile && onMobileMenuChange) {
               onMobileMenuChange(false);
             }
@@ -255,23 +306,43 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
   // Mobile: Use Sheet component
   if (isMobile) {
     return (
-      <Sheet open={isMobileMenuOpen} onOpenChange={onMobileMenuChange}>
-        <SheetContent side="left" className="w-[280px] p-0 bg-sidebar border-sidebar-border">
-          <div className="h-full flex flex-col">
-            <SidebarContent />
-          </div>
-        </SheetContent>
-      </Sheet>
+      <>
+        <Sheet open={isMobileMenuOpen} onOpenChange={onMobileMenuChange}>
+          <SheetContent side="left" className="w-[280px] p-0 bg-sidebar border-sidebar-border">
+            <div className="h-full flex flex-col">
+              <SidebarContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+        <PaymentMethodModal
+          open={showPaymentMethodModal}
+          onOpenChange={setShowPaymentMethodModal}
+          onSuccess={() => {
+            // Redirect to billing page after successful payment
+            navigate("/settings/billing");
+          }}
+        />
+      </>
     );
   }
 
   // Desktop: Regular sidebar
   return (
-    <aside className={cn(
-      "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 hidden md:flex",
-      isCollapsed ? "w-16" : "w-60"
-    )}>
-      <SidebarContent />
-    </aside>
+    <>
+      <aside className={cn(
+        "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 hidden md:flex",
+        isCollapsed ? "w-16" : "w-60"
+      )}>
+        <SidebarContent />
+      </aside>
+      <PaymentMethodModal
+        open={showPaymentMethodModal}
+        onOpenChange={setShowPaymentMethodModal}
+        onSuccess={() => {
+          // Redirect to billing page after successful payment
+          navigate("/settings/billing");
+        }}
+      />
+    </>
   );
 }

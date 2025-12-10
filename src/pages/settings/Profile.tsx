@@ -3,17 +3,116 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { 
   User,
   AlertTriangle,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from "lucide-react";
+import { authApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { signOut } = useAuth();
   const [email] = useState("vbrazo@gmail.com");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [discardingAccount, setDiscardingAccount] = useState(false);
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({
+        title: 'Missing fields',
+        description: 'Please fill in all password fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'New password and confirmation must match.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters long.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      await authApi.updatePasswordLoggedIn(currentPassword, newPassword, confirmPassword);
+      
+      toast({
+        title: 'Password updated',
+        description: 'Your password has been updated successfully.',
+      });
+      
+      // Reset form
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      toast({
+        title: 'Error updating password',
+        description: error instanceof Error ? error.message : 'Failed to update password',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  const handleDiscardAccount = async () => {
+    if (confirmEmail !== email) {
+      toast({
+        title: 'Email mismatch',
+        description: 'Please enter your email address correctly to confirm.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to discard your account? This action cannot be undone. You will not be able to sign up again with this email address.`)) {
+      return;
+    }
+
+    setDiscardingAccount(true);
+    try {
+      await authApi.discardAccount();
+      
+      toast({
+        title: 'Account discarded',
+        description: 'Your account has been discarded. You will be signed out.',
+      });
+      
+      // Sign out and redirect
+      await signOut();
+      navigate("/login");
+    } catch (error) {
+      toast({
+        title: 'Error discarding account',
+        description: error instanceof Error ? error.message : 'Failed to discard account',
+        variant: 'destructive',
+      });
+    } finally {
+      setDiscardingAccount(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -52,26 +151,64 @@ export default function Profile() {
           </div>
 
           <div className="space-y-2">
+            <Label className="text-xs md:text-sm">Current Password</Label>
+            <Input 
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Enter your current password"
+              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+              disabled={updatingPassword}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-xs md:text-sm">New Password</Label>
             <Input 
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter your new password"
               className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+              disabled={updatingPassword}
             />
           </div>
 
-          <Button variant="accent" className="w-full text-xs md:text-sm">
-            Update New Password
+          <div className="space-y-2">
+            <Label className="text-xs md:text-sm">Confirm New Password</Label>
+            <Input 
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm your new password"
+              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+              disabled={updatingPassword}
+            />
+          </div>
+
+          <Button 
+            variant="accent" 
+            className="w-full text-xs md:text-sm"
+            onClick={handleUpdatePassword}
+            disabled={updatingPassword || !currentPassword || !newPassword || !confirmPassword}
+          >
+            {updatingPassword ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              "Update Password"
+            )}
           </Button>
         </div>
       </div>
 
-      {/* Delete Account Card */}
+      {/* Discard Account Card */}
       <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold mb-2">Delete Account</h2>
+        <h2 className="text-base md:text-lg font-semibold mb-2">Discard Account</h2>
         <p className="text-muted-foreground text-xs md:text-sm mb-3 md:mb-4">
-          Permanently remove your account and all its contents. Upon deletion of your account, any orgs without any members will be deleted immediately. Neither the account, nor the orgs will be recoverable. Proceed with caution.
+          Discard your account and all its contents. Your account will be deactivated and you will not be able to sign up again with this email address. This action cannot be undone. Proceed with caution.
         </p>
 
         <p className="text-xs md:text-sm mb-3 md:mb-4">
@@ -84,15 +221,26 @@ export default function Profile() {
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
             className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+            disabled={discardingAccount}
           />
 
           <Button 
             variant="destructive" 
-            disabled={confirmEmail !== email}
+            disabled={confirmEmail !== email || discardingAccount}
             className="bg-destructive/80 hover:bg-destructive w-full text-xs md:text-sm"
+            onClick={handleDiscardAccount}
           >
-            <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-            Delete Account
+            {discardingAccount ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2 animate-spin" />
+                Discarding...
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
+                Discard Account
+              </>
+            )}
           </Button>
         </div>
       </div>

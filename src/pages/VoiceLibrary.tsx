@@ -176,14 +176,14 @@ export default function VoiceLibrary() {
               }}
             />
           </div>
-          <Select value={providerFilter} onValueChange={setProviderFilter}>
+          {/* <Select value={providerFilter} onValueChange={setProviderFilter}>
             <SelectTrigger className="w-28 bg-secondary/50 border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="11labs">11labs</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
           <Select value={genderFilter} onValueChange={setGenderFilter}>
             <SelectTrigger className="w-28 bg-secondary/50 border-border">
               <SelectValue placeholder="Gender" />

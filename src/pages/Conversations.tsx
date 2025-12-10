@@ -57,7 +57,6 @@ const ConversationDetailPanel = ({
   audioUrl,
   toast,
   onProgress,
-  onDuration,
 }: {
   selectedConversation: ConversationDisplay;
   conversationDetails: Conversation | null;
@@ -73,7 +72,6 @@ const ConversationDetailPanel = ({
   audioUrl: string | null;
   toast: ReturnType<typeof useToast>['toast'];
   onProgress: (state: { played: number; playedSeconds: number }) => void;
-  onDuration: (duration: number) => void;
 }) => {
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
@@ -83,16 +81,52 @@ const ConversationDetailPanel = ({
   };
 
   const handleSeekBack = () => {
-    if (playerRef.current) {
-      const newTime = Math.max(0, currentTime - 10);
-      playerRef.current.seekTo(newTime, 'seconds');
+    if (!playerRef.current) return;
+    
+    const newTime = Math.max(0, currentTime - 10);
+    
+    // Try ReactPlayer's seekTo method
+    if (typeof playerRef.current.seekTo === 'function') {
+      try {
+        playerRef.current.seekTo(newTime, 'seconds');
+      } catch (e) {
+        console.warn('Could not seek back:', e);
+      }
+    } else {
+      // Fallback: try to access internal player
+      try {
+        const internalPlayer = playerRef.current.getInternalPlayer?.();
+        if (internalPlayer && 'currentTime' in internalPlayer) {
+          (internalPlayer as HTMLMediaElement).currentTime = newTime;
+        }
+      } catch (e) {
+        console.warn('Could not seek back via internal player:', e);
+      }
     }
   };
 
   const handleSeekForward = () => {
-    if (playerRef.current) {
-      const newTime = Math.min(duration, currentTime + 10);
-      playerRef.current.seekTo(newTime, 'seconds');
+    if (!playerRef.current) return;
+    
+    const newTime = Math.min(duration || 0, currentTime + 10);
+    
+    // Try ReactPlayer's seekTo method
+    if (typeof playerRef.current.seekTo === 'function') {
+      try {
+        playerRef.current.seekTo(newTime, 'seconds');
+      } catch (e) {
+        console.warn('Could not seek forward:', e);
+      }
+    } else {
+      // Fallback: try to access internal player
+      try {
+        const internalPlayer = playerRef.current.getInternalPlayer?.();
+        if (internalPlayer && 'currentTime' in internalPlayer) {
+          (internalPlayer as HTMLMediaElement).currentTime = newTime;
+        }
+      } catch (e) {
+        console.warn('Could not seek forward via internal player:', e);
+      }
     }
   };
 
@@ -138,26 +172,21 @@ const ConversationDetailPanel = ({
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <button
             onClick={() => {
-              if (!selectedConversation.has_audio) {
-                toast({
-                  title: 'Audio not available',
-                  description: 'This conversation does not have audio available.',
-                  variant: 'destructive',
-                });
-                return;
-              }
               if (!audioUrl) {
                 toast({
-                  title: 'Loading audio',
-                  description: 'Audio is still loading. Please wait...',
-                  variant: 'default',
+                  title: audioUrl === null ? 'Audio not available' : 'Loading audio',
+                  description: audioUrl === null 
+                    ? 'Audio is not available for this conversation. It may still be processing or the recording failed.'
+                    : 'Audio is still loading. Please wait...',
+                  variant: audioUrl === null ? 'destructive' : 'default',
                 });
                 return;
               }
+              console.log('Play button clicked, current isPlaying:', isPlaying, 'audioUrl:', audioUrl);
               setIsPlaying(!isPlaying);
             }}
             className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!selectedConversation.has_audio}
+            disabled={!audioUrl}
           >
             {isPlaying ? (
               <Pause className="h-4 w-4 md:h-5 md:w-5" />
@@ -169,14 +198,14 @@ const ConversationDetailPanel = ({
           <button 
             onClick={handleSeekBack}
             className="text-muted-foreground hover:text-foreground"
-            disabled={!selectedConversation.has_audio}
+            disabled={!audioUrl}
           >
             <RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
           <button 
             onClick={handleSeekForward}
             className="text-muted-foreground hover:text-foreground"
-            disabled={!selectedConversation.has_audio}
+            disabled={!audioUrl}
           >
             <RotateCw className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
@@ -417,54 +446,97 @@ export default function Conversations() {
   // Handle progress updates from ReactPlayer
   const handleProgress = useCallback((state: { played: number; playedSeconds: number; loaded: number; loadedSeconds: number }) => {
     setCurrentTime(state.playedSeconds);
-  }, []);
-
-  // Handle duration updates from ReactPlayer
-  const handleDuration = useCallback((duration: number) => {
-    setDuration(duration);
-  }, []);
+    // Duration is available in the progress state
+    if (state.loadedSeconds > 0 && duration === 0) {
+      setDuration(state.loadedSeconds);
+    }
+  }, [duration]) as unknown as (state: { played: number; playedSeconds: number; loaded: number; loadedSeconds: number }) => void;
 
   // Handle errors from ReactPlayer
-  const handleError = useCallback(() => {
-    console.error('Audio playback error');
+  const handleError = useCallback((error: unknown) => {
+    console.error('Audio playback error:', error);
     setIsPlaying(false);
     toast({
       title: 'Audio playback error',
-      description: 'Could not play conversation audio.',
+      description: 'Could not play conversation audio. Please try again.',
       variant: 'destructive',
     });
   }, [toast]);
 
   // Handle when audio ends
   const handleEnded = useCallback(() => {
+    console.log('Audio playback ended');
     setIsPlaying(false);
     setCurrentTime(0);
   }, []);
 
+  // Handle when audio is ready to play
+  const handleReady = useCallback(() => {
+    console.log('Audio player ready');
+    // Try to get duration when ready - use a small delay to ensure player is fully initialized
+    setTimeout(() => {
+      if (playerRef.current) {
+        try {
+          // ReactPlayer exposes getInternalPlayer method
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const internalPlayer = (playerRef.current as any)?.getInternalPlayer?.();
+          if (internalPlayer && 'duration' in internalPlayer) {
+            const dur = (internalPlayer as HTMLMediaElement).duration;
+            if (dur && isFinite(dur) && dur > 0) {
+              setDuration(dur);
+            }
+          }
+        } catch (e) {
+          // Ignore errors getting internal player - duration will come from progress updates
+        }
+      }
+    }, 100);
+  }, []);
+
+  // Handle when audio starts playing
+  const handlePlay = useCallback(() => {
+    console.log('Audio started playing');
+    setIsPlaying(true);
+  }, []);
+
+  // Handle when audio is paused
+  const handlePause = useCallback(() => {
+    console.log('Audio paused');
+    setIsPlaying(false);
+  }, []);
+
   // Reset audio when conversation changes
   useEffect(() => {
-    if (playerRef.current) {
-      playerRef.current.seekTo(0, 'seconds');
-    }
+    // Stop any playing audio first
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setAudioUrl(null);
+    // Don't clear audioUrl immediately - let it clear naturally when new one loads
+    // setAudioUrl(null);
   }, [selectedConversation?.id]);
 
   // Get audio URL and handle authentication
   useEffect(() => {
-    if (!selectedConversation?.id || !selectedConversation?.has_audio) {
+    if (!selectedConversation?.id) {
       setAudioUrl(null);
       return;
     }
 
+    // Try to fetch audio even if has_audio is not explicitly set
+    // Some conversations might have audio but the flag might not be set correctly
     let objectUrl: string | null = null;
 
     const fetchAudioUrl = async () => {
       try {
         const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
         const token = localStorage.getItem('auth_token');
+        
+        if (!token) {
+          console.error('No auth token available');
+          setAudioUrl(null);
+          return;
+        }
+        
         const url = `${API_BASE_URL}/conversations/${selectedConversation.id}/audio`;
         
         // Fetch audio as blob to include Authorization header
@@ -477,14 +549,67 @@ export default function Conversations() {
 
         if (response.ok) {
           const blob = await response.blob();
+          
+          // Check if blob is actually audio data
+          if (blob.size === 0) {
+            console.error('Audio blob is empty');
+            setAudioUrl(null);
+            toast({
+              title: 'Audio not available',
+              description: 'The audio file appears to be empty.',
+              variant: 'destructive',
+            });
+            return;
+          }
+          
+          // Check content type
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.startsWith('audio/')) {
+            console.error('Invalid audio content type:', contentType);
+            setAudioUrl(null);
+            toast({
+              title: 'Audio format error',
+              description: 'The audio file format is not supported.',
+              variant: 'destructive',
+            });
+            return;
+          }
+          
           objectUrl = URL.createObjectURL(blob);
           setAudioUrl(objectUrl);
-        } else {
+        } else if (response.status === 404) {
+          console.error('Audio not found for conversation');
           setAudioUrl(null);
+          toast({
+            title: 'Audio not available',
+            description: 'Audio recording is not available for this conversation.',
+            variant: 'destructive',
+          });
+        } else if (response.status === 401 || response.status === 403) {
+          console.error('Unauthorized to access audio');
+          setAudioUrl(null);
+          toast({
+            title: 'Access denied',
+            description: 'You do not have permission to access this audio.',
+            variant: 'destructive',
+          });
+        } else {
+          console.error('Error fetching audio:', response.status, response.statusText);
+          setAudioUrl(null);
+          toast({
+            title: 'Error loading audio',
+            description: `Failed to load audio: ${response.statusText}`,
+            variant: 'destructive',
+          });
         }
       } catch (error) {
         console.error('Error fetching audio:', error);
         setAudioUrl(null);
+        toast({
+          title: 'Error loading audio',
+          description: error instanceof Error ? error.message : 'Failed to load conversation audio.',
+          variant: 'destructive',
+        });
       }
     };
 
@@ -492,6 +617,9 @@ export default function Conversations() {
 
     // Cleanup object URL when component unmounts or conversation changes
     return () => {
+      // Stop any playing audio
+      setIsPlaying(false);
+      
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
@@ -503,7 +631,7 @@ export default function Conversations() {
         return null;
       });
     };
-  }, [selectedConversation?.id, selectedConversation?.has_audio]);
+  }, [selectedConversation?.id, toast]);
 
   const filteredConversations = conversations.filter(conv =>
     conv.agent?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -659,24 +787,25 @@ export default function Conversations() {
                     audioUrl={audioUrl}
                     toast={toast}
                     onProgress={handleProgress}
-                    onDuration={handleDuration}
                   />
-                  {selectedConversation.has_audio && audioUrl && (
-                    <div style={{ display: 'none' }}>
-                      {/* @ts-expect-error - react-player types are incorrect */}
-                      <ReactPlayer
-                        ref={playerRef}
-                        url={audioUrl}
-                        playing={isPlaying}
-                        // @ts-expect-error - react-player callback types
-                        onProgress={handleProgress}
-                        // @ts-expect-error - react-player callback types
-                        onDuration={handleDuration}
-                        // @ts-expect-error - react-player callback types
-                        onError={handleError}
-                        onEnded={handleEnded}
-                      />
-                    </div>
+                  {audioUrl && (
+                <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  {/* @ts-expect-error - ReactPlayer type definitions are incorrect */}
+                  <ReactPlayer
+                    ref={playerRef}
+                    url={audioUrl}
+                    playing={isPlaying}
+                    controls={false}
+                    width="1"
+                    height="1"
+                    onProgress={handleProgress}
+                    onError={handleError}
+                    onEnded={handleEnded}
+                    onReady={handleReady}
+                    onPlay={handlePlay}
+                    onPause={handlePause}
+                  />
+                </div>
                   )}
                 </div>
               </>
@@ -701,22 +830,23 @@ export default function Conversations() {
                 audioUrl={audioUrl}
                 toast={toast}
                 onProgress={handleProgress}
-                onDuration={handleDuration}
               />
-              {selectedConversation.has_audio && audioUrl && (
-                <div style={{ display: 'none' }}>
-                  {/* @ts-expect-error - react-player types are incorrect */}
+              {audioUrl && (
+                <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+                  {/* @ts-expect-error - ReactPlayer type definitions are incorrect */}
                   <ReactPlayer
                     ref={playerRef}
                     url={audioUrl}
                     playing={isPlaying}
-                    // @ts-expect-error - react-player callback types
+                    controls={false}
+                    width="1"
+                    height="1"
                     onProgress={handleProgress}
-                    // @ts-expect-error - react-player callback types
-                    onDuration={handleDuration}
-                    // @ts-expect-error - react-player callback types
                     onError={handleError}
                     onEnded={handleEnded}
+                    onReady={handleReady}
+                    onPlay={handlePlay}
+                    onPause={handlePause}
                   />
                 </div>
               )}

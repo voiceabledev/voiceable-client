@@ -1,37 +1,158 @@
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
-import { Phone, Clock, CreditCard, TrendingDown } from "lucide-react";
+import { Phone, Clock, CreditCard, TrendingDown, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { metricsApi, agentsApi, type Agent } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-const metrics = [
-  {
-    label: "Number of Calls",
-    value: "0",
-    change: "0.0%",
-    icon: Phone,
-  },
-  {
-    label: "Avg Duration",
-    value: "0:00",
-    change: "0.0%",
-    icon: Clock,
-  },
-  {
-    label: "Total Cost",
-    value: "0",
-    unit: "credits",
-    change: "0.0%",
-    icon: CreditCard,
-  },
-  {
-    label: "Avg Cost",
-    value: "0",
-    unit: "cr/call",
-    change: "0.0%",
-    icon: TrendingDown,
-  },
-];
+interface Metric {
+  label: string;
+  value: string;
+  unit?: string;
+  change: string;
+  icon: typeof Phone;
+}
 
 export default function Overview() {
+  const { toast } = useToast();
+  const [selectedAgent, setSelectedAgent] = useState<string>("all");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("month");
+  const [metrics, setMetrics] = useState<Metric[]>([
+    {
+      label: "Number of Calls",
+      value: "0",
+      change: "0.0%",
+      icon: Phone,
+    },
+    {
+      label: "Avg Duration",
+      value: "0:00",
+      change: "0.0%",
+      icon: Clock,
+    },
+    {
+      label: "Total Cost",
+      value: "0",
+      unit: "credits",
+      change: "0.0%",
+      icon: CreditCard,
+    },
+    {
+      label: "Avg Cost",
+      value: "0",
+      unit: "cr/call",
+      change: "0.0%",
+      icon: TrendingDown,
+    },
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  // Calculate date range based on selected period
+  const getDateRange = useCallback((period: string) => {
+    const now = Math.floor(Date.now() / 1000);
+    let startTime: number;
+
+    switch (period) {
+      case "week":
+        startTime = now - 7 * 24 * 60 * 60;
+        break;
+      case "month":
+        startTime = now - 30 * 24 * 60 * 60;
+        break;
+      case "year":
+        startTime = now - 365 * 24 * 60 * 60;
+        break;
+      default:
+        startTime = now - 30 * 24 * 60 * 60; // Default to month
+    }
+
+    return {
+      call_start_after_unix: startTime,
+      call_start_before_unix: now,
+    };
+  }, []);
+
+  // Fetch agents for the filter dropdown
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const response = await agentsApi.list();
+        if (response.data) {
+          setAgents(response.data);
+        }
+      } catch (err) {
+        console.error("Error fetching agents:", err);
+      }
+    };
+    fetchAgents();
+  }, []);
+
+  // Fetch metrics
+  const fetchMetrics = useCallback(async () => {
+    setLoading(true);
+    try {
+      const dateRange = getDateRange(selectedPeriod);
+      const agentId = selectedAgent === "all" ? undefined : selectedAgent;
+
+      const response = await metricsApi.get({
+        agent_id: agentId,
+        ...dateRange,
+      });
+
+      if (response.data) {
+        const data = response.data;
+        
+        // Calculate percentage change (for now, we'll show 0% as we don't have previous period data)
+        // In the future, you can fetch previous period metrics and calculate the change
+        const change = "0.0%";
+
+        setMetrics([
+          {
+            label: "Number of Calls",
+            value: data.numberOfCalls.toString(),
+            change,
+            icon: Phone,
+          },
+          {
+            label: "Avg Duration",
+            value: data.avgDuration,
+            change,
+            icon: Clock,
+          },
+          {
+            label: "Total Cost",
+            value: data.totalCost.toFixed(2),
+            unit: "credits",
+            change,
+            icon: CreditCard,
+          },
+          {
+            label: "Avg Cost",
+            value: data.avgCost.toFixed(2),
+            unit: "cr/call",
+            change,
+            icon: TrendingDown,
+          },
+        ]);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch metrics";
+      console.error("Error fetching metrics:", err);
+      toast({
+        title: "Error loading metrics",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAgent, selectedPeriod, getDateRange, toast]);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
@@ -52,16 +173,20 @@ export default function Overview() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 gap-4">
           <h2 className="text-lg md:text-xl font-semibold">Metrics</h2>
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-            <Select defaultValue="all">
+            <Select value={selectedAgent} onValueChange={setSelectedAgent}>
               <SelectTrigger className="w-full md:w-40 bg-transparent border-border text-sm">
                 <SelectValue placeholder="All Assistants" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Assistants</SelectItem>
-                <SelectItem value="riley">Riley</SelectItem>
+                {agents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {agent.name || `Agent ${agent.id}`}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select defaultValue="month">
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
               <SelectTrigger className="w-full md:w-36 bg-transparent border-border text-sm">
                 <SelectValue placeholder="Last Month" />
               </SelectTrigger>
@@ -76,21 +201,27 @@ export default function Overview() {
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">
-          {metrics.map((metric) => (
-            <div key={metric.label} className="metric-card animate-fade-in">
-              <p className="text-muted-foreground text-xs md:text-sm mb-2 md:mb-3">{metric.label}</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl md:text-4xl font-bold">{metric.value}</span>
-                {metric.unit && (
-                  <span className="text-muted-foreground text-xs md:text-sm">{metric.unit}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 mt-2 text-muted-foreground text-xs md:text-sm">
-                <span>—</span>
-                <span>{metric.change}</span>
-              </div>
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ))}
+          ) : (
+            metrics.map((metric) => (
+              <div key={metric.label} className="metric-card animate-fade-in">
+                <p className="text-muted-foreground text-xs md:text-sm mb-2 md:mb-3">{metric.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl md:text-4xl font-bold">{metric.value}</span>
+                  {metric.unit && (
+                    <span className="text-muted-foreground text-xs md:text-sm">{metric.unit}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 mt-2 text-muted-foreground text-xs md:text-sm">
+                  <span>—</span>
+                  <span>{metric.change}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Call Success Section */}
@@ -109,14 +240,6 @@ export default function Overview() {
         </div>
         </div>
       </div>
-
-      {/* Ask AI Button */}
-      <button className="fixed bottom-4 right-4 md:bottom-6 md:right-6 flex items-center gap-2 bg-card border border-border rounded-full px-3 py-2 md:px-4 md:py-3 shadow-lg hover:bg-secondary transition-colors z-10">
-        <span className="text-xs md:text-sm font-medium hidden sm:inline">Ask AI</span>
-        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground font-bold text-xs md:text-sm">V</span>
-        </div>
-      </button>
     </div>
   );
 }

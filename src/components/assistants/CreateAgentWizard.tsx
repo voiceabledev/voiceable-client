@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   User,
   Code,
   AudioLines,
@@ -19,10 +25,13 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Play,
+  Square,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { agentsApi } from "@/lib/api";
+import { agentsApi, voicesApi, Voice } from "@/lib/api";
 
 const providers = [
   { value: "elevenlabs", label: "ElevenLabs", icon: "🎙️" },
@@ -109,8 +118,15 @@ const modelsByProvider: Record<string, { value: string; label: string }[]> = {
 
 interface CreateAgentWizardProps {
   onComplete: (agentId: string) => void;
-  voices: Array<{ id: string; name?: string }>;
-  loadingVoices: boolean;
+  voices?: Array<{ id: string; name?: string }>; // Optional, will fetch if not provided
+  loadingVoices?: boolean;
+  initialData?: {
+    templateId?: string;
+    assistantName?: string;
+    systemPrompt?: string;
+    firstMessage?: string;
+    skipNameStep?: boolean;
+  };
 }
 
 type StepType = {
@@ -126,28 +142,240 @@ const steps: StepType[] = [
   { id: 4, label: "Transcriber", icon: Mic },
 ];
 
-export default function CreateAgentWizard({ onComplete, voices, loadingVoices }: CreateAgentWizardProps) {
+// Voice Selector Dialog Component
+interface VoiceSelectorDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  voices: Voice[];
+  selectedVoiceId: string;
+  onSelectVoice: (voiceId: string) => void;
+  playingVoiceId: string | null;
+  onPlayPreview: (voice: Voice) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+}
+
+const VoiceSelectorDialog = ({
+  open,
+  onOpenChange,
+  voices,
+  selectedVoiceId,
+  onSelectVoice,
+  playingVoiceId,
+  onPlayPreview,
+  searchQuery,
+  onSearchChange,
+}: VoiceSelectorDialogProps) => {
+  const getVoiceLabels = (voice: Voice): string[] => {
+    const labels: string[] = [];
+    if (voice.labels?.gender) {
+      labels.push(voice.labels.gender);
+    }
+    if (voice.labels?.accent) {
+      labels.push(voice.labels.accent);
+    }
+    if (voice.category) {
+      labels.push(voice.category);
+    }
+    return labels;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Select a Voice</DialogTitle>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-hidden flex flex-col gap-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search for a voice..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-10 bg-background"
+            />
+          </div>
+
+          {/* Voices List */}
+          <div className="flex-1 overflow-y-auto">
+            {voices.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? 'No voices found matching your search.' : 'No voices available.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {voices.map((voice) => {
+                  const isSelected = voice.id === selectedVoiceId;
+                  const isPlaying = playingVoiceId === voice.id;
+                  const labels = getVoiceLabels(voice);
+
+                  return (
+                    <div
+                      key={voice.id}
+                      className={cn(
+                        "relative p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        isSelected
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50 hover:bg-accent/50"
+                      )}
+                      onClick={() => onSelectVoice(voice.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Play Button - Always show, but disable if no preview_url */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPlayPreview(voice);
+                          }}
+                          disabled={!voice.preview_url}
+                          className={cn(
+                            "shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                            !voice.preview_url
+                              ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                              : isPlaying
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "bg-secondary hover:bg-secondary/80 text-foreground"
+                          )}
+                          title={
+                            !voice.preview_url
+                              ? "No preview available"
+                              : isPlaying
+                              ? "Stop preview"
+                              : "Play preview"
+                          }
+                        >
+                          {isPlaying ? (
+                            <Square className="h-5 w-5 fill-current" />
+                          ) : voice.preview_url ? (
+                            <Play className="h-5 w-5" />
+                          ) : (
+                            <AudioLines className="h-5 w-5" />
+                          )}
+                        </button>
+
+                        {/* Voice Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-sm truncate">
+                              {voice.name || voice.id}
+                            </h3>
+                            {isSelected && (
+                              <Check className="h-4 w-4 text-primary shrink-0" />
+                            )}
+                          </div>
+                          
+                          {voice.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                              {voice.description}
+                            </p>
+                          )}
+
+                          {/* Labels */}
+                          {labels.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {labels.slice(0, 3).map((label, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 text-xs rounded-full bg-secondary text-secondary-foreground"
+                                >
+                                  {label}
+                                </span>
+                              ))}
+                              {labels.length > 3 && (
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-secondary text-secondary-foreground">
+                                  +{labels.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default function CreateAgentWizard({ onComplete, voices: propVoices, loadingVoices: propLoadingVoices, initialData }: CreateAgentWizardProps) {
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState(0);
+  // Skip name step if name is already provided
+  const shouldSkipNameStep = initialData?.skipNameStep && initialData?.assistantName;
+  const [currentStep, setCurrentStep] = useState(shouldSkipNameStep ? 1 : 0);
   const [saving, setSaving] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
 
   // Step 1: Name
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialData?.assistantName || "");
 
   // Step 2: Model
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-cluster");
-  const [systemPrompt, setSystemPrompt] = useState("# Customer Service & Support Agent Prompt\n");
+  const [systemPrompt, setSystemPrompt] = useState(
+    initialData?.systemPrompt || "# Customer Service & Support Agent Prompt\n"
+  );
+  const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
 
   // Step 3: Voice
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(propLoadingVoices || false);
+  const [voiceSearchQuery, setVoiceSearchQuery] = useState("");
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Step 4: Transcriber
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
 
+  // Fetch voices if not provided
+  useEffect(() => {
+    const fetchVoices = async () => {
+      // Always fetch from API to get full voice data including preview_url
+      setLoadingVoices(true);
+      try {
+        const response = await voicesApi.list();
+        if (response.data) {
+          setVoices(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching voices:', err);
+        // Fallback to prop voices if API fails
+        if (propVoices && propVoices.length > 0) {
+          const convertedVoices: Voice[] = propVoices.map(v => ({
+            id: v.id,
+            name: v.name || v.id,
+          }));
+          setVoices(convertedVoices);
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to load voices. Please try again.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        setLoadingVoices(false);
+      }
+    };
+
+    fetchVoices();
+  }, [propVoices, toast]);
+
   const handleSetStep = (direction: -1 | 1) => {
-    if ((currentStep === 0 && direction === -1) || (currentStep === steps.length - 1 && direction === 1)) {
+    const minStep = shouldSkipNameStep ? 1 : 0;
+    const maxStep = shouldSkipNameStep ? steps.length - 2 : steps.length - 1;
+    
+    if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
     }
     setCurrentStep((prev) => prev + direction);
@@ -179,6 +407,11 @@ export default function CreateAgentWizard({ onComplete, voices, loadingVoices }:
             voice: {
               voice_id: selectedVoiceId,
             }
+          } : {}),
+          // Include first message if provided
+          ...(firstMessage && firstMessage.trim() ? {
+            first_message: firstMessage.trim(),
+            first_message_mode: "assistant-speaks-first"
           } : {})
         },
         platform_settings: {
@@ -268,7 +501,8 @@ export default function CreateAgentWizard({ onComplete, voices, loadingVoices }:
         });
       }
 
-      if (currentStep === steps.length - 1) {
+      const maxStep = shouldSkipNameStep ? steps.length - 2 : steps.length - 1;
+      if (currentStep === maxStep) {
         onComplete(savedAgentId);
       } else {
         setCurrentStep((prev) => prev + 1);
@@ -285,175 +519,453 @@ export default function CreateAgentWizard({ onComplete, voices, loadingVoices }:
   };
 
   const isStepValid = () => {
-    switch (currentStep) {
-      case 0:
-        return name.trim() !== "" && name.trim() !== "Enter a name for your assistant.";
-      case 1:
-        return selectedModel.trim() !== "" && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
-      case 2:
-        return selectedVoiceId.trim() !== "";
-      case 3:
-        return selectedLanguage.trim() !== "";
-      default:
-        return false;
+    // If name step is skipped, currentStep 0 = Model, 1 = Voice, 2 = Transcriber
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice, 3 = Transcriber
+    if (shouldSkipNameStep) {
+      switch (currentStep) {
+        case 1: // Model step
+          return selectedModel.trim() !== "" && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
+        case 2: // Voice step
+          return selectedVoiceId.trim() !== "";
+        case 3: // Transcriber step
+          return selectedLanguage.trim() !== "";
+        default:
+          return false;
+      }
+    } else {
+      switch (currentStep) {
+        case 0:
+          return name.trim() !== "" && name.trim() !== "Enter a name for your assistant.";
+        case 1:
+          return selectedModel.trim() !== "" && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
+        case 2:
+          return selectedVoiceId.trim() !== "";
+        case 3:
+          return selectedLanguage.trim() !== "";
+        default:
+          return false;
+      }
     }
   };
 
+  const handlePlayPreview = (voice: Voice) => {
+    if (!voice.preview_url) {
+      console.warn('No preview_url for voice:', voice.id, voice);
+      toast({
+        title: 'Preview unavailable',
+        description: 'This voice does not have a preview available.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('Playing preview for voice:', voice.id, 'URL:', voice.preview_url);
+
+    // Stop currently playing audio if any
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+      setPlayingVoiceId(null);
+    }
+
+    // If clicking the same voice that's playing, just stop it
+    if (playingVoiceId === voice.id) {
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    // Create and play new audio
+    const audio = new Audio(voice.preview_url);
+    currentAudioRef.current = audio;
+    setPlayingVoiceId(voice.id || null);
+
+    // Handle when audio ends
+    audio.addEventListener('ended', () => {
+      console.log('Audio ended for voice:', voice.id);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+    });
+
+    // Handle errors
+    audio.addEventListener('error', (e) => {
+      console.error('Audio error for voice:', voice.id, e);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+      toast({
+        title: 'Preview unavailable',
+        description: 'Could not play voice preview.',
+        variant: 'destructive',
+      });
+    });
+
+    audio.play().catch((err) => {
+      console.error('Error playing preview:', err, 'Voice:', voice.id, 'URL:', voice.preview_url);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+      toast({
+        title: 'Preview unavailable',
+        description: 'Could not play voice preview. Please check your browser audio settings.',
+        variant: 'destructive',
+      });
+    });
+  };
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  const filteredVoices = voices.filter(voice => {
+    if (!voiceSearchQuery) return true;
+    const query = voiceSearchQuery.toLowerCase();
+    return (
+      voice.name?.toLowerCase().includes(query) ||
+      voice.description?.toLowerCase().includes(query) ||
+      voice.id.toLowerCase().includes(query)
+    );
+  });
+
+  const selectedVoice = voices.find(v => v.id === selectedVoiceId);
+
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Assistant Name</label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter a name for your assistant"
-                className="w-full"
-              />
-            </div>
-          </div>
-        );
-      case 1:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Provider</label>
-              <Select
-                value={selectedProvider}
-                onValueChange={(value) => {
-                  setSelectedProvider(value);
-                  const models = modelsByProvider[value];
-                  if (models && models.length > 0) {
-                    setSelectedModel(models[0].value);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {providers.map((provider) => (
-                    <SelectItem key={provider.value} value={provider.value}>
-                      <span className="flex items-center gap-2">
-                        <span>{provider.icon}</span>
-                        <span>{provider.label}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Model</label>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelsByProvider[selectedProvider]?.map((model) => (
-                    <SelectItem key={model.value} value={model.value}>
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">System Prompt</label>
-              <Textarea
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="Enter the system prompt for the assistant..."
-                className="min-h-[150px] font-mono text-sm"
-              />
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Voice</label>
-              {loadingVoices ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Loading voices...</span>
-                </div>
-              ) : (
-                <Select value={selectedVoiceId} onValueChange={setSelectedVoiceId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a voice" />
+    // If name step is skipped, currentStep 1 = Model, 2 = Voice, 3 = Transcriber
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice, 3 = Transcriber
+    if (shouldSkipNameStep) {
+      switch (currentStep) {
+        case 1: // Model step
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Provider</label>
+                <Select
+                  value={selectedProvider}
+                  onValueChange={(value) => {
+                    setSelectedProvider(value);
+                    const models = modelsByProvider[value];
+                    if (models && models.length > 0) {
+                      setSelectedModel(models[0].value);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {voices.length > 0 ? (
-                      voices.map((voice) => (
-                        <SelectItem key={voice.id} value={voice.id}>
-                          {voice.name || voice.id}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="" disabled>No voices available</SelectItem>
-                    )}
+                    {providers.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        <span className="flex items-center gap-2">
+                          <span>{provider.icon}</span>
+                          <span>{provider.label}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              )}
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Model</label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelsByProvider[selectedProvider]?.map((model) => (
+                      <SelectItem key={model.value} value={model.value}>
+                        {model.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">System Prompt</label>
+                <Textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="Enter the system prompt for the assistant..."
+                  className="min-h-[250px] font-mono text-sm bg-white"
+                />
+              </div>
             </div>
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Language</label>
-              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="spanish">Spanish</SelectItem>
-                  <SelectItem value="french">French</SelectItem>
-                  <SelectItem value="german">German</SelectItem>
-                  <SelectItem value="italian">Italian</SelectItem>
-                  <SelectItem value="portuguese">Portuguese</SelectItem>
-                  <SelectItem value="polish">Polish</SelectItem>
-                  <SelectItem value="turkish">Turkish</SelectItem>
-                  <SelectItem value="russian">Russian</SelectItem>
-                  <SelectItem value="dutch">Dutch</SelectItem>
-                  <SelectItem value="czech">Czech</SelectItem>
-                  <SelectItem value="arabic">Arabic</SelectItem>
-                  <SelectItem value="chinese">Chinese</SelectItem>
-                  <SelectItem value="japanese">Japanese</SelectItem>
-                  <SelectItem value="hungarian">Hungarian</SelectItem>
-                  <SelectItem value="korean">Korean</SelectItem>
-                  <SelectItem value="multi">Multi</SelectItem>
-                </SelectContent>
-              </Select>
+          );
+        case 2: // Voice step
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Voice</label>
+                {loadingVoices ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Loading voices...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start bg-white"
+                      onClick={() => setShowVoiceSelector(true)}
+                    >
+                      {selectedVoice ? (
+                        <span className="flex items-center gap-2">
+                          <AudioLines className="h-4 w-4" />
+                          {selectedVoice.name || selectedVoice.id}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Select a voice</span>
+                      )}
+                    </Button>
+                    <VoiceSelectorDialog
+                      open={showVoiceSelector}
+                      onOpenChange={setShowVoiceSelector}
+                      voices={filteredVoices}
+                      selectedVoiceId={selectedVoiceId}
+                      onSelectVoice={(voiceId) => {
+                        setSelectedVoiceId(voiceId);
+                        setShowVoiceSelector(false);
+                      }}
+                      playingVoiceId={playingVoiceId}
+                      onPlayPreview={handlePlayPreview}
+                      searchQuery={voiceSearchQuery}
+                      onSearchChange={setVoiceSearchQuery}
+                    />
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      default:
-        return null;
+          );
+        case 3: // Transcriber step
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Language</label>
+                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                    <SelectItem value="french">French</SelectItem>
+                    <SelectItem value="german">German</SelectItem>
+                    <SelectItem value="italian">Italian</SelectItem>
+                    <SelectItem value="portuguese">Portuguese</SelectItem>
+                    <SelectItem value="polish">Polish</SelectItem>
+                    <SelectItem value="turkish">Turkish</SelectItem>
+                    <SelectItem value="russian">Russian</SelectItem>
+                    <SelectItem value="dutch">Dutch</SelectItem>
+                    <SelectItem value="czech">Czech</SelectItem>
+                    <SelectItem value="arabic">Arabic</SelectItem>
+                    <SelectItem value="chinese">Chinese</SelectItem>
+                    <SelectItem value="japanese">Japanese</SelectItem>
+                    <SelectItem value="hungarian">Hungarian</SelectItem>
+                    <SelectItem value="korean">Korean</SelectItem>
+                    <SelectItem value="multi">Multi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          );
+        default:
+          return null;
+      }
+    } else {
+      // Normal flow with name step
+      switch (currentStep) {
+        case 0:
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Assistant Name</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter a name for your assistant"
+                  className="w-full bg-white"
+                />
+              </div>
+            </div>
+          );
+        case 1:
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Provider</label>
+                <Select
+                  value={selectedProvider}
+                  onValueChange={(value) => {
+                    setSelectedProvider(value);
+                    const models = modelsByProvider[value];
+                    if (models && models.length > 0) {
+                      setSelectedModel(models[0].value);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        <span className="flex items-center gap-2">
+                          <span>{provider.icon}</span>
+                          <span>{provider.label}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Model</label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modelsByProvider[selectedProvider]?.map((model) => (
+                      <SelectItem key={model.value} value={model.value}>
+                        {model.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">System Prompt</label>
+                <Textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="Enter the system prompt for the assistant..."
+                  className="min-h-[350px] font-mono text-sm bg-white"
+                />
+              </div>
+            </div>
+          );
+        case 2:
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Voice</label>
+                {loadingVoices ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Loading voices...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start bg-white"
+                      onClick={() => setShowVoiceSelector(true)}
+                    >
+                      {selectedVoice ? (
+                        <span className="flex items-center gap-2">
+                          <AudioLines className="h-4 w-4" />
+                          {selectedVoice.name || selectedVoice.id}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Select a voice</span>
+                      )}
+                    </Button>
+                    <VoiceSelectorDialog
+                      open={showVoiceSelector}
+                      onOpenChange={setShowVoiceSelector}
+                      voices={filteredVoices}
+                      selectedVoiceId={selectedVoiceId}
+                      onSelectVoice={(voiceId) => {
+                        setSelectedVoiceId(voiceId);
+                        setShowVoiceSelector(false);
+                      }}
+                      playingVoiceId={playingVoiceId}
+                      onPlayPreview={handlePlayPreview}
+                      searchQuery={voiceSearchQuery}
+                      onSearchChange={setVoiceSearchQuery}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        case 3:
+          return (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Language</label>
+                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                    <SelectItem value="french">French</SelectItem>
+                    <SelectItem value="german">German</SelectItem>
+                    <SelectItem value="italian">Italian</SelectItem>
+                    <SelectItem value="portuguese">Portuguese</SelectItem>
+                    <SelectItem value="polish">Polish</SelectItem>
+                    <SelectItem value="turkish">Turkish</SelectItem>
+                    <SelectItem value="russian">Russian</SelectItem>
+                    <SelectItem value="dutch">Dutch</SelectItem>
+                    <SelectItem value="czech">Czech</SelectItem>
+                    <SelectItem value="arabic">Arabic</SelectItem>
+                    <SelectItem value="chinese">Chinese</SelectItem>
+                    <SelectItem value="japanese">Japanese</SelectItem>
+                    <SelectItem value="hungarian">Hungarian</SelectItem>
+                    <SelectItem value="korean">Korean</SelectItem>
+                    <SelectItem value="multi">Multi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          );
+        default:
+          return null;
+      }
     }
   };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="p-6 md:p-8 bg-card border-b border-border">
-        <Steps numSteps={steps.length} currentStep={currentStep} steps={steps} />
+        <Steps 
+          numSteps={steps.length} 
+          currentStep={shouldSkipNameStep ? currentStep : currentStep}
+          steps={steps} 
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2">{steps[currentStep].label}</h2>
+            <h2 className="text-2xl font-bold mb-2">
+              {shouldSkipNameStep 
+                ? steps[currentStep]?.label
+                : steps[currentStep]?.label
+              }
+            </h2>
             <p className="text-muted-foreground">
-              {currentStep === 0 && "Give your assistant a name to identify it."}
-              {currentStep === 1 && "Configure the AI model and system prompt for your assistant."}
-              {currentStep === 2 && "Select a voice for your assistant to use."}
-              {currentStep === 3 && "Choose the language for transcription."}
+              {(() => {
+                if (shouldSkipNameStep) {
+                  if (currentStep === 1) return "Configure the AI model and system prompt for your assistant.";
+                  if (currentStep === 2) return "Select a voice for your assistant to use.";
+                  if (currentStep === 3) return "Choose the language for transcription.";
+                  return "";
+                } else {
+                  if (currentStep === 0) return "Give your assistant a name to identify it.";
+                  if (currentStep === 1) return "Configure the AI model and system prompt for your assistant.";
+                  if (currentStep === 2) return "Select a voice for your assistant to use.";
+                  if (currentStep === 3) return "Choose the language for transcription.";
+                  return "";
+                }
+              })()}
             </p>
           </div>
           <div className="bg-card border border-border rounded-lg p-6">
@@ -463,11 +975,11 @@ export default function CreateAgentWizard({ onComplete, voices, loadingVoices }:
       </div>
 
       <div className="border-t border-border p-6 md:p-8">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <Button
             variant="outline"
             onClick={() => handleSetStep(-1)}
-            disabled={currentStep === 0 || saving}
+            disabled={(shouldSkipNameStep ? currentStep === 1 : currentStep === 0) || saving}
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -483,7 +995,7 @@ export default function CreateAgentWizard({ onComplete, voices, loadingVoices }:
               </>
             ) : (
               <>
-                {currentStep === steps.length - 1 ? "Complete" : "Save & Continue"}
+                {(shouldSkipNameStep ? currentStep === steps.length - 2 : currentStep === steps.length - 1) ? "Complete" : "Save & Continue"}
                 <ChevronRight className="h-4 w-4 ml-2" />
               </>
             )}
@@ -504,22 +1016,32 @@ const Steps = ({
   steps: StepType[];
 }) => {
   return (
-    <div className="flex items-center justify-between gap-3 max-w-2xl mx-auto">
+    <div className="flex items-center justify-center gap-2 max-w-2xl mx-auto">
       {steps.map((step, index) => {
         const stepNum = index + 1;
-        const isActive = index <= currentStep;
+        const isCompleted = index < currentStep;
+        const isCurrent = index === currentStep;
+        const isActive = isCompleted || isCurrent;
         const Icon = step.icon;
 
         return (
           <React.Fragment key={stepNum}>
-            <Step num={stepNum} isActive={isActive} icon={Icon} label={step.label} />
+            <Step 
+              num={stepNum} 
+              isCompleted={isCompleted}
+              isCurrent={isCurrent}
+              icon={Icon} 
+              label={step.label} 
+            />
             {stepNum !== numSteps && (
-              <div className="w-full h-1 rounded-full bg-secondary relative">
-                <motion.div
-                  className="absolute top-0 bottom-0 left-0 bg-primary rounded-full"
-                  animate={{ width: isActive ? "100%" : 0 }}
-                  transition={{ ease: "easeIn", duration: 0.3 }}
-                />
+              <div className={cn(
+                "flex-1 h-0.5 rounded-full relative transition-colors",
+                isCompleted ? "bg-primary" : "bg-muted"
+              )}>
+                {/* Thick line for completed connections */}
+                {isCompleted && (
+                  <div className="absolute top-0 bottom-0 left-0 right-0 bg-primary h-1 -top-0.5 rounded-full" />
+                )}
               </div>
             )}
           </React.Fragment>
@@ -531,63 +1053,77 @@ const Steps = ({
 
 const Step = ({ 
   num, 
-  isActive, 
+  isCompleted,
+  isCurrent,
   icon: Icon, 
   label 
 }: { 
   num: number; 
-  isActive: boolean;
+  isCompleted: boolean;
+  isCurrent: boolean;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
 }) => {
+  const isActive = isCompleted || isCurrent;
+  
   return (
-    <div className="relative flex flex-col items-center gap-2">
-      <div
-        className={cn(
-          "w-12 h-12 flex items-center justify-center shrink-0 border-2 rounded-full font-semibold text-sm relative z-10 transition-colors duration-300",
-          isActive
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-muted-foreground/30 text-muted-foreground bg-card"
+    <div className="relative flex flex-col items-center gap-2 min-w-[80px]">
+      <div className="relative">
+        {/* Glow effect for current step */}
+        {isCurrent && (
+          <motion.div
+            className="absolute inset-0 rounded-full bg-primary/20 blur-md"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1.2, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          />
         )}
-      >
-        <AnimatePresence mode="wait">
-          {isActive ? (
-            <motion.div
-              key="icon-check"
-              initial={{ rotate: 180, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: -180, opacity: 0 }}
-              transition={{ duration: 0.125 }}
-            >
-              <Check className="h-5 w-5" />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="icon-step"
-              initial={{ rotate: 180, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: -180, opacity: 0 }}
-              transition={{ duration: 0.125 }}
-            >
-              <Icon className="h-5 w-5" />
-            </motion.div>
+        
+        {/* Step circle */}
+        <div
+          className={cn(
+            "w-10 h-10 flex items-center justify-center shrink-0 rounded-full font-semibold text-sm relative z-10 transition-all duration-300",
+            isCompleted
+              ? "bg-primary border-2 border-primary text-primary-foreground"
+              : isCurrent
+              ? "bg-primary border-2 border-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary/20"
+              : "border-2 border-muted-foreground/30 text-muted-foreground bg-background"
           )}
-        </AnimatePresence>
+        >
+          <AnimatePresence mode="wait">
+            {isCompleted ? (
+              <motion.div
+                key="icon-check"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Check className="h-5 w-5" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="icon-step"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Icon className={cn(
+                  "h-5 w-5",
+                  isCurrent ? "text-primary-foreground" : "text-muted-foreground"
+                )} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
       <span className={cn(
-        "text-xs font-medium",
-        isActive ? "text-foreground" : "text-muted-foreground"
+        "text-xs font-medium text-center",
+        isActive ? "text-foreground font-semibold" : "text-muted-foreground"
       )}>
         {label}
       </span>
-      {isActive && (
-        <motion.div
-          className="absolute z-0 -inset-1.5 bg-primary/20 rounded-full"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        />
-      )}
     </div>
   );
 };

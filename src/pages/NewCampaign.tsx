@@ -275,21 +275,6 @@ export default function NewCampaign() {
           </div>
           <div className="flex gap-2">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // TODO: Implement test call functionality
-                toast({
-                  title: 'Test call',
-                  description: 'Test call functionality coming soon.',
-                });
-              }}
-              disabled={creating || !selectedPhoneNumberId || !selectedAgentId}
-              className="text-xs md:text-sm md:px-4 md:py-2"
-            >
-              Test call
-            </Button>
-            <Button
               variant="accent"
               size="sm"
               onClick={handleCreate}
@@ -329,7 +314,7 @@ export default function NewCampaign() {
               placeholder="Enter campaign name"
               value={campaignName}
               onChange={(e) => setCampaignName(e.target.value)}
-              className="bg-secondary/50"
+              className="bg-white"
               disabled={creating}
             />
           </div>
@@ -345,7 +330,7 @@ export default function NewCampaign() {
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             ) : phoneNumbers.length === 0 ? (
-              <div className="p-4 bg-secondary/50 rounded-lg border border-border">
+              <div className="p-4 bg-white rounded-lg border border-border">
                 <p className="text-sm text-muted-foreground text-center">
                   No phone numbers available. Please add a phone number first.
                 </p>
@@ -356,7 +341,7 @@ export default function NewCampaign() {
                 onValueChange={setSelectedPhoneNumberId}
                 disabled={creating}
               >
-                <SelectTrigger className="bg-secondary/50">
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Select a phone number" />
                 </SelectTrigger>
                 <SelectContent>
@@ -545,7 +530,7 @@ export default function NewCampaign() {
                 onValueChange={setSelectedAgentId}
                 disabled={creating}
               >
-                <SelectTrigger className="bg-secondary/50">
+                <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Select an agent" />
                 </SelectTrigger>
                 <SelectContent>

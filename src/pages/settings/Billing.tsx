@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +9,18 @@ import {
 } from "@/components/ui/dialog";
 import { 
   CreditCard,
-  Pencil,
   ArrowLeft,
   Mail,
-  Loader2
+  Loader2,
+  Building2,
+  Zap,
+  Check,
+  History,
+  TrendingUp,
+  Wallet,
+  Calendar,
+  Sparkles
 } from "lucide-react";
-import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 import { paymentsApi, Payment } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -27,18 +30,17 @@ import { format } from "date-fns";
 export default function Billing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [autoReload, setAutoReload] = useState(false);
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showContactSalesModal, setShowContactSalesModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-  const [currentBalance] = useState(10);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (searchParams.get("openModal") === "true") {
-      setShowPurchaseModal(true);
+      setShowPaymentMethodModal(true);
       searchParams.delete("openModal");
       setSearchParams(searchParams, { replace: true });
     }
@@ -66,6 +68,34 @@ export default function Billing() {
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  // Fetch credit balance
+  const fetchCreditBalance = useCallback(async () => {
+    setLoadingBalance(true);
+    try {
+      const response = await paymentsApi.creditBalance();
+      if (response.data) {
+        setCreditBalance(response.data.balance);
+      } else {
+        setCreditBalance(0);
+      }
+    } catch (error) {
+      console.error("Error fetching credit balance:", error);
+      // Set default value on error
+      setCreditBalance(0);
+      toast({
+        title: "Error",
+        description: "Failed to load credit balance.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingBalance(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchCreditBalance();
+  }, [fetchCreditBalance]);
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -100,244 +130,204 @@ export default function Billing() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0 bg-card/50 backdrop-blur-sm">
+        <div className="flex items-center gap-3 md:gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/settings")}
-            className="flex-shrink-0"
+            className="flex-shrink-0 hover:bg-secondary"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
           </Button>
-          <div>
-            <h2 className="text-xl md:text-2xl font-semibold mb-2">Plans</h2>
-            <p className="hidden md:block text-sm md:text-base text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              Billing & Plans
+            </h2>
+            {/* <p className="hidden md:block text-sm md:text-base text-muted-foreground leading-relaxed max-w-3xl">
               Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
-            </p>
+            </p> */}
           </div>
         </div>
       </div>
 
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-6xl p-4 md:p-6 pr-4 md:pr-6 space-y-6 md:space-y-8">
-          {/* Description - Mobile only */}
-          <p className="md:hidden text-sm text-muted-foreground">
-            Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
-          </p>
-          
-          {/* Plans Section */}
-          <section>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {/* Usage Based Plan */}
-              <div className="bg-secondary/50 border border-accent rounded-lg p-4 md:p-6">
-                <p className="text-xs md:text-sm text-muted-foreground mb-1">Usage Based</p>
-                <h3 className="text-xl md:text-2xl font-semibold mb-3 md:mb-4">Pay as you go</h3>
-                
-                <div className="space-y-2 text-xs md:text-sm mb-4 md:mb-6">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bundled minutes:</span>
-                    <span>-</span>
+        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            {/* Credit Balance Card */}
+            <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-5 md:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-primary/20 rounded-lg">
+                  <Wallet className="h-5 w-5 text-primary" />
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bundled minutes overage cost:</span>
-                    <span>-</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Concurrency included:</span>
-                    <span>10</span>
-                  </div>
+              <p className="text-sm text-muted-foreground mb-1">Credit Balance</p>
+              {loadingBalance ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Loading...</span>
                 </div>
-
-                <p className="text-accent font-medium text-sm md:text-base">Current Plan</p>
-              </div>
-
-              {/* Enterprise Plan */}
-              <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3 md:mb-4">
-                  <div>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-1">Enterprise</p>
-                    <h3 className="text-xl md:text-2xl font-semibold">Custom <span className="text-xs md:text-sm font-normal text-muted-foreground">/annual contract</span></h3>
-                  </div>
-                  <p className="text-xs md:text-sm text-muted-foreground">Starting at 600,000/year</p>
+              ) : (
+                <p className="text-2xl md:text-3xl font-bold text-foreground">
+                  ${creditBalance.toFixed(2)}
+                </p>
+              )}
                 </div>
                 
-                <div className="space-y-2 text-xs md:text-sm mb-4 md:mb-6">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bundled minutes:</span>
-                    <span>Custom</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bundled minutes overage cost:</span>
-                    <span>Custom</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Concurrency included:</span>
-                    <span>Custom</span>
-                  </div>
+            {/* Recent Payments Card */}
+            <div className="bg-card border border-border rounded-xl p-5 md:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-secondary/50 rounded-lg">
+                  <History className="h-5 w-5 text-muted-foreground" />
                 </div>
+                  </div>
+              <p className="text-sm text-muted-foreground mb-1">Total Payments</p>
+              <p className="text-2xl md:text-3xl font-bold text-foreground">
+                {payments.filter(p => p.status === 'succeeded').length}
+              </p>
+                  </div>
 
-                <Button variant="accent" className="w-full text-xs md:text-sm" onClick={() => setShowContactSalesModal(true)}>
-                  <Mail className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  Contact Sales
-                </Button>
-              </div>
-            </div>
-          </section>
-
-          {/* Payment Method Section */}
-          <section>
-            <h3 className="text-lg md:text-xl font-semibold mb-2">Payment Method</h3>
-            <p className="text-muted-foreground text-xs md:text-sm mb-4 md:mb-6">Enter your card details</p>
-
-            <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm md:text-base">Billing Email</Label>
-                <div className="relative">
-                  <Input 
-                    value="vbrazo@gmail.com" 
-                    className="bg-secondary/50 pr-10 h-9 md:h-10 text-sm"
-                    readOnly
-                  />
-                  <Pencil className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
+            {/* Quick Action Card */}
+            <div className="bg-card border border-border rounded-xl p-5 md:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-primary/10 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-primary" />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm md:text-base">Payment Method</Label>
-                <div className="flex items-center gap-2 bg-secondary/50 border border-border rounded-md px-2 md:px-3 py-2">
-                  <div className="w-7 h-4 md:w-8 md:h-5 bg-blue-600 rounded flex items-center justify-center flex-shrink-0">
-                    <CreditCard className="h-2.5 w-2.5 md:h-3 md:w-3 text-white" />
-                  </div>
-                  <span className="text-xs md:text-sm text-muted-foreground truncate">Número do cartão</span>
-                  <div className="ml-auto flex items-center gap-1 md:gap-2 flex-shrink-0">
-                    <span className="text-xs bg-accent/20 text-accent px-1.5 md:px-2 py-0.5 rounded">link</span>
-                    <span className="text-xs md:text-sm text-foreground">●●●● 5695</span>
-                    <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
-                  </div>
-                </div>
+              <p className="text-sm text-muted-foreground mb-3">Need more credits?</p>
                 <Button
-                  variant="outline"
-                  className="w-full text-xs md:text-sm"
+                variant="default"
+                size="sm"
+                className="w-full"
                   onClick={() => setShowPaymentMethodModal(true)}
                 >
-                  <CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-                  Add Payment Method
+                <CreditCard className="h-4 w-4 mr-2" />
+                  Buy Credits
                 </Button>
+            </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-border">
-                {/* <div className="flex items-center justify-between">
-                  <Label className="text-sm md:text-base">Enable Auto Reload</Label>
-                  <Switch checked={autoReload} onCheckedChange={setAutoReload} />
-                </div> */}
-
-                {autoReload && (
-                  <div className="mt-4 space-y-3">
-                    <div className="space-y-2">
-                      <Label className="text-sm md:text-base">Amount to reload</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input 
-                          defaultValue="10" 
-                          className="bg-secondary/50 pl-7 h-9 md:h-10 text-sm"
-                        />
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+            {/* Plan Section - Takes 1 column */}
+            <div className="lg:col-span-1">
+              <div className="bg-gradient-to-br from-card via-card to-secondary/20 border border-border rounded-2xl p-6 md:p-8 shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-primary/20 rounded-xl">
+                      <Zap className="h-6 w-6 text-primary" />
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm md:text-base">When threshold reaches</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input 
-                          defaultValue="10" 
-                          className="bg-secondary/50 pl-7 h-9 md:h-10 text-sm"
-                        />
-                      </div>
+                      <div>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Plan</p>
+                      <h3 className="text-xl md:text-2xl font-bold">Pay as you go</h3>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </section>
+                  
+                  <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                    Flexible pricing that scales with your usage. Pay only for what you use.
+                  </p>
 
-          {/* Credit Purchase History Section */}
-          <section>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <div>
-                <h3 className="text-lg md:text-xl font-semibold mb-2">Credit Purchase History</h3>
-                <p className="text-muted-foreground text-xs md:text-sm">
-                  Credit purchases are charged to your payment method.
-                </p>
-              </div>
-            </div>
-
-            {loadingPayments ? (
-              <div className="flex items-center justify-center py-12 bg-secondary/30 border border-border rounded-lg">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : payments.length === 0 ? (
-              <div className="bg-secondary/30 border border-border rounded-lg p-8 md:p-12 text-center">
-                <p className="text-muted-foreground text-sm md:text-base">No data available</p>
-              </div>
-            ) : (
-              <div className="bg-secondary/30 border border-border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-secondary/50 border-b border-border">
-                      <tr>
-                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Date</th>
-                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Amount</th>
-                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Status</th>
-                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Payment Method</th>
-                        <th className="text-left p-3 md:p-4 text-xs md:text-sm font-medium text-muted-foreground">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payments.map((payment) => (
-                        <tr key={payment.id} className="border-b border-border last:border-b-0 hover:bg-secondary/20 transition-colors">
-                          <td className="p-3 md:p-4 text-xs md:text-sm">
-                            {format(new Date(payment.created_at), "MMM d, yyyy")}
-                          </td>
-                          <td className="p-3 md:p-4 text-xs md:text-sm font-medium">
-                            ${payment.amount_dollars.toFixed(2)}
-                          </td>
-                          <td className="p-3 md:p-4">
-                            <Badge variant={getStatusBadgeVariant(payment.status)}>
-                              {getStatusLabel(payment.status)}
-                            </Badge>
-                          </td>
-                          <td className="p-3 md:p-4 text-xs md:text-sm text-muted-foreground">
-                            {payment.payment_method ? (
-                              <span>
-                                {payment.payment_method.brand.toUpperCase()} •••• {payment.payment_method.last4}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">N/A</span>
-                            )}
-                          </td>
-                          <td className="p-3 md:p-4 text-xs md:text-sm text-muted-foreground">
-                            {payment.description || "Payment"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="space-y-3">
+                    <Button 
+                      variant="default"
+                      className="w-full h-12 text-base font-medium shadow-md hover:shadow-lg transition-all"
+                      onClick={() => setShowPaymentMethodModal(true)}
+                    >
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Add Credits
+                    </Button>
+                    
+                    <Button 
+                      variant="outline"
+                      className="w-full h-12 text-base font-medium border-primary/20 hover:bg-primary/5 transition-all"
+                      onClick={() => setShowContactSalesModal(true)}
+                    >
+                      <Building2 className="h-5 w-5 mr-2" />
+                      Upgrade to Enterprise
+                    </Button>
+                  </div>
                 </div>
               </div>
-            )}
-          </section>
+            </div>
+
+            {/* Payment History - Takes 2 columns */}
+            <div className="lg:col-span-2">
+              <div className="mb-4 md:mb-6">
+              <h2 className="text-lg md:text-xl font-semibold flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                  Payment History
+              </h2>
+                <p className="text-sm text-muted-foreground mt-1">View all your credit purchases</p>
+            </div>
+            
+            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+              {loadingPayments ? (
+                <div className="flex flex-col items-center justify-center py-16 md:py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p className="text-sm md:text-base text-muted-foreground">Loading payment history...</p>
+                </div>
+              ) : payments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
+                  <div className="p-4 bg-secondary/50 rounded-full mb-4">
+                    <History className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-base md:text-lg font-medium text-foreground mb-2">No payment history</p>
+                    <p className="text-sm md:text-base text-muted-foreground text-center max-w-md mb-6">
+                    Credit purchases will appear here once you make your first purchase.
+                  </p>
+                  <Button
+                      variant="default"
+                    onClick={() => setShowPaymentMethodModal(true)}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Buy Credits
+                  </Button>
+                </div>
+              ) : (
+                  <div className="divide-y divide-border">
+                    {payments.map((payment) => (
+                      <div
+                          key={payment.id} 
+                        className="p-4 md:p-6 hover:bg-secondary/30 transition-colors group"
+                        >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="p-2.5 bg-secondary/50 rounded-lg group-hover:bg-secondary/70 transition-colors">
+                              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 mb-1">
+                                <p className="text-base md:text-lg font-semibold text-foreground">
+                              ${payment.amount_dollars.toFixed(2)}
+                                </p>
+                            <Badge 
+                              variant={getStatusBadgeVariant(payment.status)}
+                                  className="text-xs"
+                            >
+                              {getStatusLabel(payment.status)}
+                            </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>{format(new Date(payment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Modals */}
-      <PurchaseCreditsModal
-        open={showPurchaseModal}
-        onOpenChange={setShowPurchaseModal}
-        currentBalance={currentBalance}
-      />
-
       <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
         <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
@@ -345,7 +335,7 @@ export default function Billing() {
           </DialogHeader>
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://calendly.com"
+              src="https://calendly.com/imvitoroliveira"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"
@@ -359,6 +349,7 @@ export default function Billing() {
         onOpenChange={setShowPaymentMethodModal}
         onSuccess={() => {
           fetchPayments();
+          fetchCreditBalance();
         }}
       />
     </div>

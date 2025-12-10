@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,12 +9,20 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   Check,
   Minus,
@@ -29,6 +37,8 @@ import {
   Linkedin,
   Github,
   Twitter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const footerLinks = {
@@ -37,19 +47,159 @@ const footerLinks = {
   legal: ["Privacy Policy", "Terms"]
 };
 
-const Pricing = () => {
-  const [callsPerMonth, setCallsPerMonth] = useState("1000");
-  const [callLength, setCallLength] = useState("1");
-  const [promptTokens, setPromptTokens] = useState("1000");
-  const [transport, setTransport] = useState("");
-  const [llm, setLlm] = useState("");
-  const [tts, setTts] = useState("");
-  const [stt, setStt] = useState("");
+// LLM Options organized by provider
+const llmOptions = {
+  OpenAI: [
+    { id: "gpt-4.1", name: "GPT-4.1", cost: 0.06 },
+    { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", cost: 0.01 },
+    { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", cost: 0.01 },
+    { id: "gpt-4.5-preview", name: "GPT-4.5 Preview", cost: 2.12 },
+    { id: "gpt-4o-mini", name: "GPT-4o Mini", cost: 0.01 },
+    { id: "gpt-4o", name: "GPT-4o", cost: 0.07 },
+    { id: "chatgpt-4o", name: "ChatGPT-4o (Latest)", cost: 0.14 },
+    { id: "gpt-4o-realtime-preview", name: "GPT-4o Mini Realtime Preview", cost: 0.28 },
+    { id: "gpt-4o-realtime", name: "GPT-4o Realtime Preview", cost: 1.14 },
+    { id: "o3", name: "O3", cost: 0.28 },
+    { id: "o3-mini", name: "O3 Mini", cost: 0.03 },
+    { id: "o4-mini", name: "O4 Mini", cost: 0.04 },
+    { id: "o1-preview", name: "O1 Preview", cost: 0.43 },
+    { id: "o1-mini", name: "O1 Mini", cost: 0.03 },
+  ],
+  Anthropic: [
+    { id: "claude-3-opus", name: "Claude 3 Opus", cost: 0.09 },
+    { id: "claude-3.5-sonnet", name: "Claude 3.5 Sonnet", cost: 0.09 },
+    { id: "claude-3.5-haiku", name: "Claude 3.5 Haiku", cost: 0.09 },
+    { id: "claude-3.7-sonnet", name: "Claude 3.7 Sonnet", cost: 0.09 },
+  ],
+  XAI: [
+    { id: "grok-beta", name: "Grok Beta", cost: 0.14 },
+    { id: "grok-2", name: "Grok 2", cost: 0.06 },
+    { id: "grok-3", name: "Grok 3", cost: 0.06 },
+  ],
+  Mistral: [
+    { id: "mistral-large", name: "Mistral Large", cost: 0.002 },
+    { id: "pixtral-large", name: "Pixtral Large", cost: 0.002 },
+    { id: "mistral-small", name: "Mistral Small", cost: 0.0001 },
+  ],
+  Google: [
+    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", cost: 0.09 },
+    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", cost: 0.09 },
+    { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro", cost: 0.09 },
+    { id: "gemini-2.0-flash-thinking", name: "Gemini 2.0 Flash Thinking (Experimental)", cost: 0.09 },
+    { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite Preview", cost: 0.09 },
+    { id: "gemini-2.0-pro", name: "Gemini 2.0 Pro", cost: 0.09 },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", cost: 0.09 },
+    { id: "gemma-3", name: "Gemma-3 via OpenRouter", cost: 0.09 },
+  ],
+  "Inflection AI": [
+    { id: "inflection-3-pi", name: "Inflection 3 Pi", cost: 0.01 },
+  ],
+  "Together AI": [
+    { id: "together-default", name: "Default", cost: 0.0009 },
+  ],
+  Anyscale: [
+    { id: "anyscale-default", name: "Default", cost: 0.001 },
+  ],
+  OpenRouter: [
+    { id: "openrouter-default", name: "Default", cost: 0.0005 },
+  ],
+  "Perplexity AI": [
+    { id: "perplexity-default", name: "Default", cost: 0.001 },
+  ],
+  DeepInfra: [
+    { id: "deepinfra-default", name: "Default", cost: 0.0007 },
+  ],
+  Groq: [
+    { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", cost: 0.001 },
+    { id: "llama3-8b-8192", name: "Llama3 8B 8192", cost: 0.001 },
+    { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B 32768", cost: 0.01 },
+    { id: "gemma2-9b-it", name: "Gemma2 9B IT", cost: 0.01 },
+    { id: "deepseek-r1-distill-llama-70b", name: "Deepseek R1 Distill Llama 70B", cost: 0.02 },
+    { id: "llama-3.3-70b-versatile", name: "Llama-3.3 70B Versatile", cost: 0.02 },
+    { id: "llama-3.1-70b-versatile", name: "Llama-3.1 70B Versatile", cost: 0.02 },
+  ],
+  DeepSeek: [
+    { id: "deepseek-v3", name: "DeepSeek V3", cost: 0.01 },
+    { id: "deepseek-r1", name: "DeepSeek R1", cost: 0.02 },
+  ],
+  Cerebras: [
+    { id: "llama-3.3-70b", name: "Llama 3.3 70B", cost: 0.02 },
+    { id: "llama-3.1-8b", name: "Llama 3.1 8B", cost: 0.0001 },
+  ],
+};
 
-  const hostingCost = 0.05;
-  const totalMinutes =
-    (parseInt(callsPerMonth) || 0) * (parseFloat(callLength) || 0);
-  const estimatedCost = totalMinutes * hostingCost;
+// Transport options
+const transportOptions = [
+  { id: "twilio-inbound", name: "Twilio Inbound", cost: 0.008 },
+  { id: "twilio-outbound", name: "Twilio Outbound", cost: 0.014 },
+];
+
+// Constants
+const HOSTING_COST_PER_MIN = 0.05;
+const TTS_COST_PER_MIN = 0.036; // ElevenLabs default
+const STT_COST_PER_MIN = 0.00667; // ElevenLabs default
+const TOKENS_PER_MINUTE = 4066.667; // Average tokens per minute of conversation
+
+const Pricing = () => {
+  const navigate = useNavigate();
+  const [callsPerMonth, setCallsPerMonth] = useState("100");
+  const [callLength, setCallLength] = useState("10");
+  const [promptTokens, setPromptTokens] = useState("1000");
+  const [selectedTransport, setSelectedTransport] = useState("twilio-inbound");
+  const [selectedLLM, setSelectedLLM] = useState("gpt-4.1");
+  const [showContactSalesModal, setShowContactSalesModal] = useState(false);
+  
+  // Collapsible sections state
+  const [isTransportOpen, setIsTransportOpen] = useState(true);
+  const [isLLMOpen, setIsLLMOpen] = useState(true);
+
+  // Calculate costs
+  const calculateCosts = () => {
+    const calls = parseInt(callsPerMonth) || 0;
+    const length = parseFloat(callLength) || 0;
+    const tokens = parseInt(promptTokens) || 0;
+    
+    const totalMinutes = calls * length;
+    
+    // Find selected LLM
+    let llmCostPerMillion = 0.06; // Default to GPT-4.1
+    for (const provider of Object.values(llmOptions)) {
+      const llm = provider.find(l => l.id === selectedLLM);
+      if (llm) {
+        llmCostPerMillion = llm.cost;
+        break;
+      }
+    }
+    
+    // Find selected transport
+    const transport = transportOptions.find(t => t.id === selectedTransport);
+    const transportCostPerMin = transport?.cost || 0.008;
+    
+    // Calculate individual costs
+    const hostingCost = totalMinutes * HOSTING_COST_PER_MIN;
+    const transportCost = totalMinutes * transportCostPerMin;
+    const ttsCost = totalMinutes * TTS_COST_PER_MIN;
+    const sttCost = totalMinutes * STT_COST_PER_MIN;
+    
+    // Calculate LLM tokens: (total minutes * tokens per minute) + (calls * prompt tokens)
+    const llmTokens = (totalMinutes * TOKENS_PER_MINUTE) + (calls * tokens);
+    const llmCost = (llmTokens / 1_000_000) * llmCostPerMillion;
+    
+    const totalCost = hostingCost + transportCost + ttsCost + sttCost + llmCost;
+    
+    return {
+      hostingCost,
+      transportCost,
+      ttsCost,
+      sttCost,
+      llmCost,
+      totalCost,
+      totalMinutes,
+      llmTokens,
+    };
+  };
+
+  const costs = calculateCosts();
 
   const comparisonData = {
     usageAndScale: [
@@ -247,6 +397,7 @@ const Pricing = () => {
               <Button
                 variant="outline"
                 className="w-full max-w-xs uppercase tracking-wider text-xs py-6"
+                onClick={() => navigate("/sign-up")}
               >
                 Start with $10 Free
               </Button>
@@ -256,7 +407,10 @@ const Pricing = () => {
             <div className="text-center space-y-4">
               <h2 className="text-3xl font-light">Enterprise</h2>
               <p className="text-primary font-medium">Annual contract</p>
-              <Button className="w-full max-w-xs uppercase tracking-wider text-xs py-6">
+              <Button 
+                className="w-full max-w-xs uppercase tracking-wider text-xs py-6"
+                onClick={() => setShowContactSalesModal(true)}
+              >
                 Contact Sales
               </Button>
             </div>
@@ -365,54 +519,146 @@ const Pricing = () => {
 
           {/* Cost Breakdown */}
           <div className="space-y-6">
+            {/* Hosting */}
             <div className="flex justify-between items-center py-4 border-b border-border/50">
               <div>
-                <h3 className="font-medium">Hosting</h3>
+                <h3 className="font-medium">Contextor Hosting</h3>
                 <p className="text-sm text-muted-foreground">
                   Container hosting for your agents
                 </p>
               </div>
-              <span className="font-medium">$0.05 / min</span>
+              <span className="font-medium">${HOSTING_COST_PER_MIN.toFixed(2)} / min</span>
             </div>
 
-            <div className="flex justify-between items-center py-4 border-b border-border/50">
-              <div>
-                <h3 className="font-medium">Transport</h3>
-                <p className="text-sm text-muted-foreground">
-                  Network and data transport services
+            {/* Transport */}
+            <div className="py-4 border-b border-border/50">
+              <button
+                onClick={() => setIsTransportOpen(!isTransportOpen)}
+                className="flex items-start w-full mb-4 hover:opacity-80 transition-opacity text-left"
+              >
+                <div className="flex-1">
+                  <h3 className="font-medium text-left">Transport</h3>
+                  {!isTransportOpen && selectedTransport ? (
+                    <div className="mt-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {transportOptions.find(t => t.id === selectedTransport)?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ${transportOptions.find(t => t.id === selectedTransport)?.cost.toFixed(3)} / min
                 </p>
               </div>
-              <Select value={transport} onValueChange={setTransport}>
-                <SelectTrigger className="w-48 bg-background/50">
-                  <SelectValue placeholder="Select an option" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="twilio">Twilio</SelectItem>
-                  <SelectItem value="vonage">Vonage</SelectItem>
-                  <SelectItem value="custom">Custom SIP</SelectItem>
-                </SelectContent>
-              </Select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-left">
+                      Network and data transport services (Charged by provider)
+                    </p>
+                  )}
+                </div>
+                {isTransportOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
+                )}
+              </button>
+              {isTransportOpen && (
+                <RadioGroup 
+                  value={selectedTransport} 
+                  onValueChange={(value) => {
+                    setSelectedTransport(value);
+                    setIsTransportOpen(false);
+                  }}
+                >
+                  <div className="space-y-2">
+                    {transportOptions.map((option) => (
+                      <div key={option.id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
+                        <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer flex-1">
+                          <RadioGroupItem value={option.id} id={option.id} />
+                          <span>{option.name}</span>
+                        </Label>
+                        <span className="font-medium">${option.cost.toFixed(3)} / min</span>
+                      </div>
+                    ))}
+                  </div>
+                </RadioGroup>
+              )}
             </div>
 
-            <div className="flex justify-between items-center py-4 border-b border-border/50">
-              <div>
-                <h3 className="font-medium">Large Language Model (LLM)</h3>
-                <p className="text-sm text-muted-foreground">
+            {/* LLM */}
+            <div className="py-4 border-b border-border/50">
+              <button
+                onClick={() => setIsLLMOpen(!isLLMOpen)}
+                className="flex items-start w-full mb-4 hover:opacity-80 transition-opacity text-left"
+              >
+                <div className="flex-1">
+                  <h3 className="font-medium text-left">Large Language Model (LLM)</h3>
+                  {!isLLMOpen && selectedLLM ? (
+                    <div className="mt-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {(() => {
+                          for (const provider of Object.values(llmOptions)) {
+                            const model = provider.find(m => m.id === selectedLLM);
+                            if (model) return model.name;
+                          }
+                          return "";
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ${(() => {
+                          for (const provider of Object.values(llmOptions)) {
+                            const model = provider.find(m => m.id === selectedLLM);
+                            if (model) return model.cost.toFixed(2);
+                          }
+                          return "0.00";
+                        })()} / 1M tokens
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-left">
                   Advanced language processing and generation
                 </p>
+                  )}
+                </div>
+                {isLLMOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
+                )}
+              </button>
+              {isLLMOpen && (
+                <RadioGroup 
+                  value={selectedLLM} 
+                  onValueChange={(value) => {
+                    setSelectedLLM(value);
+                    setIsLLMOpen(false);
+                  }}
+                >
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {Object.entries(llmOptions).map(([provider, models]) => (
+                      <fieldset key={provider} className="border-0 p-0 m-0">
+                        <legend className="text-sm font-semibold text-muted-foreground mb-2 pl-1">
+                          {provider}
+                        </legend>
+                        <div className="space-y-2 ml-4">
+                          {models.map((model) => (
+                            <div
+                              key={model.id}
+                              className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors"
+                            >
+                              <Label htmlFor={model.id} className="flex items-center gap-2 cursor-pointer flex-1">
+                                <RadioGroupItem value={model.id} id={model.id} />
+                                <span>{model.name}</span>
+                              </Label>
+                              <span className="font-medium">${model.cost.toFixed(2)} / 1M tokens</span>
+                            </div>
+                          ))}
+                        </div>
+                      </fieldset>
+                    ))}
               </div>
-              <Select value={llm} onValueChange={setLlm}>
-                <SelectTrigger className="w-48 bg-background/50">
-                  <SelectValue placeholder="Select an option" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gpt4">GPT-4</SelectItem>
-                  <SelectItem value="gpt35">GPT-3.5 Turbo</SelectItem>
-                  <SelectItem value="claude">Claude 3</SelectItem>
-                </SelectContent>
-              </Select>
+                </RadioGroup>
+              )}
             </div>
 
+            {/* TTS */}
             <div className="flex justify-between items-center py-4 border-b border-border/50">
               <div>
                 <h3 className="font-medium">Text-to-Speech (TTS)</h3>
@@ -420,18 +666,10 @@ const Pricing = () => {
                   Natural, high-quality speech synthesis
                 </p>
               </div>
-              <Select value={tts} onValueChange={setTts}>
-                <SelectTrigger className="w-48 bg-background/50">
-                  <SelectValue placeholder="Select an option" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
-                  <SelectItem value="azure">Azure TTS</SelectItem>
-                  <SelectItem value="google">Google TTS</SelectItem>
-                </SelectContent>
-              </Select>
+              <span className="font-medium">${TTS_COST_PER_MIN.toFixed(3)} / min</span>
             </div>
 
+            {/* STT */}
             <div className="flex justify-between items-center py-4 border-b border-border/50">
               <div>
                 <h3 className="font-medium">Speech-to-Text (STT)</h3>
@@ -439,31 +677,16 @@ const Pricing = () => {
                   Accurate, high-speed speech recognition
                 </p>
               </div>
-              <Select value={stt} onValueChange={setStt}>
-                <SelectTrigger className="w-48 bg-background/50">
-                  <SelectValue placeholder="Select an option" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="deepgram">Deepgram</SelectItem>
-                  <SelectItem value="whisper">Whisper</SelectItem>
-                  <SelectItem value="azure">Azure STT</SelectItem>
-                </SelectContent>
-              </Select>
+              <span className="font-medium">${STT_COST_PER_MIN.toFixed(5)} / min</span>
             </div>
 
             {/* Total */}
             <div className="flex justify-between items-center py-6 border-t-2 border-border">
               <h3 className="text-xl font-medium">Total Monthly Cost</h3>
               <span className="text-2xl font-semibold">
-                ${estimatedCost.toFixed(2)}
+                ${costs.totalCost.toFixed(2)}
               </span>
             </div>
-          </div>
-
-          <div className="flex justify-center mt-8">
-            <Button variant="outline" className="uppercase tracking-wider text-xs">
-              Compare Services
-            </Button>
           </div>
         </div>
       </section>
@@ -561,6 +784,23 @@ const Pricing = () => {
           </div>
         </div>
       </footer>
+
+      {/* Contact Sales Modal */}
+      <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
+        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+            <DialogTitle>Schedule a Meeting</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <iframe
+              src="https://calendly.com/imvitoroliveira"
+              className="w-full h-full border-0"
+              title="Calendly Scheduling"
+              allow="camera; microphone; geolocation"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
