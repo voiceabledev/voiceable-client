@@ -4,6 +4,7 @@ import { Phone, Clock, CreditCard, TrendingDown, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { metricsApi, agentsApi, type Agent } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Metric {
   label: string;
@@ -15,6 +16,7 @@ interface Metric {
 
 export default function Overview() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedAgent, setSelectedAgent] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("month");
   const [metrics, setMetrics] = useState<Metric[]>([
@@ -163,12 +165,6 @@ export default function Overview() {
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 md:p-8">
-          {/* Welcome Section */}
-          <div className="mb-6 md:mb-8">
-            <p className="text-muted-foreground text-xs md:text-sm">email@example.com's Org</p>
-            <h1 className="text-2xl md:text-4xl font-bold mt-1">Welcome Vbrazo</h1>
-          </div>
-
           {/* Metrics Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 gap-4">
           <h2 className="text-lg md:text-xl font-semibold">Metrics</h2>

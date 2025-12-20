@@ -212,30 +212,30 @@ const Pricing = () => {
     ],
     hostingCost: [
       { feature: "Calls", paygo: "$0.05 / min", enterprise: "Volume based" },
-      { feature: "SMS/Chat", paygo: "$0.005 / msg", enterprise: "Volume based" },
+      // { feature: "SMS/Chat", paygo: "$0.005 / msg", enterprise: "Volume based" },
     ],
     modelProvider: [
       { feature: "Calls", paygo: "At cost", enterprise: "Included" },
-      { feature: "SMS/Chat", paygo: "At cost", enterprise: "Included" },
+      // { feature: "SMS/Chat", paygo: "At cost", enterprise: "Included" },
     ],
     channels: [
       { feature: "Calls", paygo: true, enterprise: true },
-      { feature: "SMS/Chat", paygo: true, enterprise: true },
-      { feature: "Custom SIP", paygo: false, enterprise: true },
+      // { feature: "SMS/Chat", paygo: true, enterprise: true },
+      // { feature: "Custom SIP", paygo: false, enterprise: true },
     ],
     dataRetention: [
       { feature: "Call history", paygo: "14 days", enterprise: "Custom" },
-      { feature: "Chat history", paygo: "30 days", enterprise: "Custom" },
+      // { feature: "Chat history", paygo: "30 days", enterprise: "Custom" },
     ],
     security: [
-      { feature: "SSO", paygo: false, enterprise: true },
-      { feature: "RBAC", paygo: false, enterprise: true },
-      { feature: "SOC2", paygo: false, enterprise: true },
-      {
-        feature: "HIPAA Zero Data Retention",
-        paygo: "Add-on $1000/mo",
-        enterprise: true,
-      },
+      // { feature: "SSO", paygo: false, enterprise: true },
+      // { feature: "RBAC", paygo: false, enterprise: true },
+      // { feature: "SOC2", paygo: false, enterprise: true },
+      // {
+      //   feature: "HIPAA Zero Data Retention",
+      //   paygo: "Add-on $1000/mo",
+      //   enterprise: true,
+      // },
     ],
     support: [
       { feature: "Infra SLA", paygo: "—", enterprise: "Enterprise Grade, 99.99%" },
@@ -272,36 +272,36 @@ const Pricing = () => {
       answer:
         "At scale, enterprise customers benefit from custom pricing, dedicated support, and volume discounts. Contact sales for a personalized quote.",
     },
+    // {
+    //   question: "How does credit equate to minutes?",
+    //   answer:
+    //     "Credits are based on usage. The hosting cost is $0.05 per minute, plus model provider costs which vary based on the LLM, TTS, and STT providers you choose.",
+    // },
+    // {
+    //   question: "How much does Chat cost?",
+    //   answer:
+    //     "Chat messages cost $0.005 per message for hosting, plus model provider costs. Enterprise customers get volume-based pricing.",
+    // },
     {
-      question: "How does credit equate to minutes?",
-      answer:
-        "Credits are based on usage. The hosting cost is $0.05 per minute, plus model provider costs which vary based on the LLM, TTS, and STT providers you choose.",
-    },
-    {
-      question: "How much does Chat cost?",
-      answer:
-        "Chat messages cost $0.005 per message for hosting, plus model provider costs. Enterprise customers get volume-based pricing.",
-    },
-    {
-      question: "How can I get more than 14 days of call and chat history?",
+      question: "How can I get more than 14 days of call history?",
       answer:
         "Enterprise plans include custom data retention periods. Contact sales to discuss your requirements.",
     },
-    {
-      question: "What is Hosting Cost?",
-      answer:
-        "Hosting cost covers the infrastructure to run your voice agents, including real-time processing, low-latency connections, and reliability.",
-    },
-    {
-      question: "Does Hosting Cost include model providers?",
-      answer:
-        "No, model provider costs (LLM, TTS, STT) are separate and charged at cost for pay-as-you-go, or included for enterprise customers.",
-    },
-    {
-      question: "If I use my own Model Provider keys, am I still charged?",
-      answer:
-        "You'll only pay the hosting cost. Model provider charges will go directly to your provider account.",
-    },
+    // {
+    //   question: "What is Hosting Cost?",
+    //   answer:
+    //     "Hosting cost covers the infrastructure to run your voice agents, including real-time processing, low-latency connections, and reliability.",
+    // },
+    // {
+    //   question: "Does Hosting Cost include model providers?",
+    //   answer:
+    //     "No, model provider costs (LLM, TTS, STT) are separate and charged at cost for pay-as-you-go, or included for enterprise customers.",
+    // },
+    // {
+    //   question: "If I use my own Model Provider keys, am I still charged?",
+    //   answer:
+    //     "You'll only pay the hosting cost. Model provider charges will go directly to your provider account.",
+    // },
   ];
 
   const renderValue = (value: boolean | string) => {
@@ -445,11 +445,11 @@ const Pricing = () => {
                   <DollarSign className="w-4 h-4 text-primary" />,
                   comparisonData.hostingCost
                 )}
-                {renderSection(
+                {/* {renderSection(
                   "Model Provider Cost (STT, LLM, TTS)",
                   <Layers className="w-4 h-4 text-primary" />,
                   comparisonData.modelProvider
-                )}
+                )} */}
                 {renderSection(
                   "Channels",
                   <Phone className="w-4 h-4 text-primary" />,
@@ -460,16 +460,16 @@ const Pricing = () => {
                   <Database className="w-4 h-4 text-primary" />,
                   comparisonData.dataRetention
                 )}
-                {renderSection(
+                {/* {renderSection(
                   "Security and Compliance",
                   <Shield className="w-4 h-4 text-primary" />,
                   comparisonData.security
-                )}
-                {renderSection(
+                )} */}
+                {/* {renderSection(
                   "Reliability and Support",
                   <Headphones className="w-4 h-4 text-primary" />,
                   comparisonData.support
-                )}
+                )} */}
               </tbody>
             </table>
           </div>

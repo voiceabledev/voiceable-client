@@ -35,6 +35,12 @@ import ResetPassword from "@/pages/auth/ResetPassword";
 import ResetPasswordConfirm from "@/pages/auth/ResetPasswordConfirm";
 import Account from "@/pages/auth/Account";
 import Login from "@/pages/auth/Login";
+import Recruiters from "@/pages/Recruiters";
+import Receptionist from "@/pages/Receptionist";
+import Scheduler from "@/pages/Scheduler";
+import LeadsReviver from "@/pages/LeadsReviver";
+import Confirmation from "@/pages/Confirmation";
+import BubbleVoice from "@/pages/BubbleVoice";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +54,12 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/recruiters" element={<Recruiters />} />
+              <Route path="/receptionist" element={<Receptionist />} />
+              <Route path="/scheduler" element={<Scheduler />} />
+              <Route path="/leads-reviver" element={<LeadsReviver />} />
+              <Route path="/confirmation" element={<Confirmation />} />
+              <Route path="/bubble-voice" element={<BubbleVoice />} />
               <Route path="/sign-up" element={<SignUp />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/reset-password-confirm" element={<ResetPasswordConfirm />} />

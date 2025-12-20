@@ -1034,9 +1034,6 @@ export default function Assistants() {
                             <SelectItem value="multi">Multi</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          <span className="font-medium">Pro tip:</span> If you want to support both English and Spanish, you can set the language to <strong>multi</strong> and use <strong>ElevenLabs Turbo 2.5</strong> in the <strong>Voice</strong> tab.
-                        </p>
                       </div>
 
                       {/* Model */}

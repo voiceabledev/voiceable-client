@@ -197,13 +197,13 @@ const CustomAgents = () => {
         </div>
       ),
     },
-    {
-      icon: <Phone className="w-5 h-5" />,
-      title: "Telephony control",
-      description: "Custom SIP support, warm transfers, voicemail detection and DTMF support.",
-      link: "SIP GUIDE",
-      visual: null,
-    },
+    // {
+    //   icon: <Phone className="w-5 h-5" />,
+    //   title: "Telephony control",
+    //   description: "Custom SIP support, warm transfers, voicemail detection and DTMF support.",
+    //   link: "SIP GUIDE",
+    //   visual: null,
+    // },
     {
       icon: <Wifi className="w-5 h-5" />,
       title: "99.99% Reliability",

@@ -149,6 +149,93 @@ const modelsByProvider: Record<string, { value: string; label: string }[]> = {
   ],
 };
 
+const SYSTEM_TOOL_KEYS = [
+  "end_call",
+  "detect_language",
+  "skip_turn",
+  "transfer_to_agent",
+  "transfer_to_number",
+  "play_keypad_touch_tone",
+  "voicemail_detection"
+] as const;
+
+type SystemToolKey = typeof SYSTEM_TOOL_KEYS[number];
+
+type TransferRuleSetting = {
+  agent: string;
+  condition: string;
+  delayMs: number;
+  transferMessage: string;
+  enableFirstMessage: boolean;
+};
+
+type HumanTransferRuleSetting = {
+  transferType: "conference";
+  destinationType: "phone_number";
+  phoneNumber: string;
+  condition: string;
+};
+
+type SystemToolSetting = {
+  name: string;
+  description: string;
+  disableInterruptions: boolean;
+  transferRules?: TransferRuleSetting[];
+  humanTransferRules?: HumanTransferRuleSetting[];
+};
+
+const normalizeSystemToolKey = (key: string): SystemToolKey | null => {
+  const normalized = key.replace(/-/g, "_");
+  return (SYSTEM_TOOL_KEYS as readonly string[]).includes(normalized)
+    ? (normalized as SystemToolKey)
+    : null;
+};
+
+const getEmptyTransferRule = (): TransferRuleSetting => ({
+  agent: "",
+  condition: "",
+  delayMs: 0,
+  transferMessage: "",
+  enableFirstMessage: false
+});
+
+const getEmptyHumanTransferRule = (): HumanTransferRuleSetting => ({
+  transferType: "conference",
+  destinationType: "phone_number",
+  phoneNumber: "",
+  condition: ""
+});
+
+const getDefaultSystemToolsState = (): Record<SystemToolKey, boolean> => ({
+  end_call: false,
+  detect_language: false,
+  skip_turn: false,
+  transfer_to_agent: false,
+  transfer_to_number: false,
+  play_keypad_touch_tone: false,
+  voicemail_detection: false
+});
+
+const getDefaultSystemToolSettings = (): Record<SystemToolKey, SystemToolSetting> => ({
+  end_call: { name: "end_call", description: "", disableInterruptions: false },
+  detect_language: { name: "detect_language", description: "", disableInterruptions: false },
+  skip_turn: { name: "skip_turn", description: "", disableInterruptions: false },
+  transfer_to_agent: { name: "transfer_to_agent", description: "", disableInterruptions: false, transferRules: [getEmptyTransferRule()] },
+  transfer_to_number: { name: "transfer_to_number", description: "", disableInterruptions: false, humanTransferRules: [getEmptyHumanTransferRule()] },
+  play_keypad_touch_tone: { name: "play_keypad_touch_tone", description: "", disableInterruptions: false },
+  voicemail_detection: { name: "voicemail_detection", description: "", disableInterruptions: false },
+});
+
+const getDefaultSystemToolExpanded = (): Record<SystemToolKey, boolean> => ({
+  end_call: false,
+  detect_language: false,
+  skip_turn: false,
+  transfer_to_agent: false, // Collapsed by default
+  transfer_to_number: false, // Collapsed by default
+  play_keypad_touch_tone: false,
+  voicemail_detection: false
+});
+
 export default function AssistantDetail() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -195,6 +282,111 @@ export default function AssistantDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent?.name, isNew, editingName]);
   
+  const handleSystemToolToggle = (key: SystemToolKey, checked: boolean) => {
+    setSystemTools(prev => ({ ...prev, [key]: checked }));
+    // Don't auto-expand transfer sections - they should stay collapsed by default
+  };
+
+  const toggleSystemToolSection = (key: SystemToolKey) => {
+    setSystemToolExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSystemToolSettingChange = (key: SystemToolKey, updates: Partial<SystemToolSetting>) => {
+    setSystemToolSettings(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        ...updates
+      }
+    }));
+  };
+
+  const updateTransferRule = (index: number, updates: Partial<TransferRuleSetting>) => {
+    setSystemToolSettings(prev => {
+      const current = prev.transfer_to_agent?.transferRules || [getEmptyTransferRule()];
+      const nextRules = [...current];
+      nextRules[index] = { ...nextRules[index], ...updates };
+      return {
+        ...prev,
+        transfer_to_agent: {
+          ...prev.transfer_to_agent,
+          transferRules: nextRules
+        }
+      };
+    });
+  };
+
+  const addTransferRule = () => {
+    setSystemToolSettings(prev => {
+      const current = prev.transfer_to_agent?.transferRules || [];
+      return {
+        ...prev,
+        transfer_to_agent: {
+          ...prev.transfer_to_agent,
+          transferRules: [...current, getEmptyTransferRule()]
+        }
+      };
+    });
+  };
+
+  const removeTransferRule = (index: number) => {
+    setSystemToolSettings(prev => {
+      const current = prev.transfer_to_agent?.transferRules || [];
+      if (current.length === 0) return prev;
+      const nextRules = current.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        transfer_to_agent: {
+          ...prev.transfer_to_agent,
+          transferRules: nextRules.length ? nextRules : [getEmptyTransferRule()]
+        }
+      };
+    });
+  };
+
+  const updateHumanTransferRule = (index: number, updates: Partial<HumanTransferRuleSetting>) => {
+    setSystemToolSettings(prev => {
+      const current = prev.transfer_to_number?.humanTransferRules || [getEmptyHumanTransferRule()];
+      const nextRules = [...current];
+      nextRules[index] = { ...nextRules[index], ...updates };
+      return {
+        ...prev,
+        transfer_to_number: {
+          ...prev.transfer_to_number,
+          humanTransferRules: nextRules
+        }
+      };
+    });
+  };
+
+  const addHumanTransferRule = () => {
+    setSystemToolSettings(prev => {
+      const current = prev.transfer_to_number?.humanTransferRules || [];
+      return {
+        ...prev,
+        transfer_to_number: {
+          ...prev.transfer_to_number,
+          humanTransferRules: [...current, getEmptyHumanTransferRule()]
+        }
+      };
+    });
+  };
+
+  const removeHumanTransferRule = (index: number) => {
+    setSystemToolSettings(prev => {
+      const current = prev.transfer_to_number?.humanTransferRules || [];
+      if (current.length === 0) return prev;
+      const nextRules = current.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        transfer_to_number: {
+          ...prev.transfer_to_number,
+          humanTransferRules: nextRules.length ? nextRules : [getEmptyHumanTransferRule()]
+        }
+      };
+    });
+  };
+
   const [modelExpanded, setModelExpanded] = useState(false);
   const [voiceConfigExpanded, setVoiceConfigExpanded] = useState(false);
   const [additionalConfigExpanded, setAdditionalConfigExpanded] = useState(true);
@@ -226,15 +418,9 @@ export default function AssistantDetail() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
 
   // System tools state
-  const [systemTools, setSystemTools] = useState<Record<string, boolean>>({
-    "end-conversation": false,
-    "detect-language": false,
-    "skip-turn": false,
-    "transfer-to-agent": false,
-    "transfer-to-number": false,
-    "play-keypad-touch-tone": false,
-    "voicemail-detection": false,
-  });
+  const [systemTools, setSystemTools] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolsState());
+  const [systemToolSettings, setSystemToolSettings] = useState<Record<SystemToolKey, SystemToolSetting>>(() => getDefaultSystemToolSettings());
+  const [systemToolExpanded, setSystemToolExpanded] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolExpanded());
   
   // Track saved configuration to detect changes
   const [savedConfig, setSavedConfig] = useState<{
@@ -289,16 +475,154 @@ export default function AssistantDetail() {
         setFirstMessageMode("assistant-speaks-first");
       }
       
-      // Extract system tools
-      if (Array.isArray(config.system_tools)) {
+      // Extract system tools - Check both agent level and conversation_config for backward compatibility
+      const agentDataRecord = agentData as unknown as Record<string, unknown>;
+      const systemToolsData = (agentDataRecord.system_tools || config.system_tools) as Record<string, unknown> | undefined;
+      
+      if (systemToolsData && typeof systemToolsData === 'object') {
+        const defaults = getDefaultSystemToolSettings();
+        const parsedSettings: Record<SystemToolKey, SystemToolSetting> = { ...defaults };
+        const toolsState = { ...getDefaultSystemToolsState() };
+
+        SYSTEM_TOOL_KEYS.forEach((key) => {
+          const toolData = systemToolsData[key] as Record<string, unknown> | undefined;
+          
+          if (toolData && typeof toolData === 'object') {
+            // Extract active state
+            const isActive = toolData.active === true || toolData.active === 'true' || toolData.active === 1;
+            toolsState[key] = isActive;
+
+            // Extract settings
+            const nextSetting: SystemToolSetting = { ...defaults[key] };
+            
+            if (typeof toolData.description === 'string') {
+              nextSetting.description = toolData.description;
+            }
+            if (typeof toolData.disable_interruptions === 'boolean') {
+              nextSetting.disableInterruptions = toolData.disable_interruptions;
+            }
+
+            // Extract params for transfer tools
+            if (key === "transfer_to_agent" && toolData.params && typeof toolData.params === 'object') {
+              const params = toolData.params as Record<string, unknown>;
+              if (Array.isArray(params.transfers)) {
+                nextSetting.transferRules = (params.transfers as Array<Record<string, unknown>>).map(transfer => ({
+                  // ElevenLabs uses agent_id, but we store it as agent in our state
+                  agent: typeof transfer.agent_id === 'string' ? transfer.agent_id : 
+                         typeof transfer.agent === 'string' ? transfer.agent : "",
+                  condition: typeof transfer.condition === 'string' ? transfer.condition : "",
+                  delayMs: typeof transfer.delay_ms === 'number' ? transfer.delay_ms : 0,
+                  transferMessage: typeof transfer.transfer_message === 'string' ? transfer.transfer_message : "",
+                  enableFirstMessage: typeof transfer.enable_first_message === 'boolean' ? transfer.enable_first_message : false
+                }));
+              }
+            }
+
+            if (key === "transfer_to_number" && toolData.params && typeof toolData.params === 'object') {
+              const params = toolData.params as Record<string, unknown>;
+              if (Array.isArray(params.transfers)) {
+                nextSetting.humanTransferRules = (params.transfers as Array<Record<string, unknown>>).map(transfer => ({
+                  transferType: "conference" as const, // Only conference is supported
+                  destinationType: "phone_number",
+                  phoneNumber: typeof transfer.phone_number === 'string' ? transfer.phone_number : "",
+                  condition: typeof transfer.condition === 'string' ? transfer.condition : ""
+                }));
+              }
+            }
+
+            parsedSettings[key] = nextSetting;
+          }
+        });
+
+        setSystemTools(toolsState);
+        setSystemToolSettings(parsedSettings);
+        
+        // Auto-expand transfer tools if they are active
+        setSystemToolExpanded(prev => {
+          const next = { ...prev };
+          if (toolsState.transfer_to_agent) {
+            next.transfer_to_agent = true;
+          }
+          if (toolsState.transfer_to_number) {
+            next.transfer_to_number = true;
+          }
+          return next;
+        });
+      }
+      
+      // Legacy format support - if system_tools is an array
+      else if (Array.isArray(config.system_tools)) {
         const tools = config.system_tools as string[];
+        const normalizedTools = tools
+          .map(tool => normalizeSystemToolKey(String(tool)))
+          .filter(Boolean) as SystemToolKey[];
+
         setSystemTools(prev => {
           const newTools = { ...prev };
-          Object.keys(newTools).forEach(key => {
-            newTools[key] = tools.includes(key);
+          SYSTEM_TOOL_KEYS.forEach(key => {
+            newTools[key] = normalizedTools.includes(key);
           });
           return newTools;
         });
+
+        setSystemToolExpanded(prev => {
+          const next = { ...prev };
+          if (normalizedTools.includes("transfer_to_agent")) {
+            next.transfer_to_agent = true;
+          }
+          if (normalizedTools.includes("transfer_to_number")) {
+            next.transfer_to_number = true;
+          }
+          return next;
+        });
+        
+        // Try to extract settings from old format
+        if (config.system_tools_settings && typeof config.system_tools_settings === 'object') {
+          const settings = config.system_tools_settings as Record<string, unknown>;
+          const defaults = getDefaultSystemToolSettings();
+          const parsedSettings: Record<SystemToolKey, SystemToolSetting> = { ...defaults };
+
+        SYSTEM_TOOL_KEYS.forEach((key) => {
+          const incoming = (settings[key] || settings[key.replace(/_/g, "-")]) as Record<string, unknown> | undefined;
+          if (incoming && typeof incoming === 'object') {
+            const nextSetting: SystemToolSetting = { ...defaults[key] };
+            if (typeof incoming.name === 'string') {
+              nextSetting.name = incoming.name;
+            }
+            if (typeof incoming.description === 'string') {
+              nextSetting.description = incoming.description;
+            }
+            if (typeof incoming.disable_interruptions === 'boolean') {
+              nextSetting.disableInterruptions = incoming.disable_interruptions;
+            }
+
+            if (key === "transfer_to_agent" && Array.isArray(incoming.transfer_rules)) {
+              nextSetting.transferRules = (incoming.transfer_rules as Array<Record<string, unknown>>).map(rule => ({
+                // Handle both agent and agent_id for backward compatibility
+                agent: typeof rule.agent_id === 'string' ? rule.agent_id :
+                       typeof rule.agent === 'string' ? rule.agent : "",
+                condition: typeof rule.condition === 'string' ? rule.condition : "",
+                delayMs: typeof rule.delay_ms === 'number' ? rule.delay_ms : 0,
+                transferMessage: typeof rule.transfer_message === 'string' ? rule.transfer_message : "",
+                enableFirstMessage: typeof rule.enable_first_message === 'boolean' ? rule.enable_first_message : false
+              }));
+            }
+
+            if (key === "transfer_to_number" && Array.isArray(incoming.human_transfer_rules)) {
+              nextSetting.humanTransferRules = (incoming.human_transfer_rules as Array<Record<string, unknown>>).map(rule => ({
+                transferType: "conference" as const, // Only conference is supported
+                destinationType: "phone_number",
+                phoneNumber: typeof rule.phone_number === 'string' ? rule.phone_number : "",
+                condition: typeof rule.condition === 'string' ? rule.condition : ""
+              }));
+            }
+
+            parsedSettings[key] = nextSetting;
+          }
+        });
+
+          setSystemToolSettings(parsedSettings);
+        }
       }
       
       // Extract model/provider if available
@@ -717,6 +1041,9 @@ export default function AssistantDetail() {
       setEditingName(false);
       setTempName("");
       nameInitializedRef.current = false;
+      setSystemTools(getDefaultSystemToolsState());
+      setSystemToolSettings(getDefaultSystemToolSettings());
+      setSystemToolExpanded(getDefaultSystemToolExpanded());
     }
   }, [id, isNew]);
 
@@ -747,6 +1074,58 @@ export default function AssistantDetail() {
 
   // Build the complete configuration payload
   const buildConfiguration = useCallback(() => {
+    // Build system tools payload in the format the backend expects
+    const systemToolsPayload = SYSTEM_TOOL_KEYS.reduce<Record<string, unknown>>((acc, key) => {
+      const isActive = systemTools[key];
+      const settings = systemToolSettings[key];
+      
+      const toolData: Record<string, unknown> = {
+        active: isActive,
+        ...(settings?.description?.trim() ? { description: settings.description.trim() } : {}),
+        ...(typeof settings?.disableInterruptions === 'boolean' ? { disable_interruptions: settings.disableInterruptions } : {}),
+      };
+
+      if (key === "transfer_to_agent" && isActive) {
+        const rules = (settings?.transferRules || []).map(rule => ({
+          agent_id: rule.agent, // ElevenLabs expects agent_id, not agent
+          ...(rule.condition?.trim() && { condition: rule.condition.trim() }),
+          delay_ms: Number.isFinite(rule.delayMs) ? rule.delayMs : 0,
+          ...(rule.transferMessage?.trim() && { transfer_message: rule.transferMessage.trim() }),
+          enable_first_message: !!rule.enableFirstMessage
+        })).filter(rule => rule.agent_id || rule.condition || rule.transfer_message);
+
+        if (rules.length > 0) {
+          toolData.params = {
+            system_tool_type: "transfer_to_agent",
+            transfers: rules,
+            voicemail_message: "",
+            use_out_of_band_dtmf: false
+          };
+        }
+      }
+
+      if (key === "transfer_to_number" && isActive) {
+        const humanRules = (settings?.humanTransferRules || []).map(rule => ({
+          transfer_type: rule.transferType,
+          destination_type: rule.destinationType,
+          phone_number: rule.phoneNumber,
+          ...(rule.condition?.trim() && { condition: rule.condition.trim() })
+        })).filter(rule => rule.phone_number || rule.condition);
+
+        if (humanRules.length > 0) {
+          toolData.params = {
+            system_tool_type: "transfer_to_number",
+            transfers: humanRules,
+            voicemail_message: "",
+            use_out_of_band_dtmf: false
+          };
+        }
+      }
+
+      acc[key] = toolData;
+      return acc;
+    }, {});
+
     const conversationConfig: Record<string, unknown> = {
       model: {
         model: selectedModel,
@@ -772,11 +1151,6 @@ export default function AssistantDetail() {
       },
       first_message_mode: firstMessageMode,
       ...(firstMessage && firstMessage.trim() && { first_message: firstMessage.trim() }),
-      ...(Object.keys(systemTools).some(key => systemTools[key]) && {
-        system_tools: Object.entries(systemTools)
-          .filter(([_, enabled]) => enabled)
-          .map(([key]) => key)
-      }),
       ...(selectedVoiceId && {
         voice_id: selectedVoiceId
       }),
@@ -806,13 +1180,15 @@ export default function AssistantDetail() {
         ...conversationConfig,
         ...privacySettings
       },
-      platform_settings: platformSettings
+      platform_settings: platformSettings,
+      system_tools: systemToolsPayload
     };
   }, [
     selectedModel,
     selectedProvider,
     systemPrompt,
     systemTools,
+    systemToolSettings,
     selectedLanguage,
     backgroundDenoising,
     confidenceThreshold,
@@ -1766,9 +2142,6 @@ export default function AssistantDetail() {
                             <SelectItem value="multi">Multi</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          <span className="font-medium">Pro tip:</span> If you want to support both English and Spanish, you can set the language to <strong>multi</strong> and use <strong>ElevenLabs Turbo 2.5</strong> in the <strong>Voice</strong> tab.
-                        </p>
                       </div>
 
                     </div>
@@ -1938,70 +2311,485 @@ export default function AssistantDetail() {
                     </p>
                   </div>
                   <div className="space-y-3">
-                    {/* End conversation */}
-                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">End conversation</span>
+                    {/* End call */}
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">End call</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {systemTools.end_call && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => toggleSystemToolSection("end_call")}
+                            >
+                              <ChevronDown className={cn("h-4 w-4 transition-transform", systemToolExpanded.end_call && "rotate-180")} />
+                            </Button>
+                          )}
+                          <Switch
+                            checked={systemTools.end_call}
+                            onCheckedChange={(checked) => handleSystemToolToggle("end_call", checked)}
+                          />
+                        </div>
                       </div>
-                      <Switch
-                        checked={systemTools["end-conversation"]}
-                        onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "end-conversation": checked }))}
-                      />
+                      {systemTools.end_call && systemToolExpanded.end_call && (
+                        <div className="p-4 space-y-4 border-t border-border">
+                          <h4 className="text-sm font-semibold">Configuration</h4>
+                          <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-2 block">Name</label>
+                            <Input
+                              value={systemToolSettings.end_call.name}
+                              readOnly
+                              disabled
+                              className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
+                            <Textarea
+                              value={systemToolSettings.end_call.description}
+                              onChange={(e) => handleSystemToolSettingChange("end_call", { description: e.target.value })}
+                              placeholder="Leave blank to use the default optimized LLM prompt."
+                              className="bg-white border-border min-h-[80px] text-sm"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium">Disable interruptions</div>
+                              <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                            </div>
+                            <Switch
+                              checked={systemToolSettings.end_call.disableInterruptions}
+                              onCheckedChange={(checked) => handleSystemToolSettingChange("end_call", { disableInterruptions: checked })}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Detect language */}
-                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Detect language</span>
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Detect language</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {systemTools.detect_language && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => toggleSystemToolSection("detect_language")}
+                            >
+                              <ChevronDown className={cn("h-4 w-4 transition-transform", systemToolExpanded.detect_language && "rotate-180")} />
+                            </Button>
+                          )}
+                          <Switch
+                            checked={systemTools.detect_language}
+                            onCheckedChange={(checked) => handleSystemToolToggle("detect_language", checked)}
+                          />
+                        </div>
                       </div>
-                      <Switch
-                        checked={systemTools["detect-language"]}
-                        onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "detect-language": checked }))}
-                      />
+                      {systemTools.detect_language && systemToolExpanded.detect_language && (
+                        <div className="p-4 space-y-4 border-t border-border">
+                          <h4 className="text-sm font-semibold">Configuration</h4>
+                          <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-2 block">Name</label>
+                            <Input
+                              value={systemToolSettings.detect_language.name}
+                              readOnly
+                              disabled
+                              className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
+                            <Textarea
+                              value={systemToolSettings.detect_language.description}
+                              onChange={(e) => handleSystemToolSettingChange("detect_language", { description: e.target.value })}
+                              placeholder="Leave blank to use the default optimized LLM prompt."
+                              className="bg-white border-border min-h-[80px] text-sm"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium">Disable interruptions</div>
+                              <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                            </div>
+                            <Switch
+                              checked={systemToolSettings.detect_language.disableInterruptions}
+                              onCheckedChange={(checked) => handleSystemToolSettingChange("detect_language", { disableInterruptions: checked })}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Transfer to agent */}
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Transfer to agent</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {systemTools.transfer_to_agent && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => toggleSystemToolSection("transfer_to_agent")}
+                            >
+                              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", systemToolExpanded.transfer_to_agent && "rotate-180")} />
+                            </Button>
+                          )}
+                          <Switch
+                            checked={systemTools.transfer_to_agent}
+                            onCheckedChange={(checked) => handleSystemToolToggle("transfer_to_agent", checked)}
+                          />
+                        </div>
+                      </div>
+                      {systemTools.transfer_to_agent && (
+                        <div className={cn(
+                          "overflow-hidden transition-all duration-300 ease-in-out",
+                          systemToolExpanded.transfer_to_agent ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
+                        )}>
+                          <div className="p-4 space-y-6 border-t border-border">
+                          {/* Configuration Section */}
+                          <div className="space-y-4 pb-4 border-b border-border">
+                            <h4 className="text-sm font-semibold">Configuration</h4>
+                            <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
+                            <div>
+                              <label className="text-sm text-muted-foreground mb-2 block">Name</label>
+                              <Input
+                                value={systemToolSettings.transfer_to_agent.name}
+                                readOnly
+                                disabled
+                                className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
+                              <Textarea
+                                value={systemToolSettings.transfer_to_agent.description}
+                                onChange={(e) => handleSystemToolSettingChange("transfer_to_agent", { description: e.target.value })}
+                                placeholder="Leave blank to use the default optimized LLM prompt."
+                                className="bg-white border-border min-h-[80px] text-sm"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-medium">Disable interruptions</div>
+                                <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                              </div>
+                              <Switch
+                                checked={systemToolSettings.transfer_to_agent.disableInterruptions}
+                                onCheckedChange={(checked) => handleSystemToolSettingChange("transfer_to_agent", { disableInterruptions: checked })}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Transfer Rules Section */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-sm font-semibold">Transfer Rules</h4>
+                                <p className="text-xs text-muted-foreground mt-1">Define the conditions for transferring to different agents.</p>
+                              </div>
+                            </div>
+                          {(systemToolSettings.transfer_to_agent.transferRules || []).map((rule, index) => (
+                            <div key={index} className="border border-border rounded-lg p-4 space-y-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium">Transfer Rule {index + 1}</h4>
+                                {(systemToolSettings.transfer_to_agent.transferRules || []).length > 1 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => removeTransferRule(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Agent</label>
+                                <Select 
+                                  value={rule.agent} 
+                                  onValueChange={(value) => updateTransferRule(index, { agent: value })}
+                                >
+                                  <SelectTrigger className="bg-white border-border">
+                                    <SelectValue placeholder="Select agent" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="agent-1">Agent 1</SelectItem>
+                                    <SelectItem value="agent-2">Agent 2</SelectItem>
+                                    <SelectItem value="agent-3">Agent 3</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Condition</label>
+                                <Textarea
+                                  value={rule.condition}
+                                  onChange={(e) => updateTransferRule(index, { condition: e.target.value })}
+                                  placeholder="Enter the condition for transferring to this agent"
+                                  className="bg-white border-border min-h-[80px] text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Delay before transfer (milliseconds)</label>
+                                <Input
+                                  type="number"
+                                  value={rule.delayMs}
+                                  onChange={(e) => updateTransferRule(index, { delayMs: parseInt(e.target.value) || 0 })}
+                                  className="bg-white border-border"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Transfer Message</label>
+                                <Textarea
+                                  value={rule.transferMessage}
+                                  onChange={(e) => updateTransferRule(index, { transferMessage: e.target.value })}
+                                  placeholder="Enter transfer message (optional)"
+                                  className="bg-white border-border min-h-[60px] text-sm"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="text-sm font-medium">Enable First Message</div>
+                                  <p className="text-xs text-muted-foreground">Play the transferred agent's first message after transfer</p>
+                                </div>
+                                <Switch
+                                  checked={rule.enableFirstMessage}
+                                  onCheckedChange={(checked) => updateTransferRule(index, { enableFirstMessage: checked })}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={addTransferRule}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Rule
+                            </Button>
+                          </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Transfer to number */}
-                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Transfer to number</span>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Transfer to number</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {systemTools.transfer_to_number && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => toggleSystemToolSection("transfer_to_number")}
+                            >
+                              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", systemToolExpanded.transfer_to_number && "rotate-180")} />
+                            </Button>
+                          )}
+                          <Switch
+                            checked={systemTools.transfer_to_number}
+                            onCheckedChange={(checked) => handleSystemToolToggle("transfer_to_number", checked)}
+                          />
+                        </div>
                       </div>
-                      <Switch
-                        checked={systemTools["transfer-to-number"]}
-                        onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "transfer-to-number": checked }))}
-                      />
+                      {systemTools.transfer_to_number && (
+                        <div className={cn(
+                          "overflow-hidden transition-all duration-300 ease-in-out",
+                          systemToolExpanded.transfer_to_number ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
+                        )}>
+                          <div className="p-4 space-y-6 border-t border-border">
+                          {/* Configuration Section */}
+                          <div className="space-y-4 pb-4 border-b border-border">
+                            <h4 className="text-sm font-semibold">Configuration</h4>
+                            <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
+                            <div>
+                              <label className="text-sm text-muted-foreground mb-2 block">Name</label>
+                              <Input
+                                value={systemToolSettings.transfer_to_number.name}
+                                readOnly
+                                disabled
+                                className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
+                              <Textarea
+                                value={systemToolSettings.transfer_to_number.description}
+                                onChange={(e) => handleSystemToolSettingChange("transfer_to_number", { description: e.target.value })}
+                                placeholder="Leave blank to use the default optimized LLM prompt."
+                                className="bg-white border-border min-h-[80px] text-sm"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-medium">Disable interruptions</div>
+                                <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                              </div>
+                              <Switch
+                                checked={systemToolSettings.transfer_to_number.disableInterruptions}
+                                onCheckedChange={(checked) => handleSystemToolSettingChange("transfer_to_number", { disableInterruptions: checked })}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Human Transfer Rules Section */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-sm font-semibold">Human Transfer Rules</h4>
+                                <p className="text-xs text-muted-foreground mt-1">Define the conditions for transferring to human operators.</p>
+                              </div>
+                            </div>
+                          {(systemToolSettings.transfer_to_number.humanTransferRules || []).map((rule, index) => (
+                            <div key={index} className="border border-border rounded-lg p-4 space-y-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium">Human Transfer Rule {index + 1}</h4>
+                                {(systemToolSettings.transfer_to_number.humanTransferRules || []).length > 1 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => removeHumanTransferRule(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Transfer type</label>
+                                <div className="px-3 py-2 bg-secondary/50 rounded-md border border-border text-sm">
+                                  Conference
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Destination type</label>
+                                <Select 
+                                  value={rule.destinationType} 
+                                  onValueChange={(value: "phone_number") => updateHumanTransferRule(index, { destinationType: value })}
+                                >
+                                  <SelectTrigger className="bg-white border-border">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="phone_number">Phone Number</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Phone Number</label>
+                                <Input
+                                  type="text"
+                                  value={rule.phoneNumber}
+                                  onChange={(e) => updateHumanTransferRule(index, { phoneNumber: e.target.value })}
+                                  placeholder="+15551234567"
+                                  className="bg-white border-border"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-muted-foreground mb-2 block">Condition</label>
+                                <Textarea
+                                  value={rule.condition}
+                                  onChange={(e) => updateHumanTransferRule(index, { condition: e.target.value })}
+                                  placeholder="Enter the condition for transferring to this phone number"
+                                  className="bg-white border-border min-h-[100px] text-sm"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Type {"{{{"} to add variables</p>
+                              </div>
+                            </div>
+                          ))}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={addHumanTransferRule}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Rule
+                            </Button>
+                          </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Voicemail detection */}
-                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Voicemail detection</span>
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Voicemail detection</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {systemTools.voicemail_detection && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => toggleSystemToolSection("voicemail_detection")}
+                            >
+                              <ChevronDown className={cn("h-4 w-4 transition-transform", systemToolExpanded.voicemail_detection && "rotate-180")} />
+                            </Button>
+                          )}
+                          <Switch
+                            checked={systemTools.voicemail_detection}
+                            onCheckedChange={(checked) => handleSystemToolToggle("voicemail_detection", checked)}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {systemTools["voicemail-detection"] && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => {
-                              // TODO: Open settings modal for voicemail detection
-                              toast({
-                                title: "Settings",
-                                description: "Voicemail detection settings coming soon",
-                              });
-                            }}
-                          >
-                            <Settings className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        <Switch
-                          checked={systemTools["voicemail-detection"]}
-                          onCheckedChange={(checked) => setSystemTools(prev => ({ ...prev, "voicemail-detection": checked }))}
-                        />
-                      </div>
+                      {systemTools.voicemail_detection && systemToolExpanded.voicemail_detection && (
+                        <div className="p-4 space-y-4 border-t border-border">
+                          <h4 className="text-sm font-semibold">Configuration</h4>
+                          <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-2 block">Name</label>
+                            <Input
+                              value={systemToolSettings.voicemail_detection.name}
+                              readOnly
+                              disabled
+                              className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
+                            <Textarea
+                              value={systemToolSettings.voicemail_detection.description}
+                              onChange={(e) => handleSystemToolSettingChange("voicemail_detection", { description: e.target.value })}
+                              placeholder="Leave blank to use the default optimized LLM prompt."
+                              className="bg-white border-border min-h-[80px] text-sm"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium">Disable interruptions</div>
+                              <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                            </div>
+                            <Switch
+                              checked={systemToolSettings.voicemail_detection.disableInterruptions}
+                              onCheckedChange={(checked) => handleSystemToolSettingChange("voicemail_detection", { disableInterruptions: checked })}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

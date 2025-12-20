@@ -31,7 +31,7 @@ const buildItems = [
   { icon: Phone, label: "Phone Numbers", path: "/phone-numbers" },
   { icon: FileText, label: "Knowledge Base", path: "/files" },
   { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
-  { icon: Key, label: "API Keys", path: "/api-keys" },
+  // { icon: Key, label: "API Keys", path: "/api-keys" },
 ];
 
 const evaluateItems = [
@@ -105,7 +105,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
     }
   }, [location.pathname, isMobile, onMobileMenuChange]);
 
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   
   const handleSignOut = async () => {
     const redirectPath = await signOut();
@@ -160,9 +160,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm">VA</span>
-              </div>
+              <img src="/voiceable_icon.png" alt="Voiceable" className="w-[30px] h-full" />
               {showFullContent && (
                 <span className="text-xl font-bold tracking-tight text-foreground truncate">Voiceable</span>
               )}
@@ -192,7 +190,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
               <span className="w-5 h-5 rounded bg-primary/20 text-primary flex items-center justify-center text-xs font-medium">
                 V
               </span>
-              <span className="text-sidebar-accent-foreground truncate">email@example.com's Org</span>
+              <span className="text-sidebar-accent-foreground truncate">{user?.email ? `${user.email}'s Org` : 'Organization'}</span>
             </button>
           </div>
         )}

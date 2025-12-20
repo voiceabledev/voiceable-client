@@ -26,7 +26,7 @@ import {
   Target,
   ClipboardList
 } from "lucide-react";
-import { agentsApi, Agent } from "@/lib/api";
+import { agentsApi, Agent, voicesApi, Voice } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -1343,6 +1343,7 @@ export default function AssistantsList() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [assistantName, setAssistantName] = useState("New Assistant");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [voiceNameMap, setVoiceNameMap] = useState<Record<string, string>>({});
 
   const fetchAgents = useCallback(async () => {
     setLoading(true);
@@ -1367,9 +1368,26 @@ export default function AssistantsList() {
     }
   }, [toast]);
 
+  const fetchVoices = useCallback(async () => {
+    try {
+      const response = await voicesApi.list();
+      if (response.data && Array.isArray(response.data)) {
+        const map: Record<string, string> = {};
+        response.data.forEach((voice: Voice) => {
+          map[voice.id] = voice.name;
+        });
+        setVoiceNameMap(map);
+      }
+    } catch (err) {
+      // Silently fail - voice names are not critical for the list view
+      console.error('Failed to fetch voices:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAgents();
-  }, [fetchAgents]);
+    fetchVoices();
+  }, [fetchAgents, fetchVoices]);
 
   const filteredAssistants = assistants.filter((assistant) =>
     (assistant.name || 'Unnamed Agent').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1602,17 +1620,27 @@ export default function AssistantsList() {
                     
                     // Extract voice info
                     let voiceInfo = "N/A";
+                    let voiceId: string | undefined;
+                    let hasNameFromConfig = false;
+                    
                     if (config?.voice_id && typeof config.voice_id === 'string') {
-                      voiceInfo = config.voice_id.slice(0, 15) + '...';
+                      voiceId = config.voice_id;
                     } else if (config?.voice && typeof config.voice === 'object') {
                       const voiceConfig = config.voice as Record<string, unknown>;
                       if (typeof voiceConfig.voice_id === 'string') {
-                        voiceInfo = voiceConfig.voice_id.slice(0, 15) + '...';
-                      } else if (typeof voiceConfig.name === 'string') {
+                        voiceId = voiceConfig.voice_id;
+                      }
+                      if (typeof voiceConfig.name === 'string') {
                         voiceInfo = voiceConfig.name;
+                        hasNameFromConfig = true;
                       }
                     } else if (platformSettings?.voice_id && typeof platformSettings.voice_id === 'string') {
-                      voiceInfo = platformSettings.voice_id.slice(0, 15) + '...';
+                      voiceId = platformSettings.voice_id;
+                    }
+                    
+                    // If we have a voice ID and no name from config, try to get the name from the map
+                    if (voiceId && !hasNameFromConfig) {
+                      voiceInfo = voiceNameMap[voiceId] || voiceId.slice(0, 15) + '...';
                     }
                     
                     return (

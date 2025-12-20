@@ -1,0 +1,11 @@
+export { HeroSection } from './HeroSection';
+export { ValueProposition } from './ValueProposition';
+export { TryItSection } from './TryItSection';
+export { UseCasesSection } from './UseCasesSection';
+export { StepsSection } from './StepsSection';
+export { FeaturesGrid } from './FeaturesGrid';
+export { PerfectForSection } from './PerfectForSection';
+export { ExperienceSection } from './ExperienceSection';
+export { IntegrationsSection } from './IntegrationsSection';
+export { TestimonialsSection } from './TestimonialsSection';
+export { CTASection } from './CTASection';

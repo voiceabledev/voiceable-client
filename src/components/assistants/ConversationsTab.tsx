@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,6 +37,11 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription">("overview");
   const [isPlaying, setIsPlaying] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchConversations = useCallback(async () => {
     if (!agentId) {
@@ -104,6 +109,230 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
       fetchConversationDetails(selectedConversation.id);
     }
   }, [selectedConversation?.id, fetchConversationDetails]);
+
+  // Initialize and manage audio element
+  useEffect(() => {
+    if (!audioUrl) {
+      // Clean up if no audio URL
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+      setIsPlayerReady(false);
+      return;
+    }
+
+    // Create new audio element if it doesn't exist
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+
+    const audio = audioRef.current;
+    
+    // Set up event listeners
+    const handleTimeUpdate = () => {
+      if (audio.currentTime !== undefined) {
+        setCurrentTime(audio.currentTime);
+      }
+    };
+    
+    const handleLoadedMetadata = () => {
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+      setIsPlayerReady(true);
+    };
+    
+    const handleCanPlay = () => {
+      setIsPlayerReady(true);
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+    };
+    
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    
+    const handleError = (e: Event) => {
+      console.error('Audio playback error:', e, audio.error);
+      setIsPlaying(false);
+      setIsPlayerReady(false);
+      toast({
+        title: 'Audio playback error',
+        description: 'Could not play conversation audio. Please try again.',
+        variant: 'destructive',
+      });
+    };
+    
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+    
+    // Remove old listeners and add new ones
+    audio.removeEventListener('timeupdate', handleTimeUpdate);
+    audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.removeEventListener('canplay', handleCanPlay);
+    audio.removeEventListener('ended', handleEnded);
+    audio.removeEventListener('error', handleError);
+    audio.removeEventListener('play', handlePlay);
+    audio.removeEventListener('pause', handlePause);
+    
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    
+    // Set source and preload
+    audio.src = audioUrl;
+    audio.preload = 'auto';
+    setIsPlayerReady(false);
+    audio.load();
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+        audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audioRef.current.removeEventListener('canplay', handleCanPlay);
+        audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.removeEventListener('error', handleError);
+        audioRef.current.removeEventListener('play', handlePlay);
+        audioRef.current.removeEventListener('pause', handlePause);
+      }
+    };
+  }, [audioUrl, toast]);
+
+  // Reset audio when conversation changes
+  useEffect(() => {
+    // Stop any playing audio first
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlayerReady(false);
+  }, [selectedConversation?.id]);
+
+  // Get audio URL and handle authentication
+  useEffect(() => {
+    if (!selectedConversation?.id) {
+      setAudioUrl(null);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+
+    const fetchAudioUrl = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+        const token = localStorage.getItem('auth_token');
+        
+        if (!token) {
+          console.error('No auth token available');
+          setAudioUrl(null);
+          return;
+        }
+        
+        const url = `${API_BASE_URL}/conversations/${selectedConversation.id}/audio`;
+        
+        // Fetch audio as blob to include Authorization header
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          
+          // Check if blob is actually audio data
+          if (blob.size === 0) {
+            console.error('Audio blob is empty');
+            setAudioUrl(null);
+            return;
+          }
+          
+          // Check content type
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.startsWith('audio/')) {
+            console.error('Invalid audio content type:', contentType);
+            setAudioUrl(null);
+            return;
+          }
+          
+          objectUrl = URL.createObjectURL(blob);
+          setAudioUrl(objectUrl);
+        } else if (response.status === 404) {
+          console.error('Audio not found for conversation');
+          setAudioUrl(null);
+        } else {
+          console.error('Error fetching audio:', response.status, response.statusText);
+          setAudioUrl(null);
+        }
+      } catch (error) {
+        console.error('Error fetching audio:', error);
+        setAudioUrl(null);
+      }
+    };
+
+    fetchAudioUrl();
+
+    // Cleanup object URL when component unmounts or conversation changes
+    return () => {
+      // Stop any playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setIsPlaying(false);
+      
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      // Also cleanup any existing audioUrl state
+      setAudioUrl((prevUrl) => {
+        if (prevUrl) {
+          URL.revokeObjectURL(prevUrl);
+        }
+        return null;
+      });
+    };
+  }, [selectedConversation?.id]);
+
+  // Seek functions
+  const handleSeekBack = useCallback(() => {
+    if (!audioRef.current) return;
+    
+    const newTime = Math.max(0, currentTime - 10);
+    audioRef.current.currentTime = newTime;
+  }, [currentTime]);
+
+  const handleSeekForward = useCallback(() => {
+    if (!audioRef.current) return;
+    
+    const newTime = Math.min(duration || 0, currentTime + 10);
+    audioRef.current.currentTime = newTime;
+  }, [currentTime, duration]);
+
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const filteredConversations = conversations.filter(
     (conv) =>
@@ -233,8 +462,76 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
               {/* Controls */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center"
+                  onClick={async () => {
+                    if (!audioUrl || !audioRef.current) {
+                      toast({
+                        title: audioUrl === null ? 'Audio not available' : 'Loading audio',
+                        description: audioUrl === null 
+                          ? 'Audio is not available for this conversation. It may still be processing or the recording failed.'
+                          : 'Audio is still loading. Please wait...',
+                        variant: audioUrl === null ? 'destructive' : 'default',
+                      });
+                      return;
+                    }
+                    
+                    const audio = audioRef.current;
+                    
+                    // If already playing, pause it
+                    if (isPlaying) {
+                      audio.pause();
+                      setIsPlaying(false);
+                      return;
+                    }
+                    
+                    // Try to play directly
+                    try {
+                      // Check if audio is ready
+                      if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                        await audio.play();
+                        setIsPlaying(true);
+                      } else {
+                        // Wait for audio to be ready
+                        const playWhenReady = () => {
+                          audio.play()
+                            .then(() => {
+                              setIsPlaying(true);
+                              audio.removeEventListener('canplay', playWhenReady);
+                            })
+                            .catch((error) => {
+                              console.error('Error playing audio:', error);
+                              audio.removeEventListener('canplay', playWhenReady);
+                              toast({
+                                title: 'Playback error',
+                                description: 'Could not start playback. Please try again.',
+                                variant: 'destructive',
+                              });
+                            });
+                        };
+                        
+                        audio.addEventListener('canplay', playWhenReady);
+                        
+                        // If already can play, trigger immediately
+                        if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                          playWhenReady();
+                        } else {
+                          toast({
+                            title: 'Loading audio',
+                            description: 'Please wait for the audio to finish loading.',
+                            variant: 'default',
+                          });
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error playing audio:', error);
+                      toast({
+                        title: 'Playback error',
+                        description: 'Could not start playback. Please try again.',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                  className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!audioUrl}
                 >
                   {isPlaying ? (
                     <Pause className="h-4 w-4" />
@@ -243,14 +540,22 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                   )}
                 </button>
                 <span className="text-xs">1.0x</span>
-                <button className="text-muted-foreground hover:text-foreground">
+                <button 
+                  onClick={handleSeekBack}
+                  className="text-muted-foreground hover:text-foreground"
+                  disabled={!audioUrl}
+                >
                   <RotateCcw className="h-3 w-3" />
                 </button>
-                <button className="text-muted-foreground hover:text-foreground">
+                <button 
+                  onClick={handleSeekForward}
+                  className="text-muted-foreground hover:text-foreground"
+                  disabled={!audioUrl}
+                >
                   <RotateCw className="h-3 w-3" />
                 </button>
                 <span className="text-xs text-muted-foreground ml-auto">
-                  0:00 / {selectedConversation.duration}
+                  {formatTime(currentTime)} / {formatTime(duration) || selectedConversation.duration}
                 </span>
               </div>
             </div>
@@ -300,13 +605,6 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                   >
                     {selectedConversation.status}
                   </Badge>
-                </div>
-
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-muted-foreground">User ID</span>
-                  <span className="text-sm font-mono text-muted-foreground">
-                    {selectedConversation.userId}
-                  </span>
                 </div>
 
                 <div className="flex items-center justify-between py-2">

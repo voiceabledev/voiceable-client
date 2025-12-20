@@ -57,6 +57,7 @@ const ConversationDetailPanel = ({
   isPlayerReady,
   onSeekBack,
   onSeekForward,
+  audioRef,
 }: {
   selectedConversation: ConversationDisplay;
   conversationDetails: Conversation | null;
@@ -72,6 +73,7 @@ const ConversationDetailPanel = ({
   isPlayerReady: boolean;
   onSeekBack: () => void;
   onSeekForward: () => void;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
 }) => {
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
@@ -122,7 +124,7 @@ const ConversationDetailPanel = ({
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <button
             onClick={async () => {
-              if (!audioUrl) {
+              if (!audioUrl || !audioRef.current) {
                 toast({
                   title: audioUrl === null ? 'Audio not available' : 'Loading audio',
                   description: audioUrl === null 
@@ -133,17 +135,61 @@ const ConversationDetailPanel = ({
                 return;
               }
               
-              if (!isPlayerReady) {
-                toast({
-                  title: 'Audio not ready',
-                  description: 'Please wait for the audio to finish loading.',
-                  variant: 'default',
-                });
+              const audio = audioRef.current;
+              
+              // If already playing, pause it
+              if (isPlaying) {
+                audio.pause();
+                setIsPlaying(false);
                 return;
               }
               
-              console.log('Play button clicked, current isPlaying:', isPlaying, 'audioUrl:', audioUrl);
-              setIsPlaying(!isPlaying);
+              // Try to play directly
+              try {
+                // Check if audio is ready
+                if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                  await audio.play();
+                  setIsPlaying(true);
+                } else {
+                  // Wait for audio to be ready
+                  const playWhenReady = () => {
+                    audio.play()
+                      .then(() => {
+                        setIsPlaying(true);
+                        audio.removeEventListener('canplay', playWhenReady);
+                      })
+                      .catch((error) => {
+                        console.error('Error playing audio:', error);
+                        audio.removeEventListener('canplay', playWhenReady);
+                        toast({
+                          title: 'Playback error',
+                          description: 'Could not start playback. Please try again.',
+                          variant: 'destructive',
+                        });
+                      });
+                  };
+                  
+                  audio.addEventListener('canplay', playWhenReady);
+                  
+                  // If already can play, trigger immediately
+                  if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                    playWhenReady();
+                  } else {
+                    toast({
+                      title: 'Loading audio',
+                      description: 'Please wait for the audio to finish loading.',
+                      variant: 'default',
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Error playing audio:', error);
+                toast({
+                  title: 'Playback error',
+                  description: 'Could not start playback. Please try again.',
+                  variant: 'destructive',
+                });
+              }
             }}
             className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!audioUrl}
@@ -294,19 +340,6 @@ const ConversationDetailPanel = ({
           ) : (
             <p className="text-xs md:text-sm text-muted-foreground">No transcript available</p>
           )}
-        </div>
-      )}
-
-      {activeDetailTab === "client" && (
-        <div className="space-y-2 md:space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-border">
-            <span className="text-xs md:text-sm text-muted-foreground">User ID</span>
-            <span className="text-xs md:text-sm font-mono truncate ml-2">{selectedConversation.userId}</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-border">
-            <span className="text-xs md:text-sm text-muted-foreground">Session ID</span>
-            <span className="text-xs md:text-sm font-mono truncate ml-2">{selectedConversation.id}</span>
-          </div>
         </div>
       )}
     </div>
@@ -500,24 +533,24 @@ export default function Conversations() {
     };
   }, [audioUrl, toast]);
   
-  // Control playback based on isPlaying state
+  // Control playback based on isPlaying state (backup mechanism)
+  // Note: Primary control is now in the button handler, this is for state sync
   useEffect(() => {
-    if (!audioRef.current || !isPlayerReady) return;
+    if (!audioRef.current) return;
     
-    if (isPlaying) {
-      audioRef.current.play().catch((error) => {
-        console.error('Error playing audio:', error);
-        setIsPlaying(false);
-        toast({
-          title: 'Playback error',
-          description: 'Could not start playback. Please try again.',
-          variant: 'destructive',
-        });
-      });
-    } else {
-      audioRef.current.pause();
-    }
-  }, [isPlaying, isPlayerReady, toast]);
+    // Sync playback state with audio element
+    const audio = audioRef.current;
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+    };
+  }, [audioUrl]);
 
   // Seek functions
   const handleSeekBack = useCallback(() => {
@@ -826,6 +859,7 @@ export default function Conversations() {
                     isPlayerReady={isPlayerReady}
                     onSeekBack={handleSeekBack}
                     onSeekForward={handleSeekForward}
+                    audioRef={audioRef}
                   />
                 </div>
               </>
@@ -851,6 +885,7 @@ export default function Conversations() {
                 isPlayerReady={isPlayerReady}
                 onSeekBack={handleSeekBack}
                 onSeekForward={handleSeekForward}
+                audioRef={audioRef}
               />
             </div>
             

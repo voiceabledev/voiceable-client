@@ -24,10 +24,16 @@ import {
   Linkedin,
   Github,
   Twitter,
-  Sparkles
+  Sparkles,
+  Check,
+  Calendar,
+  MessageSquare,
+  Zap
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
+import { Footer } from "@/components/Footer";
+import { Navigation } from "@/components/Navigation";
 
 const faqs = [
   {
@@ -58,21 +64,21 @@ const features = [
     title: "Multilingual",
     description: "Talk to agents in English, Spanish, Mandarin, or one of 100+ other supported languages."
   },
-  {
-    icon: Layers,
-    title: "API-native",
-    description: "Everything is exposed as an API, with 1000s of configurations and integrations."
-  },
+  // {
+  //   icon: Layers,
+  //   title: "API-native",
+  //   description: "Everything is exposed as an API, with 1000s of configurations and integrations."
+  // },
   {
     icon: TestTube,
     title: "Automated testing",
     description: "Design test suites of simulated voice agents to identify hallucination risks before going to production."
   },
-  {
-    icon: Code,
-    title: "Bring your own models",
-    description: "Bring your own API keys for transcription, LLM, or text-to-speech models. Or, plug in your own self-hosted models."
-  },
+  // {
+  //   icon: Code,
+  //   title: "Bring your own models",
+  //   description: "Bring your own API keys for transcription, LLM, or text-to-speech models. Or, plug in your own self-hosted models."
+  // },
   {
     icon: Terminal,
     title: "Tool calling",
@@ -92,12 +98,12 @@ const enterpriseFeatures = [
     description: "Our custom real-time audio infrastructure operates with enterprise-grade reliability.",
     color: "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400"
   },
-  {
-    icon: Rocket,
-    title: "Forward-deployed team",
-    description: "Get deployment assistance and a dedicated forward-deployed engineer to go live in a week.",
-    color: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
-  },
+  // {
+  //   icon: Rocket,
+  //   title: "Forward-deployed team",
+  //   description: "Get deployment assistance and a dedicated forward-deployed engineer to go live in a week.",
+  //   color: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+  // },
   {
     icon: Phone,
     title: "Sub-500ms latency",
@@ -110,29 +116,118 @@ const enterpriseFeatures = [
     description: "Built-in conversation guardrails prevent model hallucinations and ensure data integrity.",
     color: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
   },
-  {
-    icon: FileCheck,
-    title: "SOC2, HIPAA, PCI compliant",
-    description: "Enterprise-level security for even the most regulated healthcare and financial services.",
-    color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-  }
+  // {
+  //   icon: FileCheck,
+  //   title: "SOC2, HIPAA, PCI compliant",
+  //   description: "Enterprise-level security for even the most regulated healthcare and financial services.",
+  //   color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+  // }
 ];
 
 const steps = [
   {
-    number: "001",
-    title: "Choose your workflow.",
-    description: "Pick from 1000s of pre-made templates, or build one yourself."
+    number: "1",
+    title: "Describe the role",
+    description: "Choose what the agent is responsible for — reception, sales, support, follow-ups."
   },
   {
-    number: "002",
-    title: "Plug it in.",
-    description: "Whether it's in your telephony, website, or in your app, we have it covered."
+    number: "2",
+    title: "Set the rules",
+    description: "Tell us what the agent should do, what it should avoid, and when to escalate."
   },
   {
-    number: "003",
-    title: "Done.",
-    description: "Handle millions of calls and watch how they perform."
+    number: "3",
+    title: "Connect your systems",
+    description: "Calendar, CRM, forms, or phone number — connect only what you need."
+  },
+  {
+    number: "4",
+    title: "Go live",
+    description: "Your agent starts handling calls immediately and improves over time."
+  }
+];
+
+const useCases = [
+  {
+    title: "AI Receptionist",
+    description: "Never miss a call again.",
+    features: [
+      "Answers inbound calls instantly",
+      "Handles common questions",
+      "Books appointments based on your rules",
+      "Works after hours, weekends, and holidays"
+    ],
+    greatFor: "Clinics, home services, property management, auto services"
+  },
+  {
+    title: "Lead Qualification & Scheduling",
+    description: "Follow up while leads are still hot.",
+    features: [
+      "Calls new leads automatically",
+      "Qualifies intent and budget",
+      "Books meetings for your team",
+      "Sends structured notes to your CRM"
+    ],
+    greatFor: "Real estate, legal, insurance, B2B services"
+  },
+  {
+    title: "Re-engage Past Leads",
+    description: "Turn old leads into new opportunities.",
+    features: [
+      "Calls contacts already in your CRM",
+      "Identifies renewed interest",
+      "Books appointments when timing is right"
+    ],
+    greatFor: "Any business with a list of inactive leads"
+  },
+  {
+    title: "Appointment Confirmation",
+    description: "Reduce no-shows without manual work.",
+    features: [
+      "Confirms upcoming appointments",
+      "Handles rescheduling",
+      "Keeps your calendar accurate"
+    ],
+    greatFor: "Any appointment-based business"
+  }
+];
+
+const reliabilityFeatures = [
+  {
+    title: "Always available",
+    description: "Answers calls instantly"
+  },
+  {
+    title: "Consistent behavior",
+    description: "Follows your rules every time"
+  },
+  {
+    title: "Safe by default",
+    description: "Avoids hallucinations and sensitive actions"
+  },
+  {
+    title: "Scales effortlessly",
+    description: "From a few calls to thousands"
+  }
+];
+
+const integrationChannels = [
+  "Phone calls (inbound & outbound)",
+  "Website voice widgets",
+  "SMS follow-ups",
+  "Existing business numbers"
+];
+
+const testimonials = [
+  {
+    quote: "We stopped missing calls overnight. The agent handles routine conversations, and our team focuses on real work.",
+    author: "Operations Lead",
+    company: "Home Services"
+  },
+  {
+    quote: "Setup was surprisingly simple. We didn't write a single prompt.",
+    author: "Founder",
+    company: "Professional Services"
   }
 ];
 
@@ -148,73 +243,52 @@ const communityLinks = [
   { icon: Users, title: "Community", href: "https://discord.com" },
 ];
 
-const footerLinks = {
-  product: ["Docs", "Pricing"],
-  legal: ["Privacy Policy", "Terms"]
-};
-
 export default function Home() {
   return (
     <>
       <SEO
-        title="Voiceable Agents for Developers - Build Intelligent Voice Assistants"
-        description="Create, deploy, and manage AI-powered voice agents with sub-500ms latency. Build multilingual voice assistants with API-native architecture, automated testing, and enterprise-grade reliability. Join 250,000+ developers building the future of Voiceable."
-        keywords="Voiceable, AI agents, voice assistants, conversational AI, voice automation, AI telephony, voice API, speech recognition, text to speech, Voiceable platform, developer tools, API-first Voiceable, enterprise Voiceable, voice bot platform"
+        title="Create AI Voice Agents — Without Writing Prompts | Voiceable"
+        description="Handle calls, qualify leads, and book appointments with AI agents you create by describing the job — not engineering the AI. No prompts. No scripts. No fragile configurations."
+        keywords="AI voice agents, voice assistants, conversational AI, AI receptionist, lead qualification, appointment scheduling, voice automation, AI telephony, business automation"
         url="https://voice-agent-ai-4288599ce3fe.herokuapp.com"
       />
       <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl text-foreground">Voiceable</span>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <a href="/custom-agents" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Custom Agents</a>
-            <a href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            <a href="https://contextor.mintlify.app/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
-          </div>
-          
-          <Link to="/overview">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
-              Open Dashboard
-            </Button>
-          </Link>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 relative overflow-hidden">
+      <section className="pt-32 pb-24 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute top-40 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
         
         <div className="max-w-7xl mx-auto text-center relative z-10">
-          <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight">
-            Voiceable agents<br />for developers
+          <div className="inline-block px-4 py-2 rounded-full bg-primary/10 mb-6">
+            <span className="text-sm font-semibold text-primary">✨ No prompts, no scripts, no complexity</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-8 leading-tight tracking-tight">
+            Create AI Voice Agents<br />
+            <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">Without Writing Prompts</span>
           </h1>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full" asChild>
-              <Link to="/sign-up" onClick={() => {
-                window.location.href = "/sign-up";
-              }}>
-                SIGN UP <Sparkles className="ml-2 w-4 h-4" />
-              </Link>
+          <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
+            Handle calls, qualify leads, and book appointments with AI agents you create by describing the job — not engineering the AI.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+              <Phone className="w-5 h-5 mr-2" />
+              Talk to a live agent
             </Button>
-            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2"
-              onClick={() => {
-                window.location.href = "https://contextor.mintlify.app/";
-              }}
-            >
-              READ THE DOCS <ArrowRight className="ml-2 w-4 h-4" />
+            <Button size="lg" variant="outline" className="font-semibold px-10 py-7 text-lg rounded-full border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200" asChild>
+              <Link to="/sign-up">
+                Create your agent <ArrowRight className="ml-2 w-5 h-5" />
+              </Link>
             </Button>
           </div>
           
-          {/* Animated wave visualization placeholder */}
-          <div className="relative h-64 md:h-80 flex items-center justify-center">
+          {/* Animated wave visualization with modern styling */}
+          <div className="relative h-64 md:h-80 flex items-center justify-center bg-gradient-to-b from-muted/50 to-transparent rounded-3xl backdrop-blur-sm">
             <div className="flex gap-1 items-end">
               {Array.from({ length: 40 }).map((_, i) => (
                 <div 
@@ -231,27 +305,101 @@ export default function Home() {
             
             {/* Talk button overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <Button size="lg" variant="secondary" className="rounded-full px-8 py-6 bg-card shadow-lg border border-border">
-                TALK TO AI <span className="ml-2">🎤</span>
+              <Button size="lg" variant="secondary" className="rounded-full px-8 py-6 bg-card/90 backdrop-blur-md shadow-2xl hover:scale-110 transition-transform duration-200">
+                <Zap className="w-5 h-5 mr-2 text-emerald-500" />
+                TALK TO AI
               </Button>
-            </div>
-          </div>
-          
-          {/* Trusted by logos placeholder */}
-          <div className="mt-16 border-t border-border pt-8">
-            <div className="flex items-center justify-center gap-12 flex-wrap opacity-60">
-              <span className="text-lg font-semibold text-muted-foreground">unity<sup>AI</sup></span>
-              <span className="text-lg font-semibold text-muted-foreground">Intuit</span>
-              <span className="text-lg font-semibold text-muted-foreground">Delphi</span>
-              <span className="text-lg font-semibold text-muted-foreground">Housecall Pro</span>
-              <span className="text-lg font-semibold text-muted-foreground">Cherry</span>
             </div>
           </div>
         </div>
       </section>
 
+      {/* Built for real businesses Section */}
+      <section className="py-24 px-6 bg-card/30">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6 text-center leading-tight">
+            Built for real businesses,<br />not prompt engineers
+          </h2>
+          
+          <p className="text-xl md:text-2xl text-muted-foreground mb-16 text-center max-w-3xl mx-auto">
+            You shouldn't need to understand LLMs, prompts, or workflows to deploy a reliable AI voice agent.
+          </p>
+          
+          <div className="bg-background/60 backdrop-blur-sm rounded-3xl p-8 md:p-12 shadow-lg space-y-8">
+            <p className="text-xl font-medium text-foreground">
+              Our platform lets you design agents the same way you'd brief a new hire:
+            </p>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-card hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-5 h-5 text-primary" />
+                </div>
+                <span className="text-lg text-foreground font-medium">What their role is</span>
+              </div>
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-card hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-5 h-5 text-primary" />
+                </div>
+                <span className="text-lg text-foreground font-medium">What they should handle</span>
+              </div>
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-card hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-5 h-5 text-primary" />
+                </div>
+                <span className="text-lg text-foreground font-medium">When to escalate</span>
+              </div>
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-card hover:shadow-md transition-shadow">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-5 h-5 text-primary" />
+                </div>
+                <span className="text-lg text-foreground font-medium">What they should never do</span>
+              </div>
+            </div>
+            
+            <div className="pt-6">
+              <p className="text-lg text-foreground text-center font-medium">
+                We translate that into a production-ready voice agent that works 24/7.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Try it before you believe it Section */}
+      <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/20 to-background relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
+            Try it before you believe it
+          </h2>
+          
+          <p className="text-xl md:text-2xl text-muted-foreground mb-4 leading-relaxed">
+            Talk to a real AI agent right now.
+          </p>
+          <p className="text-lg text-muted-foreground mb-8">
+            No signup. No setup. No explanation required.
+          </p>
+          
+          <div className="bg-card/50 backdrop-blur-sm rounded-3xl p-8 md:p-12 mb-12 shadow-xl">
+            <p className="text-lg md:text-xl text-foreground leading-relaxed">
+              You'll hear how it handles questions, follows rules, and knows when to hand off — exactly the way yours would.
+            </p>
+          </div>
+          
+          <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+            <Phone className="w-5 h-5 mr-2" />
+            Talk to a live agent
+          </Button>
+        </div>
+      </section>
+
       {/* API Section */}
-      <section className="py-24 px-6 bg-card border-y border-border">
+      {/* <section className="py-24 px-6 bg-card border-y border-border">
         <div className="max-w-7xl mx-auto">
           <p className="text-primary font-semibold text-sm tracking-widest uppercase mb-4 text-center">API</p>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground text-center mb-12">
@@ -269,8 +417,8 @@ export default function Home() {
             </div>
             
             <div className="p-6 font-mono text-sm overflow-x-auto">
-              <pre className="text-foreground">
-{`# npm install @voice-ai/server-sdk
+              <pre className="text-foreground"> */}
+{/* {`# npm install @voice-ai/server-sdk
 import { VoiceClient } from '@voice-ai/server-sdk';
 
 const client = new VoiceClient({
@@ -294,8 +442,8 @@ async function createCall() {
       }
     }
   });
-}`}
-              </pre>
+}`} */}
+              {/* </pre>
             </div>
             
             <div className="flex items-center gap-4 p-4 border-t border-border">
@@ -311,10 +459,10 @@ async function createCall() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Use Cases Section */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
         <div className="max-w-7xl mx-auto">
           <p className="text-muted-foreground font-semibold text-sm tracking-widest uppercase mb-4">USE CASES</p>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-12">
@@ -336,28 +484,28 @@ async function createCall() {
               <div className="space-y-6">
                 <p className="text-primary font-medium">Inbound calls</p>
                 <p className="text-2xl md:text-3xl font-bold text-foreground">
-                  <span className="text-primary">Voiceable</span> powers 400,000+ daily calls.<br />
-                  <span className="font-normal text-muted-foreground">FleetWorks saves 100s<br />of engineering hours monthly.</span>
+                  <span className="text-primary">Voiceable</span> handles inbound calls<br />with AI-powered intelligence.<br />
+                  <span className="font-normal text-muted-foreground">Scale from zero to millions<br />of calls with enterprise reliability.</span>
                 </p>
                 
                 <div className="flex gap-4">
                   <Button variant="outline" className="rounded-full">
-                    CASE STUDY <Sparkles className="ml-2 w-4 h-4" />
+                    LEARN MORE <Sparkles className="ml-2 w-4 h-4" />
                   </Button>
                   <Button variant="outline" className="rounded-full">
                     TRY IT NOW <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </div>
                 
-                <div className="border-t border-border pt-6 mt-8">
+                <div className="pt-6 mt-8">
                   <blockquote className="text-muted-foreground italic">
-                    "A key technical requirement was the ability to bring our own stack — Voiceable's developer-friendly API-first approach made this possible."
+                    "Built for developers who need flexibility and control. Voiceable's API-first architecture lets you customize every aspect of the voice experience."
                   </blockquote>
                   <div className="flex items-center gap-3 mt-4">
                     <div className="w-10 h-10 rounded-full bg-primary/20" />
                     <div>
-                      <p className="font-medium text-foreground">Quang Tran</p>
-                      <p className="text-sm text-muted-foreground">CTO, FLEETWORKS</p>
+                      <p className="font-medium text-foreground">Voiceable Team</p>
+                      <p className="text-sm text-muted-foreground">BETA</p>
                     </div>
                   </div>
                 </div>
@@ -365,23 +513,23 @@ async function createCall() {
             </div>
             
             {/* Visual */}
-            <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl p-8 flex items-center justify-center">
+            <div className="rounded-2xl p-8 flex items-center justify-center">
               <div className="space-y-4">
-                <div className="bg-card rounded-xl p-4 shadow-lg border border-border">
+                <div className="bg-card rounded-xl p-4 shadow-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Phone className="w-4 h-4 text-emerald-500" />
                     <span className="font-medium text-foreground">Receive call</span>
                     <span className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground">SHIPPER INFO</span>
                   </div>
                 </div>
-                <div className="bg-card rounded-xl p-4 shadow-lg border border-border ml-8">
+                <div className="bg-card rounded-xl p-4 shadow-lg ml-8">
                   <div className="flex items-center gap-2 mb-2">
                     <Code className="w-4 h-4 text-primary" />
                     <span className="font-medium text-foreground">Use tool</span>
                   </div>
                   <p className="text-xs text-muted-foreground">🔗 Fetch_available_jobs_from_broker</p>
                 </div>
-                <div className="bg-card rounded-xl p-4 shadow-lg border border-border ml-16">
+                <div className="bg-card rounded-xl p-4 shadow-lg ml-16">
                   <div className="flex items-center gap-2">
                     <span className="text-amber-500">💡</span>
                     <span className="font-medium text-foreground">Condition</span>
@@ -395,121 +543,106 @@ async function createCall() {
       </section>
 
       {/* How it works Section */}
-      <section className="py-24 px-6 bg-card border-y border-border">
+      <section className="py-24 px-6 bg-card">
         <div className="max-w-7xl mx-auto">
-          <p className="text-primary font-semibold text-sm tracking-widest uppercase mb-4">HOW IT WORKS</p>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-16">
-            Try in minutes.<br />Deploy in days.
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-16 text-center">
+            How it works
           </h2>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
             {steps.map((step, index) => (
-              <div key={index} className="bg-background rounded-2xl border border-border p-8 hover:shadow-lg transition-shadow">
-                <span className="inline-block px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium mb-6">
+              <div key={index} className="bg-background rounded-2xl p-8 hover:shadow-lg transition-shadow">
+                <span className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-lg font-bold mb-6">
                   {step.number}
                 </span>
                 
-                {/* Abstract visual */}
-                <div className="h-40 flex items-center justify-center mb-6">
-                  <div className="flex gap-1">
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <div 
-                        key={i}
-                        className="w-2 rounded-full"
-                        style={{ 
-                          height: `${Math.sin(i * 0.5 + index * 2) * 30 + 50}px`,
-                          backgroundColor: `hsl(${(i * 20 + index * 60) % 360}, 60%, 60%)`
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                
-                <h3 className="text-xl font-bold text-foreground mb-2">{step.title}</h3>
+                <h3 className="text-xl font-bold text-foreground mb-3">{step.title}</h3>
                 <p className="text-muted-foreground">{step.description}</p>
               </div>
             ))}
           </div>
+          
+          <p className="text-center text-lg text-foreground font-medium">
+            No prompts. No scripts. No fragile configurations.
+          </p>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Designed for reliability Section */}
       <section className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
-          <p className="text-amber-500 font-semibold text-sm tracking-widest uppercase mb-4">FEATURES</p>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-16">
-            Flexible for engineers.<br />Easy for business users.
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4 text-center">
+            Designed for reliability, not demos
           </h2>
           
-          <div className="grid md:grid-cols-2 gap-x-16 gap-y-12">
-            {features.map((feature, index) => (
-              <div key={index} className="flex gap-4 pb-8 border-b border-border">
-                <div className="flex-shrink-0">
-                  <feature.icon className="w-5 h-5 text-primary" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
+            {reliabilityFeatures.map((feature, index) => (
+              <div key={index} className="text-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </div>
+                <h3 className="font-bold text-foreground mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
           </div>
+          
+          <p className="text-center text-lg text-foreground font-medium mt-12">
+            This isn't a chatbot. It's an operational system.
+          </p>
         </div>
       </section>
 
-      {/* Enterprise Section */}
-      <section className="py-24 px-6 bg-gradient-to-b from-background to-card">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-primary font-semibold text-sm tracking-widest uppercase mb-4">ENTERPRISE</p>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-16 flex items-center flex-wrap gap-4">
-            Reliable. <Shield className="w-10 h-10 text-primary" /> Scalable. <Sparkles className="w-10 h-10 text-accent" /> Secure.
+      {/* Works where your customers are Section */}
+      <section className="py-24 px-6 bg-card">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-8 text-center">
+            Works where your customers already are
           </h2>
           
-          <div className="grid lg:grid-cols-2 gap-16">
-            <div className="space-y-6">
-              {enterpriseFeatures.map((feature, index) => (
-                <div key={index} className="flex gap-4 items-start">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${feature.color}`}>
-                    <feature.icon className="w-5 h-5" />
-                  </div>
+          <ul className="space-y-4 mb-8">
+            {integrationChannels.map((channel, index) => (
+              <li key={index} className="flex items-center gap-3">
+                <Check className="w-6 h-6 text-primary flex-shrink-0" />
+                <span className="text-lg text-foreground">{channel}</span>
+              </li>
+            ))}
+          </ul>
+          
+          <p className="text-center text-lg text-muted-foreground">
+            You don't need to change how your business operates — the agent adapts to you.
+          </p>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-16 text-center">
+            Trusted by teams who care about outcomes
+          </h2>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+            {testimonials.map((testimonial, index) => (
+              <div key={index} className="bg-card rounded-2xl p-8 shadow-lg">
+                <blockquote className="text-lg text-foreground italic mb-6">
+                  "{testimonial.quote}"
+                </blockquote>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20" />
                   <div>
-                    <h3 className="font-bold text-foreground">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm">{feature.description}</p>
+                    <p className="font-medium text-foreground">{testimonial.author}</p>
+                    <p className="text-sm text-muted-foreground">{testimonial.company}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-            
-            {/* Lock visualization */}
-            <div className="flex items-center justify-center">
-              <div className="grid grid-cols-12 gap-1">
-                {Array.from({ length: 144 }).map((_, i) => {
-                  const row = Math.floor(i / 12);
-                  const col = i % 12;
-                  const isLockShape = (
-                    (row >= 0 && row <= 4 && col >= 3 && col <= 8 && (col <= 4 || col >= 7 || row >= 3)) ||
-                    (row >= 4 && row <= 11 && col >= 1 && col <= 10)
-                  );
-                  return (
-                    <div 
-                      key={i}
-                      className="w-3 h-3 rounded-full"
-                      style={{ 
-                        backgroundColor: isLockShape 
-                          ? `hsl(${(i * 7) % 360}, 60%, 55%)` 
-                          : 'transparent'
-                      }}
-                    />
-                  );
-                })}
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Community Section */}
-      <section className="py-24 px-6 bg-card border-y border-border">
+      {/* <section className="py-24 px-6 bg-card border-y border-border">
         <div className="max-w-7xl mx-auto">
           <p className="text-primary font-semibold text-sm tracking-widest uppercase mb-4">COMMUNITY</p>
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-16">
@@ -524,7 +657,6 @@ async function createCall() {
                   <span className="text-lg font-bold text-primary">{stat.value}</span>
                 </div>
                 
-                {/* Icon grid */}
                 <div className="grid grid-cols-8 gap-1 mb-8">
                   {Array.from({ length: 64 }).map((_, i) => (
                     <div 
@@ -548,128 +680,33 @@ async function createCall() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-16">
-            <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-foreground">
-                Your questions,<br />answered.
-              </h2>
-            </div>
-            
-            <Accordion type="single" collapsible className="space-y-4">
-              {faqs.map((faq, index) => (
-                <AccordionItem key={index} value={`item-${index}`} className="border-b border-border pb-4">
-                  <AccordionTrigger className="text-left text-foreground font-medium hover:no-underline">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
-        </div>
-      </section>
+      </section> */}
 
       {/* CTA Section */}
-      <section className="py-24 px-6 bg-card border-y border-border">
+      <section className="py-24 px-6 bg-card">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-4xl md:text-6xl font-bold text-foreground italic mb-12">
-            Get started today
+          <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+            Start with a conversation
           </h2>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full"
-              onClick={() => {
-                window.location.href = "/sign-up";
-              }}
-            >
-              SIGN UP <Sparkles className="ml-2 w-4 h-4" />
-            </Button>
-            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2"
-              onClick={() => {
-                window.location.href = "https://contextor.mintlify.app/";
-              }}
-            >
-              READ THE DOCS <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </div>
+          <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
+            The fastest way to understand the platform is to talk to an agent.
+          </p>
           
-          {/* Workflow diagram placeholder */}
-          <div className="flex items-center justify-center gap-4 flex-wrap opacity-60">
-            <div className="bg-muted rounded-lg px-4 py-2 text-sm flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              Start call
-            </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
-            <div className="bg-muted rounded-lg px-4 py-2 text-sm">API Request</div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
-            <div className="bg-muted rounded-lg px-4 py-2 text-sm">Send SMS</div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full">
+              Talk to a live agent
+            </Button>
+            <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2" asChild>
+              <Link to="/sign-up">
+                Create your agent <ArrowRight className="ml-2 w-4 h-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-16 px-6 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-12 mb-16">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <span className="font-bold text-xl text-foreground">Voiceable</span>
-              </div>
-              <p className="text-muted-foreground text-sm">
-                Voiceable is the most configurable platform for engineering teams to deploy voice agents at scale.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">PRODUCT</h4>
-              <ul className="space-y-2">
-                {footerLinks.product.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-foreground hover:text-primary transition-colors text-sm">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">LEGAL</h4>
-              <ul className="space-y-2">
-                {footerLinks.legal.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-foreground hover:text-primary transition-colors text-sm">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          {/* World map placeholder */}
-          <div className="border-t border-border pt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">© 2025 Voiceable, Inc. All rights reserved.</p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Github className="w-5 h-5" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
     </>
   );

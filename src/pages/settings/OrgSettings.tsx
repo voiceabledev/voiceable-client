@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function OrgSettings() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   return (
     <div className="max-w-2xl pt-4 md:pt-6 pl-4 md:pl-6 pr-4 md:pr-6">
@@ -27,7 +29,7 @@ export default function OrgSettings() {
           <div className="space-y-2">
             <Label className="text-xs md:text-sm">Organization Name</Label>
             <Input 
-              defaultValue="email@example.com's Org"
+              defaultValue={user?.email ? `${user.email}'s Org` : 'Organization'}
               className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
             />
           </div>
