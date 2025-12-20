@@ -1611,10 +1611,13 @@ export default function AssistantsList() {
                     let transcriberInfo = "N/A";
                     if (config?.transcriber && typeof config.transcriber === 'object') {
                       const transcriberConfig = config.transcriber as Record<string, unknown>;
-                      if (typeof transcriberConfig.provider === 'string') {
+                      if (typeof transcriberConfig.language === 'string') {
+                        // Capitalize first letter of language
+                        const language = transcriberConfig.language;
+                        const capitalizedLanguage = language.charAt(0).toUpperCase() + language.slice(1);
+                        transcriberInfo = capitalizedLanguage;
+                      } else if (typeof transcriberConfig.provider === 'string') {
                         transcriberInfo = transcriberConfig.provider;
-                      } else if (typeof transcriberConfig.language === 'string') {
-                        transcriberInfo = `Language: ${transcriberConfig.language}`;
                       }
                     }
                     

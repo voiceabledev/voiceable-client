@@ -8,8 +8,10 @@ import {
   User,
   AlertTriangle,
   ArrowLeft,
-  Loader2
+  Loader2,
+  ChevronDown
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,6 +26,8 @@ export default function Profile() {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [discardingAccount, setDiscardingAccount] = useState(false);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [discardAccountExpanded, setDiscardAccountExpanded] = useState(false);
 
   const handleUpdatePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -136,113 +140,135 @@ export default function Profile() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-2xl p-4 md:p-6 pr-4 md:pr-6 pb-4 md:pb-6">
           {/* Settings Card */}
-      <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6 mb-4 md:mb-6">
-        <h2 className="text-base md:text-lg font-semibold mb-2">Settings</h2>
-        <p className="text-muted-foreground text-xs md:text-sm mb-4 md:mb-6">Customize your account details.</p>
-
-        <div className="space-y-3 md:space-y-4">
-          <div className="space-y-2">
-            <Label className="text-xs md:text-sm">Email</Label>
-            <Input 
-              value={email}
-              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
-              readOnly
-            />
+      <div className="bg-secondary/30 border border-border rounded-lg mb-4 md:mb-6">
+        <button 
+          className="w-full flex items-start justify-between gap-2 p-4 md:p-6"
+          onClick={() => setSettingsExpanded(!settingsExpanded)}
+        >
+          <div className="text-left flex-1">
+            <h2 className="text-base md:text-lg font-semibold mb-2">Settings</h2>
+            <p className="text-muted-foreground text-xs md:text-sm">Customize your account details.</p>
           </div>
+          <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", settingsExpanded && "rotate-180")} />
+        </button>
 
-          <div className="space-y-2">
-            <Label className="text-xs md:text-sm">Current Password</Label>
-            <Input 
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Enter your current password"
-              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
-              disabled={updatingPassword}
-            />
+        {settingsExpanded && (
+          <div className="px-4 md:px-6 pb-4 md:pb-6 space-y-3 md:space-y-4 border-t border-border pt-4">
+            <div className="space-y-2">
+              <Label className="text-xs md:text-sm">Email</Label>
+              <Input 
+                value={email}
+                className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+                readOnly
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs md:text-sm">Current Password</Label>
+              <Input 
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter your current password"
+                className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+                disabled={updatingPassword}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs md:text-sm">New Password</Label>
+              <Input 
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter your new password"
+                className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+                disabled={updatingPassword}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs md:text-sm">Confirm New Password</Label>
+              <Input 
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your new password"
+                className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+                disabled={updatingPassword}
+              />
+            </div>
+
+            <Button 
+              variant="accent" 
+              className="w-full text-xs md:text-sm"
+              onClick={handleUpdatePassword}
+              disabled={updatingPassword || !currentPassword || !newPassword || !confirmPassword}
+            >
+              {updatingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Password"
+              )}
+            </Button>
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs md:text-sm">New Password</Label>
-            <Input 
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter your new password"
-              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
-              disabled={updatingPassword}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs md:text-sm">Confirm New Password</Label>
-            <Input 
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your new password"
-              className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
-              disabled={updatingPassword}
-            />
-          </div>
-
-          <Button 
-            variant="accent" 
-            className="w-full text-xs md:text-sm"
-            onClick={handleUpdatePassword}
-            disabled={updatingPassword || !currentPassword || !newPassword || !confirmPassword}
-          >
-            {updatingPassword ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              "Update Password"
-            )}
-          </Button>
-        </div>
+        )}
       </div>
 
       {/* Discard Account Card */}
-      <div className="bg-secondary/30 border border-border rounded-lg p-4 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold mb-2">Discard Account</h2>
-        <p className="text-muted-foreground text-xs md:text-sm mb-3 md:mb-4">
-          Discard your account and all its contents. Your account will be deactivated and you will not be able to sign up again with this email address. This action cannot be undone. Proceed with caution.
-        </p>
+      <div className="bg-secondary/30 border border-border rounded-lg">
+        <button 
+          className="w-full flex items-start justify-between gap-2 p-4 md:p-6"
+          onClick={() => setDiscardAccountExpanded(!discardAccountExpanded)}
+        >
+          <div className="text-left flex-1">
+            <h2 className="text-base md:text-lg font-semibold mb-2">Discard Account</h2>
+            <p className="text-muted-foreground text-xs md:text-sm">
+              Discard your account and all its contents. Your account will be deactivated and you will not be able to sign up again with this email address. This action cannot be undone. Proceed with caution.
+            </p>
+          </div>
+          <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", discardAccountExpanded && "rotate-180")} />
+        </button>
 
-        <p className="text-xs md:text-sm mb-3 md:mb-4">
-          To confirm, please type your email address: <span className="font-semibold">{email}</span>
-        </p>
+        {discardAccountExpanded && (
+          <div className="px-4 md:px-6 pb-4 md:pb-6 space-y-3 md:space-y-4 border-t border-border pt-4">
+            <p className="text-xs md:text-sm">
+              To confirm, please type your email address: <span className="font-semibold">{email}</span>
+            </p>
 
-        <div className="space-y-3 md:space-y-4">
-          <Input 
-            placeholder="Enter your email"
-            value={confirmEmail}
-            onChange={(e) => setConfirmEmail(e.target.value)}
-            className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
-            disabled={discardingAccount}
-          />
+            <div className="space-y-3 md:space-y-4">
+              <Input 
+                placeholder="Enter your email"
+                value={confirmEmail}
+                onChange={(e) => setConfirmEmail(e.target.value)}
+                className="bg-secondary/50 h-9 md:h-10 text-xs md:text-sm"
+                disabled={discardingAccount}
+              />
 
-          <Button 
-            variant="destructive" 
-            disabled={confirmEmail !== email || discardingAccount}
-            className="bg-destructive/80 hover:bg-destructive w-full text-xs md:text-sm"
-            onClick={handleDiscardAccount}
-          >
-            {discardingAccount ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2 animate-spin" />
-                Discarding...
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-                Discard Account
-              </>
-            )}
-          </Button>
-        </div>
+              <Button 
+                variant="destructive" 
+                disabled={confirmEmail !== email || discardingAccount}
+                className="bg-destructive/80 hover:bg-destructive w-full text-xs md:text-sm"
+                onClick={handleDiscardAccount}
+              >
+                {discardingAccount ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2 animate-spin" />
+                    Discarding...
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
+                    Discard Account
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
         </div>
       </div>

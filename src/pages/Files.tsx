@@ -25,6 +25,7 @@ import {
   Loader2,
   Info,
   X,
+  Edit,
 } from "lucide-react";
 import { agentFilesApi, AgentFile, agentsApi, Agent, awsS3Api, FileUsageInfo } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -38,10 +39,12 @@ export default function Files() {
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedFile, setSelectedFile] = useState<AgentFile | null>(null);
   const [fileUsageInfo, setFileUsageInfo] = useState<FileUsageInfo | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("none");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [assigningFile, setAssigningFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -269,6 +272,84 @@ export default function Files() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleAssignClick = (file: AgentFile) => {
+    setSelectedFile(file);
+    setSelectedAgentId(file.agent_id?.toString() || "none");
+    setShowAssignDialog(true);
+  };
+
+  const handleAssignFile = useCallback(async () => {
+    if (!selectedFile) return;
+
+    setAssigningFile(true);
+    try {
+      const newAgentId = selectedAgentId === "none" ? "" : selectedAgentId;
+      
+      // If unassigning (newAgentId is empty), delete the current association
+      if (!newAgentId) {
+        if (selectedFile.agent_id) {
+          await agentFilesApi.delete(selectedFile.agent_id.toString(), selectedFile.id);
+        } else {
+          await agentFilesApi.deleteDirect(selectedFile.id);
+        }
+        // Refresh the list
+        await fetchAllFiles();
+        toast({
+          title: 'Success',
+          description: 'File unassigned successfully.',
+        });
+      } else {
+        // If assigning to a new agent, create a new association using the existing file's s3_key
+        // First, delete the old association if it exists
+        if (selectedFile.agent_id) {
+          try {
+            await agentFilesApi.delete(selectedFile.agent_id.toString(), selectedFile.id);
+          } catch (err) {
+            // If deletion fails, continue anyway - might be a shared file
+            console.warn('Failed to delete old association:', err);
+          }
+        } else {
+          try {
+            await agentFilesApi.deleteDirect(selectedFile.id);
+          } catch (err) {
+            console.warn('Failed to delete old association:', err);
+          }
+        }
+
+        // Create new association with the new agent
+        const createResponse = await agentFilesApi.createAndSync(newAgentId, {
+          s3_key: selectedFile.s3_key,
+          s3_url: selectedFile.s3_url || '',
+          file_name: selectedFile.file_name,
+          file_size: selectedFile.file_size || 0,
+          content_type: selectedFile.content_type || 'application/octet-stream',
+        });
+
+        if (createResponse.data) {
+          // Refresh the list
+          await fetchAllFiles();
+          const agentName = agents.find(a => a.id.toString() === newAgentId)?.name || 'Agent';
+          toast({
+            title: 'Success',
+            description: `File assigned to ${agentName} successfully.`,
+          });
+        }
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to assign file';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setAssigningFile(false);
+      setShowAssignDialog(false);
+      setSelectedFile(null);
+      setSelectedAgentId("none");
+    }
+  }, [selectedFile, selectedAgentId, agents, toast, fetchAllFiles]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
@@ -330,13 +411,23 @@ export default function Files() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteClick(file)}
-                    className="text-muted-foreground hover:text-destructive transition-colors p-2"
-                    disabled={uploadingFiles.has(file.file_name)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAssignClick(file)}
+                      className="text-muted-foreground hover:text-accent transition-colors p-2"
+                      disabled={uploadingFiles.has(file.file_name) || assigningFile}
+                      title="Assign/Unassign agent"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(file)}
+                      className="text-muted-foreground hover:text-destructive transition-colors p-2"
+                      disabled={uploadingFiles.has(file.file_name) || assigningFile}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -451,6 +542,58 @@ export default function Files() {
                 </>
               ) : (
                 'Upload & Sync'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign/Unassign Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign File to Agent</DialogTitle>
+            <DialogDescription>
+              {selectedFile && `Assign "${selectedFile.file_name}" to an agent or leave unassigned.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Agent</label>
+              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an agent (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No agent (unassigned)</SelectItem>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id.toString()}>
+                      {agent.name || `Agent ${agent.id}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAssignDialog(false);
+              setSelectedFile(null);
+              setSelectedAgentId("none");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignFile} 
+              disabled={assigningFile}
+            >
+              {assigningFile ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Save'
               )}
             </Button>
           </DialogFooter>

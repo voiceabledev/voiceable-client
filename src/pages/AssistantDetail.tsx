@@ -5,6 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Select,
@@ -48,7 +56,8 @@ import {
   MoreHorizontal,
   Play,
   Pause,
-  Clock
+  Clock,
+  FolderOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
@@ -406,6 +415,10 @@ export default function AssistantDetail() {
   const [firstMessage, setFirstMessage] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [agentFiles, setAgentFiles] = useState<AgentFile[]>([]);
+  const [allAvailableFiles, setAllAvailableFiles] = useState<AgentFile[]>([]);
+  const [showChooseFilesDialog, setShowChooseFilesDialog] = useState(false);
+  const [loadingAvailableFiles, setLoadingAvailableFiles] = useState(false);
+  const [assigningFile, setAssigningFile] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedProvider, setSelectedProvider] = useState("openai");
@@ -993,6 +1006,76 @@ export default function AssistantDetail() {
       });
     }
   }, [agent?.id, toast]);
+
+  // Fetch all available files for selection
+  const fetchAllAvailableFiles = useCallback(async () => {
+    setLoadingAvailableFiles(true);
+    try {
+      const response = await agentFilesApi.listAll();
+      if (response.data) {
+        setAllAvailableFiles(response.data);
+      }
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load available files',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAvailableFiles(false);
+    }
+  }, [toast]);
+
+  // Handle selecting existing file
+  const handleSelectExistingFile = useCallback(async (file: AgentFile, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (assigningFile) return; // Prevent multiple clicks
+    
+    if (isNew || !agent?.id) {
+      // For new agents, we can't assign yet - show message
+      toast({
+        title: 'Info',
+        description: 'Please save the agent first, then you can assign existing files.',
+      });
+      return;
+    }
+
+    setAssigningFile(true);
+    try {
+      const agentId = agent.id.toString();
+      // Create association using existing file's s3_key
+      const associateResponse = await agentFilesApi.createAndSync(agentId, {
+        s3_key: file.s3_key,
+        s3_url: file.s3_url || '',
+        file_name: file.file_name,
+        file_size: file.file_size || 0,
+        content_type: file.content_type || 'application/octet-stream',
+      });
+
+      if (associateResponse.data) {
+        setAgentFiles(prev => [...prev, associateResponse.data!]);
+        toast({
+          title: 'Success',
+          description: `File "${file.file_name}" assigned to agent successfully.`,
+        });
+        // Close the dialog after successful assignment
+        setShowChooseFilesDialog(false);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to assign file';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setAssigningFile(false);
+    }
+  }, [agent?.id, isNew, toast, assigningFile]);
   const [showPreviewChat, setShowPreviewChat] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ role: "assistant" | "user"; content: string; timestamp: Date }>>([
@@ -2267,19 +2350,45 @@ export default function AssistantDetail() {
                         ))}
                       </div>
                     )}
-                    <div
-                      className="border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer hover:border-muted-foreground/50 border-border"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <div className="flex flex-col items-center text-center">
-                        <Upload className="h-5 w-5 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          Click to upload or drag and drop files
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Supported formats: PDF, TXT, DOCX, MD
-                        </p>
+                    <div className="space-y-2">
+                      <div
+                        className="border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer hover:border-muted-foreground/50 border-border"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <Upload className="h-5 w-5 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            Click to upload or drag and drop files
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Supported formats: PDF, TXT, DOCX, MD
+                          </p>
+                        </div>
                       </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={loadingAvailableFiles || assigningFile || isNew}
+                          onClick={() => {
+                            if (!loadingAvailableFiles && !assigningFile && !isNew) {
+                              fetchAllAvailableFiles();
+                              setShowChooseFilesDialog(true);
+                            }
+                          }}
+                        >
+                          {loadingAvailableFiles || assigningFile ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              {assigningFile ? 'Assigning...' : 'Loading...'}
+                            </>
+                          ) : (
+                            <>
+                              <FolderOpen className="h-4 w-4 mr-2" />
+                              Choose from existing files
+                            </>
+                          )}
+                        </Button>
                     </div>
                     <input
                       type="file"
@@ -3273,6 +3382,118 @@ export default function AssistantDetail() {
           )}
         </>
       )}
+
+      {/* Choose Existing Files Dialog */}
+      <Dialog open={showChooseFilesDialog} onOpenChange={(open) => {
+        if (!assigningFile) {
+          setShowChooseFilesDialog(open);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Choose from Existing Files</DialogTitle>
+            <DialogDescription>
+              Select files from your knowledge base to add to this agent.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {loadingAvailableFiles ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : allAvailableFiles.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No files available in your knowledge base.</p>
+                <p className="text-sm mt-2">Upload files first to use them here.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {allAvailableFiles
+                  .filter(file => {
+                    // Filter out files already assigned to this agent
+                    if (isNew || !agent?.id) return true;
+                    return !agentFiles.some(af => af.s3_key === file.s3_key);
+                  })
+                  .map((file) => (
+                    <div
+                      key={file.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 bg-card border border-border rounded-lg transition-colors",
+                        assigningFile ? "opacity-50 cursor-not-allowed" : "hover:bg-secondary/50 cursor-pointer"
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!assigningFile) {
+                          handleSelectExistingFile(file, e);
+                        }
+                      }}
+                    >
+                      <Paperclip className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium truncate">{file.file_name}</span>
+                          {file.elevenlabs_document_id && (
+                            <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full">
+                              Synced
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {file.file_size && (
+                            <span>{file.file_size ? `${(file.file_size / 1024).toFixed(1)} KB` : ''}</span>
+                          )}
+                          {file.agent_name ? (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">Used by {file.agent_name}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>•</span>
+                              <span className="truncate italic">Unassigned</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={assigningFile}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!assigningFile) {
+                            handleSelectExistingFile(file, e);
+                          }
+                        }}
+                      >
+                        {assigningFile ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChooseFilesDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

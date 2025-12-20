@@ -49,13 +49,22 @@ import {
   FileDown,
   Star,
   Send,
-  Loader2
+  Loader2,
+  FolderOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
 import ConversationsTab from "@/components/assistants/ConversationsTab";
-import { agentsApi, Agent } from "@/lib/api";
+import { agentsApi, Agent, agentFilesApi, AgentFile } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const tabs = [
   { id: "model", label: "Model", icon: Code },
@@ -333,6 +342,9 @@ export default function Assistants() {
   const [videoRecording, setVideoRecording] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState("# Customer Service & Support Agent Prompt\n");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [allAvailableFiles, setAllAvailableFiles] = useState<AgentFile[]>([]);
+  const [showChooseFilesDialog, setShowChooseFilesDialog] = useState(false);
+  const [loadingAvailableFiles, setLoadingAvailableFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-cluster");
@@ -1555,19 +1567,45 @@ export default function Assistants() {
                           ))}
                         </div>
                       )}
-                      <div
-                        className="border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer hover:border-muted-foreground/50 border-border"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          <Upload className="h-5 w-5 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            Click to upload or drag and drop files
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Supported formats: PDF, TXT, DOCX, MD
-                          </p>
+                      <div className="space-y-2">
+                        <div
+                          className="border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer hover:border-muted-foreground/50 border-border"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <div className="flex flex-col items-center text-center">
+                            <Upload className="h-5 w-5 text-muted-foreground mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                              Click to upload or drag and drop files
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Supported formats: PDF, TXT, DOCX, MD
+                            </p>
+                          </div>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={loadingAvailableFiles}
+                          onClick={() => {
+                            if (!loadingAvailableFiles) {
+                              fetchAllAvailableFiles();
+                              setShowChooseFilesDialog(true);
+                            }
+                          }}
+                        >
+                          {loadingAvailableFiles ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <FolderOpen className="h-4 w-4 mr-2" />
+                              Choose from existing files
+                            </>
+                          )}
+                        </Button>
                       </div>
                       <input
                         type="file"
@@ -1766,6 +1804,73 @@ export default function Assistants() {
           )}
         </>
       )}
+
+      {/* Choose Existing Files Dialog */}
+      <Dialog open={showChooseFilesDialog} onOpenChange={setShowChooseFilesDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Choose from Existing Files</DialogTitle>
+            <DialogDescription>
+              Files from your knowledge base can be assigned after the assistant is created. Please save the assistant first.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {loadingAvailableFiles ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : allAvailableFiles.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No files available in your knowledge base.</p>
+                <p className="text-sm mt-2">Upload files first to use them here.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {allAvailableFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg"
+                  >
+                    <Paperclip className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium truncate">{file.file_name}</span>
+                        {file.elevenlabs_document_id && (
+                          <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full">
+                            Synced
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {file.file_size && (
+                          <span>{file.file_size ? `${(file.file_size / 1024).toFixed(1)} KB` : ''}</span>
+                        )}
+                        {file.agent_name ? (
+                          <>
+                            <span>•</span>
+                            <span className="truncate">Used by {file.agent_name}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>•</span>
+                            <span className="truncate italic">Unassigned</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChooseFilesDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
