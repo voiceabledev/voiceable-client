@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,9 @@ import {
   Play,
   Pause,
   Clock,
-  FolderOpen
+  FolderOpen,
+  ExternalLink,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
@@ -72,7 +74,7 @@ const tabs = [
   { id: "configuration", label: "Configuration", icon: Settings },
   { id: "prompt-logic", label: "Prompt Logic", icon: FileText },
   { id: "conversations", label: "Conversations", icon: MessageSquare },
-  // { id: "widget", label: "Widget", icon: Layout },
+  { id: "widget", label: "Widget", icon: Layout },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 
@@ -3387,19 +3389,8 @@ export default function AssistantDetail() {
               <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg overflow-hidden">
                 <PreviewChatContent
                   selectedAssistant={{ id: agentId, name: agentName }}
-                  showPreviewChat={showPreviewChat}
                   setShowPreviewChat={setShowPreviewChat}
-                  callInProgress={callInProgress}
-                  setCallInProgress={setCallInProgress}
-                  callTimer={callTimer}
-                  setCallTimer={setCallTimer}
-                  isMuted={isMuted}
-                  setIsMuted={setIsMuted}
-                  chatMessages={chatMessages}
-                  setChatMessages={setChatMessages}
-                  chatInput={chatInput}
-                  setChatInput={setChatInput}
-                  messagesEndRef={messagesEndRef}
+                  elevenlabsAgentId={agent?.elevenlabs_agent_id}
                 />
               </div>
             </>
@@ -3407,19 +3398,8 @@ export default function AssistantDetail() {
             <div className="w-[400px] lg:w-[400px] md:w-[350px] border-l border-border flex flex-col bg-card flex-shrink-0 h-full overflow-hidden">
               <PreviewChatContent
                 selectedAssistant={{ id: agentId, name: agentName }}
-                showPreviewChat={showPreviewChat}
                 setShowPreviewChat={setShowPreviewChat}
-                callInProgress={callInProgress}
-                setCallInProgress={setCallInProgress}
-                callTimer={callTimer}
-                setCallTimer={setCallTimer}
-                isMuted={isMuted}
-                setIsMuted={setIsMuted}
-                chatMessages={chatMessages}
-                setChatMessages={setChatMessages}
-                chatInput={chatInput}
-                setChatInput={setChatInput}
-                messagesEndRef={messagesEndRef}
+                elevenlabsAgentId={agent?.elevenlabs_agent_id}
               />
             </div>
           )}
@@ -3584,705 +3564,143 @@ export default function AssistantDetail() {
   );
 }
 
-// PreviewChatContent component - extracted from original
+// PreviewChatContent component - with compact voice control bar
 const PreviewChatContent = ({
   selectedAssistant,
-  showPreviewChat,
   setShowPreviewChat,
-  callInProgress,
-  setCallInProgress,
-  callTimer,
-  setCallTimer,
-  isMuted,
-  setIsMuted,
-  chatMessages,
-  setChatMessages,
-  chatInput,
-  setChatInput,
-  messagesEndRef,
+  elevenlabsAgentId,
 }: {
   selectedAssistant: { id: string; name: string };
-  showPreviewChat: boolean;
   setShowPreviewChat: (show: boolean) => void;
-  callInProgress: boolean;
-  setCallInProgress: (inProgress: boolean) => void;
-  callTimer: number;
-  setCallTimer: (timer: number) => void;
-  isMuted: boolean;
-  setIsMuted: (muted: boolean) => void;
-  chatMessages: Array<{ role: "assistant" | "user"; content: string; timestamp: Date }>;
-  setChatMessages: React.Dispatch<React.SetStateAction<Array<{ role: "assistant" | "user"; content: string; timestamp: Date }>>>;
-  chatInput: string;
-  setChatInput: (input: string) => void;
-  messagesEndRef: React.RefObject<HTMLDivElement>;
+  elevenlabsAgentId?: string;
 }) => {
   const { toast } = useToast();
-  const wsRef = useRef<WebSocket | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<ArrayBuffer[]>([]);
-  const isPlayingRef = useRef(false);
-  const currentAssistantMessageRef = useRef<string>("");
-  const agentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const currentBlobUrlRef = useRef<string | null>(null);
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'agent'; text: string; timestamp: Date }>>([]);
+  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'connecting' | 'connected' | 'speaking' | 'listening'>('idle');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Play audio from queue - defined early so it can be used in useEffect
-  const playNextAudio = useCallback(() => {
-    if (audioQueueRef.current.length > 0 && !isPlayingRef.current && agentAudioRef.current) {
-      isPlayingRef.current = true;
-      const audioData = audioQueueRef.current.shift()!;
-      
-      // Clean up previous blob URL if it exists
-      if (currentBlobUrlRef.current) {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
-        currentBlobUrlRef.current = null;
-      }
-      
-      // Create blob and URL
-      const blob = new Blob([audioData], { type: 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
-      currentBlobUrlRef.current = url;
-      
-      if (agentAudioRef.current) {
-        // Set source and play
-        agentAudioRef.current.src = url;
-        
-        // Ensure audio is ready before playing
-        const playPromise = agentAudioRef.current.play();
-        
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log('Audio playing successfully');
-            })
-            .catch(err => {
-              console.error('Error playing audio:', err);
-              isPlayingRef.current = false;
-              
-              // Clean up blob URL on error
-              if (currentBlobUrlRef.current) {
-                URL.revokeObjectURL(currentBlobUrlRef.current);
-                currentBlobUrlRef.current = null;
-              }
-              
-              // Show user-friendly error
-              toast({
-                title: 'Audio playback error',
-                description: 'Could not play agent audio. Please check your audio settings.',
-                variant: 'destructive',
-              });
-              
-              // Try to play next audio
-              playNextAudio();
-            });
-        }
-      }
-    }
-  }, [toast]);
+  // Import VoiceControlBar dynamically to avoid SSR issues
+  const VoiceControlBar = React.lazy(() => 
+    import('@/components/assistants/VoiceControlBar').then(mod => ({ default: mod.VoiceControlBar }))
+  );
 
-  // Initialize audio element for agent responses - do this early
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (!agentAudioRef.current) {
-      agentAudioRef.current = new Audio();
-      agentAudioRef.current.volume = 1.0; // Set volume to maximum
-      agentAudioRef.current.preload = 'auto'; // Preload audio
-      
-      // Handle audio ended event
-      const handleEnded = () => {
-        console.log('Audio ended');
-        isPlayingRef.current = false;
-        // Clean up the blob URL
-        if (currentBlobUrlRef.current) {
-          URL.revokeObjectURL(currentBlobUrlRef.current);
-          currentBlobUrlRef.current = null;
-        }
-        // Play next audio in queue
-        playNextAudio();
-      };
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-      // Handle audio errors
-      const handleError = (e: Event) => {
-        console.error('Audio playback error:', e, agentAudioRef.current?.error);
-        isPlayingRef.current = false;
-        // Clean up the blob URL
-        if (currentBlobUrlRef.current) {
-          URL.revokeObjectURL(currentBlobUrlRef.current);
-          currentBlobUrlRef.current = null;
-        }
-        // Try to play next audio
-        playNextAudio();
-      };
-
-      // Handle audio can play (ready to play)
-      const handleCanPlay = () => {
-        console.log('Audio can play');
-      };
-
-      // Handle audio load errors
-      const handleLoadStart = () => {
-        console.log('Audio load started');
-      };
-
-      agentAudioRef.current.addEventListener('ended', handleEnded);
-      agentAudioRef.current.addEventListener('error', handleError);
-      agentAudioRef.current.addEventListener('canplay', handleCanPlay);
-      agentAudioRef.current.addEventListener('loadstart', handleLoadStart);
-    }
-    
-    return () => {
-      if (agentAudioRef.current) {
-        agentAudioRef.current.pause();
-        agentAudioRef.current = null;
-      }
-      // Clean up any remaining blob URL
-      if (currentBlobUrlRef.current) {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
-        currentBlobUrlRef.current = null;
-      }
-    };
-  }, [playNextAudio]);
-
-  // Stop audio recording
-  const stopAudioRecording = useCallback(() => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      mediaRecorderRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
+  const handleMessage = useCallback((message: { role: 'user' | 'agent'; text: string }) => {
+    setMessages(prev => [...prev, { ...message, timestamp: new Date() }]);
   }, []);
 
-  // Start audio recording
-  const startAudioRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const audioContext = new AudioContextClass({
-        sampleRate: 16000,
-      });
-      audioContextRef.current = audioContext;
+  const handleError = useCallback((error: Error) => {
+    toast({
+      title: 'Voice Error',
+      description: error.message,
+      variant: 'destructive',
+    });
+  }, [toast]);
 
-      const source = audioContext.createMediaStreamSource(stream);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-      processor.onaudioprocess = (e) => {
-        if (!isMuted && wsRef.current?.readyState === WebSocket.OPEN) {
-          const inputData = e.inputBuffer.getChannelData(0);
-          // Convert float32 to int16 PCM
-          const pcmData = new Int16Array(inputData.length);
-          for (let i = 0; i < inputData.length; i++) {
-            const s = Math.max(-1, Math.min(1, inputData[i]));
-            pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-          }
-          // Send audio data to WebSocket as binary
-          wsRef.current.send(pcmData.buffer);
-        }
-      };
-
-      source.connect(processor);
-      processor.connect(audioContext.destination);
-
-      // Also use MediaRecorder as fallback
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-      });
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && !isMuted && wsRef.current?.readyState === WebSocket.OPEN) {
-          // For WebM, we'd need to convert to PCM, but the ScriptProcessor approach above is better
-        }
-      };
-
-      // Start recording in small chunks
-      mediaRecorder.start(100);
-
-    } catch (error) {
-      console.error('Error starting audio recording:', error);
-      toast({
-        title: 'Microphone Error',
-        description: 'Failed to access microphone. Please check permissions.',
-        variant: 'destructive',
-      });
-    }
-  }, [isMuted, toast]);
-
-  // Start WebSocket connection
-  const startWebSocket = useCallback(async () => {
-    try {
-      const response = await conversationsApi.getSignedUrl(selectedAssistant.id);
-      if (!response.data?.signed_url) {
-        throw new Error('Failed to get signed URL');
-      }
-
-      const ws = new WebSocket(response.data.signed_url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        console.log('Audio element ready:', agentAudioRef.current !== null);
-        
-        // Start audio recording
-        startAudioRecording();
-      };
-
-      ws.onmessage = async (event) => {
-        try {
-          // Check if message is binary (audio) or text (JSON)
-          if (event.data instanceof ArrayBuffer) {
-            // Binary audio data from agent
-            audioQueueRef.current.push(event.data);
-            playNextAudio();
-            return;
-          }
-          
-          // Handle Blob type (also binary)
-          if (event.data instanceof Blob) {
-            const arrayBuffer = await event.data.arrayBuffer();
-            audioQueueRef.current.push(arrayBuffer);
-            playNextAudio();
-            return;
-          }
-
-          // Try to parse as JSON
-          let data;
-          try {
-            data = JSON.parse(event.data);
-          } catch {
-            // If not JSON, might be text transcript
-            if (typeof event.data === 'string' && event.data.trim()) {
-              // Assume it's an agent transcript
-              currentAssistantMessageRef.current = event.data;
-              setChatMessages(prev => {
-                const lastMessage = prev[prev.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                  return [...prev.slice(0, -1), {
-                    ...lastMessage,
-                    content: currentAssistantMessageRef.current,
-                    timestamp: new Date(),
-                  }];
-                } else {
-                  return [...prev, {
-                    role: 'assistant',
-                    content: currentAssistantMessageRef.current,
-                    timestamp: new Date(),
-                  }];
-                }
-              });
-            }
-            return;
-          }
-          
-          // Handle different message types
-          if (data.type === 'audio' || data.event === 'audio') {
-            // Agent audio response (base64 encoded)
-            if (data.audio) {
-              try {
-                const audioData = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
-                audioQueueRef.current.push(audioData.buffer);
-                playNextAudio();
-              } catch (e) {
-                console.error('Error decoding audio:', e);
-              }
-            }
-          } else if (data.type === 'transcript' || data.event === 'transcript') {
-            // Agent transcript
-            if (data.transcript && data.role === 'assistant') {
-              currentAssistantMessageRef.current = data.transcript;
-              // Update or add assistant message
-              setChatMessages(prev => {
-                const lastMessage = prev[prev.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                  // Update last message
-                  return [...prev.slice(0, -1), {
-                    ...lastMessage,
-                    content: currentAssistantMessageRef.current,
-                    timestamp: new Date(),
-                  }];
-                } else {
-                  // Add new message
-                  return [...prev, {
-                    role: 'assistant',
-                    content: currentAssistantMessageRef.current,
-                    timestamp: new Date(),
-                  }];
-                }
-              });
-            } else if (data.transcript && data.role === 'user') {
-              // User transcript
-              setChatMessages(prev => {
-                const lastMessage = prev[prev.length - 1];
-                if (lastMessage && lastMessage.role === 'user' && !lastMessage.content.trim()) {
-                  // Update last message
-                  return [...prev.slice(0, -1), {
-                    ...lastMessage,
-                    content: data.transcript,
-                    timestamp: new Date(),
-                  }];
-                } else {
-                  // Add new message
-                  return [...prev, {
-                    role: 'user',
-                    content: data.transcript,
-                    timestamp: new Date(),
-                  }];
-                }
-              });
-            }
-          } else if (data.type === 'conversation_initiation_metadata' || data.event === 'conversation_initiation_metadata') {
-            // Conversation started
-            console.log('Conversation initiated', data);
-          } else if (data.type === 'agent_response' || data.event === 'agent_response') {
-            // Agent response metadata
-            console.log('Agent response', data);
-            // Check if there's a transcript in the response
-            if (data.transcript || data.text) {
-              currentAssistantMessageRef.current = data.transcript || data.text;
-              setChatMessages(prev => {
-                const lastMessage = prev[prev.length - 1];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                  return [...prev.slice(0, -1), {
-                    ...lastMessage,
-                    content: currentAssistantMessageRef.current,
-                    timestamp: new Date(),
-                  }];
-                } else {
-                  return [...prev, {
-                    role: 'assistant',
-                    content: currentAssistantMessageRef.current,
-                    timestamp: new Date(),
-                  }];
-                }
-              });
-            }
-          } else if (data.type === 'user_transcript' || data.event === 'user_transcript') {
-            // User transcript
-            setChatMessages(prev => {
-              const lastMessage = prev[prev.length - 1];
-              if (lastMessage && lastMessage.role === 'user' && !lastMessage.content.trim()) {
-                return [...prev.slice(0, -1), {
-                  ...lastMessage,
-                  content: data.transcript || data.text || '',
-                  timestamp: new Date(),
-                }];
-              } else {
-                return [...prev, {
-                  role: 'user',
-                  content: data.transcript || data.text || '',
-                  timestamp: new Date(),
-                }];
-              }
-            });
-          } else if (data.type === 'agent_transcript' || data.event === 'agent_transcript') {
-            // Agent transcript
-            currentAssistantMessageRef.current = data.transcript || data.text || '';
-            setChatMessages(prev => {
-              const lastMessage = prev[prev.length - 1];
-              if (lastMessage && lastMessage.role === 'assistant') {
-                return [...prev.slice(0, -1), {
-                  ...lastMessage,
-                  content: currentAssistantMessageRef.current,
-                  timestamp: new Date(),
-                }];
-              } else {
-                return [...prev, {
-                  role: 'assistant',
-                  content: currentAssistantMessageRef.current,
-                  timestamp: new Date(),
-                }];
-              }
-            });
-          } else {
-            // Log unknown message types for debugging
-            console.log('Unknown WebSocket message type:', data);
-          }
-        } catch (err) {
-          console.error('Error parsing WebSocket message:', err);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        toast({
-          title: 'Connection Error',
-          description: 'Failed to connect to audio agent.',
-          variant: 'destructive',
-        });
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket closed');
-        stopAudioRecording();
-      };
-
-    } catch (error) {
-      console.error('Error starting WebSocket:', error);
-      toast({
-        title: 'Connection Error',
-        description: error instanceof Error ? error.message : 'Failed to start conversation.',
-        variant: 'destructive',
-      });
-      setCallInProgress(false);
-    }
-  }, [selectedAssistant.id, setChatMessages, setCallInProgress, toast, playNextAudio, startAudioRecording, stopAudioRecording]);
-
-  // Handle call start/stop
-  useEffect(() => {
-    if (callInProgress) {
-      startWebSocket();
-    } else {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      stopAudioRecording();
-      currentAssistantMessageRef.current = "";
-      
-      // Clean up audio
-      if (agentAudioRef.current) {
-        agentAudioRef.current.pause();
-        agentAudioRef.current.currentTime = 0;
-      }
-      // Clear audio queue
-      audioQueueRef.current = [];
-      isPlayingRef.current = false;
-      // Clean up blob URL
-      if (currentBlobUrlRef.current) {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
-        currentBlobUrlRef.current = null;
-      }
-    }
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      stopAudioRecording();
-      
-      // Clean up audio
-      if (agentAudioRef.current) {
-        agentAudioRef.current.pause();
-        agentAudioRef.current.currentTime = 0;
-      }
-      audioQueueRef.current = [];
-      isPlayingRef.current = false;
-      if (currentBlobUrlRef.current) {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
-        currentBlobUrlRef.current = null;
-      }
-    };
-  }, [callInProgress, startWebSocket, stopAudioRecording]);
-
-  // Handle text input
-  const handleSendMessage = useCallback(() => {
-    if (!chatInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    const message = chatInput.trim();
-    setChatMessages(prev => [...prev, {
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-    }]);
-    setChatInput("");
-
-    // Send text message to agent via WebSocket
-    // ElevenLabs accepts text input as a special message type
-    try {
-      wsRef.current.send(JSON.stringify({
-        type: 'text',
-        text: message,
-      }));
-    } catch (error) {
-      console.error('Error sending text message:', error);
-      toast({
-        title: 'Send Error',
-        description: 'Failed to send message.',
-        variant: 'destructive',
-      });
-    }
-  }, [chatInput, setChatMessages, setChatInput, toast]);
+  const isNotDeployed = !elevenlabsAgentId;
+  const isActive = voiceStatus !== 'idle';
 
   return (
   <>
-    {/* Chat Header */}
-    <div className="p-3 md:p-4 border-b border-border flex-shrink-0">
-      <div className="flex items-center justify-between mb-3 md:mb-4">
-        <h3 className="font-semibold text-sm md:text-base">Call Transcript</h3>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setShowPreviewChat(false);
-              setCallInProgress(false);
-              setCallTimer(0);
-              setIsMuted(false);
-              if (wsRef.current) {
-                wsRef.current.close();
-                wsRef.current = null;
-              }
-              stopAudioRecording();
-            }}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        {callInProgress ? (
-          <>
-            <Button variant="accent" size="sm" onClick={() => {
-              setCallInProgress(false);
-              setCallTimer(0);
-              if (wsRef.current) {
-                wsRef.current.close();
-                wsRef.current = null;
-              }
-              stopAudioRecording();
-            }} className="text-xs md:text-sm">
-              <Phone className="h-3.5 w-3.5 mr-1.5" />
-              End Call
-            </Button>
-            <Button
-              variant={isMuted ? "destructive" : "outline"}
-              size="sm"
-              onClick={() => setIsMuted(!isMuted)}
-              title={isMuted ? "Unmute microphone" : "Mute microphone"}
-              className="text-xs md:text-sm"
-            >
-              {isMuted ? (
-                <>
-                  <VolumeX className="h-3.5 w-3.5 mr-1.5" />
-                  Unmute
-                </>
-              ) : (
-                <>
-                  <Volume2 className="h-3.5 w-3.5 mr-1.5" />
-                  Mute
-                </>
-              )}
-            </Button>
-          </>
-        ) : (
-          <Button variant="outline" size="sm" onClick={() => {
-            setChatMessages([]); // Clear messages when starting new call
-            setCallInProgress(true);
-          }} className="text-xs md:text-sm">
-            <Phone className="h-3.5 w-3.5 mr-1.5" />
-            Start Call
-          </Button>
-        )}
-      </div>
-    </div>
-
-    {/* Chat Messages */}
-    <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 min-h-0 overscroll-contain">
-      {chatMessages.map((message, index) => (
-        <div
-          key={index}
-          className={cn(
-            "flex gap-2 md:gap-3",
-            message.role === "assistant" ? "flex-row" : "flex-row-reverse"
-          )}
-        >
-          <div
-            className={cn(
-              "w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0",
-              message.role === "assistant"
-                ? "bg-primary/20 text-primary"
-                : "bg-secondary text-foreground"
-            )}
-          >
-            <User className="h-3.5 w-3.5 md:h-4 md:w-4" />
-          </div>
-          <div
-            className={cn(
-              "flex-1 rounded-lg p-2 md:p-3",
-              message.role === "assistant"
-                ? "bg-primary/10 text-foreground"
-                : "bg-secondary text-foreground"
-            )}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium">
-                {message.role === "assistant" ? "Assistant" : "User"}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {message.timestamp.toLocaleTimeString()}
-              </span>
-            </div>
-            <p className="text-xs md:text-sm">{message.content}</p>
-          </div>
-        </div>
-      ))}
-      <div ref={messagesEndRef} />
-    </div>
-
-    {/* Chat Input */}
-    <div className="p-3 md:p-4 border-t border-border flex-shrink-0">
-      {isMuted && callInProgress && (
-        <div className="mb-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
-          <div className="flex items-center gap-2 text-xs text-destructive">
-            <Mic className="h-3.5 w-3.5" />
-            <span>Your microphone is muted. The assistant cannot hear you.</span>
-          </div>
-        </div>
-      )}
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder={isMuted ? "Microphone is muted..." : "Speak or type your message..."}
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter" && chatInput.trim() && !isMuted && callInProgress) {
-              handleSendMessage();
-            }
-          }}
-          className={cn(
-            "flex-1 bg-secondary/50 text-sm",
-            isMuted && "opacity-50"
-          )}
-          disabled={!callInProgress}
-        />
+    {/* Compact Header with Voice Controls */}
+    <div className="flex-shrink-0 border-b border-border bg-card">
+      {/* Title Row */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
+        <h3 className="font-semibold text-sm">Test Assistant</h3>
         <Button
+          variant="ghost"
           size="icon"
-          onClick={handleSendMessage}
-          disabled={!callInProgress || !chatInput.trim()}
+          className="h-7 w-7"
+          onClick={() => {
+            setShowPreviewChat(false);
+          }}
         >
-          <Send className="h-4 w-4" />
+          <X className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Call Status */}
-      {callInProgress && (
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
-              <div className="absolute inset-0 w-3 h-3 rounded-full bg-primary animate-ping opacity-75" />
-            </div>
-            <span className="text-xs text-muted-foreground">Call in progress</span>
-            {isMuted && (
-              <span className="text-xs text-destructive font-medium">(Microphone muted)</span>
-            )}
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            <Mic className={cn("h-4 w-4", isMuted ? "text-destructive" : "text-primary")} />
-            <span className="text-xs font-mono text-foreground">
-              {String(Math.floor(callTimer / 60)).padStart(2, "0")}:
-              {String(callTimer % 60).padStart(2, "0")}
-            </span>
-          </div>
+      {/* Voice Control Bar */}
+      {isNotDeployed ? (
+        <div className="flex items-center gap-2 px-4 py-3 bg-warning/10">
+          <Info className="h-4 w-4 text-warning flex-shrink-0" />
+          <span className="text-xs text-warning">Deploy your assistant to enable voice testing</span>
         </div>
+      ) : (
+        <React.Suspense fallback={
+          <div className="flex items-center justify-center py-3">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        }>
+          <VoiceControlBar
+            agentId={elevenlabsAgentId}
+            onMessage={handleMessage}
+            onStatusChange={setVoiceStatus}
+            onError={handleError}
+          />
+        </React.Suspense>
       )}
+    </div>
+
+    {/* Conversation Transcript - Takes most of the space */}
+    <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 min-h-0">
+      {messages.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+          <MessageSquare className="h-12 w-12 mb-3 opacity-30" />
+          <p className="text-sm font-medium mb-1">No messages yet</p>
+          <p className="text-xs max-w-[200px]">
+            {isNotDeployed 
+              ? "Deploy your assistant first, then start a voice conversation"
+              : isActive 
+                ? "Speak to your assistant - the transcript will appear here"
+                : "Click the phone button above to start a voice conversation"
+            }
+          </p>
+        </div>
+      ) : (
+        messages.map((message, index) => (
+          <div
+            key={index}
+            className={cn(
+              "flex gap-2 md:gap-3",
+              message.role === "agent" ? "flex-row" : "flex-row-reverse"
+            )}
+          >
+            <div
+              className={cn(
+                "w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                message.role === "agent"
+                  ? "bg-primary/20 text-primary"
+                  : "bg-secondary text-foreground"
+              )}
+            >
+              {message.role === "agent" ? (
+                <AudioLines className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              ) : (
+                <User className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              )}
+            </div>
+            <div
+              className={cn(
+                "flex-1 rounded-lg p-2 md:p-3 max-w-[85%]",
+                message.role === "agent"
+                  ? "bg-primary/10 text-foreground"
+                  : "bg-secondary text-foreground"
+              )}
+            >
+              <p className="text-xs md:text-sm">{message.text}</p>
+              <span className="text-[10px] text-muted-foreground mt-1 block">
+                {message.timestamp.toLocaleTimeString()}
+              </span>
+            </div>
+          </div>
+        ))
+      )}
+      <div ref={messagesEndRef} />
     </div>
   </>
   );
 };
-

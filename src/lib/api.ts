@@ -394,6 +394,11 @@ export const agentsApi = {
     return response;
   },
 
+  getPreviewLink: async (id: string) => {
+    const response = await apiClient.get<{ signed_url?: string; agent_id?: string }>(`/agents/${id}/preview_link`);
+    return response;
+  },
+
   delete: async (id: string) => {
     const response = await apiClient.delete(`/agents/${id}`);
     return response;

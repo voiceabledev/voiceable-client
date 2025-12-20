@@ -23,6 +23,27 @@ export interface WidgetConfig {
   };
   overlayPadding: string;
   buttonRadius: string;
+  
+  // Custom widget configuration
+  customWidget?: {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    buttonText: string;
+    welcomeMessage: string;
+    iconType: 'phone' | 'chat' | 'headphones' | 'custom';
+    customIconUrl?: string;
+    position: 'bottom-right' | 'bottom-left';
+    widgetSize: 'small' | 'medium' | 'large';
+    primaryColor: string;
+    primaryTextColor: string;
+    backgroundColor: string;
+    textColor: string;
+    borderColor: string;
+    userBubbleColor: string;
+    agentBubbleColor: string;
+    borderRadius: string;
+  };
 }
 
 /**
