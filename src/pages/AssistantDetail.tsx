@@ -64,6 +64,7 @@ import WidgetTab from "@/components/assistants/WidgetTab";
 import ConversationsTab from "@/components/assistants/ConversationsTab";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import CostAndLatency from "@/components/assistants/CostAndLatency";
+import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -429,6 +430,10 @@ export default function AssistantDetail() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
+  const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+  const [voiceSearchQuery, setVoiceSearchQuery] = useState("");
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // System tools state
   const [systemTools, setSystemTools] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolsState());
@@ -850,6 +855,81 @@ export default function AssistantDetail() {
       fetchVoiceName();
     }
   }, [activeTab, selectedVoiceId, selectedVoiceName, voices]);
+
+  // Handle voice preview playback
+  const handlePlayPreview = useCallback((voice: Voice) => {
+    if (!voice.preview_url) {
+      console.warn('No preview_url for voice:', voice.id, voice);
+      toast({
+        title: 'Preview unavailable',
+        description: 'This voice does not have a preview available.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('Playing preview for voice:', voice.id, 'URL:', voice.preview_url);
+
+    // Stop currently playing audio if any
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+      setPlayingVoiceId(null);
+    }
+
+    // If clicking the same voice that's playing, just stop it
+    if (playingVoiceId === voice.id) {
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    // Create and play new audio
+    const audio = new Audio(voice.preview_url);
+    currentAudioRef.current = audio;
+    setPlayingVoiceId(voice.id || null);
+
+    // Handle when audio ends
+    audio.addEventListener('ended', () => {
+      console.log('Audio ended for voice:', voice.id);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+    });
+
+    // Handle errors
+    audio.addEventListener('error', (e) => {
+      console.error('Audio error for voice:', voice.id, e);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+      toast({
+        title: 'Preview unavailable',
+        description: 'Could not play voice preview.',
+        variant: 'destructive',
+      });
+    });
+
+    audio.play().catch((err) => {
+      console.error('Error playing preview:', err, 'Voice:', voice.id, 'URL:', voice.preview_url);
+      setPlayingVoiceId(null);
+      currentAudioRef.current = null;
+      toast({
+        title: 'Preview unavailable',
+        description: 'Could not play voice preview. Please check your browser audio settings.',
+        variant: 'destructive',
+      });
+    });
+  }, [playingVoiceId, toast]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+    };
+  }, []);
+
 
   // Fetch agent details when ID changes
   const fetchAgentDetails = useCallback(async (agentId: string) => {
@@ -2115,61 +2195,24 @@ export default function AssistantDetail() {
                               <span className="text-sm text-muted-foreground">Loading voices...</span>
                             </div>
                           ) : (
-                            <Select 
-                              value={selectedVoiceId || ""} 
-                              onValueChange={(value) => {
-                                setSelectedVoiceId(value);
-                                const selectedVoice = voices.find(v => v.id === value);
-                                if (selectedVoice) {
-                                  setSelectedVoiceName(selectedVoice.name || "");
-                                } else {
-                                  // If voice not found in list, clear the name and try to fetch it
-                                  setSelectedVoiceName("");
-                                  // Try to fetch the voice name from API
-                                  voicesApi.get(value).then((response) => {
-                                    if (response.data?.name) {
-                                      setSelectedVoiceName(response.data.name);
-                                    }
-                                  }).catch(() => {
-                                    // Silently fail
-                                  });
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="bg-white border-border">
-                                <SelectValue placeholder="Select a voice" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(() => {
-                                  // Create a set of voice IDs to avoid duplicates
-                                  const voiceIds = new Set(voices.map(v => v.id));
-                                  
-                                  // If we have a selected voice that's not in the list, add it
-                                  const voicesToShow = [...voices];
-                                  if (selectedVoiceId && !voiceIds.has(selectedVoiceId)) {
-                                    voicesToShow.push({
-                                      id: selectedVoiceId,
-                                      name: selectedVoiceName || selectedVoiceId
-                                    } as Voice);
-                                  }
-                                  
-                                  if (voicesToShow.length > 0) {
-                                    return voicesToShow.map((voice) => (
-                                    <SelectItem key={voice.id} value={voice.id}>
-                                      {voice.name || voice.id}
-                                    </SelectItem>
-                                    ));
-                                  } else {
-                                    return <SelectItem value="" disabled>No voices available</SelectItem>;
-                                  }
-                                })()}
-                              </SelectContent>
-                            </Select>
-                          )}
-                          {selectedVoiceId && selectedVoiceName && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Selected: {selectedVoiceName} ({selectedVoiceId})
-                            </p>
+                            <div className="space-y-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-between bg-white border-border"
+                                onClick={() => setShowVoiceSelector(true)}
+                              >
+                                <span className="truncate">
+                                  {selectedVoiceName || selectedVoiceId || "Select a voice"}
+                                </span>
+                                <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
+                              </Button>
+                              {selectedVoiceId && selectedVoiceName && (
+                                <p className="text-xs text-muted-foreground">
+                                  Selected: {selectedVoiceName} ({selectedVoiceId})
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -3382,6 +3425,49 @@ export default function AssistantDetail() {
           )}
         </>
       )}
+
+      {/* Voice Selector Dialog */}
+      <VoiceSelectorDialog
+        open={showVoiceSelector}
+        onOpenChange={(open) => {
+          setShowVoiceSelector(open);
+          if (!open) {
+            // Reset search query when dialog closes
+            setVoiceSearchQuery("");
+            // Stop any playing audio
+            if (currentAudioRef.current) {
+              currentAudioRef.current.pause();
+              currentAudioRef.current = null;
+              setPlayingVoiceId(null);
+            }
+          }
+        }}
+        voices={voices}
+        selectedVoiceId={selectedVoiceId || ""}
+        onSelectVoice={(voiceId) => {
+          setSelectedVoiceId(voiceId);
+          const selectedVoice = voices.find(v => v.id === voiceId);
+          if (selectedVoice) {
+            setSelectedVoiceName(selectedVoice.name || "");
+          } else {
+            // If voice not found in list, clear the name and try to fetch it
+            setSelectedVoiceName("");
+            // Try to fetch the voice name from API
+            voicesApi.get(voiceId).then((response) => {
+              if (response.data?.name) {
+                setSelectedVoiceName(response.data.name);
+              }
+            }).catch(() => {
+              // Silently fail
+            });
+          }
+          setShowVoiceSelector(false);
+        }}
+        playingVoiceId={playingVoiceId}
+        onPlayPreview={handlePlayPreview}
+        searchQuery={voiceSearchQuery}
+        onSearchChange={setVoiceSearchQuery}
+      />
 
       {/* Choose Existing Files Dialog */}
       <Dialog open={showChooseFilesDialog} onOpenChange={(open) => {
