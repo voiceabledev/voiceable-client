@@ -40,7 +40,7 @@ export default function SignUp() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
           <Link to="/" className="text-2xl font-bold text-foreground">
-            Contextor
+            Voiceable
           </Link>
         </div>
 
@@ -151,7 +151,7 @@ export default function SignUp() {
         </div>
 
         <div className="absolute bottom-8 left-8 text-xs text-muted-foreground">
-          By using Contextor you agree to our Terms of Service,<br />
+          By using Voiceable you agree to our Terms of Service,<br />
           Privacy, and Security policies and practices.
         </div>
       </div>
@@ -187,7 +187,7 @@ export default function SignUp() {
             </div>
           </div>
           <p className="text-slate-300 text-sm leading-relaxed">
-            <span className="text-primary">@contextor</span> thank you for making my end to end journey easier by:
+            <span className="text-primary">@voiceable</span> thank you for making my end to end journey easier by:
           </p>
           <ol className="text-slate-300 text-sm leading-relaxed mt-3 space-y-2 list-decimal list-inside">
             <li>Optimizing streaming and colocating servers that shave off every possible millisecond of latency</li>

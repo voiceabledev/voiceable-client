@@ -522,7 +522,7 @@ const Pricing = () => {
             {/* Hosting */}
             <div className="flex justify-between items-center py-4 border-b border-border/50">
               <div>
-                <h3 className="font-medium">Contextor Hosting</h3>
+                <h3 className="font-medium">Voiceable Hosting</h3>
                 <p className="text-sm text-muted-foreground">
                   Container hosting for your agents
                 </p>
