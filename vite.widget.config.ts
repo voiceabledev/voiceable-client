@@ -9,7 +9,10 @@ import path from "path";
  * to add the voice agent widget.
  * 
  * Build command: npm run build:widget
- * Output: dist/widget/widget.js
+ * Output: ../backend/public/widget.js (served by Rails at /widget.js)
+ * 
+ * The widget is output directly to the Rails public folder so it can be
+ * served as a static file at the root URL (e.g., https://yourdomain.com/widget.js)
  */
 export default defineConfig({
   plugins: [react()],
@@ -23,11 +26,15 @@ export default defineConfig({
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
   build: {
-    // Output to a separate directory
-    outDir: 'dist/widget',
+    // Output directly to the Rails backend public folder
+    // Rails automatically serves files from public/ at the root URL
+    outDir: path.resolve(__dirname, '../backend/public'),
     
-    // Clear the output directory
-    emptyOutDir: true,
+    // Don't clear the output directory - we're writing to backend/public which has other files
+    emptyOutDir: false,
+    
+    // Don't copy public folder files - they would conflict with existing backend public files
+    copyPublicDir: false,
     
     // Library mode configuration
     lib: {

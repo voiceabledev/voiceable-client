@@ -234,6 +234,26 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  // Get the backend base URL for widget.js and API calls
+  const getBackendBaseUrl = useCallback(() => {
+    // Use env var if available (set at build time)
+    if (import.meta.env.VITE_API_BASE_URL) {
+      // Remove /api/v1 suffix to get the base URL
+      return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+    }
+
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+
+    // For localhost development, Rails runs on port 3000
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3000';
+    }
+
+    // For production, assume same domain (widget.js is served from backend)
+    return `${protocol}//${hostname}`;
+  }, []);
+
   // Generate embed code
   const generateEmbedCode = useCallback(() => {
     if (!apiKey) {
@@ -244,11 +264,11 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       return `<!-- Deploy your agent to get the embed code -->`;
     }
 
-    const baseUrl = window.location.origin;
+    const backendUrl = getBackendBaseUrl();
     const dataAttrs = [
       `data-agent-id="${agent.elevenlabs_agent_id}"`,
       `data-api-key="${apiKey}"`,
-      `data-api-base-url="${baseUrl}"`,
+      `data-api-base-url="${backendUrl}"`,
       `data-title="${config.title}"`,
       config.subtitle && `data-subtitle="${config.subtitle}"`,
       `data-button-text="${config.buttonText}"`,
@@ -269,11 +289,11 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
 
     return `<!-- Voice Agent Widget -->
 <script
-  src="${baseUrl}/widget.js"
+  src="${backendUrl}/widget.js"
   ${dataAttrs}
   async
 ></script>`;
-  }, [agent?.elevenlabs_agent_id, apiKey, config]);
+  }, [agent?.elevenlabs_agent_id, apiKey, config, getBackendBaseUrl]);
 
   const handleCopyCode = useCallback(async () => {
     const code = generateEmbedCode();
