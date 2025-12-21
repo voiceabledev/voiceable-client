@@ -26,11 +26,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { paymentsApi } from "@/lib/api";
 
 const buildItems = [
-  { icon: Users, label: "Assistants", path: "/assistants" },
+  { icon: Users, label: "Agents", path: "/assistants" },
   // { icon: GitBranch, label: "Workflows", path: "/workflows" },
   { icon: Phone, label: "Phone Numbers", path: "/phone-numbers" },
-  { icon: FileText, label: "Knowledge Base", path: "/files" },
-  { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
+  // { icon: FileText, label: "Knowledge Base", path: "/files" },
+  // { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
+  { icon: Key, label: "Integrations", path: "/settings/integrations" },
   // { icon: Key, label: "API Keys", path: "/api-keys" },
 ];
 
@@ -38,7 +39,7 @@ const evaluateItems = [
   { icon: MessageSquare, label: "Conversations", path: "/conversations" },
 ];
 const outboundItems = [
-  { icon: PhoneOutgoing, label: "Outbound", path: "/outbound" },
+  { icon: PhoneOutgoing, label: "Campaigns", path: "/outbound" },
 ];
 
 interface SidebarProps {

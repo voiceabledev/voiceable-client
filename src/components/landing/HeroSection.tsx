@@ -18,6 +18,7 @@ interface HeroSectionProps {
   secondaryCta: string;
   secondaryCtaLink: string;
   icons: HeroIcon[];
+  onPrimaryCtaClick?: () => void;
 }
 
 export function HeroSection({
@@ -30,6 +31,7 @@ export function HeroSection({
   secondaryCta,
   secondaryCtaLink,
   icons,
+  onPrimaryCtaClick,
 }: HeroSectionProps) {
   return (
     <section className="pt-32 pb-24 px-6 relative overflow-hidden">
@@ -71,6 +73,7 @@ export function HeroSection({
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
           <Button 
             size="lg" 
+            onClick={onPrimaryCtaClick}
             className="group bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
           >
             <Phone className="w-5 h-5 mr-2 group-hover:animate-bounce" />

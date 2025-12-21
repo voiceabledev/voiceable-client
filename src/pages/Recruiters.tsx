@@ -21,6 +21,7 @@ import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
 import { Navigation } from "@/components/Navigation";
+import { loadAndOpenWidget } from "@/utils/widgetLoader";
 
 const useCases = [
   {
@@ -160,7 +161,33 @@ const testimonials = [
   }
 ];
 
+
+const widgetConfig = () => ({
+  agentId: "agent_5301kcx1kyyzf4w8q6z6f4kzybfx",
+  apiKey: "pk_live_5193012d945fe17ccb842fbdd9e69dc96c0274a18801fb2b588da9c84256faba",
+  apiBaseUrl: "http://localhost:3001",
+  title: "Need help?",
+  subtitle: "Talk to our AI assistant",
+  buttonText: "Start a call",
+  welcomeMessage: "Hi! How can I help you today?",
+  iconType: "phone",
+  position: "bottom-right",
+  widgetSize: "medium",
+  primaryColor: "#000000",
+  primaryTextColor: "#ffffff",
+  backgroundColor: "#ffffff",
+  textColor: "#1f2937",
+  borderColor: "#e5e7eb",
+  userBubbleColor: "#f3f4f6",
+  agentBubbleColor: "#eff6ff",
+  borderRadius: "16px",
+});
+
 export default function Recruiters() {
+  const handleOpenWidget = () => {
+    loadAndOpenWidget(widgetConfig());
+  };
+
   return (
     <>
       <SEO
@@ -193,7 +220,11 @@ export default function Recruiters() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-              <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+              <Button
+                size="lg"
+                onClick={handleOpenWidget}
+                className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+              >
                 <Phone className="w-5 h-5 mr-2" />
                 Talk to a recruiting agent
               </Button>
@@ -297,7 +328,11 @@ export default function Recruiters() {
               <p className="text-muted-foreground mt-8">No signup required.</p>
             </div>
             
-            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+            <Button
+              size="lg"
+              onClick={handleOpenWidget}
+              className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+            >
               <Phone className="w-5 h-5 mr-2" />
               Talk to a recruiting agent
             </Button>
@@ -498,7 +533,11 @@ export default function Recruiters() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
+              <Button
+                size="lg"
+                onClick={handleOpenWidget}
+                className="bg-emerald-500 hover:bg-emerald-600 hover:scale-105 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+              >
                 <Phone className="w-5 h-5 mr-2" />
                 Talk to a recruiting agent
               </Button>

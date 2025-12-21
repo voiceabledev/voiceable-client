@@ -7,6 +7,7 @@ interface TryItSectionProps {
   features: string[];
   ctaText: string;
   note?: string;
+  onCtaClick?: () => void;
 }
 
 export function TryItSection({
@@ -15,6 +16,7 @@ export function TryItSection({
   features,
   ctaText,
   note = "No signup required.",
+  onCtaClick,
 }: TryItSectionProps) {
   return (
     <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/20 to-background relative overflow-hidden">
@@ -50,6 +52,7 @@ export function TryItSection({
         
         <Button 
           size="lg" 
+          onClick={onCtaClick}
           className="group bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
         >
           <Phone className="w-5 h-5 mr-2 group-hover:animate-bounce" />

@@ -17,7 +17,6 @@ import {
   Copy,
   Check,
   Code,
-  Eye,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -29,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { Agent, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { loadAndOpenWidget } from "@/utils/widgetLoader";
 
 interface CustomWidgetConfig {
   title: string;
@@ -66,12 +66,6 @@ const DEFAULT_CONFIG: CustomWidgetConfig = {
   userBubbleColor: '#f3f4f6',
   agentBubbleColor: '#eff6ff',
   borderRadius: '16px',
-};
-
-const WIDGET_SIZES = {
-  small: { icon: 48, panelWidth: 320, panelHeight: 420 },
-  medium: { icon: 56, panelWidth: 380, panelHeight: 500 },
-  large: { icon: 64, panelWidth: 420, panelHeight: 580 },
 };
 
 interface ColorInputProps {
@@ -114,7 +108,6 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const [apiKeyLoading, setApiKeyLoading] = useState(true);
   const [apiKeyRefreshing, setApiKeyRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     branding: true,
     icon: true,
@@ -307,6 +300,56 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
     }
   }, [generateEmbedCode, toast]);
 
+  const handlePreviewWidget = useCallback(async () => {
+    if (!agent?.elevenlabs_agent_id) {
+      toast({
+        title: "Deploy first",
+        description: "Publish the agent before previewing the widget.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!apiKey) {
+      toast({
+        title: "Widget preview unavailable",
+        description: "Could not load the widget API key. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await loadAndOpenWidget({
+        agentId: agent.elevenlabs_agent_id,
+        apiKey: apiKey,
+        apiBaseUrl: getBackendBaseUrl(),
+        title: config.title,
+        subtitle: config.subtitle,
+        buttonText: config.buttonText,
+        welcomeMessage: config.welcomeMessage,
+        iconType: config.iconType,
+        position: config.position,
+        widgetSize: config.widgetSize,
+        primaryColor: config.primaryColor,
+        primaryTextColor: config.primaryTextColor,
+        backgroundColor: config.backgroundColor,
+        textColor: config.textColor,
+        borderColor: config.borderColor,
+        userBubbleColor: config.userBubbleColor,
+        agentBubbleColor: config.agentBubbleColor,
+        borderRadius: config.borderRadius,
+      });
+    } catch (error) {
+      console.error("Failed to open widget preview:", error);
+      toast({
+        title: "Preview failed",
+        description: error instanceof Error ? error.message : "Could not open the widget preview.",
+        variant: "destructive",
+      });
+    }
+  }, [agent?.elevenlabs_agent_id, apiKey, config, getBackendBaseUrl, toast]);
+
   const getIconComponent = (type: string) => {
     switch (type) {
       case 'chat': return MessageSquare;
@@ -315,8 +358,6 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       default: return Phone;
     }
   };
-
-  const size = WIDGET_SIZES[config.widgetSize];
 
   // Section header component
   const SectionHeader = ({ 
@@ -358,10 +399,11 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowPreview(!showPreview)}
+            onClick={handlePreviewWidget}
+            disabled={!agent?.elevenlabs_agent_id || !apiKey || apiKeyLoading}
           >
-            <Eye className="h-4 w-4 mr-2" />
-            {showPreview ? 'Hide Preview' : 'Show Preview'}
+            <Phone className="h-4 w-4 mr-2" />
+            Preview Widget
           </Button>
         </div>
 
@@ -664,137 +706,6 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
 
           {/* Preview & Embed Code Panel */}
           <div className="space-y-4">
-            {/* Live Preview */}
-            {showPreview && (
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="px-4 py-3 border-b border-border bg-muted/30">
-                  <h3 className="font-semibold text-sm">Live Preview</h3>
-                </div>
-                <div 
-                  className="relative bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900"
-                  style={{ height: size.panelHeight + 100 }}
-                >
-                  {/* Simulated website content */}
-                  <div className="absolute inset-0 p-6 opacity-30">
-                    <div className="h-4 w-32 bg-slate-400 rounded mb-4" />
-                    <div className="h-3 w-full bg-slate-300 rounded mb-2" />
-                    <div className="h-3 w-4/5 bg-slate-300 rounded mb-2" />
-                    <div className="h-3 w-2/3 bg-slate-300 rounded" />
-                  </div>
-
-                  {/* Widget Preview */}
-                  <div 
-                    className="absolute"
-                    style={{
-                      [config.position === 'bottom-right' ? 'right' : 'left']: 16,
-                      bottom: 16,
-                    }}
-                  >
-                    <AnimatePresence mode="wait">
-                      {!showPreview ? null : (
-                        <motion.div
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          style={{
-                            width: size.panelWidth,
-                            backgroundColor: config.backgroundColor,
-                            borderRadius: config.borderRadius,
-                            border: `1px solid ${config.borderColor}`,
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {/* Header */}
-                          <div 
-                            style={{ 
-                              padding: '16px',
-                              borderBottom: `1px solid ${config.borderColor}`,
-                            }}
-                          >
-                            <h3 style={{ 
-                              margin: 0, 
-                              fontSize: '16px', 
-                              fontWeight: 600,
-                              color: config.textColor,
-                            }}>
-                              {config.title}
-                            </h3>
-                            {config.subtitle && (
-                              <p style={{ 
-                                margin: '4px 0 0 0', 
-                                fontSize: '12px',
-                                color: config.textColor,
-                                opacity: 0.6,
-                              }}>
-                                {config.subtitle}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Control Bar Preview */}
-                          <div style={{
-                            padding: '12px 16px',
-                            borderBottom: `1px solid ${config.borderColor}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                          }}>
-                            <div style={{
-                              width: 36,
-                              height: 36,
-                              borderRadius: '50%',
-                              backgroundColor: config.primaryColor,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: config.primaryTextColor,
-                            }}>
-                              <Phone className="h-4 w-4" />
-                            </div>
-                            <span style={{ fontSize: '13px', color: config.textColor }}>
-                              {config.buttonText}
-                            </span>
-                          </div>
-
-                          {/* Messages Preview */}
-                          <div style={{ padding: '16px', minHeight: 150 }}>
-                            {config.welcomeMessage && (
-                              <div style={{
-                                display: 'flex',
-                                gap: '8px',
-                              }}>
-                                <div style={{
-                                  width: 28,
-                                  height: 28,
-                                  borderRadius: '50%',
-                                  backgroundColor: config.primaryColor,
-                                  flexShrink: 0,
-                                }} />
-                                <div style={{
-                                  backgroundColor: config.agentBubbleColor,
-                                  padding: '10px 14px',
-                                  borderRadius: '12px',
-                                  maxWidth: '80%',
-                                }}>
-                                  <p style={{ 
-                                    margin: 0, 
-                                    fontSize: '14px',
-                                    color: config.textColor,
-                                  }}>
-                                    {config.welcomeMessage}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Embed Code */}
             <div className="border border-border rounded-lg overflow-hidden">
               <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">

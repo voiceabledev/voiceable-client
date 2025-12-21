@@ -81,11 +81,53 @@ const INTEGRATION_METADATA: Record<string, { name: string; icon: string; iconBg:
     iconBg: "bg-zinc-800",
     url: "https://minimax.ai"
   },
-  playht: {
-    name: "PlayHT",
-    icon: "⬡",
-    iconBg: "bg-teal-600",
-    url: "https://play.ht"
+  hubspot: {
+    name: "HubSpot CRM",
+    icon: "HS",
+    iconBg: "bg-blue-600",
+    url: "https://app.hubspot.com"
+  },
+  salesforce: {
+    name: "Salesforce",
+    icon: "SF",
+    iconBg: "bg-sky-500",
+    url: "https://www.salesforce.com"
+  },
+  pipedrive: {
+    name: "Pipedrive",
+    icon: "PD",
+    iconBg: "bg-emerald-600",
+    url: "https://www.pipedrive.com"
+  },
+  kommo: {
+    name: "Kommo",
+    icon: "K",
+    iconBg: "bg-purple-600",
+    url: "https://www.kommo.com"
+  },
+  google_calendar: {
+    name: "Google Calendar",
+    icon: "📅",
+    iconBg: "bg-blue-500",
+    url: "https://calendar.google.com"
+  },
+  outlook_calendar: {
+    name: "Outlook Calendar",
+    icon: "🗓️",
+    iconBg: "bg-sky-700",
+    url: "https://outlook.live.com/calendar/"
+  },
+  calendly: {
+    name: "Calendly",
+    icon: "C",
+    iconBg: "bg-orange-500",
+    url: "https://calendly.com"
+  },
+  calcom: {
+    name: "Cal.com",
+    icon: "Cal",
+    iconBg: "bg-purple-600",
+    url: "https://cal.com"
   }
 };
 
@@ -227,24 +269,10 @@ export default function IntegrationSettings() {
         description: `Your ${metadata.name} API key has been saved successfully.`,
       });
 
-      // Mark that we have a saved integration
-      setHasSavedIntegration(true);
-      
-      // Update initialConfig - clear passwords, keep other values
-      if (schema) {
-        const savedConfig: IntegrationConfig = {};
-        Object.keys(schema.fields).forEach((key) => {
-          const fieldConfig = schema.fields[key];
-          if (fieldConfig.type === 'password') {
-            // For password fields, set empty (security)
-            savedConfig[key] = '';
-          } else {
-            // For non-password fields, keep the value
-            savedConfig[key] = config[key] || '';
-          }
-        });
-        setInitialConfig(savedConfig);
-      }
+      // Reload the integration from the API to get masked password values
+      // This ensures password fields show the masked values (like "****1234")
+      // instead of appearing blank
+      await loadIntegration();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save integration';
       toast({

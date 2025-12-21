@@ -25,11 +25,8 @@ export function Footer() {
       <div className="max-w-7xl mx-auto">
         <div className="grid md:grid-cols-4 gap-12 mb-16">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold text-xl text-foreground">Voiceable</span>
+            <div className="flex items-start gap-2 mb-4">
+              <img src="/voiceable_logo.png" alt="Voiceable" className="w-[123px] h-full" />
             </div>
             <p className="text-muted-foreground text-sm">
               Create AI voice agents without writing prompts. Handle calls, qualify leads, and book appointments with agents that work 24/7.

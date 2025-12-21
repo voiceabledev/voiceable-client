@@ -8,6 +8,7 @@ interface CTASectionProps {
   primaryCta: string;
   secondaryCta: string;
   secondaryCtaLink: string;
+  onPrimaryCtaClick?: () => void;
 }
 
 export function CTASection({
@@ -16,6 +17,7 @@ export function CTASection({
   primaryCta,
   secondaryCta,
   secondaryCtaLink,
+  onPrimaryCtaClick,
 }: CTASectionProps) {
   return (
     <section className="py-32 px-6 relative overflow-hidden">
@@ -35,6 +37,7 @@ export function CTASection({
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button 
             size="lg" 
+            onClick={onPrimaryCtaClick}
             className="group bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
           >
             <Phone className="w-5 h-5 mr-2 group-hover:animate-bounce" />

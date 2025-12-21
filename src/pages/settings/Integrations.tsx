@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic } from "lucide-react";
+import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -286,15 +286,94 @@ const voiceProviders: IntegrationProvider[] = [
     iconBg: "bg-zinc-800",
     status: "upcoming",
     order: 11
+  }
+];
+
+const crmProviders: IntegrationProvider[] = [
+  {
+    id: "hubspot",
+    name: "HubSpot CRM",
+    description: "Sync contact, deal, and ticket data powered by HubSpot.",
+    icon: "HS",
+    iconBg: "bg-blue-600",
+    status: "upcoming",
+    order: 1
   },
   {
-    id: "playht",
-    name: "PlayHT (Deprecated)",
-    description: "High-quality AI voice generation and voice cloning.",
-    icon: "⬡",
-    iconBg: "bg-teal-600",
+    id: "salesforce",
+    name: "Salesforce",
+    description: "Push and pull records directly from Salesforce Sales Cloud.",
+    icon: "SF",
+    iconBg: "bg-sky-500",
     status: "upcoming",
-    order: 12
+    order: 2
+  },
+  {
+    id: "pipedrive",
+    name: "Pipedrive",
+    description: "Keep leads and pipelines in sync with Pipedrive CRM.",
+    icon: "PD",
+    iconBg: "bg-emerald-600",
+    status: "available",
+    order: 3
+  },
+  {
+    id: "kommo",
+    name: "Kommo",
+    description: "Messenger-based sales CRM with WhatsApp, Instagram, and more channels.",
+    icon: "K",
+    iconBg: "bg-purple-600",
+    status: "available",
+    order: 4
+  },
+  {
+    id: "gohighlevel",
+    name: "GoHighLevel",
+    description: "CRM and sales automation platform for small businesses.",
+    icon: "GH",
+    iconBg: "bg-green-600",
+    status: "upcoming",
+    order: 5
+  }
+];
+
+const schedulingProviders: IntegrationProvider[] = [
+  {
+    id: "google_calendar",
+    name: "Google Calendar",
+    description: "Overlay availability and events from Google Calendar.",
+    icon: "📅",
+    iconBg: "bg-blue-500",
+    status: "available",
+    order: 1
+  },
+  {
+    id: "outlook_calendar",
+    name: "Outlook Calendar",
+    description: "Integrate Microsoft Outlook calendars for scheduling.",
+    icon: "🗓️",
+    iconBg: "bg-sky-700",
+    status: "upcoming",
+    order: 2
+  },
+  {
+    id: "calendly",
+    name: "Calendly",
+    description: "Bring Calendly booking links into your assistant workflows.",
+    icon: "C",
+    iconBg: "bg-orange-500",
+    status: "upcoming",
+    order: 3
+  }
+  ,
+  {
+    id: "calcom",
+    name: "Cal.com",
+    description: "Use Cal.com event links to manage availability across calendars.",
+    icon: "Cal",
+    iconBg: "bg-purple-600",
+    status: "upcoming",
+    order: 4
   }
 ];
 
@@ -305,6 +384,8 @@ export default function Integrations() {
   const [isModelProvidersOpen, setIsModelProvidersOpen] = useState(true);
   const [isTranscriberProvidersOpen, setIsTranscriberProvidersOpen] = useState(true);
   const [isVoiceProvidersOpen, setIsVoiceProvidersOpen] = useState(true);
+  const [isCrmProvidersOpen, setIsCrmProvidersOpen] = useState(true);
+  const [isSchedulingProvidersOpen, setIsSchedulingProvidersOpen] = useState(true);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
 
@@ -350,6 +431,8 @@ export default function Integrations() {
   const filteredModelProviders = filterProviders(sortProviders(modelProviders));
   const filteredTranscriberProviders = filterProviders(sortProviders(transcriberProviders));
   const filteredVoiceProviders = filterProviders(sortProviders(voiceProviders));
+  const filteredCrmProviders = filterProviders(sortProviders(crmProviders));
+  const filteredSchedulingProviders = filterProviders(sortProviders(schedulingProviders));
 
   const handleVote = (providerId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation when clicking vote button
@@ -525,30 +608,49 @@ export default function Integrations() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 md:p-6 pr-4 md:pr-6">
           {/* Model Providers Section */}
-          {renderProviderSection(
+          
+          {/* {renderProviderSection(
             "Model Providers",
             <Brain className="h-4 w-4" />,
             isModelProvidersOpen,
             setIsModelProvidersOpen,
             filteredModelProviders
-          )}
+          )} */}
 
           {/* Transcriber Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Transcriber Providers",
             <Mic className="h-4 w-4" />,
             isTranscriberProvidersOpen,
             setIsTranscriberProvidersOpen,
             filteredTranscriberProviders
-          )}
+          )} */}
 
           {/* Voice Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Voice Providers",
             <span className="text-base md:text-lg">🎙️</span>,
             isVoiceProvidersOpen,
             setIsVoiceProvidersOpen,
             filteredVoiceProviders
+          )} */}
+
+          {/* CRM Providers Section */}
+          {renderProviderSection(
+            "CRM Providers",
+            <Users className="h-4 w-4" />,
+            isCrmProvidersOpen,
+            setIsCrmProvidersOpen,
+            filteredCrmProviders
+          )}
+
+          {/* Scheduling Providers Section */}
+          {renderProviderSection(
+            "Scheduling Providers",
+            <CalendarDays className="h-4 w-4" />,
+            isSchedulingProvidersOpen,
+            setIsSchedulingProvidersOpen,
+            filteredSchedulingProviders
           )}
         </div>
       </div>

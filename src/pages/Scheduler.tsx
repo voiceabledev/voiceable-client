@@ -25,6 +25,7 @@ import {
   TestimonialsSection,
   CTASection,
 } from "@/components/landing";
+import { loadAndOpenWidget } from "@/utils/widgetLoader";
 
 const useCases = [
   {
@@ -168,6 +169,29 @@ const testimonials = [
 ];
 
 export default function Scheduler() {
+  const handleOpenWidget = () => {
+    loadAndOpenWidget({
+      agentId: "agent_5301kcx1kyyzf4w8q6z6f4kzybfx",
+      apiKey: "pk_live_5193012d945fe17ccb842fbdd9e69dc96c0274a18801fb2b588da9c84256faba",
+      apiBaseUrl: "http://localhost:3001",
+      title: "Need help?",
+      subtitle: "Talk to our AI assistant",
+      buttonText: "Start a call",
+      welcomeMessage: "Hi! How can I help you today?",
+      iconType: "phone",
+      position: "bottom-right",
+      widgetSize: "medium",
+      primaryColor: "#000000",
+      primaryTextColor: "#ffffff",
+      backgroundColor: "#ffffff",
+      textColor: "#1f2937",
+      borderColor: "#e5e7eb",
+      userBubbleColor: "#f3f4f6",
+      agentBubbleColor: "#eff6ff",
+      borderRadius: "16px",
+    });
+  };
+
   return (
     <>
       <SEO
@@ -188,6 +212,7 @@ export default function Scheduler() {
           primaryCta="Talk to the agent"
           secondaryCta="Create your agent"
           secondaryCtaLink="/sign-up"
+          onPrimaryCtaClick={handleOpenWidget}
           icons={[
             { icon: Zap, label: "Contact", color: "bg-emerald/20" },
             { icon: Target, label: "Qualify", color: "bg-primary/20" },
@@ -212,6 +237,7 @@ export default function Scheduler() {
             "Books meetings when criteria are met"
           ]}
           ctaText="Talk to the agent"
+          onCtaClick={handleOpenWidget}
         />
 
         <UseCasesSection
@@ -258,6 +284,7 @@ export default function Scheduler() {
           primaryCta="Talk to the agent"
           secondaryCta="Create your agent"
           secondaryCtaLink="/sign-up"
+          onPrimaryCtaClick={handleOpenWidget}
         />
 
         <Footer />

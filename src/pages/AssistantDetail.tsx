@@ -72,7 +72,8 @@ import ConversationsTab from "@/components/assistants/ConversationsTab";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import CostAndLatency from "@/components/assistants/CostAndLatency";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
-import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi, secretsApi, ElevenLabsSecret } from "@/lib/api";
+import { loadAndOpenWidget } from "@/utils/widgetLoader";
+import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi, secretsApi, ElevenLabsSecret, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const tabs = [
@@ -165,6 +166,8 @@ const modelsByProvider: Record<string, { value: string; label: string }[]> = {
     { value: "custom-llm", label: "Custom LLM" },
   ],
 };
+
+const WIDGET_API_KEY_NAME = "Widget API Key";
 
 const SYSTEM_TOOL_KEYS = [
   "end_call",
@@ -1870,16 +1873,128 @@ export default function AssistantDetail() {
       setAssigningFile(false);
     }
   }, [agent?.id, isNew, toast, assigningFile]);
-  const [showPreviewChat, setShowPreviewChat] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ role: "assistant" | "user"; content: string; timestamp: Date }>>([
-    { role: "assistant", content: "Hello. This is Cameron. calling on behalf of Quality Metrics Research. We're conducting a brief survey about customer satisfaction. This will take approximately five minutes and help improve our services. Would you be willing to participate today?", timestamp: new Date() }
-  ]);
-  const [chatInput, setChatInput] = useState("");
-  const [callInProgress, setCallInProgress] = useState(false);
-  const [callTimer, setCallTimer] = useState(0);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [widgetApiKey, setWidgetApiKey] = useState<string | null>(null);
+  const [widgetKeyLoading, setWidgetKeyLoading] = useState(true);
+
+  const getBackendBaseUrl = useCallback(() => {
+    if (import.meta.env.VITE_API_BASE_URL) {
+      return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, "");
+    }
+
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:3000";
+    }
+
+    return `${protocol}//${hostname}`;
+  }, []);
+
+  const handleOpenWidget = useCallback(async () => {
+    if (!agent?.elevenlabs_agent_id) {
+      toast({
+        title: "Deploy first",
+        description: "Publish the agent before previewing the widget.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!widgetApiKey) {
+      toast({
+        title: "Widget preview unavailable",
+        description: "Could not load the widget API key. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await loadAndOpenWidget({
+        agentId: agent.elevenlabs_agent_id,
+        apiKey: widgetApiKey,
+        apiBaseUrl: getBackendBaseUrl(),
+        title: agent.name || "Need help?",
+        subtitle: "Talk to your AI assistant",
+        buttonText: "Start a call",
+        welcomeMessage: "Hi! How can I help?",
+        iconType: "phone",
+        position: "bottom-right",
+        widgetSize: "medium",
+        primaryColor: "#000000",
+        primaryTextColor: "#ffffff",
+        backgroundColor: "#ffffff",
+        textColor: "#1f2937",
+        borderColor: "#e5e7eb",
+        userBubbleColor: "#f3f4f6",
+        agentBubbleColor: "#eff6ff",
+        borderRadius: "16px",
+      });
+    } catch (error) {
+      console.error("Failed to open widget preview:", error);
+      toast({
+        title: "Preview failed",
+        description: error instanceof Error ? error.message : "Could not open the widget preview.",
+        variant: "destructive",
+      });
+    }
+  }, [agent?.elevenlabs_agent_id, agent?.name, toast, widgetApiKey, getBackendBaseUrl]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadKey = async () => {
+      setWidgetKeyLoading(true);
+      try {
+        const response = await apiKeysApi.list();
+        const existingKeys = response.data || [];
+        let widgetKey = existingKeys.find((key) => key.name === WIDGET_API_KEY_NAME);
+
+        if (!widgetKey && existingKeys.length > 0) {
+          widgetKey = existingKeys[0];
+        }
+
+        if (!widgetKey) {
+          const createResponse = await apiKeysApi.create({
+            name: WIDGET_API_KEY_NAME,
+            key_type: "public",
+            transient_assistant: false,
+          });
+          if (createResponse.data) {
+            widgetKey = createResponse.data;
+            toast({
+              title: "API Key Created",
+              description: "A widget API key was generated for preview.",
+            });
+          }
+        }
+
+        if (widgetKey && isMounted) {
+          setWidgetApiKey(widgetKey.key_value);
+        }
+      } catch (error) {
+        console.error("Failed to fetch widget API key:", error);
+        if (isMounted) {
+          toast({
+            title: "Widget preview unavailable",
+            description: "Could not load the widget API key. Please try again later.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setWidgetKeyLoading(false);
+        }
+      }
+    };
+
+    loadKey();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [toast]);
 
   // Reset all form state when switching between assistants or creating a new one
   useEffect(() => {
@@ -1906,14 +2021,6 @@ export default function AssistantDetail() {
       setSelectedProvider("openai");
       setSelectedModel("gpt-4o-cluster");
       setFirstMessageMode("assistant-speaks-first");
-      setShowPreviewChat(false);
-      setIsMuted(false);
-      setChatMessages([
-        { role: "assistant", content: "Hello. This is Cameron. calling on behalf of Quality Metrics Research. We're conducting a brief survey about customer satisfaction. This will take approximately five minutes and help improve our services. Would you be willing to participate today?", timestamp: new Date() }
-      ]);
-      setChatInput("");
-      setCallInProgress(false);
-      setCallTimer(0);
       setShowConfigPanel(false);
       setEditingName(false);
       setTempName("");
@@ -1923,31 +2030,6 @@ export default function AssistantDetail() {
       setSystemToolExpanded(getDefaultSystemToolExpanded());
     }
   }, [id, isNew]);
-
-  // Timer effect
-  useEffect(() => {
-    if (callInProgress) {
-      timerIntervalRef.current = setInterval(() => {
-        setCallTimer((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-    };
-  }, [callInProgress]);
-
-  // Auto-scroll to bottom when new messages are added
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
 
   // Build the complete configuration payload
   const buildConfiguration = useCallback(() => {
@@ -2209,6 +2291,12 @@ export default function AssistantDetail() {
     const hasVoice = selectedVoiceId && selectedVoiceId.trim() !== "";
     return hasLanguage && hasModel && hasFirstMessage && hasSystemPrompt && hasVoice;
   }, [selectedLanguage, selectedModel, firstMessage, systemPrompt, selectedVoiceId]);
+
+  const previewButtonTitle = widgetKeyLoading
+    ? "Loading widget preview..."
+    : agent?.elevenlabs_agent_id
+      ? "Preview widget"
+      : "Deploy the agent before previewing";
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = useCallback(() => {
@@ -2641,18 +2729,11 @@ export default function AssistantDetail() {
                 <span className="hidden sm:inline">Code</span>
               </Button> */}
               <Button 
-                variant={showPreviewChat ? "secondary" : "accent"} 
+                variant="accent" 
                 size="sm"
-                onClick={() => {
-                  setShowPreviewChat(!showPreviewChat);
-                  if (!showPreviewChat) {
-                    // Preview chat will be opened, but call won't start automatically
-                    // User needs to click "Start Call" button
-                  } else {
-                    setCallInProgress(false);
-                    setCallTimer(0);
-                  }
-                }}
+                onClick={handleOpenWidget}
+                disabled={widgetKeyLoading}
+                title={previewButtonTitle}
                 className="text-xs md:text-sm"
               >
                 <Phone className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
@@ -4257,39 +4338,6 @@ export default function AssistantDetail() {
         </div>
       </div>
 
-      {/* Preview Chat Panel */}
-      {showPreviewChat && (
-        <>
-          {isMobile ? (
-            <>
-              <div 
-                className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-                onClick={() => {
-                  setShowPreviewChat(false);
-                  setCallInProgress(false);
-                  setCallTimer(0);
-                }}
-              />
-              <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg overflow-hidden">
-                <PreviewChatContent
-                  selectedAssistant={{ id: agentId, name: agentName }}
-                  setShowPreviewChat={setShowPreviewChat}
-                  elevenlabsAgentId={agent?.elevenlabs_agent_id}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="w-[400px] lg:w-[400px] md:w-[350px] border-l border-border flex flex-col bg-card flex-shrink-0 h-full overflow-hidden">
-              <PreviewChatContent
-                selectedAssistant={{ id: agentId, name: agentName }}
-                setShowPreviewChat={setShowPreviewChat}
-                elevenlabsAgentId={agent?.elevenlabs_agent_id}
-              />
-            </div>
-          )}
-        </>
-      )}
-
       {/* Webhook Tool Modal */}
       <Dialog open={showWebhookModal} onOpenChange={(open) => {
         if (!open) closeWebhookModal();
@@ -5530,144 +5578,3 @@ export default function AssistantDetail() {
     </div>
   );
 }
-
-// PreviewChatContent component - with compact voice control bar
-const PreviewChatContent = ({
-  selectedAssistant,
-  setShowPreviewChat,
-  elevenlabsAgentId,
-}: {
-  selectedAssistant: { id: string; name: string };
-  setShowPreviewChat: (show: boolean) => void;
-  elevenlabsAgentId?: string;
-}) => {
-  const { toast } = useToast();
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'agent'; text: string; timestamp: Date }>>([]);
-  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'connecting' | 'connected' | 'speaking' | 'listening'>('idle');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Import VoiceControlBar dynamically to avoid SSR issues
-  const VoiceControlBar = React.lazy(() => 
-    import('@/components/assistants/VoiceControlBar').then(mod => ({ default: mod.VoiceControlBar }))
-  );
-
-  // Scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleMessage = useCallback((message: { role: 'user' | 'agent'; text: string }) => {
-    setMessages(prev => [...prev, { ...message, timestamp: new Date() }]);
-  }, []);
-
-  const handleError = useCallback((error: Error) => {
-    toast({
-      title: 'Voice Error',
-      description: error.message,
-      variant: 'destructive',
-    });
-  }, [toast]);
-
-  const isNotDeployed = !elevenlabsAgentId;
-  const isActive = voiceStatus !== 'idle';
-
-  return (
-  <>
-    {/* Compact Header with Voice Controls */}
-    <div className="flex-shrink-0 border-b border-border bg-card">
-      {/* Title Row */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/50">
-        <h3 className="font-semibold text-sm">Test Assistant</h3>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => {
-            setShowPreviewChat(false);
-          }}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Voice Control Bar */}
-      {isNotDeployed ? (
-        <div className="flex items-center gap-2 px-4 py-3 bg-warning/10">
-          <Info className="h-4 w-4 text-warning flex-shrink-0" />
-          <span className="text-xs text-warning">Deploy your assistant to enable voice testing</span>
-        </div>
-      ) : (
-        <React.Suspense fallback={
-          <div className="flex items-center justify-center py-3">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          </div>
-        }>
-          <VoiceControlBar
-            agentId={elevenlabsAgentId}
-            onMessage={handleMessage}
-            onStatusChange={setVoiceStatus}
-            onError={handleError}
-          />
-        </React.Suspense>
-      )}
-    </div>
-
-    {/* Conversation Transcript - Takes most of the space */}
-    <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 min-h-0">
-      {messages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-          <MessageSquare className="h-12 w-12 mb-3 opacity-30" />
-          <p className="text-sm font-medium mb-1">No messages yet</p>
-          <p className="text-xs max-w-[200px]">
-            {isNotDeployed 
-              ? "Deploy your assistant first, then start a voice conversation"
-              : isActive 
-                ? "Speak to your assistant - the transcript will appear here"
-                : "Click the phone button above to start a voice conversation"
-            }
-          </p>
-        </div>
-      ) : (
-        messages.map((message, index) => (
-          <div
-            key={index}
-            className={cn(
-              "flex gap-2 md:gap-3",
-              message.role === "agent" ? "flex-row" : "flex-row-reverse"
-            )}
-          >
-            <div
-              className={cn(
-                "w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                message.role === "agent"
-                  ? "bg-primary/20 text-primary"
-                  : "bg-secondary text-foreground"
-              )}
-            >
-              {message.role === "agent" ? (
-                <AudioLines className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              ) : (
-                <User className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              )}
-            </div>
-            <div
-              className={cn(
-                "flex-1 rounded-lg p-2 md:p-3 max-w-[85%]",
-                message.role === "agent"
-                  ? "bg-primary/10 text-foreground"
-                  : "bg-secondary text-foreground"
-              )}
-            >
-              <p className="text-xs md:text-sm">{message.text}</p>
-              <span className="text-[10px] text-muted-foreground mt-1 block">
-                {message.timestamp.toLocaleTimeString()}
-              </span>
-            </div>
-          </div>
-        ))
-      )}
-      <div ref={messagesEndRef} />
-    </div>
-  </>
-  );
-};
