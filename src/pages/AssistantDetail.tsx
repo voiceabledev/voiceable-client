@@ -13,6 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Select,
@@ -871,6 +876,7 @@ export default function AssistantDetail() {
   const [newSecretName, setNewSecretName] = useState("");
   const [newSecretValue, setNewSecretValue] = useState("");
   const [creatingSecret, setCreatingSecret] = useState(false);
+  const [creatingSecretForHeaderId, setCreatingSecretForHeaderId] = useState<string | null>(null);
   
   // Track saved configuration to detect changes
   const [savedConfig, setSavedConfig] = useState<{
@@ -1460,10 +1466,12 @@ export default function AssistantDetail() {
 
     setCreatingSecret(true);
     try {
-      await secretsApi.create({
+      const response = await secretsApi.create({
         name: newSecretName.trim(),
         value: newSecretValue.trim(),
       });
+      
+      const createdSecretId = response.data?.secret_id || newSecretName.trim();
       
       toast({
         title: "Success",
@@ -1473,9 +1481,24 @@ export default function AssistantDetail() {
       // Refresh secrets list
       await fetchSecrets();
       
+      // Update the header that triggered the secret creation
+      if (creatingSecretForHeaderId) {
+        updateWebhookHeader(creatingSecretForHeaderId, { value: createdSecretId });
+      } else {
+        // Fallback: If there's a webhook header with the same value as the secret name, update it to the secret_id
+        if (webhookForm.headers) {
+          webhookForm.headers.forEach((header) => {
+            if (header.type === "secret" && header.value === newSecretName.trim()) {
+              updateWebhookHeader(header.id, { value: createdSecretId });
+            }
+          });
+        }
+      }
+      
       // Reset form and close modal
       setNewSecretName("");
       setNewSecretValue("");
+      setCreatingSecretForHeaderId(null);
       setShowCreateSecretModal(false);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to create secret.";
@@ -4517,35 +4540,101 @@ export default function AssistantDetail() {
                       {header.type === "secret" ? (
                         <div className="space-y-2">
                           <div className="flex gap-2">
-                            <Select
-                              value={header.value || ""}
-                              onValueChange={(value) => {
-                                if (value === "__create_new__") {
-                                  setShowCreateSecretModal(true);
-                                } else {
-                                  updateWebhookHeader(header.id, { value });
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="bg-white border-border flex-1">
-                                <SelectValue placeholder={secretsLoading ? "Loading secrets..." : "Select a secret"} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {secrets.length === 0 && !secretsLoading && (
-                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                    No secrets found
-                                  </div>
-                                )}
+                            <div className="flex-1">
+                              <Input
+                                value={header.value ? (secrets.find(s => s.secret_id === header.value)?.name || header.value) : ""}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  // If user types a name that matches a secret, use the secret_id
+                                  const matchingSecret = secrets.find(s => s.name === inputValue);
+                                  if (matchingSecret) {
+                                    updateWebhookHeader(header.id, { value: matchingSecret.secret_id });
+                                  } else {
+                                    // Otherwise, allow typing (will be validated on blur or when creating)
+                                    updateWebhookHeader(header.id, { value: inputValue });
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  const inputValue = e.target.value;
+                                  // On blur, if the value is a name, convert it to secret_id
+                                  const matchingSecret = secrets.find(s => s.name === inputValue);
+                                  if (matchingSecret && header.value !== matchingSecret.secret_id) {
+                                    updateWebhookHeader(header.id, { value: matchingSecret.secret_id });
+                                  }
+                                }}
+                                placeholder="Type or select secret"
+                                className="bg-white border-border"
+                                list={`secret-list-${header.id}`}
+                              />
+                              <datalist id={`secret-list-${header.id}`}>
                                 {secrets.map((secret) => (
-                                  <SelectItem key={secret.secret_id} value={secret.secret_id}>
-                                    {secret.name}
-                                  </SelectItem>
+                                  <option key={secret.secret_id} value={secret.name}>
+                                    {secret.secret_id}
+                                  </option>
                                 ))}
-                                <SelectItem value="__create_new__" className="text-primary font-medium">
-                                  + Create new secret
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                              </datalist>
+                            </div>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="shrink-0"
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[300px] p-0" align="start">
+                                <div className="max-h-[300px] overflow-y-auto">
+                                  {secretsLoading ? (
+                                    <div className="p-4 text-center text-sm text-muted-foreground">
+                                      Loading secrets...
+                                    </div>
+                                  ) : secrets.length === 0 ? (
+                                    <div className="p-4 text-center text-sm text-muted-foreground">
+                                      No secrets found
+                                    </div>
+                                  ) : (
+                                    <div className="p-1">
+                                      {secrets.map((secret) => (
+                                        <button
+                                          key={secret.secret_id}
+                                          type="button"
+                                          className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                                          onClick={() => {
+                                            updateWebhookHeader(header.id, { value: secret.secret_id });
+                                          }}
+                                        >
+                                          <div>
+                                            <div className="font-medium">{secret.name}</div>
+                                            <div className="text-xs text-muted-foreground">{secret.secret_id}</div>
+                                          </div>
+                                          {header.value === secret.secret_id && (
+                                            <CheckCircle2 className="h-4 w-4 text-primary" />
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div className="border-t p-1">
+                                    <button
+                                      type="button"
+                                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-accent hover:text-accent-foreground text-primary font-medium flex items-center gap-2"
+                                      onClick={() => {
+                                        setCreatingSecretForHeaderId(header.id);
+                                        setShowCreateSecretModal(true);
+                                      }}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+                                        <path d="M8.75 3.75a.75.75 0 0 0-1.5 0v3.5h-3.5a.75.75 0 0 0 0 1.5h3.5v3.5a.75.75 0 0 0 1.5 0v-3.5h3.5a.75.75 0 0 0 0-1.5h-3.5v-3.5Z" />
+                                      </svg>
+                                      Create new secret
+                                    </button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                             <Button
                               type="button"
                               variant="outline"
@@ -4559,9 +4648,31 @@ export default function AssistantDetail() {
                               </svg>
                             </Button>
                           </div>
-                          {header.value && (
+                          {header.value && !secrets.find(s => s.secret_id === header.value || s.name === header.value) && (
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-muted-foreground">
+                                Secret "{header.value}" not found.
+                              </p>
+                              <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                className="h-auto p-0 text-primary text-xs"
+                                onClick={() => {
+                                  // Use the displayed value (name) or the stored value (ID)
+                                  const secretName = secrets.find(s => s.secret_id === header.value)?.name || header.value;
+                                  setNewSecretName(secretName);
+                                  setCreatingSecretForHeaderId(header.id);
+                                  setShowCreateSecretModal(true);
+                                }}
+                              >
+                                Create it
+                              </Button>
+                            </div>
+                          )}
+                          {header.value && secrets.find(s => s.secret_id === header.value) && (
                             <p className="text-xs text-muted-foreground">
-                              Secret ID: <code className="bg-muted px-1 rounded">{header.value}</code>
+                              Secret: <span className="font-medium">{secrets.find(s => s.secret_id === header.value)?.name}</span>
                             </p>
                           )}
                         </div>
@@ -5193,6 +5304,7 @@ export default function AssistantDetail() {
           setShowCreateSecretModal(false);
           setNewSecretName("");
           setNewSecretValue("");
+          setCreatingSecretForHeaderId(null);
         }
       }}>
         <DialogContent className="max-w-md">
@@ -5238,6 +5350,7 @@ export default function AssistantDetail() {
                 setShowCreateSecretModal(false);
                 setNewSecretName("");
                 setNewSecretValue("");
+                setCreatingSecretForHeaderId(null);
               }}
               disabled={creatingSecret}
             >
