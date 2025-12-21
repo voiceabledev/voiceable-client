@@ -1034,3 +1034,39 @@ export const paymentsApi = {
     return response;
   },
 };
+
+// Secrets API methods (for ElevenLabs secrets management)
+export interface ElevenLabsSecret {
+  secret_id: string;
+  name: string;
+  created_at_unix_secs?: number;
+}
+
+export interface SecretsListResponse {
+  secrets: ElevenLabsSecret[];
+}
+
+export interface CreateSecretParams {
+  name: string;
+  value: string;
+}
+
+export const secretsApi = {
+  list: async () => {
+    const response = await apiClient.get<SecretsListResponse>('/secrets');
+    return response;
+  },
+
+  create: async (params: CreateSecretParams) => {
+    const response = await apiClient.post<ElevenLabsSecret>('/secrets', {
+      name: params.name,
+      value: params.value,
+    });
+    return response;
+  },
+
+  delete: async (secretId: string) => {
+    const response = await apiClient.delete(`/secrets/${secretId}`);
+    return response;
+  },
+};

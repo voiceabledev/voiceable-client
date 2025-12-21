@@ -67,7 +67,7 @@ import ConversationsTab from "@/components/assistants/ConversationsTab";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import CostAndLatency from "@/components/assistants/CostAndLatency";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
-import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi } from "@/lib/api";
+import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi, secretsApi, ElevenLabsSecret } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const tabs = [
@@ -195,6 +195,134 @@ type SystemToolSetting = {
   transferRules?: TransferRuleSetting[];
   humanTransferRules?: HumanTransferRuleSetting[];
 };
+
+// Webhook Tool Types
+type WebhookHeader = {
+  id: string;
+  type: "secret" | "value";
+  name: string;
+  value: string; // secret key name or literal value
+};
+
+type WebhookQueryParam = {
+  id: string;
+  dataType: "string" | "number" | "boolean" | "array" | "object";
+  identifier: string;
+  required: boolean;
+  valueType: "llm_prompt" | "static";
+  description: string;
+  enumValues: string[];
+};
+
+type DynamicVariableAssignment = {
+  id: string;
+  variableName: string;
+  isNewVariable: boolean;
+  jsonPath: string;
+};
+
+type WebhookTool = {
+  id: string;
+  name: string;
+  description: string;
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+  url: string;
+  responseTimeout: number;
+  disableInterruptions: boolean;
+  preToolSpeech: "auto" | "always" | "never";
+  executionMode: "parallel" | "sequential";
+  toolCallSound: "none" | "beep" | "chime";
+  authentication: string;
+  headers: WebhookHeader[];
+  queryParams: WebhookQueryParam[];
+  dynamicVariableAssignments: DynamicVariableAssignment[];
+};
+
+const getEmptyWebhookTool = (): WebhookTool => ({
+  id: crypto.randomUUID(),
+  name: "",
+  description: "",
+  method: "GET",
+  url: "",
+  responseTimeout: 20,
+  disableInterruptions: false,
+  preToolSpeech: "auto",
+  executionMode: "parallel",
+  toolCallSound: "none",
+  authentication: "",
+  headers: [],
+  queryParams: [],
+  dynamicVariableAssignments: [],
+});
+
+const getEmptyWebhookHeader = (): WebhookHeader => ({
+  id: crypto.randomUUID(),
+  type: "secret",
+  name: "",
+  value: "",
+});
+
+const getEmptyWebhookQueryParam = (): WebhookQueryParam => ({
+  id: crypto.randomUUID(),
+  dataType: "string",
+  identifier: "",
+  required: true,
+  valueType: "llm_prompt",
+  description: "",
+  enumValues: [],
+});
+
+const getEmptyDynamicVariableAssignment = (): DynamicVariableAssignment => ({
+  id: crypto.randomUUID(),
+  variableName: "",
+  isNewVariable: true,
+  jsonPath: "",
+});
+
+// Client Tool Types
+type ClientToolParameter = {
+  id: string;
+  dataType: "string" | "number" | "boolean" | "array" | "object";
+  identifier: string;
+  required: boolean;
+  valueType: "llm_prompt" | "static";
+  description: string;
+  enumValues: string[];
+};
+
+type ClientTool = {
+  id: string;
+  name: string;
+  description: string;
+  waitForResponse: boolean;
+  disableInterruptions: boolean;
+  preToolSpeech: "auto" | "always" | "never";
+  executionMode: "immediate" | "on_turn_end";
+  parameters: ClientToolParameter[];
+  dynamicVariableAssignments: DynamicVariableAssignment[];
+};
+
+const getEmptyClientTool = (): ClientTool => ({
+  id: crypto.randomUUID(),
+  name: "",
+  description: "",
+  waitForResponse: false,
+  disableInterruptions: false,
+  preToolSpeech: "auto",
+  executionMode: "immediate",
+  parameters: [],
+  dynamicVariableAssignments: [],
+});
+
+const getEmptyClientToolParameter = (): ClientToolParameter => ({
+  id: crypto.randomUUID(),
+  dataType: "string",
+  identifier: "",
+  required: true,
+  valueType: "llm_prompt",
+  description: "",
+  enumValues: [],
+});
 
 const normalizeSystemToolKey = (key: string): SystemToolKey | null => {
   const normalized = key.replace(/-/g, "_");
@@ -399,6 +527,284 @@ export default function AssistantDetail() {
     });
   };
 
+  // Webhook tool management functions
+  const openWebhookModal = (tool?: WebhookTool) => {
+    if (tool) {
+      setEditingWebhookTool(tool);
+      setWebhookForm({ ...tool });
+    } else {
+      setEditingWebhookTool(null);
+      setWebhookForm(getEmptyWebhookTool());
+    }
+    setShowJsonEditor(false);
+    setShowWebhookModal(true);
+  };
+
+  const closeWebhookModal = () => {
+    setShowWebhookModal(false);
+    setEditingWebhookTool(null);
+    setWebhookForm(getEmptyWebhookTool());
+    setShowJsonEditor(false);
+    setNewEnumValue({});
+  };
+
+  const saveWebhookTool = () => {
+    if (!webhookForm.name.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter a name for the webhook tool.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!webhookForm.url.trim()) {
+      toast({
+        title: "URL required",
+        description: "Please enter a URL for the webhook tool.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editingWebhookTool) {
+      setWebhookTools(prev => prev.map(t => t.id === editingWebhookTool.id ? webhookForm : t));
+    } else {
+      setWebhookTools(prev => [...prev, webhookForm]);
+    }
+    closeWebhookModal();
+    toast({
+      title: editingWebhookTool ? "Tool updated" : "Tool added",
+      description: `${webhookForm.name} has been ${editingWebhookTool ? "updated" : "added"} successfully.`,
+    });
+  };
+
+  const deleteWebhookTool = (toolId: string) => {
+    setWebhookTools(prev => prev.filter(t => t.id !== toolId));
+    toast({
+      title: "Tool deleted",
+      description: "The webhook tool has been removed.",
+    });
+  };
+
+  const updateWebhookForm = <K extends keyof WebhookTool>(key: K, value: WebhookTool[K]) => {
+    setWebhookForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Header management
+  const addWebhookHeader = () => {
+    setWebhookForm(prev => ({
+      ...prev,
+      headers: [...prev.headers, getEmptyWebhookHeader()]
+    }));
+  };
+
+  const updateWebhookHeader = (id: string, updates: Partial<WebhookHeader>) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      headers: prev.headers.map(h => h.id === id ? { ...h, ...updates } : h)
+    }));
+  };
+
+  const removeWebhookHeader = (id: string) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      headers: prev.headers.filter(h => h.id !== id)
+    }));
+  };
+
+  // Query param management
+  const addWebhookQueryParam = () => {
+    setWebhookForm(prev => ({
+      ...prev,
+      queryParams: [...prev.queryParams, getEmptyWebhookQueryParam()]
+    }));
+  };
+
+  const updateWebhookQueryParam = (id: string, updates: Partial<WebhookQueryParam>) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      queryParams: prev.queryParams.map(p => p.id === id ? { ...p, ...updates } : p)
+    }));
+  };
+
+  const removeWebhookQueryParam = (id: string) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      queryParams: prev.queryParams.filter(p => p.id !== id)
+    }));
+  };
+
+  const addEnumValue = (paramId: string) => {
+    const value = newEnumValue[paramId]?.trim();
+    if (!value) return;
+    
+    setWebhookForm(prev => ({
+      ...prev,
+      queryParams: prev.queryParams.map(p => 
+        p.id === paramId 
+          ? { ...p, enumValues: [...p.enumValues, value] }
+          : p
+      )
+    }));
+    setNewEnumValue(prev => ({ ...prev, [paramId]: "" }));
+  };
+
+  const removeEnumValue = (paramId: string, valueIndex: number) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      queryParams: prev.queryParams.map(p => 
+        p.id === paramId 
+          ? { ...p, enumValues: p.enumValues.filter((_, i) => i !== valueIndex) }
+          : p
+      )
+    }));
+  };
+
+  // Dynamic variable assignment management
+  const addDynamicVariableAssignment = () => {
+    setWebhookForm(prev => ({
+      ...prev,
+      dynamicVariableAssignments: [...prev.dynamicVariableAssignments, getEmptyDynamicVariableAssignment()]
+    }));
+  };
+
+  const updateDynamicVariableAssignment = (id: string, updates: Partial<DynamicVariableAssignment>) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      dynamicVariableAssignments: prev.dynamicVariableAssignments.map(a => a.id === id ? { ...a, ...updates } : a)
+    }));
+  };
+
+  const removeDynamicVariableAssignment = (id: string) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      dynamicVariableAssignments: prev.dynamicVariableAssignments.filter(a => a.id !== id)
+    }));
+  };
+
+  // Client tool management functions
+  const openClientToolModal = (tool?: ClientTool) => {
+    if (tool) {
+      setEditingClientTool(tool);
+      setClientToolForm({ ...tool });
+    } else {
+      setEditingClientTool(null);
+      setClientToolForm(getEmptyClientTool());
+    }
+    setShowClientToolModal(true);
+  };
+
+  const closeClientToolModal = () => {
+    setShowClientToolModal(false);
+    setEditingClientTool(null);
+    setClientToolForm(getEmptyClientTool());
+    setClientParamEnumValue({});
+  };
+
+  const saveClientTool = () => {
+    if (!clientToolForm.name.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter a name for the client tool.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editingClientTool) {
+      setClientTools(prev => prev.map(t => t.id === editingClientTool.id ? clientToolForm : t));
+    } else {
+      setClientTools(prev => [...prev, clientToolForm]);
+    }
+    closeClientToolModal();
+    toast({
+      title: editingClientTool ? "Tool updated" : "Tool added",
+      description: `${clientToolForm.name} has been ${editingClientTool ? "updated" : "added"} successfully.`,
+    });
+  };
+
+  const deleteClientTool = (toolId: string) => {
+    setClientTools(prev => prev.filter(t => t.id !== toolId));
+    toast({
+      title: "Tool deleted",
+      description: "The client tool has been removed.",
+    });
+  };
+
+  const updateClientToolForm = <K extends keyof ClientTool>(key: K, value: ClientTool[K]) => {
+    setClientToolForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Client tool parameter management
+  const addClientToolParameter = () => {
+    setClientToolForm(prev => ({
+      ...prev,
+      parameters: [...prev.parameters, getEmptyClientToolParameter()]
+    }));
+  };
+
+  const updateClientToolParameter = (id: string, updates: Partial<ClientToolParameter>) => {
+    setClientToolForm(prev => ({
+      ...prev,
+      parameters: prev.parameters.map(p => p.id === id ? { ...p, ...updates } : p)
+    }));
+  };
+
+  const removeClientToolParameter = (id: string) => {
+    setClientToolForm(prev => ({
+      ...prev,
+      parameters: prev.parameters.filter(p => p.id !== id)
+    }));
+  };
+
+  const addClientParamEnumValue = (paramId: string) => {
+    const value = clientParamEnumValue[paramId]?.trim();
+    if (!value) return;
+    
+    setClientToolForm(prev => ({
+      ...prev,
+      parameters: prev.parameters.map(p => 
+        p.id === paramId 
+          ? { ...p, enumValues: [...p.enumValues, value] }
+          : p
+      )
+    }));
+    setClientParamEnumValue(prev => ({ ...prev, [paramId]: "" }));
+  };
+
+  const removeClientParamEnumValue = (paramId: string, valueIndex: number) => {
+    setClientToolForm(prev => ({
+      ...prev,
+      parameters: prev.parameters.map(p => 
+        p.id === paramId 
+          ? { ...p, enumValues: p.enumValues.filter((_, i) => i !== valueIndex) }
+          : p
+      )
+    }));
+  };
+
+  // Client tool dynamic variable assignment management
+  const addClientDynamicVariableAssignment = () => {
+    setClientToolForm(prev => ({
+      ...prev,
+      dynamicVariableAssignments: [...prev.dynamicVariableAssignments, getEmptyDynamicVariableAssignment()]
+    }));
+  };
+
+  const updateClientDynamicVariableAssignment = (id: string, updates: Partial<DynamicVariableAssignment>) => {
+    setClientToolForm(prev => ({
+      ...prev,
+      dynamicVariableAssignments: prev.dynamicVariableAssignments.map(a => a.id === id ? { ...a, ...updates } : a)
+    }));
+  };
+
+  const removeClientDynamicVariableAssignment = (id: string) => {
+    setClientToolForm(prev => ({
+      ...prev,
+      dynamicVariableAssignments: prev.dynamicVariableAssignments.filter(a => a.id !== id)
+    }));
+  };
+
   const [modelExpanded, setModelExpanded] = useState(false);
   const [voiceConfigExpanded, setVoiceConfigExpanded] = useState(false);
   const [additionalConfigExpanded, setAdditionalConfigExpanded] = useState(true);
@@ -441,6 +847,30 @@ export default function AssistantDetail() {
   const [systemTools, setSystemTools] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolsState());
   const [systemToolSettings, setSystemToolSettings] = useState<Record<SystemToolKey, SystemToolSetting>>(() => getDefaultSystemToolSettings());
   const [systemToolExpanded, setSystemToolExpanded] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolExpanded());
+  
+  // Webhook/Integration tools state
+  const [webhookTools, setWebhookTools] = useState<WebhookTool[]>([]);
+  const [showWebhookModal, setShowWebhookModal] = useState(false);
+  const [editingWebhookTool, setEditingWebhookTool] = useState<WebhookTool | null>(null);
+  const [webhookForm, setWebhookForm] = useState<WebhookTool>(() => getEmptyWebhookTool());
+  const [showJsonEditor, setShowJsonEditor] = useState(false);
+  const [webhookJsonValue, setWebhookJsonValue] = useState("");
+  const [newEnumValue, setNewEnumValue] = useState<Record<string, string>>({});
+  
+  // Client tools state
+  const [clientTools, setClientTools] = useState<ClientTool[]>([]);
+  const [showClientToolModal, setShowClientToolModal] = useState(false);
+  const [editingClientTool, setEditingClientTool] = useState<ClientTool | null>(null);
+  const [clientToolForm, setClientToolForm] = useState<ClientTool>(() => getEmptyClientTool());
+  const [clientParamEnumValue, setClientParamEnumValue] = useState<Record<string, string>>({});
+  
+  // Secrets state for ElevenLabs secrets management
+  const [secrets, setSecrets] = useState<ElevenLabsSecret[]>([]);
+  const [secretsLoading, setSecretsLoading] = useState(false);
+  const [showCreateSecretModal, setShowCreateSecretModal] = useState(false);
+  const [newSecretName, setNewSecretName] = useState("");
+  const [newSecretValue, setNewSecretValue] = useState("");
+  const [creatingSecret, setCreatingSecret] = useState(false);
   
   // Track saved configuration to detect changes
   const [savedConfig, setSavedConfig] = useState<{
@@ -757,6 +1187,202 @@ export default function AssistantDetail() {
         setVideoRecording(config.video_recording);
       }
     }
+
+    // Extract client and webhook tools from multiple possible sources
+    const agentRecord = agentData as unknown as Record<string, unknown>;
+    const loadedClientTools: ClientTool[] = [];
+    const loadedWebhookTools: WebhookTool[] = [];
+
+    // Helper to parse client tool from our format
+    const parseClientToolFromOurFormat = (tool: Record<string, unknown>): ClientTool => ({
+      id: typeof tool.id === 'string' ? tool.id : crypto.randomUUID(),
+      name: typeof tool.name === 'string' ? tool.name : "",
+      description: typeof tool.description === 'string' ? tool.description : "",
+      waitForResponse: tool.wait_for_response === true,
+      disableInterruptions: tool.disable_interruptions === true,
+      preToolSpeech: (tool.pre_tool_speech as "auto" | "always" | "never") || "auto",
+      executionMode: (tool.execution_mode as "immediate" | "on_turn_end") || "immediate",
+      parameters: Array.isArray(tool.parameters) 
+        ? (tool.parameters as Array<Record<string, unknown>>).map(p => ({
+            id: typeof p.id === 'string' ? p.id : crypto.randomUUID(),
+            dataType: (p.data_type as "string" | "number" | "boolean" | "array" | "object") || "string",
+            identifier: typeof p.identifier === 'string' ? p.identifier : "",
+            required: p.required === true,
+            valueType: (p.value_type as "llm_prompt" | "static") || "llm_prompt",
+            description: typeof p.description === 'string' ? p.description : "",
+            enumValues: Array.isArray(p.enum_values) ? (p.enum_values as string[]) : []
+          }))
+        : [],
+      dynamicVariableAssignments: Array.isArray(tool.dynamic_variable_assignments)
+        ? (tool.dynamic_variable_assignments as Array<Record<string, unknown>>).map(a => ({
+            id: crypto.randomUUID(),
+            variableName: typeof a.variable_name === 'string' ? a.variable_name : "",
+            isNewVariable: a.is_new_variable !== false,
+            jsonPath: typeof a.json_path === 'string' ? a.json_path : ""
+          }))
+        : []
+    });
+
+    // Helper to parse client tool from ElevenLabs format
+    const parseClientToolFromElevenLabs = (tool: Record<string, unknown>): ClientTool => {
+      const params = tool.parameters as Record<string, unknown> | undefined;
+      const properties = params?.properties as Record<string, Record<string, unknown>> | undefined;
+      const requiredParams = (params?.required as string[]) || [];
+      const assignments = (tool.assignments as Array<Record<string, unknown>>) || [];
+      
+      return {
+        id: crypto.randomUUID(),
+        name: typeof tool.name === 'string' ? tool.name : "",
+        description: typeof tool.description === 'string' ? tool.description : "",
+        waitForResponse: tool.expects_response === true,
+        disableInterruptions: tool.disable_interruptions === true,
+        preToolSpeech: tool.force_pre_tool_speech === true ? "always" : "auto",
+        executionMode: (tool.execution_mode as "immediate" | "on_turn_end") || "immediate",
+        parameters: properties ? Object.entries(properties).map(([key, prop]) => ({
+          id: crypto.randomUUID(),
+          dataType: (prop.type as "string" | "number" | "boolean" | "array" | "object") || "string",
+          identifier: key,
+          required: requiredParams.includes(key),
+          valueType: prop.is_system_provided ? "static" : "llm_prompt",
+          description: typeof prop.description === 'string' ? prop.description : "",
+          enumValues: Array.isArray(prop.enum) ? (prop.enum as string[]) : []
+        })) : [],
+        dynamicVariableAssignments: assignments.map(a => ({
+          id: crypto.randomUUID(),
+          variableName: typeof a.dynamic_variable === 'string' ? a.dynamic_variable : "",
+          isNewVariable: true,
+          jsonPath: typeof a.value_path === 'string' ? a.value_path : ""
+        }))
+      };
+    };
+
+    // Helper to parse webhook tool from our format
+    const parseWebhookToolFromOurFormat = (tool: Record<string, unknown>): WebhookTool => ({
+      id: typeof tool.id === 'string' ? tool.id : crypto.randomUUID(),
+      name: typeof tool.name === 'string' ? tool.name : "",
+      description: typeof tool.description === 'string' ? tool.description : "",
+      method: (tool.method as "GET" | "POST" | "PUT" | "DELETE" | "PATCH") || "GET",
+      url: typeof tool.url === 'string' ? tool.url : "",
+      responseTimeout: typeof tool.response_timeout === 'number' ? tool.response_timeout : 20,
+      disableInterruptions: tool.disable_interruptions === true,
+      preToolSpeech: (tool.pre_tool_speech as "auto" | "always" | "never") || "auto",
+      executionMode: (tool.execution_mode as "parallel" | "sequential") || "parallel",
+      toolCallSound: (tool.tool_call_sound as "none" | "beep" | "chime") || "none",
+      authentication: typeof tool.authentication === 'string' ? tool.authentication : "",
+      headers: Array.isArray(tool.headers)
+        ? (tool.headers as Array<Record<string, unknown>>).map(h => ({
+            id: crypto.randomUUID(),
+            type: (h.type as "secret" | "value") || "value",
+            name: typeof h.name === 'string' ? h.name : "",
+            value: typeof h.value === 'string' ? h.value : ""
+          }))
+        : [],
+      queryParams: Array.isArray(tool.query_params)
+        ? (tool.query_params as Array<Record<string, unknown>>).map(p => ({
+            id: crypto.randomUUID(),
+            dataType: (p.data_type as "string" | "number" | "boolean" | "array" | "object") || "string",
+            identifier: typeof p.identifier === 'string' ? p.identifier : "",
+            required: p.required === true,
+            valueType: (p.value_type as "llm_prompt" | "static") || "llm_prompt",
+            description: typeof p.description === 'string' ? p.description : "",
+            enumValues: Array.isArray(p.enum_values) ? (p.enum_values as string[]) : []
+          }))
+        : [],
+      dynamicVariableAssignments: Array.isArray(tool.dynamic_variable_assignments)
+        ? (tool.dynamic_variable_assignments as Array<Record<string, unknown>>).map(a => ({
+            id: crypto.randomUUID(),
+            variableName: typeof a.variable_name === 'string' ? a.variable_name : "",
+            isNewVariable: a.is_new_variable !== false,
+            jsonPath: typeof a.json_path === 'string' ? a.json_path : ""
+          }))
+        : []
+    });
+
+    // Helper to parse webhook tool from ElevenLabs format
+    const parseWebhookToolFromElevenLabs = (tool: Record<string, unknown>): WebhookTool => {
+      const apiSchema = tool.api_schema as Record<string, unknown> | undefined;
+      const queryParamsSchema = apiSchema?.query_params_schema as Record<string, unknown> | undefined;
+      const properties = queryParamsSchema?.properties as Record<string, Record<string, unknown>> | undefined;
+      const requiredParams = (queryParamsSchema?.required as string[]) || [];
+      const requestHeaders = apiSchema?.request_headers as Record<string, unknown> | undefined;
+      const assignments = (tool.assignments as Array<Record<string, unknown>>) || [];
+      
+      return {
+        id: crypto.randomUUID(),
+        name: typeof tool.name === 'string' ? tool.name : "",
+        description: typeof tool.description === 'string' ? tool.description : "",
+        method: (apiSchema?.method as "GET" | "POST" | "PUT" | "DELETE" | "PATCH") || "GET",
+        url: typeof apiSchema?.url === 'string' ? apiSchema.url : "",
+        responseTimeout: typeof tool.response_timeout_secs === 'number' ? tool.response_timeout_secs : 20,
+        disableInterruptions: tool.disable_interruptions === true,
+        preToolSpeech: tool.force_pre_tool_speech === true ? "always" : "auto",
+        executionMode: tool.execution_mode === 'on_turn_end' ? "sequential" : "parallel",
+        toolCallSound: "none",
+        authentication: typeof apiSchema?.auth_connection === 'string' ? apiSchema.auth_connection : "",
+        headers: requestHeaders ? Object.entries(requestHeaders).map(([name, value]) => ({
+          id: crypto.randomUUID(),
+          type: (typeof value === 'object' && value !== null && 'secret_id' in value) ? "secret" : "value",
+          name,
+          value: typeof value === 'object' && value !== null && 'secret_id' in value 
+            ? (value as Record<string, string>).secret_id 
+            : String(value || "")
+        })) : [],
+        queryParams: properties ? Object.entries(properties).map(([key, prop]) => ({
+          id: crypto.randomUUID(),
+          dataType: (prop.type as "string" | "number" | "boolean" | "array" | "object") || "string",
+          identifier: key,
+          required: requiredParams.includes(key),
+          valueType: prop.is_system_provided ? "static" : "llm_prompt",
+          description: typeof prop.description === 'string' ? prop.description : "",
+          enumValues: Array.isArray(prop.enum) ? (prop.enum as string[]) : []
+        })) : [],
+        dynamicVariableAssignments: assignments.map(a => ({
+          id: crypto.randomUUID(),
+          variableName: typeof a.dynamic_variable === 'string' ? a.dynamic_variable : "",
+          isNewVariable: true,
+          jsonPath: typeof a.value_path === 'string' ? a.value_path : ""
+        }))
+      };
+    };
+
+    // First check our serializer format (client_tools and webhook_tools at root)
+    if (Array.isArray(agentRecord.client_tools)) {
+      (agentRecord.client_tools as Array<Record<string, unknown>>).forEach(tool => {
+        loadedClientTools.push(parseClientToolFromOurFormat(tool));
+      });
+    }
+
+    if (Array.isArray(agentRecord.webhook_tools)) {
+      (agentRecord.webhook_tools as Array<Record<string, unknown>>).forEach(tool => {
+        loadedWebhookTools.push(parseWebhookToolFromOurFormat(tool));
+      });
+    }
+
+    // Also check ElevenLabs format (tools array in conversation_config.agent.prompt.tools)
+    if (agentData.conversation_config) {
+      const convConfig = agentData.conversation_config as Record<string, unknown>;
+      const agentConfig = convConfig.agent as Record<string, unknown> | undefined;
+      const promptConfig = agentConfig?.prompt as Record<string, unknown> | undefined;
+      const toolsArray = promptConfig?.tools as Array<Record<string, unknown>> | undefined;
+      
+      if (Array.isArray(toolsArray)) {
+        toolsArray.forEach(tool => {
+          if (tool.type === 'client') {
+            loadedClientTools.push(parseClientToolFromElevenLabs(tool));
+          } else if (tool.type === 'webhook') {
+            loadedWebhookTools.push(parseWebhookToolFromElevenLabs(tool));
+          }
+          // Skip 'system' tools as they're handled separately
+        });
+      }
+    }
+
+    if (loadedClientTools.length > 0) {
+      setClientTools(loadedClientTools);
+    }
+    if (loadedWebhookTools.length > 0) {
+      setWebhookTools(loadedWebhookTools);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
@@ -799,6 +1425,69 @@ export default function AssistantDetail() {
     
     fetchVoices();
   }, [toast, isNew, selectedVoiceId, selectedVoiceName]);
+
+  // Fetch secrets from ElevenLabs
+  const fetchSecrets = useCallback(async () => {
+    setSecretsLoading(true);
+    try {
+      const response = await secretsApi.list();
+      if (response.data?.secrets) {
+        setSecrets(response.data.secrets);
+      }
+    } catch (err) {
+      console.warn('Could not fetch secrets:', err);
+      // Don't show error toast - secrets are optional
+    } finally {
+      setSecretsLoading(false);
+    }
+  }, []);
+
+  // Fetch secrets on component mount
+  useEffect(() => {
+    fetchSecrets();
+  }, [fetchSecrets]);
+
+  // Create a new secret
+  const handleCreateSecret = async () => {
+    if (!newSecretName.trim() || !newSecretValue.trim()) {
+      toast({
+        title: "Error",
+        description: "Both secret name and value are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingSecret(true);
+    try {
+      await secretsApi.create({
+        name: newSecretName.trim(),
+        value: newSecretValue.trim(),
+      });
+      
+      toast({
+        title: "Success",
+        description: `Secret "${newSecretName}" created successfully.`,
+      });
+      
+      // Refresh secrets list
+      await fetchSecrets();
+      
+      // Reset form and close modal
+      setNewSecretName("");
+      setNewSecretValue("");
+      setShowCreateSecretModal(false);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create secret.";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingSecret(false);
+    }
+  };
 
   // Fetch voice name if we have voice_id but no name
   useEffect(() => {
@@ -1340,13 +2029,75 @@ export default function AssistantDetail() {
       video_recording: videoRecording
     };
 
+    // Build client tools payload for ElevenLabs sync
+    const clientToolsPayload = clientTools.map(tool => ({
+      id: tool.id,
+      type: "client",
+      name: tool.name,
+      description: tool.description,
+      wait_for_response: tool.waitForResponse,
+      disable_interruptions: tool.disableInterruptions,
+      pre_tool_speech: tool.preToolSpeech,
+      execution_mode: tool.executionMode,
+      parameters: tool.parameters.map(param => ({
+        id: param.id,
+        data_type: param.dataType,
+        identifier: param.identifier,
+        required: param.required,
+        value_type: param.valueType,
+        description: param.description,
+        enum_values: param.enumValues.length > 0 ? param.enumValues : undefined
+      })),
+      dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+        variable_name: a.variableName,
+        is_new_variable: a.isNewVariable,
+        json_path: a.jsonPath
+      }))
+    }));
+
+    // Build webhook tools payload for ElevenLabs sync
+    const webhookToolsPayload = webhookTools.map(tool => ({
+      id: tool.id,
+      type: "webhook",
+      name: tool.name,
+      description: tool.description,
+      method: tool.method,
+      url: tool.url,
+      response_timeout: tool.responseTimeout,
+      disable_interruptions: tool.disableInterruptions,
+      pre_tool_speech: tool.preToolSpeech,
+      execution_mode: tool.executionMode,
+      tool_call_sound: tool.toolCallSound,
+      authentication: tool.authentication || undefined,
+      headers: tool.headers.map(h => ({
+        type: h.type,
+        name: h.name,
+        value: h.value
+      })),
+      query_params: tool.queryParams.map(p => ({
+        data_type: p.dataType,
+        identifier: p.identifier,
+        required: p.required,
+        value_type: p.valueType,
+        description: p.description,
+        enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+      })),
+      dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+        variable_name: a.variableName,
+        is_new_variable: a.isNewVariable,
+        json_path: a.jsonPath
+      }))
+    }));
+
     return {
       conversation_config: {
         ...conversationConfig,
         ...privacySettings
       },
       platform_settings: platformSettings,
-      system_tools: systemToolsPayload
+      system_tools: systemToolsPayload,
+      client_tools: clientToolsPayload,
+      webhook_tools: webhookToolsPayload
     };
   }, [
     selectedModel,
@@ -1368,7 +2119,9 @@ export default function AssistantDetail() {
     audioRecording,
     logging,
     transcript,
-    videoRecording
+    videoRecording,
+    clientTools,
+    webhookTools
   ]);
 
   // Update saved config when agent loads (only when agent ID changes)
@@ -2458,7 +3211,7 @@ export default function AssistantDetail() {
                   <div className="mb-4">
                     <h3 className="text-base md:text-lg font-semibold mb-1">System tools</h3>
                     <p className="text-xs md:text-sm text-muted-foreground">
-                      Allow the agent perform built-in actions.
+                      Allow the agent to perform built-in actions.
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
                       {Object.values(systemTools).filter(Boolean).length} active tool{Object.values(systemTools).filter(Boolean).length !== 1 ? 's' : ''}
@@ -2947,6 +3700,114 @@ export default function AssistantDetail() {
                     </div>
                   </div>
                 </div>
+
+                {/* Integration Tools */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-base md:text-lg font-semibold mb-1">Integration tools</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        Allow the agent to perform client-side and external integrations.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {webhookTools.length + clientTools.length} tool{(webhookTools.length + clientTools.length) !== 1 ? 's' : ''} configured
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openClientToolModal()}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add client tool
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openWebhookModal()}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add webhook tool
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {(webhookTools.length > 0 || clientTools.length > 0) && (
+                    <div className="space-y-3">
+                      {/* Client Tools */}
+                      {clientTools.map((tool) => (
+                        <div key={tool.id} className="border border-border rounded-lg">
+                          <div className="flex items-center justify-between p-3 bg-secondary/50">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Settings className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium">{tool.name}</span>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                  <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded text-[10px] font-medium">Client</span>
+                                  <span className="truncate">{tool.parameters.length} parameter{tool.parameters.length !== 1 ? 's' : ''}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openClientToolModal(tool)}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => deleteClientTool(tool.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Webhook Tools */}
+                      {webhookTools.map((tool) => (
+                        <div key={tool.id} className="border border-border rounded-lg">
+                          <div className="flex items-center justify-between p-3 bg-secondary/50">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Link2 className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium">{tool.name}</span>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-medium">{tool.method}</span>
+                                  <span className="truncate">{tool.url}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openWebhookModal(tool)}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => deleteWebhookTool(tool.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ) : activeTab === "advanced" ? (
@@ -3405,6 +4266,999 @@ export default function AssistantDetail() {
           )}
         </>
       )}
+
+      {/* Webhook Tool Modal */}
+      <Dialog open={showWebhookModal} onOpenChange={(open) => {
+        if (!open) closeWebhookModal();
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-secondary">
+                <Link2 className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {editingWebhookTool ? "Edit webhook tool" : "Add webhook tool"}
+                </DialogTitle>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {showJsonEditor ? (
+            <div className="space-y-4 py-4">
+              <Textarea
+                value={webhookJsonValue}
+                onChange={(e) => setWebhookJsonValue(e.target.value)}
+                className="font-mono text-sm min-h-[400px]"
+                placeholder="Enter JSON configuration..."
+              />
+            </div>
+          ) : (
+            <div className="space-y-6 py-4">
+              {/* Configuration Section */}
+              <div className="border border-border rounded-lg p-4 space-y-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-sm font-semibold">Configuration</h4>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Describe to the LLM how and when to use the tool.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Name</label>
+                  <Input
+                    value={webhookForm.name}
+                    onChange={(e) => updateWebhookForm("name", e.target.value)}
+                    placeholder="Enter tool name"
+                    className="bg-white border-border"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Description</label>
+                  <Textarea
+                    value={webhookForm.description}
+                    onChange={(e) => updateWebhookForm("description", e.target.value)}
+                    placeholder="Describe what this tool does and when to use it"
+                    className="bg-white border-border min-h-[80px] text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[120px_1fr] gap-3">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Method</label>
+                    <Select
+                      value={webhookForm.method}
+                      onValueChange={(value: "GET" | "POST" | "PUT" | "DELETE" | "PATCH") => updateWebhookForm("method", value)}
+                    >
+                      <SelectTrigger className="bg-white border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GET">GET</SelectItem>
+                        <SelectItem value="POST">POST</SelectItem>
+                        <SelectItem value="PUT">PUT</SelectItem>
+                        <SelectItem value="DELETE">DELETE</SelectItem>
+                        <SelectItem value="PATCH">PATCH</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">URL</label>
+                    <Input
+                      value={webhookForm.url}
+                      onChange={(e) => updateWebhookForm("url", e.target.value)}
+                      placeholder="https://api.example.com/endpoint"
+                      className="bg-white border-border"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Response timeout (seconds)</label>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    How long to wait for the client tool to respond before timing out. Default is 20 seconds.
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="1"
+                      max="120"
+                      value={webhookForm.responseTimeout}
+                      onChange={(e) => updateWebhookForm("responseTimeout", parseInt(e.target.value))}
+                      className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <span className="text-sm font-medium w-12 text-right">{webhookForm.responseTimeout}s</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Disable interruptions</div>
+                    <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                  </div>
+                  <Switch
+                    checked={webhookForm.disableInterruptions}
+                    onCheckedChange={(checked) => updateWebhookForm("disableInterruptions", checked)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Pre-tool speech</label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Force agent speech before tool execution or let it decide automatically based on recent execution times.
+                  </p>
+                  <Select
+                    value={webhookForm.preToolSpeech}
+                    onValueChange={(value: "auto" | "always" | "never") => updateWebhookForm("preToolSpeech", value)}
+                  >
+                    <SelectTrigger className="bg-white border-border">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      <SelectItem value="always">Always speak first</SelectItem>
+                      <SelectItem value="never">Never speak first</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Execution mode</label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Determines when and how the tool executes relative to agent speech.
+                  </p>
+                  <Select
+                    value={webhookForm.executionMode}
+                    onValueChange={(value: "parallel" | "sequential") => updateWebhookForm("executionMode", value)}
+                  >
+                    <SelectTrigger className="bg-white border-border">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="parallel">Parallel</SelectItem>
+                      <SelectItem value="sequential">Sequential</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Tool call sound</label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Optional sound effect that plays during tool execution.
+                  </p>
+                  <Select
+                    value={webhookForm.toolCallSound}
+                    onValueChange={(value: "none" | "beep" | "chime") => updateWebhookForm("toolCallSound", value)}
+                  >
+                    <SelectTrigger className="bg-white border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="beep">Beep</SelectItem>
+                      <SelectItem value="chime">Chime</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Authentication</label>
+                  <Select
+                    value={webhookForm.authentication || "none"}
+                    onValueChange={(value) => updateWebhookForm("authentication", value === "none" ? "" : value)}
+                  >
+                    <SelectTrigger className="bg-white border-border">
+                      <SelectValue placeholder="Select auth connection" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="api_key">API Key</SelectItem>
+                      <SelectItem value="bearer_token">Bearer Token</SelectItem>
+                      <SelectItem value="basic_auth">Basic Auth</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Headers Section */}
+              <div className="border border-border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold">Headers</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Define headers that will be sent with the request
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addWebhookHeader}
+                  >
+                    Add header
+                  </Button>
+                </div>
+
+                {webhookForm.headers.map((header) => (
+                  <div key={header.id} className="border border-border rounded-lg p-4 space-y-4">
+                    <div className="grid grid-cols-[120px_1fr] gap-3">
+                      <div>
+                        <label className="text-sm text-muted-foreground mb-2 block">Type</label>
+                        <Select
+                          value={header.type}
+                          onValueChange={(value: "secret" | "value") => updateWebhookHeader(header.id, { type: value })}
+                        >
+                          <SelectTrigger className="bg-white border-border">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="secret">Secret</SelectItem>
+                            <SelectItem value="value">Value</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm text-muted-foreground mb-2 block">Name</label>
+                        <Input
+                          value={header.name}
+                          onChange={(e) => updateWebhookHeader(header.id, { name: e.target.value })}
+                          placeholder="Header name"
+                          className="bg-white border-border"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">
+                        {header.type === "secret" ? "Secret" : "Value"}
+                      </label>
+                      {header.type === "secret" ? (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Select
+                              value={header.value || ""}
+                              onValueChange={(value) => {
+                                if (value === "__create_new__") {
+                                  setShowCreateSecretModal(true);
+                                } else {
+                                  updateWebhookHeader(header.id, { value });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="bg-white border-border flex-1">
+                                <SelectValue placeholder={secretsLoading ? "Loading secrets..." : "Select a secret"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {secrets.length === 0 && !secretsLoading && (
+                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                    No secrets found
+                                  </div>
+                                )}
+                                {secrets.map((secret) => (
+                                  <SelectItem key={secret.secret_id} value={secret.secret_id}>
+                                    {secret.name}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="__create_new__" className="text-primary font-medium">
+                                  + Create new secret
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => fetchSecrets()}
+                              disabled={secretsLoading}
+                              className="shrink-0"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-4 h-4 ${secretsLoading ? 'animate-spin' : ''}`}>
+                                <path fillRule="evenodd" d="M13.836 2.477a.75.75 0 0 1 .75.75v3.182a.75.75 0 0 1-.75.75h-3.182a.75.75 0 0 1 0-1.5h1.37l-.84-.841a4.5 4.5 0 0 0-7.08.932.75.75 0 0 1-1.3-.75 6 6 0 0 1 9.44-1.242l.842.84V3.227a.75.75 0 0 1 .75-.75Zm-.911 7.5A.75.75 0 0 1 13.199 11a6 6 0 0 1-9.44 1.241l-.84-.84v1.371a.75.75 0 0 1-1.5 0V9.591a.75.75 0 0 1 .75-.75h3.182a.75.75 0 0 1 0 1.5h-1.37l.84.84a4.5 4.5 0 0 0 7.08-.932.75.75 0 0 1 1.274.478Z" clipRule="evenodd" />
+                              </svg>
+                            </Button>
+                          </div>
+                          {header.value && (
+                            <p className="text-xs text-muted-foreground">
+                              Secret ID: <code className="bg-muted px-1 rounded">{header.value}</code>
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <Input
+                          value={header.value}
+                          onChange={(e) => updateWebhookHeader(header.id, { value: e.target.value })}
+                          placeholder="Enter value"
+                          className="bg-white border-border"
+                        />
+                      )}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeWebhookHeader(header.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Query Parameters Section */}
+              <div className="border border-border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold">Query parameters</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Define parameters that will be collected by the LLM and sent as the query of the request.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addWebhookQueryParam}
+                  >
+                    Add param
+                  </Button>
+                </div>
+
+                {webhookForm.queryParams.map((param) => (
+                  <div key={param.id} className="border border-border rounded-lg p-4 space-y-4">
+                    <div className="grid grid-cols-[120px_1fr] gap-3">
+                      <div>
+                        <label className="text-sm text-muted-foreground mb-2 block">Data type</label>
+                        <Select
+                          value={param.dataType}
+                          onValueChange={(value: "string" | "number" | "boolean" | "array" | "object") => 
+                            updateWebhookQueryParam(param.id, { dataType: value })
+                          }
+                        >
+                          <SelectTrigger className="bg-white border-border">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="string">String</SelectItem>
+                            <SelectItem value="number">Number</SelectItem>
+                            <SelectItem value="boolean">Boolean</SelectItem>
+                            <SelectItem value="array">Array</SelectItem>
+                            <SelectItem value="object">Object</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm text-muted-foreground mb-2 block">Identifier</label>
+                        <Input
+                          value={param.identifier}
+                          onChange={(e) => updateWebhookQueryParam(param.id, { identifier: e.target.value })}
+                          placeholder="Parameter name"
+                          className="bg-white border-border"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={param.required}
+                        onCheckedChange={(checked) => updateWebhookQueryParam(param.id, { required: checked })}
+                      />
+                      <label className="text-sm font-medium">Required</label>
+                    </div>
+
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Value Type</label>
+                      <Select
+                        value={param.valueType}
+                        onValueChange={(value: "llm_prompt" | "static") => 
+                          updateWebhookQueryParam(param.id, { valueType: value })
+                        }
+                      >
+                        <SelectTrigger className="bg-white border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="llm_prompt">LLM Prompt</SelectItem>
+                          <SelectItem value="static">Static Value</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Description</label>
+                      <Textarea
+                        value={param.description}
+                        onChange={(e) => updateWebhookQueryParam(param.id, { description: e.target.value })}
+                        placeholder="Describe how to extract the data from the transcript"
+                        className="bg-white border-border min-h-[80px] text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This field will be passed to the LLM and should describe in detail how to extract the data from the transcript.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Enum Values (optional)</label>
+                      <div className="flex gap-2 mb-2">
+                        <Input
+                          value={newEnumValue[param.id] || ""}
+                          onChange={(e) => setNewEnumValue(prev => ({ ...prev, [param.id]: e.target.value }))}
+                          placeholder="Enter an enum value"
+                          className="bg-white border-border flex-1"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addEnumValue(param.id);
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => addEnumValue(param.id)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {param.enumValues.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {param.enumValues.map((value, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md text-xs"
+                            >
+                              {value}
+                              <button
+                                onClick={() => removeEnumValue(param.id, index)}
+                                className="hover:text-destructive"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Add predefined values that the LLM can select from. If no values are provided, the LLM can use any string value.
+                      </p>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeWebhookQueryParam(param.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Dynamic Variables Section */}
+              <div className="border border-border rounded-lg p-4">
+                <h4 className="text-sm font-semibold">Dynamic Variables</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Variables in tool parameters will be replaced with actual values when the conversation starts.{" "}
+                  <a href="#" className="text-primary hover:underline">Learn more</a>
+                </p>
+              </div>
+
+              {/* Dynamic Variable Assignments Section */}
+              <div className="border border-border rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold">Dynamic Variable Assignments</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Configure which dynamic variables can be updated when this tool returns a response.{" "}
+                      <a href="#" className="text-primary hover:underline">Learn more</a>
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addDynamicVariableAssignment}
+                  >
+                    Add assignment
+                  </Button>
+                </div>
+
+                {webhookForm.dynamicVariableAssignments.map((assignment) => (
+                  <div key={assignment.id} className="border border-border rounded-lg p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm text-muted-foreground mb-2 block">Variable Name</label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={assignment.variableName}
+                            onChange={(e) => updateDynamicVariableAssignment(assignment.id, { variableName: e.target.value })}
+                            placeholder="New variable name"
+                            className="bg-white border-border flex-1"
+                          />
+                          <Select
+                            value={assignment.isNewVariable ? "new" : "existing"}
+                            onValueChange={(value) => updateDynamicVariableAssignment(assignment.id, { isNewVariable: value === "new" })}
+                          >
+                            <SelectTrigger className="w-[50px] bg-white border-border">
+                              <ChevronDown className="h-4 w-4" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">New variable</SelectItem>
+                              <SelectItem value="existing">Existing variable</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm text-muted-foreground mb-2 block">JSON Path</label>
+                        <Input
+                          value={assignment.jsonPath}
+                          onChange={(e) => updateDynamicVariableAssignment(assignment.id, { jsonPath: e.target.value })}
+                          placeholder="e.g., user.name"
+                          className="bg-white border-border"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeDynamicVariableAssignment(assignment.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={closeWebhookModal}>
+                Cancel
+              </Button>
+              <Button onClick={saveWebhookTool}>
+                {editingWebhookTool ? "Save changes" : "Add tool"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Tool Modal */}
+      <Dialog open={showClientToolModal} onOpenChange={(open) => {
+        if (!open) closeClientToolModal();
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-secondary">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {editingClientTool ? "Edit client tool" : "Add client tool"}
+                </DialogTitle>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Configuration Section */}
+            <div className="border border-border rounded-lg p-4 space-y-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="text-sm font-semibold">Configuration</h4>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Describe to the LLM how and when to use the tool.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Name</label>
+                <Input
+                  value={clientToolForm.name}
+                  onChange={(e) => updateClientToolForm("name", e.target.value)}
+                  placeholder="Enter tool name"
+                  className="bg-white border-border"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description</label>
+                <Textarea
+                  value={clientToolForm.description}
+                  onChange={(e) => updateClientToolForm("description", e.target.value)}
+                  placeholder="Describe what this tool does and when to use it"
+                  className="bg-white border-border min-h-[80px] text-sm"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">Wait for response</div>
+                  <p className="text-xs text-muted-foreground">Select this box to make the agent wait for the tool to finish executing before resuming the conversation.</p>
+                </div>
+                <Switch
+                  checked={clientToolForm.waitForResponse}
+                  onCheckedChange={(checked) => updateClientToolForm("waitForResponse", checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">Disable interruptions</div>
+                  <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
+                </div>
+                <Switch
+                  checked={clientToolForm.disableInterruptions}
+                  onCheckedChange={(checked) => updateClientToolForm("disableInterruptions", checked)}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Pre-tool speech</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Force agent speech before tool execution or let it decide automatically based on recent execution times.
+                </p>
+                <Select
+                  value={clientToolForm.preToolSpeech}
+                  onValueChange={(value: "auto" | "always" | "never") => updateClientToolForm("preToolSpeech", value)}
+                >
+                  <SelectTrigger className="bg-white border-border w-[200px]">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto</SelectItem>
+                    <SelectItem value="always">Always speak first</SelectItem>
+                    <SelectItem value="never">Never speak first</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Execution mode</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Determines when and how the tool executes relative to agent speech.
+                </p>
+                <Select
+                  value={clientToolForm.executionMode}
+                  onValueChange={(value: "immediate" | "on_turn_end") => updateClientToolForm("executionMode", value)}
+                >
+                  <SelectTrigger className="bg-white border-border w-[200px]">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="immediate">Immediate</SelectItem>
+                    <SelectItem value="on_turn_end">On Turn End</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Parameters Section */}
+            <div className="border border-border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold">Parameters</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Define the parameters that will be sent with the event.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addClientToolParameter}
+                >
+                  Add param
+                </Button>
+              </div>
+
+              {clientToolForm.parameters.map((param) => (
+                <div key={param.id} className="border border-border rounded-lg p-4 space-y-4">
+                  <div className="grid grid-cols-[120px_1fr] gap-3">
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Data type</label>
+                      <Select
+                        value={param.dataType}
+                        onValueChange={(value: "string" | "number" | "boolean" | "array" | "object") => 
+                          updateClientToolParameter(param.id, { dataType: value })
+                        }
+                      >
+                        <SelectTrigger className="bg-white border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="string">String</SelectItem>
+                          <SelectItem value="number">Number</SelectItem>
+                          <SelectItem value="boolean">Boolean</SelectItem>
+                          <SelectItem value="array">Array</SelectItem>
+                          <SelectItem value="object">Object</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Identifier</label>
+                      <Input
+                        value={param.identifier}
+                        onChange={(e) => updateClientToolParameter(param.id, { identifier: e.target.value })}
+                        placeholder="Parameter name"
+                        className="bg-white border-border"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={param.required}
+                      onCheckedChange={(checked) => updateClientToolParameter(param.id, { required: checked })}
+                    />
+                    <label className="text-sm font-medium">Required</label>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">Value Type</label>
+                    <Select
+                      value={param.valueType}
+                      onValueChange={(value: "llm_prompt" | "static") => 
+                        updateClientToolParameter(param.id, { valueType: value })
+                      }
+                    >
+                      <SelectTrigger className="bg-white border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="llm_prompt">LLM Prompt</SelectItem>
+                        <SelectItem value="static">Static Value</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">Description</label>
+                    <Textarea
+                      value={param.description}
+                      onChange={(e) => updateClientToolParameter(param.id, { description: e.target.value })}
+                      placeholder="Describe how to extract the data from the transcript"
+                      className="bg-white border-border min-h-[80px] text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This field will be passed to the LLM and should describe in detail how to extract the data from the transcript.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">Enum Values (optional)</label>
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        value={clientParamEnumValue[param.id] || ""}
+                        onChange={(e) => setClientParamEnumValue(prev => ({ ...prev, [param.id]: e.target.value }))}
+                        placeholder="Enter an enum value"
+                        className="bg-white border-border flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addClientParamEnumValue(param.id);
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => addClientParamEnumValue(param.id)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {param.enumValues.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {param.enumValues.map((value, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded-md text-xs"
+                          >
+                            {value}
+                            <button
+                              onClick={() => removeClientParamEnumValue(param.id, index)}
+                              className="hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Add predefined values that the LLM can select from. If no values are provided, the LLM can use any string value.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeClientToolParameter(param.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dynamic Variables Section */}
+            <div className="border border-border rounded-lg p-4">
+              <h4 className="text-sm font-semibold">Dynamic Variables</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Variables in tool parameters will be replaced with actual values when the conversation starts.{" "}
+                <a href="#" className="text-primary hover:underline">Learn more</a>
+              </p>
+            </div>
+
+            {/* Dynamic Variable Assignments Section */}
+            <div className="border border-border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold">Dynamic Variable Assignments</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Configure which dynamic variables can be updated when this tool returns a response.{" "}
+                    <a href="#" className="text-primary hover:underline">Learn more</a>
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addClientDynamicVariableAssignment}
+                >
+                  Add assignment
+                </Button>
+              </div>
+
+              {clientToolForm.dynamicVariableAssignments.map((assignment) => (
+                <div key={assignment.id} className="border border-border rounded-lg p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Variable Name</label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={assignment.variableName}
+                          onChange={(e) => updateClientDynamicVariableAssignment(assignment.id, { variableName: e.target.value })}
+                          placeholder="New variable name"
+                          className="bg-white border-border flex-1"
+                        />
+                        <Select
+                          value={assignment.isNewVariable ? "new" : "existing"}
+                          onValueChange={(value) => updateClientDynamicVariableAssignment(assignment.id, { isNewVariable: value === "new" })}
+                        >
+                          <SelectTrigger className="w-[50px] bg-white border-border">
+                            <ChevronDown className="h-4 w-4" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">New variable</SelectItem>
+                            <SelectItem value="existing">Existing variable</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">JSON Path</label>
+                      <Input
+                        value={assignment.jsonPath}
+                        onChange={(e) => updateClientDynamicVariableAssignment(assignment.id, { jsonPath: e.target.value })}
+                        placeholder="e.g., user.name"
+                        className="bg-white border-border"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeClientDynamicVariableAssignment(assignment.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={closeClientToolModal}>
+                Cancel
+              </Button>
+              <Button onClick={saveClientTool}>
+                {editingClientTool ? "Save changes" : "Add tool"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Secret Modal */}
+      <Dialog open={showCreateSecretModal} onOpenChange={(open) => {
+        if (!open && !creatingSecret) {
+          setShowCreateSecretModal(false);
+          setNewSecretName("");
+          setNewSecretValue("");
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Secret</DialogTitle>
+            <DialogDescription>
+              Create a secret in ElevenLabs to securely store sensitive values like API keys.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Secret Name</label>
+              <Input
+                value={newSecretName}
+                onChange={(e) => setNewSecretName(e.target.value)}
+                placeholder="e.g., my_api_key"
+                className="bg-white border-border"
+                disabled={creatingSecret}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This will be the identifier used to reference this secret.
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Secret Value</label>
+              <Input
+                type="password"
+                value={newSecretValue}
+                onChange={(e) => setNewSecretValue(e.target.value)}
+                placeholder="Enter secret value"
+                className="bg-white border-border"
+                disabled={creatingSecret}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                The actual value that will be securely stored.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateSecretModal(false);
+                setNewSecretName("");
+                setNewSecretValue("");
+              }}
+              disabled={creatingSecret}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateSecret}
+              disabled={creatingSecret || !newSecretName.trim() || !newSecretValue.trim()}
+            >
+              {creatingSecret ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Secret"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Voice Selector Dialog */}
       <VoiceSelectorDialog
