@@ -30,6 +30,7 @@ import { agentsApi, Agent, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
+import { getBackendBaseUrl } from "@/utils/widgetHelpers";
 import { 
   CustomWidgetConfig, 
   DEFAULT_CONFIG, 
@@ -450,18 +451,6 @@ export default function WidgetDesignStudio() {
     navigate(`/assistants/${id}?tab=widget`);
   };
 
-  // Get the backend base URL for widget.js and API calls
-  const getBackendBaseUrl = useCallback(() => {
-    if (import.meta.env.VITE_API_BASE_URL) {
-      return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '');
-    }
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3000';
-    }
-    return `${protocol}//${hostname}`;
-  }, []);
 
   const handleLivePreview = async () => {
     if (!agent?.elevenlabs_agent_id) {
@@ -492,6 +481,7 @@ export default function WidgetDesignStudio() {
         buttonText: config.buttonText,
         welcomeMessage: config.welcomeMessage,
         iconType: config.iconType,
+        customIconUrl: config.customIconUrl,
         position: config.position,
         widgetSize: config.widgetSize,
         primaryColor: config.primaryColor,

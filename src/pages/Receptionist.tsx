@@ -25,7 +25,7 @@ import {
   TestimonialsSection,
   CTASection,
 } from "@/components/landing";
-import { loadAndOpenWidget } from "@/utils/widgetLoader";
+import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const useCases = [
   {
@@ -169,27 +169,7 @@ const testimonials = [
 
 export default function Receptionist() {
   const handleOpenWidget = () => {
-    loadAndOpenWidget({
-      
-      agentId: "agent_9801kd0vxph3f5waz8e47h6wyrcf",
-      apiKey: "pk_live_32287d896af0dac77154b95a4ed2973e9158e9c1958a7df6c893dc0df44f9d49",
-      apiBaseUrl: "http://localhost:3001",
-      title: "Need help?",
-      subtitle: "Talk to our AI assistant",
-      buttonText: "Start a call",
-      welcomeMessage: "Hi! How can I help you today?",
-      iconType: "phone",
-      position: "bottom-right",
-      widgetSize: "medium",
-      primaryColor: "#000000",
-      primaryTextColor: "#ffffff",
-      backgroundColor: "#ffffff",
-      textColor: "#1f2937",
-      borderColor: "#e5e7eb",
-      userBubbleColor: "#f3f4f6",
-      agentBubbleColor: "#eff6ff",
-      borderRadius: "16px",
-    });
+    openWidgetWithConfig();
   };
 
   return (

@@ -6,13 +6,15 @@ import {
   Users,
   Link2,
   AudioLines,
-  User
+  User,
+  TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const orgSettings = [
   // { icon: Building2, label: "Org Settings", path: "/settings/org", description: "Manage your organization details and preferences" },
   { icon: CreditCard, label: "Billing & Add-Ons", path: "/settings/billing", description: "Manage your subscription, payment methods, and add-ons" },
+  // { icon: TrendingUp, label: "Financial Simulation", path: "/settings/financial-simulation", description: "Project revenue, costs, and profitability based on user growth" },
   // { icon: Users, label: "Members", path: "/settings/members", description: "Invite and manage team members" },
   // { icon: Link2, label: "Integrations", path: "/settings/integrations", description: "Connect and configure third-party services" },
 ];

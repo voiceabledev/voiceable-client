@@ -33,6 +33,7 @@ import {
   ChevronDown,
   Globe,
   CheckCircle2,
+  Check,
   Code,
   MessageSquare,
   Phone,
@@ -652,6 +653,18 @@ export default function AssistantDetail() {
     });
   };
 
+  // Helper function to check if a webhook is an integration webhook (managed by us)
+  const isIntegrationWebhook = (tool: WebhookTool): boolean => {
+    // Integration webhooks have URLs matching the pattern: /api/v1/integrations/{integration_type}/webhook
+    const integrationWebhookPattern = /\/api\/v1\/integrations\/[^/]+\/webhook/;
+    return integrationWebhookPattern.test(tool.url);
+  };
+
+  // Get user-defined webhooks (excluding integration webhooks)
+  const getUserDefinedWebhooks = (): WebhookTool[] => {
+    return webhookTools.filter(tool => !isIntegrationWebhook(tool));
+  };
+
   // Webhook tool management functions
   const openWebhookModal = (tool?: WebhookTool) => {
     if (tool) {
@@ -691,6 +704,26 @@ export default function AssistantDetail() {
       return;
     }
 
+    // Prevent editing integration webhooks (managed by us)
+    if (editingWebhookTool && isIntegrationWebhook(editingWebhookTool)) {
+      toast({
+        title: "Cannot edit",
+        description: "Integration webhooks are managed automatically and cannot be edited manually.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent creating new webhooks with integration webhook URL pattern
+    if (!editingWebhookTool && isIntegrationWebhook(webhookForm)) {
+      toast({
+        title: "Invalid URL",
+        description: "This URL pattern is reserved for integration webhooks. Please use a different URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (editingWebhookTool) {
       setWebhookTools(prev => prev.map(t => t.id === editingWebhookTool.id ? webhookForm : t));
     } else {
@@ -704,6 +737,16 @@ export default function AssistantDetail() {
   };
 
   const deleteWebhookTool = (toolId: string) => {
+    const toolToDelete = webhookTools.find(t => t.id === toolId);
+    // Prevent deletion of integration webhooks (managed by us)
+    if (toolToDelete && isIntegrationWebhook(toolToDelete)) {
+      toast({
+        title: "Cannot delete",
+        description: "Integration webhooks are managed automatically and cannot be deleted manually.",
+        variant: "destructive",
+      });
+      return;
+    }
     setWebhookTools(prev => prev.filter(t => t.id !== toolId));
     toast({
       title: "Tool deleted",
@@ -880,6 +923,37 @@ export default function AssistantDetail() {
     ]
   };
 
+  // Map display names to action names (snake_case)
+  const displayNameToActionName = (displayName: string, integrationType: string): string => {
+    const mapping: Record<string, Record<string, string>> = {
+      pipedrive: {
+        "Get Deal": "get_deal",
+        "Create Deal": "create_deal",
+        "Update Deal": "update_deal",
+        "Search Deals": "search_deals",
+        "Get Person": "get_contact",
+        "Create Person": "create_contact",
+        "Update Person": "update_contact",
+        "Search Persons": "search_contacts",
+        "Get Organization": "get_company",
+        "Create Organization": "create_company",
+        "Update Organization": "update_organization",
+        "Search Organizations": "search_companies",
+        "Create Note": "create_note",
+        "Create Activity": "create_activity"
+      },
+      calendly: {
+        "Get Event Types": "get_event_types",
+        "Get Availability": "get_availability",
+        "Create Booking": "create_booking",
+        "Get Scheduled Events": "get_scheduled_events",
+        "Cancel Event": "cancel_event",
+        "Reschedule Event": "reschedule_event"
+      }
+    };
+    return mapping[integrationType]?.[displayName] || displayName.toLowerCase().replace(/\s+/g, '_');
+  };
+
   // Integration metadata for display
   const INTEGRATION_METADATA: Record<string, { name: string; icon: string; iconBg: string; url?: string }> = {
     pipedrive: {
@@ -953,23 +1027,6 @@ export default function AssistantDetail() {
     }));
   };
 
-  const handleIntegrationToggle = (integrationType: string, enabled: boolean, availableTools: string[]) => {
-    setAgentIntegrationTools(prev => ({
-      ...prev,
-      [integrationType]: {
-        enabled,
-        enabledTools: enabled ? availableTools : []
-      }
-    }));
-
-    // Auto-expand when enabled
-    if (enabled) {
-      setIntegrationToolsExpanded(prev => ({
-        ...prev,
-        [integrationType]: true
-      }));
-    }
-  };
 
   const handleIntegrationToolToggle = (integrationType: string, toolName: string, enabled: boolean) => {
     setAgentIntegrationTools(prev => {
@@ -1008,14 +1065,12 @@ export default function AssistantDetail() {
     // Store the current values for potential revert
     const currentIntegrationTool = agentIntegrationTools[integrationType];
     
-    // Find associated webhook tool name (Pipedrive tool or Calendly tool)
-    const webhookName = integrationType === 'pipedrive' ? 'Pipedrive tool' : 
-                       integrationType === 'calendly' ? 'Calendly tool' : null;
-    
-    // Find and store the webhook tool for potential revert
-    const associatedWebhookTool = webhookName 
-      ? webhookTools.find(tool => tool.name === webhookName)
-      : null;
+    // Find all associated webhook tools for this integration type
+    // These are the individual action tools (e.g., "Get Deal", "Create Deal", etc.)
+    const integrationToolNames = INTEGRATION_TOOLS_DISPLAY[integrationType] || [];
+    const associatedWebhookTools = webhookTools.filter(tool => 
+      integrationToolNames.includes(tool.name)
+    );
 
     // For backend: include the integration with enabled: false so it gets deleted
     // The backend only processes integration types that are present in the hash
@@ -1037,13 +1092,10 @@ export default function AssistantDetail() {
       }
     }
     
-    // Build the payload with ALL integrations, including the one we're deleting with enabled: false
+    // Build the payload with ALL integrations except the one we're deleting
     const updatedIntegrationToolsForBackend = { ...currentAgentIntegrationTools };
-    // Always include the integration we're deleting, even if it wasn't in state
-    updatedIntegrationToolsForBackend[integrationType] = {
-      enabled: false,
-      enabledTools: []
-    };
+    // Remove the integration we're deleting
+    delete updatedIntegrationToolsForBackend[integrationType];
 
     // Remove integration tool from state (for UI)
     setAgentIntegrationTools(prev => {
@@ -1052,10 +1104,11 @@ export default function AssistantDetail() {
       return next;
     });
 
-    // Remove associated webhook tool from state if it exists
+    // Remove all associated webhook tools from state if they exist
     let updatedWebhookTools = webhookTools;
-    if (webhookName && associatedWebhookTool) {
-      updatedWebhookTools = webhookTools.filter(tool => tool.name !== webhookName);
+    if (associatedWebhookTools.length > 0) {
+      const associatedToolNames = new Set(associatedWebhookTools.map(tool => tool.name));
+      updatedWebhookTools = webhookTools.filter(tool => !associatedToolNames.has(tool.name));
       setWebhookTools(updatedWebhookTools);
     }
 
@@ -1096,12 +1149,11 @@ export default function AssistantDetail() {
       }));
       
       // Convert integration tools format for backend (enabled_tools instead of enabledTools)
-      // Include the deleted integration with enabled: false so backend processes the deletion
-      // IMPORTANT: We need to include ALL integrations (existing + the one being deleted)
+      // All integrations are always enabled, so we just send the ones that exist
       const integrationToolsForBackend: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
       for (const [key, value] of Object.entries(updatedIntegrationToolsForBackend)) {
         integrationToolsForBackend[key] = {
-          enabled: value.enabled,
+          enabled: true, // Always enabled
           enabled_tools: value.enabledTools || []
         };
       }
@@ -1124,8 +1176,8 @@ export default function AssistantDetail() {
         }
       }
       
-      const webhookMessage = associatedWebhookTool 
-        ? ` and its associated webhook tool have been removed`
+      const webhookMessage = associatedWebhookTools.length > 0
+        ? ` and ${associatedWebhookTools.length} associated webhook tool${associatedWebhookTools.length > 1 ? 's' : ''} ${associatedWebhookTools.length > 1 ? 'have' : 'has'} been removed`
         : ` has been removed`;
       
       toast({
@@ -1140,8 +1192,9 @@ export default function AssistantDetail() {
           [integrationType]: currentIntegrationTool
         }));
       }
-      if (associatedWebhookTool) {
-        setWebhookTools(prev => [...prev, associatedWebhookTool]);
+      // Revert webhook tools if save failed
+      if (associatedWebhookTools && associatedWebhookTools.length > 0) {
+        setWebhookTools(prev => [...prev, ...associatedWebhookTools]);
       }
       const errorMessage = error instanceof Error ? error.message : 'Failed to remove integration tool';
       toast({
@@ -1215,16 +1268,135 @@ export default function AssistantDetail() {
       // Remove from user integrations list
       setUserIntegrations(prev => prev.filter(i => i.type !== connectingIntegrationType));
       
-      // Also remove from agent integration tools if it exists and agent is saved
-      if (agent?.id && agentIntegrationTools[connectingIntegrationType]) {
-        await handleDeleteIntegrationTool(connectingIntegrationType);
-      } else if (agentIntegrationTools[connectingIntegrationType]) {
-        // Just remove from state if agent isn't saved yet
-        setAgentIntegrationTools(prev => {
-          const next = { ...prev };
-          delete next[connectingIntegrationType];
-          return next;
-        });
+      // Also remove from agent integration tools if it exists
+      // This will also handle deleting associated webhook tools
+      if (agent?.id) {
+        // Always call handleDeleteIntegrationTool if agent is saved, even if not in state
+        // This ensures webhook tools are deleted
+        if (agentIntegrationTools[connectingIntegrationType]) {
+          await handleDeleteIntegrationTool(connectingIntegrationType);
+        } else {
+          // Integration not in state but might have webhook tools, delete them
+          const integrationToolNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] || [];
+          const associatedWebhookTools = webhookTools.filter(tool => 
+            integrationToolNames.includes(tool.name)
+          );
+          
+          if (associatedWebhookTools.length > 0) {
+            const associatedToolNames = new Set(associatedWebhookTools.map(tool => tool.name));
+            const updatedWebhookTools = webhookTools.filter(tool => !associatedToolNames.has(tool.name));
+            setWebhookTools(updatedWebhookTools);
+            
+            const webhookToolsPayload = updatedWebhookTools.map(tool => ({
+              id: tool.id,
+              type: "webhook",
+              name: tool.name,
+              description: tool.description,
+              method: tool.method,
+              url: tool.url,
+              response_timeout: tool.responseTimeout,
+              disable_interruptions: tool.disableInterruptions,
+              pre_tool_speech: tool.preToolSpeech,
+              execution_mode: tool.executionMode,
+              tool_call_sound: tool.toolCallSound,
+              authentication: tool.authentication || undefined,
+              headers: tool.headers.map(h => ({
+                type: h.type,
+                name: h.name,
+                value: h.value
+              })),
+              query_params: tool.queryParams.map(p => ({
+                data_type: p.dataType,
+                identifier: p.identifier,
+                required: p.required,
+                value_type: p.valueType,
+                description: p.description,
+                enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+              })),
+              dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+                variable_name: a.variableName,
+                is_new_variable: a.isNewVariable,
+                json_path: a.jsonPath
+              }))
+            }));
+            
+            const config = buildConfiguration();
+            await agentsApi.update(agent.id, {
+              ...config,
+              webhook_tools: webhookToolsPayload
+            } as Parameters<typeof agentsApi.update>[1]);
+          }
+        }
+      } else {
+        // If agent isn't saved yet or integration not enabled on agent,
+        // still need to remove webhook tools if they exist
+        const integrationToolNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] || [];
+        const associatedWebhookTools = webhookTools.filter(tool => 
+          integrationToolNames.includes(tool.name)
+        );
+        
+        if (associatedWebhookTools.length > 0) {
+          const associatedToolNames = new Set(associatedWebhookTools.map(tool => tool.name));
+          const updatedWebhookTools = webhookTools.filter(tool => !associatedToolNames.has(tool.name));
+          setWebhookTools(updatedWebhookTools);
+          
+          // If agent is saved, also update the backend
+          if (agent?.id) {
+            try {
+              const webhookToolsPayload = updatedWebhookTools.map(tool => ({
+                id: tool.id,
+                type: "webhook",
+                name: tool.name,
+                description: tool.description,
+                method: tool.method,
+                url: tool.url,
+                response_timeout: tool.responseTimeout,
+                disable_interruptions: tool.disableInterruptions,
+                pre_tool_speech: tool.preToolSpeech,
+                execution_mode: tool.executionMode,
+                tool_call_sound: tool.toolCallSound,
+                authentication: tool.authentication || undefined,
+                headers: tool.headers.map(h => ({
+                  type: h.type,
+                  name: h.name,
+                  value: h.value
+                })),
+                query_params: tool.queryParams.map(p => ({
+                  data_type: p.dataType,
+                  identifier: p.identifier,
+                  required: p.required,
+                  value_type: p.valueType,
+                  description: p.description,
+                  enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+                })),
+                dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+                  variable_name: a.variableName,
+                  is_new_variable: a.isNewVariable,
+                  json_path: a.jsonPath
+                }))
+              }));
+              
+              const config = buildConfiguration();
+              await agentsApi.update(agent.id, {
+                ...config,
+                webhook_tools: webhookToolsPayload
+              } as Parameters<typeof agentsApi.update>[1]);
+            } catch (error) {
+              // Revert state if save failed
+              setWebhookTools(webhookTools);
+              console.error('Failed to delete webhook tools:', error);
+            }
+          }
+        }
+        
+        // Remove from agent integration tools state if it exists
+        if (agentIntegrationTools[connectingIntegrationType]) {
+          setAgentIntegrationTools(prev => {
+            const next = { ...prev };
+            delete next[connectingIntegrationType];
+            return next;
+          });
+        }
       }
       
       toast({
@@ -1262,64 +1434,140 @@ export default function AssistantDetail() {
       if (!isEditing) {
         setUserIntegrations(prev => [...prev, { type: connectingIntegrationType, connected: true }]);
         
-        // Automatically create webhook tool for Pipedrive and Calendly
+        // Automatically create individual webhook tools for each action in Pipedrive and Calendly
         if (connectingIntegrationType === 'pipedrive' || connectingIntegrationType === 'calendly') {
-          const webhookName = connectingIntegrationType === 'pipedrive' ? 'Pipedrive tool' : 'Calendly tool';
-          const webhookUrl = connectingIntegrationType === 'pipedrive' 
-            ? 'https://api.voiceable.com/webhook/pipedrive'
-            : 'https://api.voiceable.com/webhook/calendly';
+          const baseWebhookUrl = connectingIntegrationType === 'pipedrive' 
+            ? 'https://api.voiceable.com/api/v1/integrations/pipedrive/webhook'
+            : 'https://api.voiceable.com/api/v1/integrations/calendly/webhook';
           
-          // Check if webhook already exists to avoid duplicates
-          const webhookExists = webhookTools.some(tool => tool.name === webhookName);
+          const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] || [];
           
-          if (!webhookExists && agent?.id) {
-            const newWebhookTool: WebhookTool = {
-              ...getEmptyWebhookTool(),
-              id: crypto.randomUUID(),
-              name: webhookName,
-              method: 'POST',
-              url: webhookUrl,
+          // Create a webhook tool for each action
+          const newWebhookTools: WebhookTool[] = toolDisplayNames.map(displayName => {
+            const actionName = displayNameToActionName(displayName, connectingIntegrationType);
+            
+            // Create agent_id query parameter
+            const agentIdParam: WebhookQueryParam = {
+              ...getEmptyWebhookQueryParam(),
+              identifier: 'agent_id',
+              description: 'The agent ID',
+              required: true,
+              valueType: 'llm_prompt',
             };
             
+            // Create action query parameter with constant value
+            const actionParam: WebhookQueryParam = {
+              ...getEmptyWebhookQueryParam(),
+              identifier: 'action',
+              description: 'The action to perform',
+              required: true,
+              valueType: 'static',
+              // For static value, we'll need to set it in the constant_value field
+              // but since our type uses enumValues, we'll use that for now
+              enumValues: [actionName],
+            };
+            
+            // Get description based on action
+            const getDescription = (name: string): string => {
+              const descriptions: Record<string, string> = {
+                'Get Deal': 'Retrieve a deal from Pipedrive by ID',
+                'Create Deal': 'Create a new deal in Pipedrive',
+                'Update Deal': 'Update an existing deal in Pipedrive',
+                'Search Deals': 'Search for deals in Pipedrive',
+                'Get Person': 'Retrieve a person/contact from Pipedrive by ID',
+                'Create Person': 'Create a new person/contact in Pipedrive',
+                'Update Person': 'Update an existing person/contact in Pipedrive',
+                'Search Persons': 'Search for persons/contacts in Pipedrive',
+                'Get Organization': 'Retrieve an organization from Pipedrive by ID',
+                'Create Organization': 'Create a new organization in Pipedrive',
+                'Update Organization': 'Update an existing organization in Pipedrive',
+                'Search Organizations': 'Search for organizations in Pipedrive',
+                'Create Note': 'Create a note in Pipedrive',
+                'Create Activity': 'Create an activity in Pipedrive',
+                'Get Event Types': 'Get available event types from Calendly',
+                'Get Availability': 'Get availability for a Calendly event type',
+                'Create Booking': 'Create a new booking in Calendly',
+                'Get Scheduled Events': 'Get scheduled events from Calendly',
+                'Cancel Event': 'Cancel a scheduled event in Calendly',
+                'Reschedule Event': 'Reschedule a scheduled event in Calendly',
+              };
+              return descriptions[name] || `${name} action for ${connectingIntegrationType}`;
+            };
+            
+            return {
+              ...getEmptyWebhookTool(),
+              id: crypto.randomUUID(),
+              name: displayName,
+              description: getDescription(displayName),
+              method: 'POST',
+              url: baseWebhookUrl,
+              queryParams: [agentIdParam, actionParam],
+            };
+          });
+          
+          // Filter out tools that already exist (by name)
+          const existingToolNames = new Set(webhookTools.map(tool => tool.name));
+          const toolsToAdd = newWebhookTools.filter(tool => !existingToolNames.has(tool.name));
+          
+          if (toolsToAdd.length > 0 && agent?.id) {
             // Add to state
-            setWebhookTools(prev => [...prev, newWebhookTool]);
+            setWebhookTools(prev => [...prev, ...toolsToAdd]);
             
             // Save to database by updating the agent
             try {
-              // Build webhook tools payload with the new tool included
-              const updatedWebhookTools = [...webhookTools, newWebhookTool];
-              const webhookToolsPayload = updatedWebhookTools.map(tool => ({
-                id: tool.id,
-                type: "webhook",
-                name: tool.name,
-                description: tool.description,
-                method: tool.method,
-                url: tool.url,
-                response_timeout: tool.responseTimeout,
-                disable_interruptions: tool.disableInterruptions,
-                pre_tool_speech: tool.preToolSpeech,
-                execution_mode: tool.executionMode,
-                tool_call_sound: tool.toolCallSound,
-                authentication: tool.authentication || undefined,
-                headers: tool.headers.map(h => ({
-                  type: h.type,
-                  name: h.name,
-                  value: h.value
-                })),
-                query_params: tool.queryParams.map(p => ({
-                  data_type: p.dataType,
-                  identifier: p.identifier,
-                  required: p.required,
-                  value_type: p.valueType,
-                  description: p.description,
-                  enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
-                })),
-                dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
-                  variable_name: a.variableName,
-                  is_new_variable: a.isNewVariable,
-                  json_path: a.jsonPath
-                }))
-              }));
+              // Build webhook tools payload with the new tools included
+              const updatedWebhookTools = [...webhookTools, ...toolsToAdd];
+              const webhookToolsPayload = updatedWebhookTools.map(tool => {
+                // For action parameter, we need to set the constant value
+                const queryParams = tool.queryParams.map(p => {
+                  if (p.identifier === 'action' && p.valueType === 'static' && p.enumValues.length > 0) {
+                    // For static values in ElevenLabs format, we might need to handle this differently
+                    // For now, we'll keep it as enum with a single value
+                    return {
+                      data_type: p.dataType,
+                      identifier: p.identifier,
+                      required: p.required,
+                      value_type: p.valueType,
+                      description: p.description,
+                      enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+                    };
+                  }
+                  return {
+                    data_type: p.dataType,
+                    identifier: p.identifier,
+                    required: p.required,
+                    value_type: p.valueType,
+                    description: p.description,
+                    enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+                  };
+                });
+                
+                return {
+                  id: tool.id,
+                  type: "webhook",
+                  name: tool.name,
+                  description: tool.description,
+                  method: tool.method,
+                  url: tool.url,
+                  response_timeout: tool.responseTimeout,
+                  disable_interruptions: tool.disableInterruptions,
+                  pre_tool_speech: tool.preToolSpeech,
+                  execution_mode: tool.executionMode,
+                  tool_call_sound: tool.toolCallSound,
+                  authentication: tool.authentication || undefined,
+                  headers: tool.headers.map(h => ({
+                    type: h.type,
+                    name: h.name,
+                    value: h.value
+                  })),
+                  query_params: queryParams,
+                  dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+                    variable_name: a.variableName,
+                    is_new_variable: a.isNewVariable,
+                    json_path: a.jsonPath
+                  }))
+                };
+              });
               
               // Build config and override webhook_tools with the updated list
               const config = buildConfiguration();
@@ -1329,44 +1577,82 @@ export default function AssistantDetail() {
               } as Parameters<typeof agentsApi.update>[1]);
               
               toast({
-                title: "Webhook tool created",
-                description: `${webhookName} has been automatically added and saved to your tools.`,
+                title: "Webhook tools created",
+                description: `${toolsToAdd.length} ${connectingIntegrationType} webhook tool${toolsToAdd.length > 1 ? 's' : ''} have been automatically added and saved.`,
               });
             } catch (error) {
               // Revert state if save failed
               setWebhookTools(webhookTools);
-              const errorMessage = error instanceof Error ? error.message : 'Failed to save webhook tool';
+              const errorMessage = error instanceof Error ? error.message : 'Failed to save webhook tools';
               toast({
                 title: "Webhook tool creation failed",
-                description: `Failed to save ${webhookName}: ${errorMessage}. Please try saving the assistant manually.`,
+                description: `Failed to save webhook tools: ${errorMessage}. Please try saving the assistant manually.`,
                 variant: "destructive",
               });
             }
-          } else if (!webhookExists && !agent?.id) {
+          } else if (toolsToAdd.length > 0 && !agent?.id) {
             // Agent doesn't exist yet (new agent), just add to state
-            const newWebhookTool: WebhookTool = {
-              ...getEmptyWebhookTool(),
-              id: crypto.randomUUID(),
-              name: webhookName,
-              method: 'POST',
-              url: webhookUrl,
-            };
-            
-            setWebhookTools(prev => [...prev, newWebhookTool]);
-            
+            setWebhookTools(prev => [...prev, ...toolsToAdd]);
+          } else if (toolsToAdd.length === 0) {
+            // All tools already exist
             toast({
-              title: "Webhook tool created",
-              description: `${webhookName} has been automatically added to your tools. It will be saved when you save the assistant.`,
+              title: "Webhook tools already exist",
+              description: `All ${connectingIntegrationType} webhook tools are already configured.`,
             });
           }
         }
       }
       
+      // Automatically enable the integration for this agent
+      const availableTools = getAvailableToolsForIntegration(connectingIntegrationType);
+      setAgentIntegrationTools(prev => ({
+        ...prev,
+        [connectingIntegrationType]: {
+          enabled: true,
+          enabledTools: availableTools
+        }
+      }));
+      
+      // Auto-expand when connected
+      setIntegrationToolsExpanded(prev => ({
+        ...prev,
+        [connectingIntegrationType]: true
+      }));
+      
+      // If agent is saved, also save the integration tools to backend
+      if (agent?.id) {
+        try {
+          const currentIntegrationTools = { ...agentIntegrationTools };
+          currentIntegrationTools[connectingIntegrationType] = {
+            enabled: true,
+            enabledTools: availableTools
+          };
+          
+          const integrationToolsForBackend: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+          for (const [key, value] of Object.entries(currentIntegrationTools)) {
+            integrationToolsForBackend[key] = {
+              enabled: value.enabled,
+              enabled_tools: value.enabledTools || []
+            };
+          }
+          
+          const config = buildConfiguration();
+          await agentsApi.update(agent.id, {
+            ...config,
+            integration_tools: integrationToolsForBackend
+          } as Parameters<typeof agentsApi.update>[1]);
+        } catch (error) {
+          console.error('Failed to enable integration on agent:', error);
+          // Don't show error toast as the integration was still connected successfully
+        }
+      }
+      
       toast({
         title: isEditing ? "Integration updated" : "Integration connected",
-        description: `${formatToolName(connectingIntegrationType)} has been ${isEditing ? 'updated' : 'connected'} successfully.`,
+        description: `${formatToolName(connectingIntegrationType)} has been ${isEditing ? 'updated' : 'connected'} and enabled successfully.`,
       });
       
+      // Close the modal
       closeIntegrationConnectionModal();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save integration';
@@ -1851,7 +2137,9 @@ export default function AssistantDetail() {
     const clientToolNames = clientTools
       .map((t) => t.name?.trim())
       .filter((name): name is string => !!name);
+    // Filter out integration webhooks (managed by us) from user-defined webhooks
     const webhookToolNames = webhookTools
+      .filter(tool => !isIntegrationWebhook(tool))
       .map((t) => t.name?.trim())
       .filter((name): name is string => !!name);
 
@@ -2434,20 +2722,65 @@ export default function AssistantDetail() {
   }, []);
 
   // Load agent integration tools from agent data
+  // Use a ref to track the last loaded integration_tools to avoid unnecessary updates
+  const lastLoadedIntegrationToolsRef = useRef<string>('');
+  
   useEffect(() => {
+    // Also check userIntegrations to auto-enable any connected integrations
     if (agent?.integration_tools && typeof agent.integration_tools === 'object') {
       const integrationToolsData = agent.integration_tools as Record<string, { enabled: boolean; enabled_tools: string[] }>;
       // Convert enabled_tools to enabledTools for frontend consistency
+      // Always set enabled: true for any integration that exists
       const converted: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
       for (const [key, value] of Object.entries(integrationToolsData)) {
+        const availableTools = getAvailableToolsForIntegration(key);
         converted[key] = {
-          enabled: value.enabled,
-          enabledTools: value.enabled_tools || []
+          enabled: true, // Always enabled
+          enabledTools: value.enabled_tools && value.enabled_tools.length > 0 ? value.enabled_tools : availableTools
         };
       }
-      setAgentIntegrationTools(converted);
+      
+      // Also add any user integrations that aren't in agent integration tools yet
+      userIntegrations.forEach(({ type }) => {
+        if (!converted[type]) {
+          const availableTools = getAvailableToolsForIntegration(type);
+          converted[type] = {
+            enabled: true,
+            enabledTools: availableTools
+          };
+        }
+      });
+      
+      // Only update state if the data actually changed (compare JSON strings to avoid unnecessary updates)
+      const newDataStr = JSON.stringify(converted);
+      if (lastLoadedIntegrationToolsRef.current !== newDataStr) {
+        lastLoadedIntegrationToolsRef.current = newDataStr;
+        setAgentIntegrationTools(converted);
+      }
+    } else if (userIntegrations.length > 0) {
+      // If no agent integration_tools but user has integrations, auto-enable them
+      const converted: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
+      userIntegrations.forEach(({ type }) => {
+        const availableTools = getAvailableToolsForIntegration(type);
+        converted[type] = {
+          enabled: true,
+          enabledTools: availableTools
+        };
+      });
+      
+      const newDataStr = JSON.stringify(converted);
+      if (lastLoadedIntegrationToolsRef.current !== newDataStr) {
+        lastLoadedIntegrationToolsRef.current = newDataStr;
+        setAgentIntegrationTools(converted);
+      }
+    } else if (!agent?.integration_tools && userIntegrations.length === 0) {
+      // Only clear if agent has no integration_tools and no user integrations
+      if (lastLoadedIntegrationToolsRef.current !== '') {
+        lastLoadedIntegrationToolsRef.current = '';
+        setAgentIntegrationTools({});
+      }
     }
-  }, [agent]);
+  }, [agent?.integration_tools, agent?.id, userIntegrations]);
   
   // Fetch voices list
   useEffect(() => {
@@ -3289,7 +3622,15 @@ export default function AssistantDetail() {
       system_tools: systemToolsPayload,
       client_tools: clientToolsPayload,
       webhook_tools: webhookToolsPayload,
-      integration_tools: agentIntegrationTools
+      integration_tools: Object.fromEntries(
+        Object.entries(agentIntegrationTools).map(([key, value]) => [
+          key,
+          {
+            enabled: true, // Always enabled
+            enabled_tools: value.enabledTools || []
+          }
+        ])
+      )
     };
   }, [
     selectedModel,
@@ -4114,7 +4455,7 @@ export default function AssistantDetail() {
                           Allow the agent to perform client-side and external integrations.
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          {webhookTools.length + clientTools.length} tool{(webhookTools.length + clientTools.length) !== 1 ? 's' : ''} configured
+                          {getUserDefinedWebhooks().length + clientTools.length} tool{(getUserDefinedWebhooks().length + clientTools.length) !== 1 ? 's' : ''} configured
                         </p>
                       </div>
                       <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", externalIntegrationToolsSectionExpanded && "rotate-180")} />
@@ -4146,9 +4487,9 @@ export default function AssistantDetail() {
                   {externalIntegrationToolsSectionExpanded && (
                     <div className="mt-4 md:mt-6">
                       {/* List existing tools */}
-                  {(webhookTools.length > 0 || clientTools.length > 0) && (
+                  {(getUserDefinedWebhooks().length > 0 || clientTools.length > 0) && (
                     <div className="space-y-2">
-                      {webhookTools.map((tool) => (
+                      {getUserDefinedWebhooks().map((tool) => (
                         <div key={tool.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
                           <div className="flex items-center gap-3">
                             <Globe className="h-4 w-4 text-muted-foreground" />
@@ -4189,7 +4530,7 @@ export default function AssistantDetail() {
                     </div>
                   )}
                   
-                      {webhookTools.length === 0 && clientTools.length === 0 && (
+                      {getUserDefinedWebhooks().length === 0 && clientTools.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground">
                           <p className="text-sm">No external tools configured yet.</p>
                           <p className="text-xs mt-1">Add webhook or client tools to extend your agent's capabilities.</p>
@@ -4236,9 +4577,8 @@ export default function AssistantDetail() {
                   {userIntegrations.length > 0 ? (
                     <div className="space-y-3">
                       {userIntegrations.map(({ type: integrationType }) => {
-                        const isEnabled = agentIntegrationTools[integrationType]?.enabled || false;
                         const availableTools = getAvailableToolsForIntegration(integrationType);
-                        const enabledTools = agentIntegrationTools[integrationType]?.enabledTools || [];
+                        const enabledTools = agentIntegrationTools[integrationType]?.enabledTools || availableTools;
                         const isExpanded = integrationToolsExpanded[integrationType] || false;
                         
                         return (
@@ -4248,7 +4588,7 @@ export default function AssistantDetail() {
                                 <span className="text-xl">{getIntegrationIcon(integrationType)}</span>
                                 <div>
                                   <span className="text-sm font-medium">{formatToolName(integrationType)}</span>
-                                  <span className="text-xs text-success ml-2">Connected</span>
+                                  <span className="text-xs text-success ml-2">Connected & Active</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -4261,42 +4601,31 @@ export default function AssistantDetail() {
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                {isEnabled && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => toggleIntegrationToolsExpanded(integrationType)}
-                                  >
-                                    <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                                  </Button>
-                                )}
-                                <Switch
-                                  checked={isEnabled}
-                                  onCheckedChange={(checked) => handleIntegrationToggle(integrationType, checked, availableTools)}
-                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => toggleIntegrationToolsExpanded(integrationType)}
+                                >
+                                  <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                                </Button>
                               </div>
                             </div>
                             
-                            {isEnabled && isExpanded && (
+                            {isExpanded && (
                               <div className="p-4 border-t border-border space-y-3">
                                 <p className="text-xs text-muted-foreground mb-3">
-                                  Select which tools to enable for this integration:
+                                  All tools are enabled for this integration:
                                 </p>
                                 <div className="grid grid-cols-2 gap-2">
                                   {availableTools.map((toolName) => (
-                                    <label
+                                    <div
                                       key={toolName}
-                                      className="flex items-center gap-2 p-2 rounded-md hover:bg-secondary/50 cursor-pointer"
+                                      className="flex items-center gap-2 p-2 rounded-md bg-secondary/30"
                                     >
-                                      <input
-                                        type="checkbox"
-                                        checked={enabledTools.includes(toolName)}
-                                        onChange={(e) => handleIntegrationToolToggle(integrationType, toolName, e.target.checked)}
-                                        className="rounded border-border"
-                                      />
+                                      <Check className="h-4 w-4 text-success" />
                                       <span className="text-sm">{formatToolName(toolName)}</span>
-                                    </label>
+                                    </div>
                                   ))}
                                 </div>
                               </div>

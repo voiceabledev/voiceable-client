@@ -23,6 +23,7 @@ import Profile from "@/pages/settings/Profile";
 import OrgSettings from "@/pages/settings/OrgSettings";
 import Integrations from "@/pages/settings/Integrations";
 import IntegrationSettings from "@/pages/settings/IntegrationSettings";
+import FinancialSimulation from "@/pages/settings/FinancialSimulation";
 import Conversations from "@/pages/Conversations";
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
@@ -42,6 +43,8 @@ import LeadsReviver from "@/pages/LeadsReviver";
 import Confirmation from "@/pages/Confirmation";
 import BubbleVoice from "@/pages/BubbleVoice";
 import WidgetDesignStudio from "@/pages/WidgetDesignStudio";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +70,8 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/custom-agents" element={<CustomAgents />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="/assistants/:id/widget/design" element={<ProtectedRoute><WidgetDesignStudio /></ProtectedRoute>} />
               <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route path="/account" element={<Account />} />
@@ -92,6 +97,7 @@ const App = () => (
                 <Route path="/settings/integrations/:type" element={<IntegrationSettings />} />
                 <Route path="/settings/voice-library" element={<VoiceLibrary />} />
                 <Route path="/settings/profile" element={<Profile />} />
+                <Route path="/settings/financial-simulation" element={<FinancialSimulation />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

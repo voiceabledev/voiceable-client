@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,19 +33,11 @@ import {
   Database,
   Shield,
   Headphones,
-  Sparkles,
-  Linkedin,
-  Github,
-  Twitter,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-
-const footerLinks = {
-  product: ["Docs", "Pricing", "Features", "Security"],
-  company: ["Blog", "Careers", "Community", "Contact"],
-  legal: ["Privacy Policy", "Terms"]
-};
+import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 
 // LLM Options organized by provider
 const llmOptions = {
@@ -350,29 +342,7 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl text-foreground">Voiceable</span>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <a href="/custom-agents" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Custom Agents</a>
-            <a href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            <a href="https://contextor.mintlify.app/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
-          </div>
-          
-          <Link to="/overview">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
-              Open Dashboard
-            </Button>
-          </Link>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-6">
@@ -717,73 +687,7 @@ const Pricing = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-16 px-6 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-12 mb-16">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <span className="font-bold text-xl text-foreground">Voiceable</span>
-              </div>
-              <p className="text-muted-foreground text-sm">
-                Voiceable is the most configurable platform for engineering teams to deploy voice agents at scale.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">PRODUCT</h4>
-              <ul className="space-y-2">
-                {footerLinks.product.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-foreground hover:text-primary transition-colors text-sm">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">COMPANY</h4>
-              <ul className="space-y-2">
-                {footerLinks.company.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-foreground hover:text-primary transition-colors text-sm">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-xs tracking-widest text-muted-foreground mb-4">LEGAL</h4>
-              <ul className="space-y-2">
-                {footerLinks.legal.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-foreground hover:text-primary transition-colors text-sm">{link}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          {/* World map placeholder */}
-          <div className="border-t border-border pt-8 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">© 2025 Voiceable, Inc. All rights reserved.</p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                <Github className="w-5 h-5" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Contact Sales Modal */}
       <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>

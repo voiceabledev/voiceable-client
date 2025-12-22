@@ -11,6 +11,7 @@ interface WidgetConfig {
   buttonText?: string;
   welcomeMessage?: string;
   iconType?: string;
+  customIconUrl?: string;
   position?: string;
   widgetSize?: string;
   primaryColor?: string;
@@ -90,6 +91,7 @@ function loadWidgetScript(config: WidgetConfig): Promise<void> {
     if (config.buttonText) script.setAttribute('data-button-text', config.buttonText);
     if (config.welcomeMessage) script.setAttribute('data-welcome-message', config.welcomeMessage);
     if (config.iconType) script.setAttribute('data-icon-type', config.iconType);
+    if (config.customIconUrl) script.setAttribute('data-custom-icon-url', config.customIconUrl);
     if (config.position) script.setAttribute('data-position', config.position);
     if (config.widgetSize) script.setAttribute('data-widget-size', config.widgetSize);
     if (config.primaryColor) script.setAttribute('data-primary-color', config.primaryColor);
