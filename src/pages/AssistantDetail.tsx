@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   ArrowLeft,
   Copy, 
@@ -65,6 +66,7 @@ import {
   FolderOpen,
   ExternalLink,
   Link2,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
@@ -73,14 +75,17 @@ import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import CostAndLatency from "@/components/assistants/CostAndLatency";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
-import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi, secretsApi, ElevenLabsSecret, apiKeysApi } from "@/lib/api";
+import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi, secretsApi, ElevenLabsSecret, apiKeysApi, integrationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { IntegrationForm } from "@/components/integrations/IntegrationForm";
+import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
 
 const tabs = [
   { id: "configuration", label: "Configuration", icon: Settings },
   { id: "prompt-logic", label: "Prompt Logic", icon: FileText },
-  { id: "conversations", label: "Conversations", icon: MessageSquare },
+  { id: "tools", label: "Tools", icon: Wrench },
   { id: "widget", label: "Widget", icon: Layout },
+  { id: "conversations", label: "Conversations", icon: MessageSquare },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 
@@ -168,6 +173,8 @@ const modelsByProvider: Record<string, { value: string; label: string }[]> = {
 };
 
 const WIDGET_API_KEY_NAME = "Widget API Key";
+
+const VALID_TABS = ["configuration", "prompt-logic", "tools", "conversations", "widget", "advanced"] as const;
 
 const SYSTEM_TOOL_KEYS = [
   "end_call",
@@ -384,16 +391,121 @@ const getDefaultSystemToolExpanded = (): Record<SystemToolKey, boolean> => ({
   voicemail_detection: false
 });
 
+// Fixed prompt template with variable placeholders
+// Users cannot modify this template - they only define content for the variables
+const PROMPT_TEMPLATE = `# Voice Assistant
+
+You are a helpful voice assistant. Follow the behavior guidelines and instructions below to assist users effectively.
+
+{{SCENARIOS}}
+
+{{PHASES}}
+
+{{VOICE_TONE}}
+
+## Guidelines
+
+- Be concise and direct in your responses
+- Listen actively and confirm understanding when needed
+- Stay within the defined scenarios and escalate when necessary
+- Maintain the specified tone throughout the conversation
+`;
+
+// Fallback when no sections are defined
+const DEFAULT_SYSTEM_PROMPT = `# Voice Assistant
+
+You are a helpful voice assistant. Your role is to assist users with their requests in a clear, friendly, and professional manner.
+
+## Guidelines
+
+- Be concise and direct in your responses
+- Maintain a helpful and professional tone
+- Ask clarifying questions when needed
+- Provide accurate information based on available context
+`;
+
+type SectionEntry = {
+  id: string;
+  title: string;
+  description: string;
+  notes?: string;
+};
+
+type SectionPayload = {
+  title: string;
+  description: string;
+  notes?: string;
+};
+
+const generateSectionEntryId = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return Math.random().toString(36).slice(2, 10);
+};
+
+const createSectionEntry = (overrides: Partial<SectionEntry> = {}): SectionEntry => ({
+  id: overrides.id || generateSectionEntryId(),
+  title: overrides.title || "",
+  description: overrides.description || "",
+  notes: overrides.notes || "",
+});
+
+const parseSectionEntries = (value: unknown): SectionEntry[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => {
+    if (typeof item !== "object" || item === null) {
+      return createSectionEntry();
+    }
+
+    const entry = item as Record<string, unknown>;
+    return createSectionEntry({
+      title: typeof entry.title === "string" ? entry.title : "",
+      description: typeof entry.description === "string" ? entry.description : "",
+      notes: typeof entry.notes === "string" ? entry.notes : "",
+    });
+  });
+};
+
 export default function AssistantDetail() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("configuration");
+  
+  // Initialize activeTab from URL search params, default to "configuration"
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab = tabFromUrl && VALID_TABS.includes(tabFromUrl as typeof VALID_TABS[number]) ? tabFromUrl : "configuration";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const isMobile = useIsMobile();
+  
+  // Track the last tab we set to prevent loops
+  const lastSetTabRef = useRef<string | null>(null);
+  
+  // Sync activeTab with URL when URL changes externally (e.g., browser back/forward)
+  // Only sync if the URL tab is different from what we last set
+  useEffect(() => {
+    const currentTab = searchParams.get("tab");
+    if (currentTab && VALID_TABS.includes(currentTab as typeof VALID_TABS[number])) {
+      // If this is the tab we just set, ignore it (we already updated state)
+      if (currentTab === lastSetTabRef.current) {
+        lastSetTabRef.current = null; // Reset after processing
+        return;
+      }
+      // If URL has a different tab than our state, sync (browser navigation)
+      if (currentTab !== activeTab) {
+        setActiveTab(currentTab);
+      }
+    }
+  }, [searchParams, activeTab]);
   
   // Check if this is a new assistant - check both route param and pathname
   const isNew = location.pathname === "/assistants/create" || id === "create";
@@ -432,7 +544,12 @@ export default function AssistantDetail() {
   
   const handleSystemToolToggle = (key: SystemToolKey, checked: boolean) => {
     setSystemTools(prev => ({ ...prev, [key]: checked }));
-    // Don't auto-expand transfer sections - they should stay collapsed by default
+    // Open right panel for tools with configurable settings when toggled on
+    if (checked && (key === "transfer_to_agent" || key === "transfer_to_number")) {
+      setSelectedSystemTool(key);
+    } else if (!checked && selectedSystemTool === key) {
+      setSelectedSystemTool(null);
+    }
   };
 
   const toggleSystemToolSection = (key: SystemToolKey) => {
@@ -690,6 +807,579 @@ export default function AssistantDetail() {
     }));
   };
 
+  // Integration tools helper functions
+  const getIntegrationIcon = (integrationType: string): string => {
+    const icons: Record<string, string> = {
+      pipedrive: "🔷",
+      calendly: "📅",
+      hubspot: "🟠",
+      salesforce: "☁️",
+      google_calendar: "📆",
+      outlook_calendar: "📧",
+      calcom: "📅"
+    };
+    return icons[integrationType] || "🔌";
+  };
+
+  // Integration tools mapping for display
+  const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
+    pipedrive: [
+      "Get Deal",
+      "Create Deal",
+      "Update Deal",
+      "Search Deals",
+      "Get Person",
+      "Create Person",
+      "Update Person",
+      "Search Persons",
+      "Get Organization",
+      "Create Organization",
+      "Update Organization",
+      "Search Organizations",
+      "Create Note",
+      "Create Activity"
+    ],
+    calendly: [
+      "Get Event Types",
+      "Get Availability",
+      "Create Booking",
+      "Get Scheduled Events",
+      "Cancel Event",
+      "Reschedule Event"
+    ],
+    hubspot: [
+      "Get Contact",
+      "Create Contact",
+      "Update Contact",
+      "Search Contacts",
+      "Get Company",
+      "Create Company",
+      "Search Companies",
+      "Get Deal",
+      "Update Deal",
+      "Search Deals",
+      "Create Note",
+      "Search Notes",
+      "Get Task"
+    ],
+    salesforce: [
+      "Get Lead",
+      "Create Lead",
+      "Update Lead",
+      "Search Leads",
+      "Get Opportunity",
+      "Create Opportunity",
+      "Update Opportunity",
+      "Search Opportunities",
+      "Get Account",
+      "Create Account",
+      "Update Account",
+      "Search Accounts",
+      "Create Task",
+      "Create Event"
+    ]
+  };
+
+  // Integration metadata for display
+  const INTEGRATION_METADATA: Record<string, { name: string; icon: string; iconBg: string; url?: string }> = {
+    pipedrive: {
+      name: "Pipedrive",
+      icon: "PD",
+      iconBg: "bg-emerald-600",
+      url: "https://www.pipedrive.com"
+    },
+    calendly: {
+      name: "Calendly",
+      icon: "C",
+      iconBg: "bg-orange-500",
+      url: "https://calendly.com"
+    },
+    hubspot: {
+      name: "HubSpot CRM",
+      icon: "HS",
+      iconBg: "bg-blue-600",
+      url: "https://app.hubspot.com"
+    },
+    salesforce: {
+      name: "Salesforce",
+      icon: "SF",
+      iconBg: "bg-sky-500",
+      url: "https://www.salesforce.com"
+    }
+  };
+
+  const getAvailableToolsForIntegration = (integrationType: string): string[] => {
+    const toolsMap: Record<string, string[]> = {
+      pipedrive: [
+        "get_contact",
+        "create_contact",
+        "update_contact",
+        "search_contacts",
+        "get_deal",
+        "create_deal",
+        "update_deal",
+        "search_deals",
+        "create_note",
+        "create_activity"
+      ],
+      calendly: [
+        "get_event_types",
+        "get_availability",
+        "create_booking",
+        "get_scheduled_events",
+        "cancel_event",
+        "reschedule_event"
+      ],
+      hubspot: ["get_contact", "create_contact", "update_contact", "search_contacts"],
+      salesforce: ["get_contact", "create_contact", "update_contact", "search_contacts"],
+      google_calendar: ["get_events", "create_event", "update_event", "delete_event"],
+      outlook_calendar: ["get_events", "create_event", "update_event", "delete_event"],
+      calcom: ["get_event_types", "create_booking", "get_bookings"]
+    };
+    return toolsMap[integrationType] || [];
+  };
+
+  const formatToolName = (toolName: string): string => {
+    return toolName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const toggleIntegrationToolsExpanded = (integrationType: string) => {
+    setIntegrationToolsExpanded(prev => ({
+      ...prev,
+      [integrationType]: !prev[integrationType]
+    }));
+  };
+
+  const handleIntegrationToggle = (integrationType: string, enabled: boolean, availableTools: string[]) => {
+    setAgentIntegrationTools(prev => ({
+      ...prev,
+      [integrationType]: {
+        enabled,
+        enabledTools: enabled ? availableTools : []
+      }
+    }));
+
+    // Auto-expand when enabled
+    if (enabled) {
+      setIntegrationToolsExpanded(prev => ({
+        ...prev,
+        [integrationType]: true
+      }));
+    }
+  };
+
+  const handleIntegrationToolToggle = (integrationType: string, toolName: string, enabled: boolean) => {
+    setAgentIntegrationTools(prev => {
+      const current = prev[integrationType] || { enabled: false, enabledTools: [] };
+      const currentTools = current.enabledTools || [];
+      
+      const nextTools = enabled
+        ? [...currentTools, toolName]
+        : currentTools.filter(t => t !== toolName);
+      
+      return {
+        ...prev,
+        [integrationType]: {
+          ...current,
+          enabledTools: nextTools
+        }
+      };
+    });
+  };
+
+  const handleDeleteIntegrationTool = async (integrationType: string) => {
+    if (!agent?.id) {
+      toast({
+        title: "Cannot delete",
+        description: "Please save the agent first before removing integration tools.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show confirmation dialog
+    if (!confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will also remove any associated webhook tools.`)) {
+      return;
+    }
+
+    // Store the current values for potential revert
+    const currentIntegrationTool = agentIntegrationTools[integrationType];
+    
+    // Find associated webhook tool name (Pipedrive tool or Calendly tool)
+    const webhookName = integrationType === 'pipedrive' ? 'Pipedrive tool' : 
+                       integrationType === 'calendly' ? 'Calendly tool' : null;
+    
+    // Find and store the webhook tool for potential revert
+    const associatedWebhookTool = webhookName 
+      ? webhookTools.find(tool => tool.name === webhookName)
+      : null;
+
+    // For backend: include the integration with enabled: false so it gets deleted
+    // The backend only processes integration types that are present in the hash
+    // We need to include ALL existing integrations from the agent data, not just state
+    // Load current agent data to ensure we have all integrations
+    const currentAgentIntegrationTools = { ...agentIntegrationTools };
+    
+    // If agent has integration_tools in its data, merge them to ensure we have everything
+    if (agent?.integration_tools && typeof agent.integration_tools === 'object') {
+      const agentIntegrationToolsData = agent.integration_tools as Record<string, { enabled: boolean; enabled_tools: string[] }>;
+      // Convert backend format to frontend format and merge
+      for (const [key, value] of Object.entries(agentIntegrationToolsData)) {
+        if (!currentAgentIntegrationTools[key]) {
+          currentAgentIntegrationTools[key] = {
+            enabled: value.enabled,
+            enabledTools: value.enabled_tools || []
+          };
+        }
+      }
+    }
+    
+    // Build the payload with ALL integrations, including the one we're deleting with enabled: false
+    const updatedIntegrationToolsForBackend = { ...currentAgentIntegrationTools };
+    // Always include the integration we're deleting, even if it wasn't in state
+    updatedIntegrationToolsForBackend[integrationType] = {
+      enabled: false,
+      enabledTools: []
+    };
+
+    // Remove integration tool from state (for UI)
+    setAgentIntegrationTools(prev => {
+      const next = { ...prev };
+      delete next[integrationType];
+      return next;
+    });
+
+    // Remove associated webhook tool from state if it exists
+    let updatedWebhookTools = webhookTools;
+    if (webhookName && associatedWebhookTool) {
+      updatedWebhookTools = webhookTools.filter(tool => tool.name !== webhookName);
+      setWebhookTools(updatedWebhookTools);
+    }
+
+    // Save to database
+    try {
+      // Build webhook tools payload with the associated webhook removed
+      const webhookToolsPayload = updatedWebhookTools.map(tool => ({
+        id: tool.id,
+        type: "webhook",
+        name: tool.name,
+        description: tool.description,
+        method: tool.method,
+        url: tool.url,
+        response_timeout: tool.responseTimeout,
+        disable_interruptions: tool.disableInterruptions,
+        pre_tool_speech: tool.preToolSpeech,
+        execution_mode: tool.executionMode,
+        tool_call_sound: tool.toolCallSound,
+        authentication: tool.authentication || undefined,
+        headers: tool.headers.map(h => ({
+          type: h.type,
+          name: h.name,
+          value: h.value
+        })),
+        query_params: tool.queryParams.map(p => ({
+          data_type: p.dataType,
+          identifier: p.identifier,
+          required: p.required,
+          value_type: p.valueType,
+          description: p.description,
+          enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+        })),
+        dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+          variable_name: a.variableName,
+          is_new_variable: a.isNewVariable,
+          json_path: a.jsonPath
+        }))
+      }));
+      
+      // Convert integration tools format for backend (enabled_tools instead of enabledTools)
+      // Include the deleted integration with enabled: false so backend processes the deletion
+      // IMPORTANT: We need to include ALL integrations (existing + the one being deleted)
+      const integrationToolsForBackend: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+      for (const [key, value] of Object.entries(updatedIntegrationToolsForBackend)) {
+        integrationToolsForBackend[key] = {
+          enabled: value.enabled,
+          enabled_tools: value.enabledTools || []
+        };
+      }
+      
+      // Build the full config, but override integration_tools and webhook_tools with our updated values
+      const config = buildConfiguration();
+      
+      await agentsApi.update(agent.id, {
+        ...config,
+        integration_tools: integrationToolsForBackend,
+        webhook_tools: webhookToolsPayload
+      } as Parameters<typeof agentsApi.update>[1]);
+      
+      // Reload agent data to reflect changes
+      if (agent.id) {
+        const updatedAgent = await agentsApi.get(agent.id);
+        if (updatedAgent.data) {
+          setAgent(updatedAgent.data);
+          extractAgentData(updatedAgent.data);
+        }
+      }
+      
+      const webhookMessage = associatedWebhookTool 
+        ? ` and its associated webhook tool have been removed`
+        : ` has been removed`;
+      
+      toast({
+        title: "Integration tool removed",
+        description: `${formatToolName(integrationType)}${webhookMessage} from this agent.`,
+      });
+    } catch (error) {
+      // Revert state if save failed
+      if (currentIntegrationTool) {
+        setAgentIntegrationTools(prev => ({
+          ...prev,
+          [integrationType]: currentIntegrationTool
+        }));
+      }
+      if (associatedWebhookTool) {
+        setWebhookTools(prev => [...prev, associatedWebhookTool]);
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Failed to remove integration tool';
+      toast({
+        title: "Removal failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openAddIntegrationModal = () => {
+    setIntegrationModalStep('select');
+    setConnectingIntegrationType(null);
+    setEditingIntegrationConfig({});
+    setShowIntegrationModal(true);
+  };
+
+  const selectIntegrationToAdd = (integrationType: string) => {
+    setConnectingIntegrationType(integrationType);
+    setEditingIntegrationConfig({});
+    setIntegrationModalStep('credentials');
+  };
+
+  const openEditIntegrationModal = async (integrationType: string) => {
+    setConnectingIntegrationType(integrationType);
+    setIntegrationModalStep('credentials');
+    setConnectingIntegrationLoading(true);
+    setShowIntegrationModal(true);
+    
+    try {
+      // Fetch existing config
+      const response = await integrationsApi.get(integrationType);
+      if (response.data?.config) {
+        setEditingIntegrationConfig(response.data.config);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch integration config:', err);
+      setEditingIntegrationConfig({});
+    } finally {
+      setConnectingIntegrationLoading(false);
+    }
+  };
+
+  const closeIntegrationConnectionModal = () => {
+    setShowIntegrationModal(false);
+    setConnectingIntegrationType(null);
+    setIntegrationModalStep('select');
+    setIntegrationModalTab('credentials');
+    setConnectingIntegrationLoading(false);
+    setEditingIntegrationConfig({});
+  };
+
+  const goBackToIntegrationSelect = () => {
+    setConnectingIntegrationType(null);
+    setEditingIntegrationConfig({});
+    setIntegrationModalStep('select');
+    setIntegrationModalTab('credentials');
+  };
+
+  const handleDeleteIntegration = async () => {
+    if (!connectingIntegrationType) return;
+    
+    if (!confirm(`Are you sure you want to delete the ${formatToolName(connectingIntegrationType)} integration? This will remove all credentials and cannot be undone.`)) {
+      return;
+    }
+
+    setConnectingIntegrationLoading(true);
+    try {
+      await integrationsApi.delete(connectingIntegrationType);
+      
+      // Remove from user integrations list
+      setUserIntegrations(prev => prev.filter(i => i.type !== connectingIntegrationType));
+      
+      // Also remove from agent integration tools if it exists and agent is saved
+      if (agent?.id && agentIntegrationTools[connectingIntegrationType]) {
+        await handleDeleteIntegrationTool(connectingIntegrationType);
+      } else if (agentIntegrationTools[connectingIntegrationType]) {
+        // Just remove from state if agent isn't saved yet
+        setAgentIntegrationTools(prev => {
+          const next = { ...prev };
+          delete next[connectingIntegrationType];
+          return next;
+        });
+      }
+      
+      toast({
+        title: "Integration deleted",
+        description: `${formatToolName(connectingIntegrationType)} integration has been removed.`,
+      });
+      
+      closeIntegrationConnectionModal();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete integration';
+      toast({
+        title: "Deletion failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setConnectingIntegrationLoading(false);
+    }
+  };
+
+  const handleIntegrationConnect = async (config: IntegrationConfig) => {
+    if (!connectingIntegrationType) return;
+    
+    const isEditing = userIntegrations.some(i => i.type === connectingIntegrationType);
+    
+    setConnectingIntegrationLoading(true);
+    try {
+      if (isEditing) {
+        await integrationsApi.update(connectingIntegrationType, config);
+      } else {
+        await integrationsApi.create(connectingIntegrationType, config);
+      }
+      
+      // Update the user integrations to show this one as connected
+      if (!isEditing) {
+        setUserIntegrations(prev => [...prev, { type: connectingIntegrationType, connected: true }]);
+        
+        // Automatically create webhook tool for Pipedrive and Calendly
+        if (connectingIntegrationType === 'pipedrive' || connectingIntegrationType === 'calendly') {
+          const webhookName = connectingIntegrationType === 'pipedrive' ? 'Pipedrive tool' : 'Calendly tool';
+          const webhookUrl = connectingIntegrationType === 'pipedrive' 
+            ? 'https://api.voiceable.com/webhook/pipedrive'
+            : 'https://api.voiceable.com/webhook/calendly';
+          
+          // Check if webhook already exists to avoid duplicates
+          const webhookExists = webhookTools.some(tool => tool.name === webhookName);
+          
+          if (!webhookExists && agent?.id) {
+            const newWebhookTool: WebhookTool = {
+              ...getEmptyWebhookTool(),
+              id: crypto.randomUUID(),
+              name: webhookName,
+              method: 'POST',
+              url: webhookUrl,
+            };
+            
+            // Add to state
+            setWebhookTools(prev => [...prev, newWebhookTool]);
+            
+            // Save to database by updating the agent
+            try {
+              // Build webhook tools payload with the new tool included
+              const updatedWebhookTools = [...webhookTools, newWebhookTool];
+              const webhookToolsPayload = updatedWebhookTools.map(tool => ({
+                id: tool.id,
+                type: "webhook",
+                name: tool.name,
+                description: tool.description,
+                method: tool.method,
+                url: tool.url,
+                response_timeout: tool.responseTimeout,
+                disable_interruptions: tool.disableInterruptions,
+                pre_tool_speech: tool.preToolSpeech,
+                execution_mode: tool.executionMode,
+                tool_call_sound: tool.toolCallSound,
+                authentication: tool.authentication || undefined,
+                headers: tool.headers.map(h => ({
+                  type: h.type,
+                  name: h.name,
+                  value: h.value
+                })),
+                query_params: tool.queryParams.map(p => ({
+                  data_type: p.dataType,
+                  identifier: p.identifier,
+                  required: p.required,
+                  value_type: p.valueType,
+                  description: p.description,
+                  enum_values: p.enumValues.length > 0 ? p.enumValues : undefined
+                })),
+                dynamic_variable_assignments: tool.dynamicVariableAssignments.map(a => ({
+                  variable_name: a.variableName,
+                  is_new_variable: a.isNewVariable,
+                  json_path: a.jsonPath
+                }))
+              }));
+              
+              // Build config and override webhook_tools with the updated list
+              const config = buildConfiguration();
+              await agentsApi.update(agent.id, {
+                ...config,
+                webhook_tools: webhookToolsPayload
+              } as Parameters<typeof agentsApi.update>[1]);
+              
+              toast({
+                title: "Webhook tool created",
+                description: `${webhookName} has been automatically added and saved to your tools.`,
+              });
+            } catch (error) {
+              // Revert state if save failed
+              setWebhookTools(webhookTools);
+              const errorMessage = error instanceof Error ? error.message : 'Failed to save webhook tool';
+              toast({
+                title: "Webhook tool creation failed",
+                description: `Failed to save ${webhookName}: ${errorMessage}. Please try saving the assistant manually.`,
+                variant: "destructive",
+              });
+            }
+          } else if (!webhookExists && !agent?.id) {
+            // Agent doesn't exist yet (new agent), just add to state
+            const newWebhookTool: WebhookTool = {
+              ...getEmptyWebhookTool(),
+              id: crypto.randomUUID(),
+              name: webhookName,
+              method: 'POST',
+              url: webhookUrl,
+            };
+            
+            setWebhookTools(prev => [...prev, newWebhookTool]);
+            
+            toast({
+              title: "Webhook tool created",
+              description: `${webhookName} has been automatically added to your tools. It will be saved when you save the assistant.`,
+            });
+          }
+        }
+      }
+      
+      toast({
+        title: isEditing ? "Integration updated" : "Integration connected",
+        description: `${formatToolName(connectingIntegrationType)} has been ${isEditing ? 'updated' : 'connected'} successfully.`,
+      });
+      
+      closeIntegrationConnectionModal();
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save integration';
+      toast({
+        title: isEditing ? "Update failed" : "Connection failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setConnectingIntegrationLoading(false);
+    }
+  };
+
   // Client tool management functions
   const openClientToolModal = (tool?: ClientTool) => {
     if (tool) {
@@ -828,7 +1518,113 @@ export default function AssistantDetail() {
   const [logging, setLogging] = useState(true);
   const [transcript, setTranscript] = useState(true);
   const [videoRecording, setVideoRecording] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState("# Customer Service & Support Agent Prompt\n");
+  // Note: systemPrompt is generated from a fixed template + section variables
+  // Users cannot edit the template directly - only define content for scenarios, phases, voice tone
+  const [cenarios, setCenarios] = useState<SectionEntry[]>([]);
+  const [etapas, setEtapas] = useState<SectionEntry[]>([]);
+  const [tomDeVoz, setTomDeVoz] = useState<SectionEntry[]>([]);
+  const [showPromptPreviewModal, setShowPromptPreviewModal] = useState(false);
+  const [firstMessageExpanded, setFirstMessageExpanded] = useState(false);
+  const [agentBehaviourExpanded, setAgentBehaviourExpanded] = useState(false);
+  const [filesExpanded, setFilesExpanded] = useState(false);
+  const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(false);
+  const [externalIntegrationToolsSectionExpanded, setExternalIntegrationToolsSectionExpanded] = useState(false);
+  const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(false);
+
+  // Section Editor Modal State
+  type SectionType = "scenarios" | "phases" | "voiceTone";
+  const [showSectionModal, setShowSectionModal] = useState(false);
+  const [editingSectionType, setEditingSectionType] = useState<SectionType | null>(null);
+  const [editingSectionEntry, setEditingSectionEntry] = useState<SectionEntry | null>(null);
+  const [sectionForm, setSectionForm] = useState<Omit<SectionEntry, "id">>({
+    title: "",
+    description: "",
+    notes: "",
+  });
+
+  const getSectionSetter = (type: SectionType): React.Dispatch<React.SetStateAction<SectionEntry[]>> => {
+    switch (type) {
+      case "scenarios":
+        return setCenarios;
+      case "phases":
+        return setEtapas;
+      case "voiceTone":
+        return setTomDeVoz;
+    }
+  };
+
+  const openSectionModal = (type: SectionType, entry?: SectionEntry) => {
+    setEditingSectionType(type);
+    if (entry) {
+      setEditingSectionEntry(entry);
+      setSectionForm({
+        title: entry.title,
+        description: entry.description,
+        notes: entry.notes || "",
+      });
+    } else {
+      setEditingSectionEntry(null);
+      setSectionForm({ title: "", description: "", notes: "" });
+    }
+    setShowSectionModal(true);
+  };
+
+  const closeSectionModal = () => {
+    setShowSectionModal(false);
+    setEditingSectionType(null);
+    setEditingSectionEntry(null);
+    setSectionForm({ title: "", description: "", notes: "" });
+  };
+
+  const saveSectionEntry = () => {
+    if (!editingSectionType) return;
+    const setter = getSectionSetter(editingSectionType);
+    
+    if (editingSectionEntry) {
+      // Update existing entry
+      setter((prev) =>
+        prev.map((entry) =>
+          entry.id === editingSectionEntry.id
+            ? { ...entry, ...sectionForm }
+            : entry
+        )
+      );
+    } else {
+      // Add new entry
+      setter((prev) => [...prev, createSectionEntry(sectionForm)]);
+    }
+    closeSectionModal();
+  };
+
+  const deleteSectionEntry = (type: SectionType, id: string) => {
+    const setter = getSectionSetter(type);
+    setter((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  const addSectionEntry = (
+    setter: React.Dispatch<React.SetStateAction<SectionEntry[]>>,
+    defaults: Partial<SectionEntry> = {}
+  ) => {
+    setter((prev) => [...prev, createSectionEntry(defaults)]);
+  };
+
+  const updateSectionEntryField = (
+    setter: React.Dispatch<React.SetStateAction<SectionEntry[]>>,
+    id: string,
+    field: keyof SectionEntry,
+    value: string
+  ) => {
+    setter((prev) =>
+      prev.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
+    );
+  };
+
+  const removeSectionEntryById = (
+    setter: React.Dispatch<React.SetStateAction<SectionEntry[]>>,
+    id: string
+  ) => {
+    setter((prev) => prev.filter((entry) => entry.id !== id));
+  };
   const [firstMessage, setFirstMessage] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [agentFiles, setAgentFiles] = useState<AgentFile[]>([]);
@@ -851,10 +1647,171 @@ export default function AssistantDetail() {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const derivedSystemPrompt = useMemo(() => {
+    // Helper to format entries as markdown list items for a section
+    const formatSectionContent = (sectionTitle: string, sectionDescription: string, entries: SectionEntry[]): string => {
+      if (entries.length === 0) return "";
+
+      const formattedEntries = entries
+        .map((entry) => {
+          const title = entry.title.trim();
+          const description = entry.description.trim();
+          const notes = entry.notes?.trim();
+
+          if (!title && !description) return null;
+
+          let content = `- **${title || "Untitled"}**`;
+          if (description) {
+            content += `\n  ${description}`;
+          }
+          if (notes) {
+            content += `\n  _Note: ${notes}_`;
+          }
+          return content;
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      if (!formattedEntries) return "";
+
+      return `## ${sectionTitle}\n\n${sectionDescription}\n\n${formattedEntries}`;
+    };
+
+    // Check if we have any sections defined
+    const hasScenarios = cenarios.length > 0;
+    const hasPhases = etapas.length > 0;
+    const hasVoiceTone = tomDeVoz.length > 0;
+    const hasSections = hasScenarios || hasPhases || hasVoiceTone;
+
+    // If no sections defined, use the default fallback prompt
+    if (!hasSections) {
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    // Build the variable values
+    const scenariosContent = formatSectionContent(
+      "Scenarios",
+      "These are the main scenarios you should be prepared to handle:",
+      cenarios
+    );
+
+    const phasesContent = formatSectionContent(
+      "Conversation Phases", 
+      "Follow these phases during the conversation:",
+      etapas
+    );
+
+    const voiceToneContent = formatSectionContent(
+      "Voice & Tone",
+      "Maintain the following tone and communication style:",
+      tomDeVoz
+    );
+
+    // Replace template variables with actual content
+    // Empty sections are replaced with empty string (removed from template)
+    const prompt = PROMPT_TEMPLATE
+      .replace("{{SCENARIOS}}", scenariosContent)
+      .replace("{{PHASES}}", phasesContent)
+      .replace("{{VOICE_TONE}}", voiceToneContent)
+      // Clean up multiple consecutive newlines that may result from empty sections
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    return prompt;
+  }, [cenarios, etapas, tomDeVoz]);
+
+  type SectionEditorConfig = {
+    title: string;
+    description: string;
+    entries: SectionEntry[];
+    sectionType: SectionType;
+    addLabel: string;
+    titlePlaceholder: string;
+    descriptionPlaceholder: string;
+    notesPlaceholder: string;
+    notesLabel?: string;
+  };
+
+  const renderSectionEditor = ({
+    title,
+    description,
+    entries,
+    sectionType,
+    addLabel,
+  }: SectionEditorConfig) => (
+    <div className="border border-border rounded-lg bg-white p-4 space-y-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold">{title}</h4>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openSectionModal(sectionType)}
+          className="flex items-center gap-1"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {addLabel}
+        </Button>
+      </div>
+
+      {entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No {title.toLowerCase()} defined yet. Use the button above to add one.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 hover:bg-muted/50 transition-colors"
+            >
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => openSectionModal(sectionType, entry)}
+              >
+                <h5 className="text-sm font-medium truncate">
+                  {entry.title || <span className="text-muted-foreground italic">Untitled</span>}
+                </h5>
+                {entry.description && (
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {entry.description.length > 80
+                      ? `${entry.description.slice(0, 80)}...`
+                      : entry.description}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => openSectionModal(sectionType, entry)}
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  onClick={() => deleteSectionEntry(sectionType, entry.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   // System tools state
   const [systemTools, setSystemTools] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolsState());
   const [systemToolSettings, setSystemToolSettings] = useState<Record<SystemToolKey, SystemToolSetting>>(() => getDefaultSystemToolSettings());
   const [systemToolExpanded, setSystemToolExpanded] = useState<Record<SystemToolKey, boolean>>(() => getDefaultSystemToolExpanded());
+  const [selectedSystemTool, setSelectedSystemTool] = useState<SystemToolKey | null>(null);
   
   // Webhook/Integration tools state
   const [webhookTools, setWebhookTools] = useState<WebhookTool[]>([]);
@@ -871,6 +1828,74 @@ export default function AssistantDetail() {
   const [editingClientTool, setEditingClientTool] = useState<ClientTool | null>(null);
   const [clientToolForm, setClientToolForm] = useState<ClientTool>(() => getEmptyClientTool());
   const [clientParamEnumValue, setClientParamEnumValue] = useState<Record<string, string>>({});
+
+  // Integration tools state (CRM/Scheduling integrations like Pipedrive, Calendly)
+  const [agentIntegrationTools, setAgentIntegrationTools] = useState<Record<string, { enabled: boolean; enabledTools: string[] }>>({});
+  const [userIntegrations, setUserIntegrations] = useState<Array<{ type: string; connected: boolean }>>([]);
+  const [integrationToolsExpanded, setIntegrationToolsExpanded] = useState<Record<string, boolean>>({});
+  
+  // Integration connection modal state
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [integrationModalStep, setIntegrationModalStep] = useState<'select' | 'credentials'>('select');
+  const [integrationModalTab, setIntegrationModalTab] = useState<'credentials' | 'tools' | 'about'>('credentials');
+  const [connectingIntegrationType, setConnectingIntegrationType] = useState<string | null>(null);
+  const [integrationSchemas, setIntegrationSchemas] = useState<Record<string, IntegrationSchema>>({});
+  const [connectingIntegrationLoading, setConnectingIntegrationLoading] = useState(false);
+  const [editingIntegrationConfig, setEditingIntegrationConfig] = useState<IntegrationConfig>({});
+  
+  // Available integrations that can be added
+  const availableIntegrationTypes = ['pipedrive', 'calendly'];
+
+  const promptToolsSummary = useMemo(() => {
+    const activeSystemTools = SYSTEM_TOOL_KEYS.filter((key) => !!systemTools[key]).map((key) => formatToolName(key));
+    const clientToolNames = clientTools
+      .map((t) => t.name?.trim())
+      .filter((name): name is string => !!name);
+    const webhookToolNames = webhookTools
+      .map((t) => t.name?.trim())
+      .filter((name): name is string => !!name);
+
+    const enabledIntegrations = Object.entries(agentIntegrationTools)
+      .filter(([, value]) => !!value?.enabled)
+      .map(([integrationType, value]) => ({
+        integrationType,
+        enabledTools: (value?.enabledTools || []).filter((t) => t && t.trim()),
+      }));
+
+    return {
+      activeSystemTools,
+      clientToolNames,
+      webhookToolNames,
+      enabledIntegrations,
+    };
+  }, [systemTools, clientTools, webhookTools, agentIntegrationTools]);
+  
+  // Get integration description (full description for About tab)
+  const getIntegrationFullDescription = (integrationType: string): string => {
+    const descriptions: Record<string, string> = {
+      pipedrive: "Keep your leads and pipelines in sync with Pipedrive CRM. Your AI agents can manage deals, update contacts, and track sales activities automatically.",
+      calendly: "Bring Calendly booking links into your assistant workflows. Enable your agents to schedule meetings and manage availability.",
+      hubspot: "Connect your ElevenLabs AI agents with HubSpot CRM to manage contacts, companies, and deals. This integration enables your agents to create and update CRM records, search for existing data, and automate sales and marketing workflows. Keep your customer data synchronized and let your AI agents handle routine CRM tasks.",
+      salesforce: "Integrate your AI agents with Salesforce Sales Cloud to push and pull records directly. Enable your agents to access customer data, update opportunities, create leads, and automate your sales processes seamlessly.",
+      google_calendar: "Overlay availability and events from Google Calendar. Let your agents check schedules and book appointments.",
+      outlook_calendar: "Integrate Microsoft Outlook calendars for scheduling. Enable calendar management through your AI agents.",
+      calcom: "Use Cal.com event links to manage availability across calendars. Integrate scheduling capabilities into your agent workflows."
+    };
+    return descriptions[integrationType] || `Configure your ${formatToolName(integrationType)} integration settings.`;
+  };
+
+  // Get integration description (short version)
+  const getIntegrationDescription = (integrationType: string): string => {
+    const descriptions: Record<string, string> = {
+      pipedrive: "CRM to manage contacts and deals",
+      calendly: "Scheduling and appointment booking",
+      hubspot: "CRM and marketing automation",
+      salesforce: "Enterprise CRM platform",
+      google_calendar: "Google Calendar integration",
+      calcom: "Open source scheduling",
+    };
+    return descriptions[integrationType] || "Business integration";
+  };
   
   // Secrets state for ElevenLabs secrets management
   const [secrets, setSecrets] = useState<ElevenLabsSecret[]>([]);
@@ -889,35 +1914,17 @@ export default function AssistantDetail() {
 
   // Extract system prompt and first message from agent data
   const extractAgentData = useCallback((agentData: Agent) => {
+    setCenarios([]);
+    setEtapas([]);
+    setTomDeVoz([]);
     if (agentData.conversation_config) {
       const config = agentData.conversation_config as Record<string, unknown>;
       
-      // Extract system prompt from conversation_config
-      let systemPromptFound = false;
-      
-      // First check for direct system_prompt
-      if (typeof config.system_prompt === 'string' && config.system_prompt.trim()) {
-        setSystemPrompt(config.system_prompt);
-        systemPromptFound = true;
-      } 
-      // Then check in model.messages array
-      else if (config.model && typeof config.model === 'object') {
-        const modelConfig = config.model as Record<string, unknown>;
-        
-        if (Array.isArray(modelConfig.messages)) {
-          const messages = modelConfig.messages as Array<Record<string, unknown>>;
-          const systemMessage = messages.find((msg) => msg.role === 'system');
-          if (systemMessage && typeof systemMessage.content === 'string' && systemMessage.content.trim()) {
-            setSystemPrompt(systemMessage.content);
-            systemPromptFound = true;
-          }
-        }
-      }
-      
-      // If no system prompt found, use default
-      if (!systemPromptFound) {
-        setSystemPrompt("# Customer Service & Support Agent Prompt\n");
-      }
+      // Load section variables from stored JSON
+      // The system prompt is generated from a fixed template + these variables
+      setCenarios(parseSectionEntries(config.cenarios));
+      setEtapas(parseSectionEntries(config.etapas));
+      setTomDeVoz(parseSectionEntries(config.tom_de_voz ?? config.tone_of_voice));
       
       // Extract first message
       if (typeof config.first_message === 'string') {
@@ -1394,6 +2401,53 @@ export default function AssistantDetail() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch user integrations and schemas for integration tools section
+  useEffect(() => {
+    const fetchUserIntegrationsAndSchemas = async () => {
+      try {
+        // Fetch user integrations
+        const response = await integrationsApi.list();
+        if (response.data) {
+          // Filter to only CRM and scheduling integrations
+          const relevantIntegrations = response.data.filter((integration) => 
+            ['pipedrive', 'calendly', 'hubspot'].includes(integration.integration_type)
+          );
+          setUserIntegrations(relevantIntegrations.map((i) => ({ type: i.integration_type, connected: true })));
+        }
+        
+        // Fetch integration schemas
+        const schemasResponse = await integrationsApi.getSchemas();
+        if (schemasResponse.data) {
+          const schemasMap: Record<string, IntegrationSchema> = {};
+          schemasResponse.data.forEach((schema: IntegrationSchema) => {
+            schemasMap[schema.type] = schema;
+          });
+          setIntegrationSchemas(schemasMap);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch user integrations:', err);
+      }
+    };
+    
+    fetchUserIntegrationsAndSchemas();
+  }, []);
+
+  // Load agent integration tools from agent data
+  useEffect(() => {
+    if (agent?.integration_tools && typeof agent.integration_tools === 'object') {
+      const integrationToolsData = agent.integration_tools as Record<string, { enabled: boolean; enabled_tools: string[] }>;
+      // Convert enabled_tools to enabledTools for frontend consistency
+      const converted: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
+      for (const [key, value] of Object.entries(integrationToolsData)) {
+        converted[key] = {
+          enabled: value.enabled,
+          enabledTools: value.enabled_tools || []
+        };
+      }
+      setAgentIntegrationTools(converted);
+    }
+  }, [agent]);
   
   // Fetch voices list
   useEffect(() => {
@@ -2015,7 +3069,10 @@ export default function AssistantDetail() {
       setLogging(true);
       setTranscript(true);
       setVideoRecording(false);
-      setSystemPrompt("# Customer Service & Support Agent Prompt\n");
+      // Reset section variables (system prompt is generated from fixed template)
+      setCenarios([]);
+      setEtapas([]);
+      setTomDeVoz([]);
       setFirstMessage("");
       setAttachedFiles([]);
       setSelectedProvider("openai");
@@ -2028,6 +3085,12 @@ export default function AssistantDetail() {
       setSystemTools(getDefaultSystemToolsState());
       setSystemToolSettings(getDefaultSystemToolSettings());
       setSystemToolExpanded(getDefaultSystemToolExpanded());
+      setFirstMessageExpanded(false);
+      setAgentBehaviourExpanded(false);
+      setFilesExpanded(false);
+      setSystemToolsSectionExpanded(false);
+      setExternalIntegrationToolsSectionExpanded(false);
+      setIntegrationToolsSectionExpanded(false);
     }
   }, [id, isNew]);
 
@@ -2085,6 +3148,25 @@ export default function AssistantDetail() {
       return acc;
     }, {});
 
+    const serializeSectionEntries = (entries: SectionEntry[]): SectionPayload[] =>
+      entries
+        .map((entry) => {
+          const serialized: SectionPayload = {
+            title: entry.title.trim(),
+            description: entry.description.trim(),
+          };
+          if (entry.notes?.trim()) {
+            serialized.notes = entry.notes.trim();
+          }
+
+          return serialized.title || serialized.description || serialized.notes ? serialized : null;
+        })
+        .filter((value): value is SectionPayload => value !== null);
+
+    const serializedCenarios = serializeSectionEntries(cenarios);
+    const serializedEtapas = serializeSectionEntries(etapas);
+    const serializedTone = serializeSectionEntries(tomDeVoz);
+
     const conversationConfig: Record<string, unknown> = {
       model: {
         model: selectedModel,
@@ -2092,7 +3174,7 @@ export default function AssistantDetail() {
         messages: [
           {
             role: "system",
-            content: systemPrompt || "# Customer Service & Support Agent Prompt\n"
+            content: derivedSystemPrompt
           }
         ]
       },
@@ -2118,7 +3200,11 @@ export default function AssistantDetail() {
           voice_id: selectedVoiceId,
           ...(selectedVoiceName && { name: selectedVoiceName })
         }
-      })
+      }),
+      system_prompt: derivedSystemPrompt,
+      ...(serializedCenarios.length > 0 && { cenarios: serializedCenarios }),
+      ...(serializedEtapas.length > 0 && { etapas: serializedEtapas }),
+      ...(serializedTone.length > 0 && { tom_de_voz: serializedTone }),
     };
 
     const platformSettings: Record<string, unknown> = {
@@ -2202,12 +3288,16 @@ export default function AssistantDetail() {
       platform_settings: platformSettings,
       system_tools: systemToolsPayload,
       client_tools: clientToolsPayload,
-      webhook_tools: webhookToolsPayload
+      webhook_tools: webhookToolsPayload,
+      integration_tools: agentIntegrationTools
     };
   }, [
     selectedModel,
     selectedProvider,
-    systemPrompt,
+    derivedSystemPrompt,
+    cenarios,
+    etapas,
+    tomDeVoz,
     systemTools,
     systemToolSettings,
     selectedLanguage,
@@ -2226,7 +3316,8 @@ export default function AssistantDetail() {
     transcript,
     videoRecording,
     clientTools,
-    webhookTools
+    webhookTools,
+    agentIntegrationTools
   ]);
 
   // Update saved config when agent loads (only when agent ID changes)
@@ -2287,10 +3378,11 @@ export default function AssistantDetail() {
     const hasLanguage = selectedLanguage && selectedLanguage.trim() !== "";
     const hasModel = selectedModel && selectedModel.trim() !== "";
     const hasFirstMessage = firstMessage && firstMessage.trim() !== "";
-    const hasSystemPrompt = systemPrompt && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
+    const trimmedPrompt = derivedSystemPrompt.trim();
+    const hasSystemPrompt = trimmedPrompt !== "" && trimmedPrompt !== DEFAULT_SYSTEM_PROMPT.trim();
     const hasVoice = selectedVoiceId && selectedVoiceId.trim() !== "";
     return hasLanguage && hasModel && hasFirstMessage && hasSystemPrompt && hasVoice;
-  }, [selectedLanguage, selectedModel, firstMessage, systemPrompt, selectedVoiceId]);
+  }, [selectedLanguage, selectedModel, firstMessage, derivedSystemPrompt, selectedVoiceId]);
 
   const previewButtonTitle = widgetKeyLoading
     ? "Loading widget preview..."
@@ -2510,7 +3602,8 @@ export default function AssistantDetail() {
     if (!firstMessage || firstMessage.trim() === "") {
       missingFields.push("First Message");
     }
-    if (!systemPrompt || systemPrompt.trim() === "" || systemPrompt.trim() === "# Customer Service & Support Agent Prompt\n") {
+    const trimmedDerivedPrompt = derivedSystemPrompt.trim();
+    if (!trimmedDerivedPrompt || trimmedDerivedPrompt === DEFAULT_SYSTEM_PROMPT.trim()) {
       missingFields.push("System Prompt");
     }
     if (!selectedVoiceId || selectedVoiceId.trim() === "") {
@@ -2587,7 +3680,7 @@ export default function AssistantDetail() {
     } finally {
       setSaving(false);
     }
-  }, [isNew, agent, agentName, tempName, selectedVoiceId, selectedLanguage, selectedModel, firstMessage, systemPrompt, buildConfiguration, navigate, toast]);
+  }, [isNew, agent, agentName, tempName, selectedVoiceId, selectedLanguage, selectedModel, firstMessage, derivedSystemPrompt, buildConfiguration, navigate, toast]);
 
   // Show wizard for new agents, regular interface for existing agents
   if (isNew) {
@@ -2768,6 +3861,17 @@ export default function AssistantDetail() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {/* <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPromptPreviewModal(true)}
+                className="text-xs md:text-sm"
+                title="View full prompt (template + variables) and associated tools"
+              >
+                <Code className="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-2" />
+                <span className="hidden sm:inline">Summary</span>
+                <span className="sm:hidden">Summary</span>
+              </Button> */}
               {!saving && !loading && (isNew ? !isFormValid : !hasUnsavedChanges()) && getMissingSaveFields.length > 0 ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -2867,6 +3971,11 @@ export default function AssistantDetail() {
               const Icon = tab.icon;
               const handleTabClick = () => {
                 setActiveTab(tab.id);
+                // Update URL directly in click handler to avoid useEffect loops
+                lastSetTabRef.current = tab.id;
+                const newSearchParams = new URLSearchParams(searchParams);
+                newSearchParams.set("tab", tab.id);
+                setSearchParams(newSearchParams, { replace: true });
               };
               return (
                 <button
@@ -2894,6 +4003,609 @@ export default function AssistantDetail() {
             <WidgetTab agent={agent} agentId={agentId} />
           ) : activeTab === "conversations" ? (
             <ConversationsTab assistantName={agentName} agentId={agent?.id} />
+          ) : activeTab === "tools" ? (
+            <div className="flex-1 flex overflow-hidden min-w-0">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Wrench className="h-4 w-4" />
+                    <span>TOOLS</span>
+                  </div>
+                
+                {/* System Tools */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <button 
+                    className="w-full flex items-start justify-between gap-2"
+                    onClick={() => setSystemToolsSectionExpanded(!systemToolsSectionExpanded)}
+                  >
+                    <div className="text-left flex-1">
+                      <h3 className="text-base md:text-lg font-semibold">System tools</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        Allow the agent to perform built-in actions.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {Object.values(systemTools).filter(Boolean).length} active tool{Object.values(systemTools).filter(Boolean).length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", systemToolsSectionExpanded && "rotate-180")} />
+                  </button>
+                  
+                  {systemToolsSectionExpanded && (
+                    <div className="mt-4 md:mt-6 space-y-3">
+                    {/* End call */}
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">End call</span>
+                        </div>
+                        <Switch
+                          checked={systemTools.end_call}
+                          onCheckedChange={(checked) => handleSystemToolToggle("end_call", checked)}
+                        />
+                      </div>
+                    </div>
+                    {/* Detect language */}
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Detect language</span>
+                        </div>
+                        <Switch
+                          checked={systemTools.detect_language}
+                          onCheckedChange={(checked) => handleSystemToolToggle("detect_language", checked)}
+                        />
+                      </div>
+                    </div>
+                    {/* Transfer to agent */}
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Transfer to agent</span>
+                        </div>
+                        <Switch
+                          checked={systemTools.transfer_to_agent}
+                          onCheckedChange={(checked) => handleSystemToolToggle("transfer_to_agent", checked)}
+                        />
+                      </div>
+                    </div>
+                    {/* Transfer to number */}
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Transfer to number</span>
+                        </div>
+                        <Switch
+                          checked={systemTools.transfer_to_number}
+                          onCheckedChange={(checked) => handleSystemToolToggle("transfer_to_number", checked)}
+                        />
+                      </div>
+                    </div>
+                    {/* Voicemail detection */}
+                    <div className="border border-border rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-secondary/50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Voicemail detection</span>
+                        </div>
+                        <Switch
+                          checked={systemTools.voicemail_detection}
+                          onCheckedChange={(checked) => handleSystemToolToggle("voicemail_detection", checked)}
+                        />
+                      </div>
+                    </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* External Integration Tools */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <div className="flex items-start justify-between gap-2">
+                    <button 
+                      className="flex-1 flex items-start justify-between gap-2"
+                      onClick={() => setExternalIntegrationToolsSectionExpanded(!externalIntegrationToolsSectionExpanded)}
+                    >
+                      <div className="text-left flex-1">
+                        <h3 className="text-base md:text-lg font-semibold">External integration tools</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">
+                          Allow the agent to perform client-side and external integrations.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {webhookTools.length + clientTools.length} tool{(webhookTools.length + clientTools.length) !== 1 ? 's' : ''} configured
+                        </p>
+                      </div>
+                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", externalIntegrationToolsSectionExpanded && "rotate-180")} />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex justify-end">
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      {/* <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openClientToolModal()}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Client Tool
+                      </Button> */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openWebhookModal()}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Webhook Tool
+                      </Button>
+                    </div>
+                  </div>
+                    
+                  
+                  {externalIntegrationToolsSectionExpanded && (
+                    <div className="mt-4 md:mt-6">
+                      {/* List existing tools */}
+                  {(webhookTools.length > 0 || clientTools.length > 0) && (
+                    <div className="space-y-2">
+                      {webhookTools.map((tool) => (
+                        <div key={tool.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                          <div className="flex items-center gap-3">
+                            <Globe className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <span className="text-sm font-medium">{tool.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">Webhook</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openWebhookModal(tool)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteWebhookTool(tool.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {clientTools.map((tool) => (
+                        <div key={tool.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                          <div className="flex items-center gap-3">
+                            <Code className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <span className="text-sm font-medium">{tool.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">Client</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openClientToolModal(tool)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteClientTool(tool.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                      {webhookTools.length === 0 && clientTools.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p className="text-sm">No external tools configured yet.</p>
+                          <p className="text-xs mt-1">Add webhook or client tools to extend your agent's capabilities.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* CRM/Scheduling Integration Tools */}
+                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+                  <div className="flex items-start justify-between gap-2">
+                    <button 
+                      className="flex-1 flex items-start justify-between gap-2"
+                      onClick={() => setIntegrationToolsSectionExpanded(!integrationToolsSectionExpanded)}
+                    >
+                      <div className="text-left flex-1">
+                        <h3 className="text-base md:text-lg font-semibold">Integration tools</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">
+                          Connect your agent to CRM and scheduling integrations.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {userIntegrations.length} integration{userIntegrations.length !== 1 ? 's' : ''} connected
+                        </p>
+                      </div>
+                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", integrationToolsSectionExpanded && "rotate-180")} />
+                    </button>
+                  </div>
+
+                  <div className="flex mt-3 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openAddIntegrationModal()}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Integration
+                    </Button>
+                  </div>
+                  
+                  {integrationToolsSectionExpanded && (
+                    <div className="mt-4 md:mt-6">
+                      {/* Connected Integrations */}
+                  {userIntegrations.length > 0 ? (
+                    <div className="space-y-3">
+                      {userIntegrations.map(({ type: integrationType }) => {
+                        const isEnabled = agentIntegrationTools[integrationType]?.enabled || false;
+                        const availableTools = getAvailableToolsForIntegration(integrationType);
+                        const enabledTools = agentIntegrationTools[integrationType]?.enabledTools || [];
+                        const isExpanded = integrationToolsExpanded[integrationType] || false;
+                        
+                        return (
+                          <div key={integrationType} className="border border-border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between p-3 bg-secondary/50">
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className="text-xl">{getIntegrationIcon(integrationType)}</span>
+                                <div>
+                                  <span className="text-sm font-medium">{formatToolName(integrationType)}</span>
+                                  <span className="text-xs text-success ml-2">Connected</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  onClick={() => openEditIntegrationModal(integrationType)}
+                                  title="Edit credentials"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                {isEnabled && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => toggleIntegrationToolsExpanded(integrationType)}
+                                  >
+                                    <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                                  </Button>
+                                )}
+                                <Switch
+                                  checked={isEnabled}
+                                  onCheckedChange={(checked) => handleIntegrationToggle(integrationType, checked, availableTools)}
+                                />
+                              </div>
+                            </div>
+                            
+                            {isEnabled && isExpanded && (
+                              <div className="p-4 border-t border-border space-y-3">
+                                <p className="text-xs text-muted-foreground mb-3">
+                                  Select which tools to enable for this integration:
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {availableTools.map((toolName) => (
+                                    <label
+                                      key={toolName}
+                                      className="flex items-center gap-2 p-2 rounded-md hover:bg-secondary/50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={enabledTools.includes(toolName)}
+                                        onChange={(e) => handleIntegrationToolToggle(integrationType, toolName, e.target.checked)}
+                                        className="rounded border-border"
+                                      />
+                                      <span className="text-sm">{formatToolName(toolName)}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
+                          <p className="text-sm">No integrations connected yet.</p>
+                          <p className="text-xs mt-1">Click "Add Integration" to connect your CRM or scheduling tools.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                </div>
+              </div>
+
+              {/* System Tool Settings Right Panel */}
+              {selectedSystemTool && (
+                <>
+                  {isMobile ? (
+                    <>
+                      <div 
+                        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+                        onClick={() => setSelectedSystemTool(null)}
+                      />
+                      <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg">
+                        <div className="flex items-center justify-between p-4 border-b border-border">
+                          <h3 className="font-semibold text-sm md:text-base">
+                            {selectedSystemTool === "transfer_to_agent" ? "Transfer to Agent Settings" : "Transfer to Number Settings"}
+                          </h3>
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedSystemTool(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="p-4 flex-1 overflow-auto">
+                          {selectedSystemTool === "transfer_to_agent" && (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium mb-2 block">Transfer Rules</label>
+                                {(systemToolSettings.transfer_to_agent?.transferRules || []).map((rule, index) => (
+                                  <div key={index} className="border border-border rounded-lg p-4 mb-4 space-y-3">
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Agent</label>
+                                      <Input
+                                        value={rule.agent}
+                                        onChange={(e) => updateTransferRule(index, { agent: e.target.value })}
+                                        placeholder="Agent name or ID"
+                                        className="bg-white border-border"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Condition</label>
+                                      <Input
+                                        value={rule.condition}
+                                        onChange={(e) => updateTransferRule(index, { condition: e.target.value })}
+                                        placeholder="Transfer condition"
+                                        className="bg-white border-border"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Delay (ms)</label>
+                                      <Input
+                                        type="number"
+                                        value={rule.delayMs}
+                                        onChange={(e) => updateTransferRule(index, { delayMs: parseInt(e.target.value) || 0 })}
+                                        className="bg-white border-border"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Transfer Message</label>
+                                      <Textarea
+                                        value={rule.transferMessage}
+                                        onChange={(e) => updateTransferRule(index, { transferMessage: e.target.value })}
+                                        placeholder="Message to play before transfer"
+                                        className="bg-white border-border min-h-[60px]"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={rule.enableFirstMessage}
+                                        onChange={(e) => updateTransferRule(index, { enableFirstMessage: e.target.checked })}
+                                        className="rounded"
+                                      />
+                                      <label className="text-xs text-muted-foreground">Enable first message</label>
+                                    </div>
+                                    {(systemToolSettings.transfer_to_agent?.transferRules || []).length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeTransferRule(index)}
+                                        className="w-full text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Remove Rule
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={addTransferRule}
+                                  className="w-full"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Transfer Rule
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          {selectedSystemTool === "transfer_to_number" && (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-sm font-medium mb-2 block">Human Transfer Rules</label>
+                                {(systemToolSettings.transfer_to_number?.humanTransferRules || []).map((rule, index) => (
+                                  <div key={index} className="border border-border rounded-lg p-4 mb-4 space-y-3">
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Phone Number</label>
+                                      <Input
+                                        value={rule.phoneNumber}
+                                        onChange={(e) => updateHumanTransferRule(index, { phoneNumber: e.target.value })}
+                                        placeholder="+1234567890"
+                                        className="bg-white border-border"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Condition</label>
+                                      <Input
+                                        value={rule.condition}
+                                        onChange={(e) => updateHumanTransferRule(index, { condition: e.target.value })}
+                                        placeholder="Transfer condition"
+                                        className="bg-white border-border"
+                                      />
+                                    </div>
+                                    {(systemToolSettings.transfer_to_number?.humanTransferRules || []).length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeHumanTransferRule(index)}
+                                        className="w-full text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Remove Rule
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={addHumanTransferRule}
+                                  className="w-full"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Transfer Rule
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-[450px] border-l border-border flex flex-col bg-card">
+                      <div className="flex items-center justify-between p-4 border-b border-border">
+                        <h3 className="font-semibold">
+                          {selectedSystemTool === "transfer_to_agent" ? "Transfer to Agent Settings" : "Transfer to Number Settings"}
+                        </h3>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedSystemTool(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="p-4 flex-1 overflow-auto">
+                        {selectedSystemTool === "transfer_to_agent" && (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">Transfer Rules</label>
+                              {(systemToolSettings.transfer_to_agent?.transferRules || []).map((rule, index) => (
+                                <div key={index} className="border border-border rounded-lg p-4 mb-4 space-y-3">
+                                  <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Agent</label>
+                                    <Input
+                                      value={rule.agent}
+                                      onChange={(e) => updateTransferRule(index, { agent: e.target.value })}
+                                      placeholder="Agent name or ID"
+                                      className="bg-white border-border"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Condition</label>
+                                    <Input
+                                      value={rule.condition}
+                                      onChange={(e) => updateTransferRule(index, { condition: e.target.value })}
+                                      placeholder="Transfer condition"
+                                      className="bg-white border-border"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Delay (ms)</label>
+                                    <Input
+                                      type="number"
+                                      value={rule.delayMs}
+                                      onChange={(e) => updateTransferRule(index, { delayMs: parseInt(e.target.value) || 0 })}
+                                      className="bg-white border-border"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Transfer Message</label>
+                                    <Textarea
+                                      value={rule.transferMessage}
+                                      onChange={(e) => updateTransferRule(index, { transferMessage: e.target.value })}
+                                      placeholder="Message to play before transfer"
+                                      className="bg-white border-border min-h-[60px]"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={rule.enableFirstMessage}
+                                      onChange={(e) => updateTransferRule(index, { enableFirstMessage: e.target.checked })}
+                                      className="rounded"
+                                    />
+                                    <label className="text-xs text-muted-foreground">Enable first message</label>
+                                  </div>
+                                  {(systemToolSettings.transfer_to_agent?.transferRules || []).length > 1 && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeTransferRule(index)}
+                                      className="w-full text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Remove Rule
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={addTransferRule}
+                                className="w-full"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Transfer Rule
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {selectedSystemTool === "transfer_to_number" && (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">Human Transfer Rules</label>
+                              {(systemToolSettings.transfer_to_number?.humanTransferRules || []).map((rule, index) => (
+                                <div key={index} className="border border-border rounded-lg p-4 mb-4 space-y-3">
+                                  <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Phone Number</label>
+                                    <Input
+                                      value={rule.phoneNumber}
+                                      onChange={(e) => updateHumanTransferRule(index, { phoneNumber: e.target.value })}
+                                      placeholder="+1234567890"
+                                      className="bg-white border-border"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-muted-foreground mb-1 block">Condition</label>
+                                    <Input
+                                      value={rule.condition}
+                                      onChange={(e) => updateHumanTransferRule(index, { condition: e.target.value })}
+                                      placeholder="Transfer condition"
+                                      className="bg-white border-border"
+                                    />
+                                  </div>
+                                  {(systemToolSettings.transfer_to_number?.humanTransferRules || []).length > 1 && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeHumanTransferRule(index)}
+                                      className="w-full text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Remove Rule
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={addHumanTransferRule}
+                                className="w-full"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Transfer Rule
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           ) : activeTab === "configuration" ? (
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               {/* Cost & Latency Indicators */}
@@ -3143,50 +4855,131 @@ export default function AssistantDetail() {
                   <span>PROMPT LOGIC</span>
                 </div>
                 
-                {/* First Message Mode */}
+                {/* First Message Configuration */}
                 <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-base md:text-lg font-semibold">First Message Mode</h3>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <Select value={firstMessageMode} onValueChange={setFirstMessageMode}>
-                    <SelectTrigger className="bg-white border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="assistant-speaks-first">Assistant speaks first</SelectItem>
-                      <SelectItem value="assistant-waits-for-user">Assistant waits for user</SelectItem>
-                      <SelectItem value="assistant-speaks-first-model-generated">Assistant speaks first with model generated message</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <button 
+                    className="w-full flex items-start justify-between gap-2"
+                    onClick={() => setFirstMessageExpanded(!firstMessageExpanded)}
+                  >
+                    <div className="text-left flex-1">
+                      <h3 className="text-base md:text-lg font-semibold">First Message Configuration</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        Configure how the assistant initiates conversations
+                      </p>
+                    </div>
+                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", firstMessageExpanded && "rotate-180")} />
+                  </button>
+                  
+                  {firstMessageExpanded && (
+                    <div className="mt-4 md:mt-6 space-y-5">
+                      {/* First Message Mode */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="text-sm font-medium">Mode</h4>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                        <Select value={firstMessageMode} onValueChange={setFirstMessageMode}>
+                          <SelectTrigger className="bg-white border-border">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="assistant-speaks-first">Assistant speaks first</SelectItem>
+                            <SelectItem value="assistant-waits-for-user">Assistant waits for user</SelectItem>
+                            <SelectItem value="assistant-speaks-first-model-generated">Assistant speaks first with model generated message</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                {/* First Message */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <h3 className="text-base md:text-lg font-semibold mb-4">First Message</h3>
-                  <Textarea
-                    value={firstMessage}
-                    onChange={(e) => setFirstMessage(e.target.value)}
-                    placeholder={agentName ? `Hi there, this is ${agentName}...` : "Enter the first message for the assistant..."}
-                    className="bg-white border-border min-h-[80px] font-mono text-sm"
-                  />
+                      {/* First Message */}
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Message</h4>
+                        <Textarea
+                          value={firstMessage}
+                          onChange={(e) => setFirstMessage(e.target.value)}
+                          placeholder={agentName ? `Hi there, this is ${agentName}...` : "Enter the first message for the assistant..."}
+                          className="bg-white border-border min-h-[80px] font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* System Prompt */}
                 <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <h3 className="text-base md:text-lg font-semibold mb-4">System Prompt</h3>
-                  <Textarea
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
-                    placeholder="Enter the system prompt for the assistant..."
-                    className="bg-white border-border min-h-[350px] font-mono text-sm"
-                  />
+                  <button 
+                    className="w-full flex items-start justify-between gap-2"
+                    onClick={() => setAgentBehaviourExpanded(!agentBehaviourExpanded)}
+                  >
+                    <div className="text-left flex-1">
+                      <h3 className="text-base md:text-lg font-semibold">Agent Behaviour</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        Define how the assistant should behave by describing the scenarios, etapas, and tom de voz it must handle.
+                      </p>
+                    </div>
+                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", agentBehaviourExpanded && "rotate-180")} />
+                  </button>
+                  
+                  {agentBehaviourExpanded && (
+                    <div className="mt-4 md:mt-6 space-y-5">
+                      <p className="text-xs text-muted-foreground">
+                        Prompt generated automatically based on the sections below.
+                      </p>
+                      <div className="space-y-5">
+                        {renderSectionEditor({
+                          title: "Scenarios",
+                          description: "List the main scenarios the assistant should cover (e.g., Catálogo, Serviço).",
+                          entries: cenarios,
+                          sectionType: "scenarios",
+                          addLabel: "Add scenario",
+                          titlePlaceholder: "Scenario name",
+                          descriptionPlaceholder: "Describe what should happen in this scenario",
+                          notesPlaceholder: "Optional instructions, edge cases, or requirements",
+                          notesLabel: "Optional guidance for this scenario",
+                        })}
+                        {renderSectionEditor({
+                          title: "Phases",
+                          description: "Break down the stages or flow steps the assistant should follow.",
+                          entries: etapas,
+                          sectionType: "phases",
+                          addLabel: "Add phase",
+                          titlePlaceholder: "Stage name",
+                          descriptionPlaceholder: "Explain what happens in this stage",
+                          notesPlaceholder: "Optional transition tips or reminders for operators",
+                          notesLabel: "Optional flow guidance",
+                        })}
+                        {renderSectionEditor({
+                          title: "Voice Tone",
+                          description: "Describe how the assistant should sound, including restrictions or tone preferences.",
+                          entries: tomDeVoz,
+                          sectionType: "voiceTone",
+                          addLabel: "Add tone",
+                          titlePlaceholder: "Tone label (e.g., WhatsApp)",
+                          descriptionPlaceholder: "Describe the desired tone",
+                          notesPlaceholder: "Optional vocabulary restrictions or style notes",
+                          notesLabel: "Optional tone rules",
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Files */}
                 <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <h3 className="text-base md:text-lg font-semibold mb-4">Files</h3>
-                  <div className="space-y-3">
+                  <button 
+                    className="w-full flex items-start justify-between gap-2"
+                    onClick={() => setFilesExpanded(!filesExpanded)}
+                  >
+                    <div className="text-left flex-1">
+                      <h3 className="text-base md:text-lg font-semibold">Files</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">
+                        Attach files (guides, policies, scripts, templates, etc.) to the assistant to help it answer questions and provide information.
+                      </p>
+                    </div>
+                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", filesExpanded && "rotate-180")} />
+                  </button>
+                  
+                  {filesExpanded && (
+                    <div className="mt-4 md:mt-6 space-y-3">
                     {/* Show attached files for new agents (before save) */}
                     {isNew && attachedFiles.length > 0 && (
                       <div className="space-y-2">
@@ -3307,611 +5100,11 @@ export default function AssistantDetail() {
                         }
                       }}
                     />
-                  </div>
-                </div>
-
-                {/* System Tools */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <div className="mb-4">
-                    <h3 className="text-base md:text-lg font-semibold mb-1">System tools</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      Allow the agent to perform built-in actions.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {Object.values(systemTools).filter(Boolean).length} active tool{Object.values(systemTools).filter(Boolean).length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <div className="space-y-3">
-                    {/* End call */}
-                    <div className="border border-border rounded-lg">
-                      <div className="flex items-center justify-between p-3 bg-secondary/50">
-                        <div className="flex items-center gap-3 flex-1">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">End call</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {systemTools.end_call && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => toggleSystemToolSection("end_call")}
-                            >
-                              <ChevronDown className={cn("h-4 w-4 transition-transform", systemToolExpanded.end_call && "rotate-180")} />
-                            </Button>
-                          )}
-                          <Switch
-                            checked={systemTools.end_call}
-                            onCheckedChange={(checked) => handleSystemToolToggle("end_call", checked)}
-                          />
-                        </div>
-                      </div>
-                      {systemTools.end_call && systemToolExpanded.end_call && (
-                        <div className="p-4 space-y-4 border-t border-border">
-                          <h4 className="text-sm font-semibold">Configuration</h4>
-                          <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-2 block">Name</label>
-                            <Input
-                              value={systemToolSettings.end_call.name}
-                              readOnly
-                              disabled
-                              className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
-                            <Textarea
-                              value={systemToolSettings.end_call.description}
-                              onChange={(e) => handleSystemToolSettingChange("end_call", { description: e.target.value })}
-                              placeholder="Leave blank to use the default optimized LLM prompt."
-                              className="bg-white border-border min-h-[80px] text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-medium">Disable interruptions</div>
-                              <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
-                            </div>
-                            <Switch
-                              checked={systemToolSettings.end_call.disableInterruptions}
-                              onCheckedChange={(checked) => handleSystemToolSettingChange("end_call", { disableInterruptions: checked })}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Detect language */}
-                    <div className="border border-border rounded-lg">
-                      <div className="flex items-center justify-between p-3 bg-secondary/50">
-                        <div className="flex items-center gap-3 flex-1">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Detect language</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {systemTools.detect_language && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => toggleSystemToolSection("detect_language")}
-                            >
-                              <ChevronDown className={cn("h-4 w-4 transition-transform", systemToolExpanded.detect_language && "rotate-180")} />
-                            </Button>
-                          )}
-                          <Switch
-                            checked={systemTools.detect_language}
-                            onCheckedChange={(checked) => handleSystemToolToggle("detect_language", checked)}
-                          />
-                        </div>
-                      </div>
-                      {systemTools.detect_language && systemToolExpanded.detect_language && (
-                        <div className="p-4 space-y-4 border-t border-border">
-                          <h4 className="text-sm font-semibold">Configuration</h4>
-                          <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-2 block">Name</label>
-                            <Input
-                              value={systemToolSettings.detect_language.name}
-                              readOnly
-                              disabled
-                              className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
-                            <Textarea
-                              value={systemToolSettings.detect_language.description}
-                              onChange={(e) => handleSystemToolSettingChange("detect_language", { description: e.target.value })}
-                              placeholder="Leave blank to use the default optimized LLM prompt."
-                              className="bg-white border-border min-h-[80px] text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-medium">Disable interruptions</div>
-                              <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
-                            </div>
-                            <Switch
-                              checked={systemToolSettings.detect_language.disableInterruptions}
-                              onCheckedChange={(checked) => handleSystemToolSettingChange("detect_language", { disableInterruptions: checked })}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Transfer to agent */}
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="flex items-center justify-between p-3 bg-secondary/50">
-                        <div className="flex items-center gap-3 flex-1">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Transfer to agent</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {systemTools.transfer_to_agent && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => toggleSystemToolSection("transfer_to_agent")}
-                            >
-                              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", systemToolExpanded.transfer_to_agent && "rotate-180")} />
-                            </Button>
-                          )}
-                          <Switch
-                            checked={systemTools.transfer_to_agent}
-                            onCheckedChange={(checked) => handleSystemToolToggle("transfer_to_agent", checked)}
-                          />
-                        </div>
-                      </div>
-                      {systemTools.transfer_to_agent && (
-                        <div className={cn(
-                          "overflow-hidden transition-all duration-300 ease-in-out",
-                          systemToolExpanded.transfer_to_agent ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
-                        )}>
-                          <div className="p-4 space-y-6 border-t border-border">
-                          {/* Configuration Section */}
-                          <div className="space-y-4 pb-4 border-b border-border">
-                            <h4 className="text-sm font-semibold">Configuration</h4>
-                            <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
-                            <div>
-                              <label className="text-sm text-muted-foreground mb-2 block">Name</label>
-                              <Input
-                                value={systemToolSettings.transfer_to_agent.name}
-                                readOnly
-                                disabled
-                                className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
-                              <Textarea
-                                value={systemToolSettings.transfer_to_agent.description}
-                                onChange={(e) => handleSystemToolSettingChange("transfer_to_agent", { description: e.target.value })}
-                                placeholder="Leave blank to use the default optimized LLM prompt."
-                                className="bg-white border-border min-h-[80px] text-sm"
-                              />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-sm font-medium">Disable interruptions</div>
-                                <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
-                              </div>
-                              <Switch
-                                checked={systemToolSettings.transfer_to_agent.disableInterruptions}
-                                onCheckedChange={(checked) => handleSystemToolSettingChange("transfer_to_agent", { disableInterruptions: checked })}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Transfer Rules Section */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="text-sm font-semibold">Transfer Rules</h4>
-                                <p className="text-xs text-muted-foreground mt-1">Define the conditions for transferring to different agents.</p>
-                              </div>
-                            </div>
-                          {(systemToolSettings.transfer_to_agent.transferRules || []).map((rule, index) => (
-                            <div key={index} className="border border-border rounded-lg p-4 space-y-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-sm font-medium">Transfer Rule {index + 1}</h4>
-                                {(systemToolSettings.transfer_to_agent.transferRules || []).length > 1 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => removeTransferRule(index)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Agent</label>
-                                <Select 
-                                  value={rule.agent} 
-                                  onValueChange={(value) => updateTransferRule(index, { agent: value })}
-                                >
-                                  <SelectTrigger className="bg-white border-border">
-                                    <SelectValue placeholder="Select agent" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="agent-1">Agent 1</SelectItem>
-                                    <SelectItem value="agent-2">Agent 2</SelectItem>
-                                    <SelectItem value="agent-3">Agent 3</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Condition</label>
-                                <Textarea
-                                  value={rule.condition}
-                                  onChange={(e) => updateTransferRule(index, { condition: e.target.value })}
-                                  placeholder="Enter the condition for transferring to this agent"
-                                  className="bg-white border-border min-h-[80px] text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Delay before transfer (milliseconds)</label>
-                                <Input
-                                  type="number"
-                                  value={rule.delayMs}
-                                  onChange={(e) => updateTransferRule(index, { delayMs: parseInt(e.target.value) || 0 })}
-                                  className="bg-white border-border"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Transfer Message</label>
-                                <Textarea
-                                  value={rule.transferMessage}
-                                  onChange={(e) => updateTransferRule(index, { transferMessage: e.target.value })}
-                                  placeholder="Enter transfer message (optional)"
-                                  className="bg-white border-border min-h-[60px] text-sm"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className="text-sm font-medium">Enable First Message</div>
-                                  <p className="text-xs text-muted-foreground">Play the transferred agent's first message after transfer</p>
-                                </div>
-                                <Switch
-                                  checked={rule.enableFirstMessage}
-                                  onCheckedChange={(checked) => updateTransferRule(index, { enableFirstMessage: checked })}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={addTransferRule}
-                              className="w-full"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Rule
-                            </Button>
-                          </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Transfer to number */}
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="flex items-center justify-between p-3 bg-secondary/50">
-                        <div className="flex items-center gap-3 flex-1">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Transfer to number</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {systemTools.transfer_to_number && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => toggleSystemToolSection("transfer_to_number")}
-                            >
-                              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", systemToolExpanded.transfer_to_number && "rotate-180")} />
-                            </Button>
-                          )}
-                          <Switch
-                            checked={systemTools.transfer_to_number}
-                            onCheckedChange={(checked) => handleSystemToolToggle("transfer_to_number", checked)}
-                          />
-                        </div>
-                      </div>
-                      {systemTools.transfer_to_number && (
-                        <div className={cn(
-                          "overflow-hidden transition-all duration-300 ease-in-out",
-                          systemToolExpanded.transfer_to_number ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"
-                        )}>
-                          <div className="p-4 space-y-6 border-t border-border">
-                          {/* Configuration Section */}
-                          <div className="space-y-4 pb-4 border-b border-border">
-                            <h4 className="text-sm font-semibold">Configuration</h4>
-                            <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
-                            <div>
-                              <label className="text-sm text-muted-foreground mb-2 block">Name</label>
-                              <Input
-                                value={systemToolSettings.transfer_to_number.name}
-                                readOnly
-                                disabled
-                                className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
-                              <Textarea
-                                value={systemToolSettings.transfer_to_number.description}
-                                onChange={(e) => handleSystemToolSettingChange("transfer_to_number", { description: e.target.value })}
-                                placeholder="Leave blank to use the default optimized LLM prompt."
-                                className="bg-white border-border min-h-[80px] text-sm"
-                              />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-sm font-medium">Disable interruptions</div>
-                                <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
-                              </div>
-                              <Switch
-                                checked={systemToolSettings.transfer_to_number.disableInterruptions}
-                                onCheckedChange={(checked) => handleSystemToolSettingChange("transfer_to_number", { disableInterruptions: checked })}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Human Transfer Rules Section */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="text-sm font-semibold">Human Transfer Rules</h4>
-                                <p className="text-xs text-muted-foreground mt-1">Define the conditions for transferring to human operators.</p>
-                              </div>
-                            </div>
-                          {(systemToolSettings.transfer_to_number.humanTransferRules || []).map((rule, index) => (
-                            <div key={index} className="border border-border rounded-lg p-4 space-y-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-sm font-medium">Human Transfer Rule {index + 1}</h4>
-                                {(systemToolSettings.transfer_to_number.humanTransferRules || []).length > 1 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => removeHumanTransferRule(index)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Transfer type</label>
-                                <div className="px-3 py-2 bg-secondary/50 rounded-md border border-border text-sm">
-                                  Conference
-                                </div>
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Destination type</label>
-                                <Select 
-                                  value={rule.destinationType} 
-                                  onValueChange={(value: "phone_number") => updateHumanTransferRule(index, { destinationType: value })}
-                                >
-                                  <SelectTrigger className="bg-white border-border">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="phone_number">Phone Number</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Phone Number</label>
-                                <Input
-                                  type="text"
-                                  value={rule.phoneNumber}
-                                  onChange={(e) => updateHumanTransferRule(index, { phoneNumber: e.target.value })}
-                                  placeholder="+15551234567"
-                                  className="bg-white border-border"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-sm text-muted-foreground mb-2 block">Condition</label>
-                                <Textarea
-                                  value={rule.condition}
-                                  onChange={(e) => updateHumanTransferRule(index, { condition: e.target.value })}
-                                  placeholder="Enter the condition for transferring to this phone number"
-                                  className="bg-white border-border min-h-[100px] text-sm"
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">Type {"{{{"} to add variables</p>
-                              </div>
-                            </div>
-                          ))}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={addHumanTransferRule}
-                              className="w-full"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Rule
-                            </Button>
-                          </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Voicemail detection */}
-                    <div className="border border-border rounded-lg">
-                      <div className="flex items-center justify-between p-3 bg-secondary/50">
-                        <div className="flex items-center gap-3 flex-1">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Voicemail detection</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {systemTools.voicemail_detection && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => toggleSystemToolSection("voicemail_detection")}
-                            >
-                              <ChevronDown className={cn("h-4 w-4 transition-transform", systemToolExpanded.voicemail_detection && "rotate-180")} />
-                            </Button>
-                          )}
-                          <Switch
-                            checked={systemTools.voicemail_detection}
-                            onCheckedChange={(checked) => handleSystemToolToggle("voicemail_detection", checked)}
-                          />
-                        </div>
-                      </div>
-                      {systemTools.voicemail_detection && systemToolExpanded.voicemail_detection && (
-                        <div className="p-4 space-y-4 border-t border-border">
-                          <h4 className="text-sm font-semibold">Configuration</h4>
-                          <p className="text-xs text-muted-foreground">Describe to the LLM how and when to use the tool.</p>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-2 block">Name</label>
-                            <Input
-                              value={systemToolSettings.voicemail_detection.name}
-                              readOnly
-                              disabled
-                              className="bg-secondary/50 border-border text-muted-foreground cursor-not-allowed"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm text-muted-foreground mb-2 block">Description (optional)</label>
-                            <Textarea
-                              value={systemToolSettings.voicemail_detection.description}
-                              onChange={(e) => handleSystemToolSettingChange("voicemail_detection", { description: e.target.value })}
-                              placeholder="Leave blank to use the default optimized LLM prompt."
-                              className="bg-white border-border min-h-[80px] text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-medium">Disable interruptions</div>
-                              <p className="text-xs text-muted-foreground">Select this box to disable interruptions while the tool is running.</p>
-                            </div>
-                            <Switch
-                              checked={systemToolSettings.voicemail_detection.disableInterruptions}
-                              onCheckedChange={(checked) => handleSystemToolSettingChange("voicemail_detection", { disableInterruptions: checked })}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Integration Tools */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-base md:text-lg font-semibold mb-1">Integration tools</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">
-                        Allow the agent to perform client-side and external integrations.
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {webhookTools.length + clientTools.length} tool{(webhookTools.length + clientTools.length) !== 1 ? 's' : ''} configured
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openClientToolModal()}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add client tool
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openWebhookModal()}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add webhook tool
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {(webhookTools.length > 0 || clientTools.length > 0) && (
-                    <div className="space-y-3">
-                      {/* Client Tools */}
-                      {clientTools.map((tool) => (
-                        <div key={tool.id} className="border border-border rounded-lg">
-                          <div className="flex items-center justify-between p-3 bg-secondary/50">
-                            <div className="flex items-center gap-3 flex-1">
-                              <Settings className="h-4 w-4 text-muted-foreground" />
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm font-medium">{tool.name}</span>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                  <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded text-[10px] font-medium">Client</span>
-                                  <span className="truncate">{tool.parameters.length} parameter{tool.parameters.length !== 1 ? 's' : ''}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => openClientToolModal(tool)}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() => deleteClientTool(tool.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {/* Webhook Tools */}
-                      {webhookTools.map((tool) => (
-                        <div key={tool.id} className="border border-border rounded-lg">
-                          <div className="flex items-center justify-between p-3 bg-secondary/50">
-                            <div className="flex items-center gap-3 flex-1">
-                              <Link2 className="h-4 w-4 text-muted-foreground" />
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm font-medium">{tool.name}</span>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-medium">{tool.method}</span>
-                                  <span className="truncate">{tool.url}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => openWebhookModal(tool)}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() => deleteWebhookTool(tool.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>
+
+               
               </div>
             </div>
           ) : activeTab === "advanced" ? (
@@ -5573,6 +6766,379 @@ export default function AssistantDetail() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Integration Connection Modal */}
+      <Dialog open={showIntegrationModal} onOpenChange={(open) => {
+        if (!open && !connectingIntegrationLoading) closeIntegrationConnectionModal();
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          {integrationModalStep === 'select' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Add Integration</DialogTitle>
+                <DialogDescription>
+                  Choose an integration to connect with your agent.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid gap-3 py-4">
+                {availableIntegrationTypes
+                  .filter(type => !userIntegrations.some(i => i.type === type))
+                  .map((integrationType) => (
+                    <button
+                      key={integrationType}
+                      type="button"
+                      onClick={() => selectIntegrationToAdd(integrationType)}
+                      className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-secondary/50 transition-colors text-left"
+                    >
+                      <span className="text-2xl">{getIntegrationIcon(integrationType)}</span>
+                      <div className="flex-1">
+                        <div className="font-medium">{formatToolName(integrationType)}</div>
+                        <div className="text-xs text-muted-foreground">{getIntegrationDescription(integrationType)}</div>
+                      </div>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground -rotate-90" />
+                    </button>
+                  ))}
+                
+                {availableIntegrationTypes.filter(type => !userIntegrations.some(i => i.type === type)).length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-sm">All available integrations are already connected.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {!userIntegrations.some(i => i.type === connectingIntegrationType) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 -ml-2"
+                      onClick={goBackToIntegrationSelect}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <span className="text-xl">{connectingIntegrationType ? getIntegrationIcon(connectingIntegrationType) : ''}</span>
+                  {userIntegrations.some(i => i.type === connectingIntegrationType) ? 'Edit' : 'Connect'} {connectingIntegrationType ? formatToolName(connectingIntegrationType) : 'Integration'}
+                </DialogTitle>
+                <DialogDescription>
+                  {userIntegrations.some(i => i.type === connectingIntegrationType) 
+                    ? 'Update your integration credentials.'
+                    : 'Enter your credentials to connect this integration.'}
+                </DialogDescription>
+              </DialogHeader>
+              
+              {connectingIntegrationType && integrationSchemas[connectingIntegrationType] && !connectingIntegrationLoading ? (
+                <>
+                  <Tabs value={integrationModalTab} onValueChange={(value) => setIntegrationModalTab(value as 'credentials' | 'tools' | 'about')} className="w-full">
+                    <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 w-full justify-start">
+                      <TabsTrigger 
+                        value="credentials" 
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-xs md:text-sm"
+                      >
+                        Credentials
+                      </TabsTrigger>
+                      {INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] && INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType].length > 0 && (
+                        <TabsTrigger 
+                          value="tools" 
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-xs md:text-sm"
+                        >
+                          Tools
+                        </TabsTrigger>
+                      )}
+                      <TabsTrigger 
+                        value="about" 
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2 text-xs md:text-sm"
+                      >
+                        About
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Credentials Tab */}
+                    <TabsContent value="credentials" className="mt-6">
+                      <IntegrationForm
+                        schema={integrationSchemas[connectingIntegrationType]}
+                        initialConfig={editingIntegrationConfig}
+                        onSubmit={handleIntegrationConnect}
+                        onCancel={closeIntegrationConnectionModal}
+                        isLoading={connectingIntegrationLoading}
+                        hasSavedValues={userIntegrations.some(i => i.type === connectingIntegrationType)}
+                        hideSubmitButton={userIntegrations.some(i => i.type === connectingIntegrationType)}
+                      />
+                      {userIntegrations.some(i => i.type === connectingIntegrationType) && (
+                        <div className="pt-4 border-t border-border flex gap-2">
+                          <Button
+                            type="button"
+                            variant="default"
+                            onClick={async () => {
+                              const form = document.querySelector('form');
+                              if (form) {
+                                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                                form.dispatchEvent(submitEvent);
+                              }
+                            }}
+                            disabled={connectingIntegrationLoading}
+                            className="flex-1 text-xs md:text-sm"
+                          >
+                            {connectingIntegrationLoading ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleDeleteIntegration}
+                            disabled={connectingIntegrationLoading}
+                            className="flex-1 text-xs md:text-sm"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Tools Tab */}
+                    {INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] && INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType].length > 0 && (
+                      <TabsContent value="tools" className="mt-6">
+                        <div className="space-y-4">
+                          <div className="space-y-2 mb-4">
+                            <h2 className="text-sm font-medium">Tools</h2>
+                            <p className="text-xs text-muted-foreground">
+                              Tools available through your {formatToolName(connectingIntegrationType)} integration.
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                            {INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType].map((tool) => {
+                              const metadata = INTEGRATION_METADATA[connectingIntegrationType] || { icon: getIntegrationIcon(connectingIntegrationType), iconBg: "bg-zinc-800" };
+                              return (
+                                <div
+                                  key={tool}
+                                  className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
+                                >
+                                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0", metadata.iconBg)}>
+                                    {metadata.icon}
+                                  </div>
+                                  <span className="text-sm font-medium">{tool}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </TabsContent>
+                    )}
+
+                    {/* About Tab */}
+                    <TabsContent value="about" className="mt-6">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <h2 className="text-sm font-medium">About</h2>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {getIntegrationFullDescription(connectingIntegrationType)}
+                          </p>
+                        </div>
+                        {INTEGRATION_METADATA[connectingIntegrationType]?.url && (
+                          <Button
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() => window.open(INTEGRATION_METADATA[connectingIntegrationType].url, '_blank', 'noopener,noreferrer')}
+                          >
+                            Learn more
+                            <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                          </Button>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p className="text-sm">Loading integration configuration...</p>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Section Editor Modal (Scenarios, Phases, Voice Tone) */}
+      <Dialog open={showSectionModal} onOpenChange={(open) => {
+        if (!open) closeSectionModal();
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-secondary">
+                {editingSectionType === "scenarios" && <GitBranch className="h-5 w-5" />}
+                {editingSectionType === "phases" && <Clock className="h-5 w-5" />}
+                {editingSectionType === "voiceTone" && <AudioLines className="h-5 w-5" />}
+              </div>
+              <div>
+                <DialogTitle>
+                  {editingSectionEntry ? "Edit" : "Add"}{" "}
+                  {editingSectionType === "scenarios" && "Scenario"}
+                  {editingSectionType === "phases" && "Phase"}
+                  {editingSectionType === "voiceTone" && "Voice Tone"}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingSectionType === "scenarios" && "Define a scenario the assistant should cover."}
+                  {editingSectionType === "phases" && "Define a phase or stage in the conversation flow."}
+                  {editingSectionType === "voiceTone" && "Define the tone and voice style for the assistant."}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                {editingSectionType === "scenarios" && "Scenario name"}
+                {editingSectionType === "phases" && "Phase name"}
+                {editingSectionType === "voiceTone" && "Tone label"}
+              </label>
+              <Input
+                value={sectionForm.title}
+                onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
+                placeholder={
+                  editingSectionType === "scenarios" ? "e.g., Product Inquiry" :
+                  editingSectionType === "phases" ? "e.g., Greeting" :
+                  "e.g., Professional"
+                }
+                className="bg-white border-border"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Description</label>
+              <Textarea
+                value={sectionForm.description}
+                onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })}
+                placeholder={
+                  editingSectionType === "scenarios" ? "Describe what should happen in this scenario..." :
+                  editingSectionType === "phases" ? "Explain what happens in this phase..." :
+                  "Describe the desired tone and voice style..."
+                }
+                className="bg-white border-border min-h-[100px] text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Notes <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Textarea
+                value={sectionForm.notes || ""}
+                onChange={(e) => setSectionForm({ ...sectionForm, notes: e.target.value })}
+                placeholder={
+                  editingSectionType === "scenarios" ? "Optional instructions, edge cases, or requirements..." :
+                  editingSectionType === "phases" ? "Optional transition tips or reminders..." :
+                  "Optional vocabulary restrictions or style notes..."
+                }
+                className="bg-white border-border min-h-[80px] text-sm"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={closeSectionModal}>
+              Cancel
+            </Button>
+            <Button onClick={saveSectionEntry} disabled={!sectionForm.title.trim()}>
+              {editingSectionEntry ? "Save changes" : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full Prompt Preview Modal */}
+      <Dialog
+        open={showPromptPreviewModal}
+        onOpenChange={(open) => setShowPromptPreviewModal(open)}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-secondary">
+                  <Code className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle>Summary</DialogTitle>
+                  <DialogDescription>
+                    Scenarios, phases, voice tone and the tools available to the assistant.
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="border border-border rounded-lg p-4 bg-muted/20">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-sm font-semibold">Tools included</h4>
+                <p className="text-xs text-muted-foreground">
+                  {promptToolsSummary.activeSystemTools.length +
+                    promptToolsSummary.clientToolNames.length +
+                    promptToolsSummary.webhookToolNames.length +
+                    promptToolsSummary.enabledIntegrations.length}{" "}
+                  total (high-level)
+                </p>
+              </div>
+
+              <div className="mt-3 grid gap-2 text-xs">
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-foreground">System</span>:{" "}
+                  {promptToolsSummary.activeSystemTools.length > 0
+                    ? promptToolsSummary.activeSystemTools.join(", ")
+                    : "None"}
+                </div>
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Client tools</span>:{" "}
+                  {promptToolsSummary.clientToolNames.length > 0
+                    ? `${promptToolsSummary.clientToolNames.length} (${promptToolsSummary.clientToolNames
+                        .slice(0, 5)
+                        .join(", ")}${promptToolsSummary.clientToolNames.length > 5 ? ", …" : ""})`
+                    : "None"}
+                </div>
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Webhook tools</span>:{" "}
+                  {promptToolsSummary.webhookToolNames.length > 0
+                    ? `${promptToolsSummary.webhookToolNames.length} (${promptToolsSummary.webhookToolNames
+                        .slice(0, 5)
+                        .join(", ")}${promptToolsSummary.webhookToolNames.length > 5 ? ", …" : ""})`
+                    : "None"}
+                </div>
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Integrations</span>:{" "}
+                  {promptToolsSummary.enabledIntegrations.length > 0
+                    ? `${promptToolsSummary.enabledIntegrations.length} (${promptToolsSummary.enabledIntegrations
+                        .slice(0, 3)
+                        .map((i) => {
+                          const toolCount = i.enabledTools.length;
+                          return `${formatToolName(i.integrationType)}${toolCount ? ` (${toolCount})` : ""}`;
+                        })
+                        .join(", ")}${promptToolsSummary.enabledIntegrations.length > 3 ? ", …" : ""})`
+                    : "None"}
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-border rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-white">
+                <h4 className="text-sm font-semibold">Generated prompt</h4>
+                <p className="text-xs text-muted-foreground">
+                  {derivedSystemPrompt.length.toLocaleString()} chars
+                </p>
+              </div>
+              <pre className="p-4 text-xs font-mono whitespace-pre-wrap bg-white max-h-[60vh] overflow-y-auto">
+{derivedSystemPrompt}
+              </pre>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

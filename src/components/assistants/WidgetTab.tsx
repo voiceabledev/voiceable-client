@@ -1,99 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   Phone, 
-  MessageSquare, 
-  Headphones, 
-  ImageIcon,
   Copy,
   Check,
   Code,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
   Key,
   Loader2,
   AlertTriangle,
+  Palette,
+  ArrowRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Agent, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { motion, AnimatePresence } from "framer-motion";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
-
-interface CustomWidgetConfig {
-  title: string;
-  subtitle: string;
-  buttonText: string;
-  welcomeMessage: string;
-  iconType: 'phone' | 'chat' | 'headphones' | 'custom';
-  customIconUrl: string;
-  position: 'bottom-right' | 'bottom-left';
-  widgetSize: 'small' | 'medium' | 'large';
-  primaryColor: string;
-  primaryTextColor: string;
-  backgroundColor: string;
-  textColor: string;
-  borderColor: string;
-  userBubbleColor: string;
-  agentBubbleColor: string;
-  borderRadius: string;
-}
-
-const DEFAULT_CONFIG: CustomWidgetConfig = {
-  title: 'Need help?',
-  subtitle: 'Talk to our AI assistant',
-  buttonText: 'Start a call',
-  welcomeMessage: 'Hi! How can I help you today?',
-  iconType: 'phone',
-  customIconUrl: '',
-  position: 'bottom-right',
-  widgetSize: 'medium',
-  primaryColor: '#000000',
-  primaryTextColor: '#ffffff',
-  backgroundColor: '#ffffff',
-  textColor: '#1f2937',
-  borderColor: '#e5e7eb',
-  userBubbleColor: '#f3f4f6',
-  agentBubbleColor: '#eff6ff',
-  borderRadius: '16px',
-};
-
-interface ColorInputProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}
-
-function ColorInput({ label, value, onChange }: ColorInputProps) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 w-40">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-5 h-5 rounded border-0 cursor-pointer"
-        />
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="bg-transparent border-0 p-0 h-auto text-sm focus-visible:ring-0 flex-1 font-mono"
-        />
-      </div>
-    </div>
-  );
-}
+import { toFullConfig } from "@/utils/widgetConfig";
 
 interface WidgetTabProps {
   agent?: Agent | null;
@@ -102,18 +26,12 @@ interface WidgetTabProps {
 
 export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const { toast } = useToast();
-  const [config, setConfig] = useState<CustomWidgetConfig>(DEFAULT_CONFIG);
+  const navigate = useNavigate();
   const [apiKey, setApiKey] = useState<string>('');
   const [apiKeyId, setApiKeyId] = useState<number | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(true);
   const [apiKeyRefreshing, setApiKeyRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({
-    branding: true,
-    icon: true,
-    styling: false,
-    colors: false,
-  });
 
   // Fetch or create API key on mount
   const fetchOrCreateApiKey = useCallback(async (forceCreate = false) => {
@@ -219,14 +137,6 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
     }
   }, [apiKeyId, fetchOrCreateApiKey, toast]);
 
-  const updateConfig = useCallback((key: keyof CustomWidgetConfig, value: string) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
-
   // Get the backend base URL for widget.js and API calls
   const getBackendBaseUrl = useCallback(() => {
     // Use env var if available (set at build time)
@@ -247,7 +157,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
     return `${protocol}//${hostname}`;
   }, []);
 
-  // Generate embed code
+  // Generate embed code using agent's saved widget_config
   const generateEmbedCode = useCallback(() => {
     if (!apiKey) {
       return '<!-- Loading API key... -->';
@@ -258,6 +168,8 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
     }
 
     const backendUrl = getBackendBaseUrl();
+    const config = toFullConfig(agent?.widget_config);
+    
     const dataAttrs = [
       `data-agent-id="${agent.elevenlabs_agent_id}"`,
       `data-api-key="${apiKey}"`,
@@ -286,7 +198,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   ${dataAttrs}
   async
 ></script>`;
-  }, [agent?.elevenlabs_agent_id, apiKey, config, getBackendBaseUrl]);
+  }, [agent?.elevenlabs_agent_id, agent?.widget_config, apiKey, getBackendBaseUrl]);
 
   const handleCopyCode = useCallback(async () => {
     const code = generateEmbedCode();
@@ -319,6 +231,8 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       return;
     }
 
+    const config = toFullConfig(agent?.widget_config);
+
     try {
       await loadAndOpenWidget({
         agentId: agent.elevenlabs_agent_id,
@@ -348,42 +262,15 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
         variant: "destructive",
       });
     }
-  }, [agent?.elevenlabs_agent_id, apiKey, config, getBackendBaseUrl, toast]);
+  }, [agent?.elevenlabs_agent_id, agent?.widget_config, apiKey, getBackendBaseUrl, toast]);
 
-  const getIconComponent = (type: string) => {
-    switch (type) {
-      case 'chat': return MessageSquare;
-      case 'headphones': return Headphones;
-      case 'custom': return ImageIcon;
-      default: return Phone;
+  const handleOpenDesignStudio = () => {
+    if (agent?.id) {
+      navigate(`/assistants/${agent.id}/widget/design`);
+    } else if (agentId) {
+      navigate(`/assistants/${agentId}/widget/design`);
     }
   };
-
-  // Section header component
-  const SectionHeader = ({ 
-    title, 
-    description, 
-    section 
-  }: { 
-    title: string; 
-    description: string; 
-    section: keyof typeof expandedSections;
-  }) => (
-    <button
-      onClick={() => toggleSection(section)}
-      className="w-full flex items-center justify-between py-3 text-left"
-    >
-      <div>
-        <h3 className="text-base font-semibold">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      {expandedSections[section] ? (
-        <ChevronUp className="h-5 w-5 text-muted-foreground" />
-      ) : (
-        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-      )}
-    </button>
-  );
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -393,7 +280,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           <div>
             <h2 className="text-xl font-semibold">Custom Widget</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Configure and embed a custom voice widget on your website
+              Embed a voice widget on your website
             </p>
           </div>
           <Button
@@ -421,6 +308,30 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
             </div>
           </div>
         )}
+
+        {/* Design Studio Section */}
+        <div className="border border-border rounded-lg p-6 bg-gradient-to-br from-primary/5 to-primary/10">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Palette className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Design Studio</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Customize your widget's appearance, colors, branding, and styling. 
+                See live previews as you make changes.
+              </p>
+              <Button
+                className="mt-4"
+                onClick={handleOpenDesignStudio}
+                disabled={!agent?.id && !agentId}
+              >
+                Open Design Studio
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
         {/* API Key Section */}
         <div className="border border-border rounded-lg p-4">
@@ -475,237 +386,6 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Configuration Panel */}
-          <div className="space-y-4">
-            {/* Branding Section */}
-            <div className="border border-border rounded-lg overflow-hidden p-4">
-              <SectionHeader
-                title="Branding"
-                description="Customize text and messages"
-                section="branding"
-              />
-              <AnimatePresence>
-                {expandedSections.branding && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="px-4 pb-4 space-y-4"
-                  >
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1 block">Title</label>
-                      <Input
-                        value={config.title}
-                        onChange={(e) => updateConfig('title', e.target.value)}
-                        placeholder="Need help?"
-                        className="bg-secondary/50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1 block">Subtitle</label>
-                      <Input
-                        value={config.subtitle}
-                        onChange={(e) => updateConfig('subtitle', e.target.value)}
-                        placeholder="Talk to our AI assistant"
-                        className="bg-secondary/50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1 block">Button Text</label>
-                      <Input
-                        value={config.buttonText}
-                        onChange={(e) => updateConfig('buttonText', e.target.value)}
-                        placeholder="Start a call"
-                        className="bg-secondary/50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1 block">Welcome Message</label>
-                      <Textarea
-                        value={config.welcomeMessage}
-                        onChange={(e) => updateConfig('welcomeMessage', e.target.value)}
-                        placeholder="Hi! How can I help you today?"
-                        className="bg-secondary/50 min-h-[80px]"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Icon Section */}
-            <div className="border border-border rounded-lg overflow-hidden p-4">
-              <SectionHeader
-                title="Icon"
-                description="Choose the widget icon"
-                section="icon"
-              />
-              <AnimatePresence>
-                {expandedSections.icon && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="px-4 pb-4 space-y-4"
-                  >
-                    <div className="grid grid-cols-4 gap-2">
-                      {(['phone', 'chat', 'headphones', 'custom'] as const).map((type) => {
-                        const Icon = getIconComponent(type);
-                        return (
-                          <button
-                            key={type}
-                            onClick={() => updateConfig('iconType', type)}
-                            className={cn(
-                              "flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-colors",
-                              config.iconType === type
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            )}
-                          >
-                            <Icon className="h-6 w-6 mb-2" />
-                            <span className="text-xs capitalize">{type}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {config.iconType === 'custom' && (
-                      <div>
-                        <label className="text-sm text-muted-foreground mb-1 block">Icon URL</label>
-                        <Input
-                          value={config.customIconUrl}
-                          onChange={(e) => updateConfig('customIconUrl', e.target.value)}
-                          placeholder="https://example.com/icon.svg"
-                          className="bg-secondary/50"
-                        />
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Styling Section */}
-            <div className="border border-border rounded-lg overflow-hidden p-4">
-              <SectionHeader
-                title="Styling"
-                description="Position and size options"
-                section="styling"
-              />
-              <AnimatePresence>
-                {expandedSections.styling && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="px-4 pb-4 space-y-4"
-                  >
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block">Position</label>
-                      <Select
-                        value={config.position}
-                        onValueChange={(v) => updateConfig('position', v as 'bottom-right' | 'bottom-left')}
-                      >
-                        <SelectTrigger className="bg-secondary/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="bottom-right">Bottom Right</SelectItem>
-                          <SelectItem value="bottom-left">Bottom Left</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block">Size</label>
-                      <div className="flex rounded-lg border border-border overflow-hidden">
-                        {(['small', 'medium', 'large'] as const).map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => updateConfig('widgetSize', s)}
-                            className={cn(
-                              "flex-1 py-2 text-sm font-medium transition-colors capitalize",
-                              config.widgetSize === s
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-secondary"
-                            )}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1 block">Border Radius</label>
-                      <Input
-                        value={config.borderRadius}
-                        onChange={(e) => updateConfig('borderRadius', e.target.value)}
-                        placeholder="16px"
-                        className="bg-secondary/50"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Colors Section */}
-            <div className="border border-border rounded-lg overflow-hidden p-4">
-              <SectionHeader
-                title="Colors"
-                description="Customize the color scheme"
-                section="colors"
-              />
-              <AnimatePresence>
-                {expandedSections.colors && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="px-4 pb-4 divide-y divide-border/50"
-                  >
-                    <ColorInput
-                      label="Primary"
-                      value={config.primaryColor}
-                      onChange={(v) => updateConfig('primaryColor', v)}
-                    />
-                    <ColorInput
-                      label="Primary Text"
-                      value={config.primaryTextColor}
-                      onChange={(v) => updateConfig('primaryTextColor', v)}
-                    />
-                    <ColorInput
-                      label="Background"
-                      value={config.backgroundColor}
-                      onChange={(v) => updateConfig('backgroundColor', v)}
-                    />
-                    <ColorInput
-                      label="Text"
-                      value={config.textColor}
-                      onChange={(v) => updateConfig('textColor', v)}
-                    />
-                    <ColorInput
-                      label="Border"
-                      value={config.borderColor}
-                      onChange={(v) => updateConfig('borderColor', v)}
-                    />
-                    <ColorInput
-                      label="User Bubble"
-                      value={config.userBubbleColor}
-                      onChange={(v) => updateConfig('userBubbleColor', v)}
-                    />
-                    <ColorInput
-                      label="Agent Bubble"
-                      value={config.agentBubbleColor}
-                      onChange={(v) => updateConfig('agentBubbleColor', v)}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* Preview & Embed Code Panel */}
-          <div className="space-y-4">
             {/* Embed Code */}
             <div className="border border-border rounded-lg overflow-hidden">
               <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
@@ -752,7 +432,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
                 </li>
                 <li className="flex gap-2">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">2</span>
-                  <span>Customize the widget appearance on the left</span>
+              <span>Customize the widget appearance in the Design Studio</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">3</span>
@@ -762,8 +442,6 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
                 An API key is automatically generated for widget authentication. Refresh it if compromised.
               </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

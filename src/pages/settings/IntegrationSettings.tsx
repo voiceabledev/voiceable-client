@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ArrowLeft, ExternalLink, X, ChevronDown, Trash2 } from "lucide-react";
 import { IntegrationForm } from "@/components/integrations/IntegrationForm";
 import { integrationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
 
 // Integration metadata for display (icons, colors, external links)
@@ -131,6 +133,110 @@ const INTEGRATION_METADATA: Record<string, { name: string; icon: string; iconBg:
   }
 };
 
+// Integration descriptions for About tab
+const INTEGRATION_DESCRIPTIONS: Record<string, string> = {
+  hubspot: "Connect your ElevenLabs AI agents with HubSpot CRM to manage contacts, companies, and deals. This integration enables your agents to create and update CRM records, search for existing data, and automate sales and marketing workflows. Keep your customer data synchronized and let your AI agents handle routine CRM tasks.",
+  salesforce: "Integrate your AI agents with Salesforce Sales Cloud to push and pull records directly. Enable your agents to access customer data, update opportunities, create leads, and automate your sales processes seamlessly.",
+  pipedrive: "Keep your leads and pipelines in sync with Pipedrive CRM. Your AI agents can manage deals, update contacts, and track sales activities automatically.",
+  elevenlabs: "Configure your ElevenLabs API key to enable voice synthesis and cloning capabilities for your AI agents.",
+  deepgram: "Set up Deepgram for real-time speech recognition with low latency, perfect for production voice AI applications.",
+  calendly: "Bring Calendly booking links into your assistant workflows. Enable your agents to schedule meetings and manage availability.",
+  google_calendar: "Overlay availability and events from Google Calendar. Let your agents check schedules and book appointments.",
+  outlook_calendar: "Integrate Microsoft Outlook calendars for scheduling. Enable calendar management through your AI agents.",
+  calcom: "Use Cal.com event links to manage availability across calendars. Integrate scheduling capabilities into your agent workflows."
+};
+
+// Credential types for integrations
+const INTEGRATION_CREDENTIAL_TYPES: Record<string, { label: string; value: string }> = {
+  hubspot: {
+    label: "Private App Token",
+    value: "private_app_token"
+  },
+  salesforce: {
+    label: "Connected App",
+    value: "connected_app"
+  },
+  pipedrive: {
+    label: "API Token",
+    value: "api_token"
+  }
+};
+
+// Integration tools mapping
+const INTEGRATION_TOOLS: Record<string, string[]> = {
+  hubspot: [
+    "Get Contact",
+    "Create Contact",
+    "Update Contact",
+    "Search Contacts",
+    "Get Company",
+    "Create Company",
+    "Search Companies",
+    "Get Deal",
+    "Update Deal",
+    "Search Deals",
+    "Create Note",
+    "Search Notes",
+    "Get Task"
+  ],
+  salesforce: [
+    "Get Lead",
+    "Create Lead",
+    "Update Lead",
+    "Search Leads",
+    "Get Opportunity",
+    "Create Opportunity",
+    "Update Opportunity",
+    "Search Opportunities",
+    "Get Account",
+    "Create Account",
+    "Update Account",
+    "Search Accounts",
+    "Create Task",
+    "Create Event"
+  ],
+  pipedrive: [
+    "Get Deal",
+    "Create Deal",
+    "Update Deal",
+    "Search Deals",
+    "Get Person",
+    "Create Person",
+    "Update Person",
+    "Search Persons",
+    "Get Organization",
+    "Create Organization",
+    "Update Organization",
+    "Search Organizations",
+    "Create Note",
+    "Create Activity"
+  ],
+  calendly: [
+    "Get Event Types",
+    "Get Availability",
+    "Create Booking",
+    "Get Scheduled Events",
+    "Cancel Event",
+    "Reschedule Event"
+  ],
+  google_calendar: [
+    "List Events",
+    "Create Event",
+    "Update Event",
+    "Delete Event",
+    "Get Free/Busy",
+    "Get Calendar List"
+  ],
+  outlook_calendar: [
+    "List Events",
+    "Create Event",
+    "Update Event",
+    "Delete Event",
+    "Get Free/Busy",
+    "Get Calendar List"
+  ]
+};
+
 export default function IntegrationSettings() {
   const navigate = useNavigate();
   const { type } = useParams<{ type: string }>();
@@ -140,6 +246,8 @@ export default function IntegrationSettings() {
   const [hasSavedIntegration, setHasSavedIntegration] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState("credentials");
 
   const integrationType = type || '';
   const metadata = INTEGRATION_METADATA[integrationType] || {
@@ -286,66 +394,220 @@ export default function IntegrationSettings() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!hasSavedIntegration) {
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete the ${metadata.name} integration? This will remove all credentials and cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await integrationsApi.delete(integrationType);
+      
+      toast({
+        title: 'Integration deleted',
+        description: `${metadata.name} integration has been removed successfully.`,
+      });
+      
+      // Navigate back to integrations list
+      navigate('/settings/integrations');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete integration';
+      toast({
+        title: 'Error deleting integration',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const integrationDescription = INTEGRATION_DESCRIPTIONS[integrationType] || 
+    `Configure your ${metadata.name} integration settings. Connect your AI agents with ${metadata.name} to extend their capabilities.`;
+  const integrationTools = INTEGRATION_TOOLS[integrationType] || [];
+
   return (
-    <div className="max-w-2xl pt-4 md:pt-6 pl-4 md:pl-6">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 md:gap-4 mb-6 md:mb-8">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/settings/integrations")}
-          className="flex-shrink-0"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg ${metadata.iconBg} flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0`}>
-          {metadata.icon}
-        </div>
-        <h1 className="text-lg md:text-xl font-semibold">{metadata.name}</h1>
-      </div>
-
-      {/* Integration Card */}
-      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3 md:mb-4">
-          <div>
-            <h2 className="text-base md:text-lg font-semibold mb-1">{metadata.name}</h2>
-            {schema && (
-              <p className="text-xs md:text-sm text-muted-foreground">
-                {Object.values(schema.fields)[0]?.description || `Configure your ${metadata.name} integration settings.`}
-              </p>
-            )}
-          </div>
-          {metadata.url && (
-            <a
-              href={metadata.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground flex-shrink-0"
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/settings/integrations")}
+              className="flex-shrink-0"
             >
-              <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            </a>
-          )}
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className={cn("w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0", metadata.iconBg)}>
+              {metadata.icon}
+            </div>
+            <h1 className="text-lg md:text-xl font-semibold">{metadata.name}</h1>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings/integrations")}
+            className="flex-shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        <div className="space-y-3 md:space-y-4">
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading...
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-1/2">
+          <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 w-full justify-start">
+            <TabsTrigger 
+              value="credentials" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+            >
+              Credentials
+            </TabsTrigger>
+            {integrationTools.length > 0 && (
+              <TabsTrigger 
+                value="tools" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+              >
+                Tools
+              </TabsTrigger>
+            )}
+            <TabsTrigger 
+              value="about" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+            >
+              About
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Credentials Tab */}
+          <TabsContent value="credentials" className="mt-6">
+            <div className="space-y-6">
+              {isLoading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Loading...
+                </div>
+              ) : schema ? (
+                <>
+                  {INTEGRATION_CREDENTIAL_TYPES[integrationType] && (
+                    <div className="space-y-2">
+                      <h2 className="text-sm font-medium">Credential type</h2>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Select a credential to use for this integration.
+                      </p>
+                      <div className="relative">
+                        <select
+                          className="w-full bg-secondary/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          value={INTEGRATION_CREDENTIAL_TYPES[integrationType].value}
+                          disabled
+                        >
+                          <option value={INTEGRATION_CREDENTIAL_TYPES[integrationType].value}>
+                            {INTEGRATION_CREDENTIAL_TYPES[integrationType].label}
+                          </option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+                  <IntegrationForm
+                    schema={schema}
+                    initialConfig={initialConfig}
+                    onSubmit={handleSave}
+                    isLoading={isSaving}
+                    hasSavedValues={hasSavedIntegration}
+                    submitButtonText={hasSavedIntegration ? "Save" : "Connect"}
+                    hideSubmitButton={true}
+                  />
+                  <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-3 sm:justify-end">
+                    {hasSavedIntegration && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleDelete}
+                        disabled={isDeleting || isSaving}
+                        className="w-full sm:w-auto text-xs md:text-sm"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={() => {
+                        const form = document.querySelector('form');
+                        if (form) {
+                          form.requestSubmit();
+                        }
+                      }}
+                      disabled={isSaving || isDeleting}
+                      className="w-full sm:w-auto min-w-[120px] text-xs md:text-sm"
+                    >
+                      {isSaving ? (hasSavedIntegration ? 'Saving...' : 'Connecting...') : (hasSavedIntegration ? 'Save' : 'Connect')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Failed to load integration schema
+                </div>
+              )}
             </div>
-          ) : schema ? (
-            <IntegrationForm
-              schema={schema}
-              initialConfig={initialConfig}
-              onSubmit={handleSave}
-              isLoading={isSaving}
-              hasSavedValues={hasSavedIntegration}
-            />
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              Failed to load integration schema
-            </div>
+          </TabsContent>
+
+          {/* Tools Tab */}
+          {integrationTools.length > 0 && (
+            <TabsContent value="tools" className="mt-6">
+              <div className="space-y-4">
+                <div className="space-y-2 mb-4">
+                  <h2 className="text-sm font-medium">Tools</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Tools available through your {metadata.name} integration.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {integrationTools.map((tool) => (
+                    <div
+                      key={tool}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
+                    >
+                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0", metadata.iconBg)}>
+                        {metadata.icon}
+                      </div>
+                      <span className="text-sm font-medium">{tool}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
           )}
-        </div>
+
+          {/* About Tab */}
+          <TabsContent value="about" className="mt-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h2 className="text-sm font-medium">About</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {integrationDescription}
+                </p>
+              </div>
+              {metadata.url && (
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => window.open(metadata.url, '_blank', 'noopener,noreferrer')}
+                >
+                  Learn more
+                  <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                </Button>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

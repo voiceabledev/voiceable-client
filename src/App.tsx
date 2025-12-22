@@ -41,6 +41,7 @@ import Scheduler from "@/pages/Scheduler";
 import LeadsReviver from "@/pages/LeadsReviver";
 import Confirmation from "@/pages/Confirmation";
 import BubbleVoice from "@/pages/BubbleVoice";
+import WidgetDesignStudio from "@/pages/WidgetDesignStudio";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/custom-agents" element={<CustomAgents />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/assistants/:id/widget/design" element={<ProtectedRoute><WidgetDesignStudio /></ProtectedRoute>} />
               <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route path="/account" element={<Account />} />
                 <Route path="/overview" element={<Overview />} />

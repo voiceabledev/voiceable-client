@@ -323,7 +323,7 @@ const crmProviders: IntegrationProvider[] = [
     description: "Messenger-based sales CRM with WhatsApp, Instagram, and more channels.",
     icon: "K",
     iconBg: "bg-purple-600",
-    status: "available",
+    status: "upcoming",
     order: 4
   },
   {
@@ -344,7 +344,7 @@ const schedulingProviders: IntegrationProvider[] = [
     description: "Overlay availability and events from Google Calendar.",
     icon: "📅",
     iconBg: "bg-blue-500",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -362,7 +362,7 @@ const schedulingProviders: IntegrationProvider[] = [
     description: "Bring Calendly booking links into your assistant workflows.",
     icon: "C",
     iconBg: "bg-orange-500",
-    status: "upcoming",
+    status: "available",
     order: 3
   }
   ,

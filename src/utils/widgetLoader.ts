@@ -25,11 +25,21 @@ interface WidgetConfig {
 
 let widgetScriptLoaded = false;
 let widgetInitialized = false;
+let widgetLoadingInProgress = false;
 
 /**
  * Loads the widget script and triggers it to open
  */
 export async function loadAndOpenWidget(config: WidgetConfig): Promise<void> {
+  // Prevent multiple simultaneous loads
+  if (widgetLoadingInProgress) {
+    console.warn('[WidgetLoader] Widget load already in progress, skipping');
+    return;
+  }
+  
+  widgetLoadingInProgress = true;
+  
+  try {
   // Load the script if not already loaded
   if (!widgetScriptLoaded) {
     await loadWidgetScript(config);
@@ -40,6 +50,9 @@ export async function loadAndOpenWidget(config: WidgetConfig): Promise<void> {
 
   // Trigger the widget to open and start
   triggerWidgetOpen();
+  } finally {
+    widgetLoadingInProgress = false;
+  }
 }
 
 /**
@@ -64,8 +77,12 @@ function loadWidgetScript(config: WidgetConfig): Promise<void> {
     script.async = true;
 
     // Set all data attributes
-    script.setAttribute('data-agent-id', config.agentId);
-    script.setAttribute('data-api-key', config.apiKey);
+    // Use config values first, fallback to environment variables
+    const agentId = config.agentId || import.meta.env.VITE_AGENT_ID || '';
+    const apiKey = config.apiKey || import.meta.env.VITE_AGENT_API_KEY || '';
+    
+    script.setAttribute('data-agent-id', agentId);
+    script.setAttribute('data-api-key', apiKey);
     script.setAttribute('data-api-base-url', config.apiBaseUrl);
     
     if (config.title) script.setAttribute('data-title', config.title);

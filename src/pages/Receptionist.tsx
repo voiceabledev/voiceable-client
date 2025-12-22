@@ -170,8 +170,9 @@ const testimonials = [
 export default function Receptionist() {
   const handleOpenWidget = () => {
     loadAndOpenWidget({
-      agentId: "agent_5301kcx1kyyzf4w8q6z6f4kzybfx",
-      apiKey: "pk_live_5193012d945fe17ccb842fbdd9e69dc96c0274a18801fb2b588da9c84256faba",
+      
+      agentId: "agent_9801kd0vxph3f5waz8e47h6wyrcf",
+      apiKey: "pk_live_32287d896af0dac77154b95a4ed2973e9158e9c1958a7df6c893dc0df44f9d49",
       apiBaseUrl: "http://localhost:3001",
       title: "Need help?",
       subtitle: "Talk to our AI assistant",

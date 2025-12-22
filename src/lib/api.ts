@@ -326,6 +326,25 @@ export interface AgentFilters {
   cursor?: string;
 }
 
+export interface WidgetConfig {
+  title?: string;
+  subtitle?: string;
+  buttonText?: string;
+  welcomeMessage?: string;
+  iconType?: 'phone' | 'chat' | 'headphones' | 'custom';
+  customIconUrl?: string;
+  position?: 'bottom-right' | 'bottom-left';
+  widgetSize?: 'small' | 'medium' | 'large';
+  primaryColor?: string;
+  primaryTextColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  borderColor?: string;
+  userBubbleColor?: string;
+  agentBubbleColor?: string;
+  borderRadius?: string;
+}
+
 export interface Agent {
   id: string;
   name?: string;
@@ -334,16 +353,19 @@ export interface Agent {
   tags?: string[];
   conversation_config?: Record<string, unknown>;
   platform_settings?: Record<string, unknown>;
+  widget_config?: WidgetConfig;
   published?: boolean;
   published_at?: string;
   elevenlabs_agent_id?: string;
   version?: number;
+  integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
 }
 
 export interface CreateAgentParams {
   name: string;
   conversation_config?: Record<string, unknown>;
   platform_settings?: Record<string, unknown>;
+  widget_config?: WidgetConfig;
   tags?: string[];
 }
 
@@ -351,6 +373,7 @@ export interface UpdateAgentParams {
   name?: string;
   conversation_config?: Record<string, unknown>;
   platform_settings?: Record<string, unknown>;
+  widget_config?: WidgetConfig;
   tags?: string[];
 }
 

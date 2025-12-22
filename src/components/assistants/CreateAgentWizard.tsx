@@ -314,6 +314,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           });
           // Don't re-throw - allow user to continue even if sync fails
         }
+        
       } else if (shouldSyncWithElevenLabs && !hasRequiredFields) {
         // Voice/Transcriber step but missing required fields
         toast({

@@ -13,6 +13,8 @@ interface IntegrationFormProps {
   onCancel?: () => void;
   isLoading?: boolean;
   hasSavedValues?: boolean;
+  submitButtonText?: string;
+  hideSubmitButton?: boolean;
 }
 
 export function IntegrationForm({
@@ -22,6 +24,8 @@ export function IntegrationForm({
   onCancel,
   isLoading = false,
   hasSavedValues = false,
+  submitButtonText,
+  hideSubmitButton = false,
 }: IntegrationFormProps) {
   const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -345,27 +349,18 @@ export function IntegrationForm({
     <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
       {orderedFields.map(([fieldName, fieldConfig]) => renderField(fieldName, fieldConfig))}
 
-      <div className="flex justify-end gap-2 pt-2">
-        {onCancel && (
+      {!hideSubmitButton && (
+        <div className="flex justify-center pt-4">
           <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
+            type="submit"
+            variant="default"
             disabled={isLoading}
-            className="text-xs md:text-sm"
+            className="w-full sm:w-auto min-w-[120px] text-xs md:text-sm"
           >
-            Cancel
+            {isLoading ? (hasSavedValues ? 'Saving...' : 'Connecting...') : (submitButtonText || (hasSavedValues ? 'Save' : 'Connect'))}
           </Button>
-        )}
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={isLoading}
-          className="text-xs md:text-sm"
-        >
-          {isLoading ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
+        </div>
+      )}
     </form>
   );
 }
