@@ -1275,8 +1275,8 @@ export default function AssistantDetail() {
             const authHeader: WebhookHeader = {
               ...getEmptyWebhookHeader(),
               type: 'secret',
-              name: 'authorization',
-              value: 'Bearer',
+              name: 'X-API-Key',
+              value: 'mQHjGa98PGSD1Geqo0nb',
             };
             
             // Create id query parameter with LLM prompt value type
