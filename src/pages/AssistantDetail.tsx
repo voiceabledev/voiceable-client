@@ -3519,10 +3519,45 @@ export default function AssistantDetail() {
     const hasModel = selectedModel && selectedModel.trim() !== "";
     const hasFirstMessage = firstMessage && firstMessage.trim() !== "";
     const trimmedPrompt = derivedSystemPrompt.trim();
-    const hasSystemPrompt = trimmedPrompt !== "" && trimmedPrompt !== DEFAULT_SYSTEM_PROMPT.trim();
+    // System prompt is valid if it's not empty (default prompt is also valid)
+    const hasSystemPrompt = trimmedPrompt !== "";
     const hasVoice = selectedVoiceId && selectedVoiceId.trim() !== "";
-    return hasLanguage && hasModel && hasFirstMessage && hasSystemPrompt && hasVoice;
+    
+    const isValid = hasLanguage && hasModel && hasFirstMessage && hasSystemPrompt && hasVoice;
+    
+    // Debug logging to help identify missing fields
+    if (!isValid && process.env.NODE_ENV === 'development') {
+      console.log('Deploy validation:', {
+        hasLanguage,
+        hasModel,
+        hasFirstMessage,
+        hasSystemPrompt,
+        hasVoice,
+        selectedLanguage,
+        selectedModel,
+        firstMessage: firstMessage?.substring(0, 20) + '...',
+        derivedSystemPrompt: trimmedPrompt?.substring(0, 50) + '...',
+        selectedVoiceId
+      });
+    }
+    
+    return isValid;
   }, [selectedLanguage, selectedModel, firstMessage, derivedSystemPrompt, selectedVoiceId]);
+
+  // Get missing fields for deploy button tooltip
+  const deployMissingFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!selectedLanguage || selectedLanguage.trim() === "") missing.push("Language");
+    if (!selectedModel || selectedModel.trim() === "") missing.push("Model");
+    if (!firstMessage || firstMessage.trim() === "") missing.push("First Message");
+    if (!derivedSystemPrompt || derivedSystemPrompt.trim() === "") missing.push("System Prompt");
+    if (!selectedVoiceId || selectedVoiceId.trim() === "") missing.push("Voice");
+    return missing;
+  }, [selectedLanguage, selectedModel, firstMessage, derivedSystemPrompt, selectedVoiceId]);
+
+  const deployButtonTitle = !isDeployValid 
+    ? `Missing required fields: ${deployMissingFields.join(", ")}`
+    : "Deploy agent to ElevenLabs (creates a new version)";
 
   const previewButtonTitle = widgetKeyLoading
     ? "Loading widget preview..."
@@ -3743,7 +3778,8 @@ export default function AssistantDetail() {
       missingFields.push("First Message");
     }
     const trimmedDerivedPrompt = derivedSystemPrompt.trim();
-    if (!trimmedDerivedPrompt || trimmedDerivedPrompt === DEFAULT_SYSTEM_PROMPT.trim()) {
+    // System prompt is valid if it's not empty (default prompt is also valid)
+    if (!trimmedDerivedPrompt || trimmedDerivedPrompt === "") {
       missingFields.push("System Prompt");
     }
     if (!selectedVoiceId || selectedVoiceId.trim() === "") {
@@ -3809,19 +3845,48 @@ export default function AssistantDetail() {
           title: 'Success',
           description: `Assistant deployed successfully to ElevenLabs (Version ${version}).`,
         });
+      } else {
+        throw new Error('Deployment succeeded but no agent data was returned');
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to publish assistant';
+      console.error('Deployment error:', err);
+      
+      let errorMessage = 'Failed to publish assistant';
+      let errorDetails = '';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        // Check for additional error details
+        interface ErrorWithDetails extends Error {
+          details?: string;
+          errorCode?: string;
+        }
+        const errorWithDetails = err as ErrorWithDetails;
+        if (errorWithDetails.details) {
+          errorDetails = errorWithDetails.details;
+        }
+        if (errorWithDetails.errorCode) {
+          console.error('Error code:', errorWithDetails.errorCode);
+        }
+      }
+      
+      // Build a more detailed error message
+      let fullErrorMessage = errorMessage;
+      if (errorDetails) {
+        fullErrorMessage += `\n\nDetails: ${errorDetails}`;
+      }
+      
       toast({
-        title: 'Error',
-        description: errorMessage,
+        title: 'Deployment Failed',
+        description: fullErrorMessage,
         variant: 'destructive',
+        duration: 10000, // Show for 10 seconds to allow reading longer error messages
       });
     } finally {
       setSaving(false);
     }
   }, [isNew, agent, agentName, tempName, selectedVoiceId, selectedLanguage, selectedModel, firstMessage, derivedSystemPrompt, buildConfiguration, navigate, toast]);
-
+ 
   // Show wizard for new agents, regular interface for existing agents
   if (isNew) {
     return (
@@ -4061,7 +4126,7 @@ export default function AssistantDetail() {
                   onClick={handlePublish}
                   disabled={saving || loading || !isDeployValid}
                   className="text-xs md:text-sm"
-                  title={!isDeployValid ? "Please fill in all required fields (Language, Model, First Message, System Prompt, Voice) to deploy" : "Deploy agent to ElevenLabs (creates a new version)"}
+                  title={deployButtonTitle}
                 >
                   {saving ? (
                     <>
@@ -4085,7 +4150,7 @@ export default function AssistantDetail() {
                   onClick={handlePublish}
                   disabled={saving || loading || !isDeployValid}
                   className="text-xs md:text-sm"
-                  title={!isDeployValid ? "Please fill in all required fields (Language, Model, First Message, System Prompt, Voice) to deploy" : "Save and deploy agent to ElevenLabs"}
+                  title={!isDeployValid ? `Missing required fields: ${deployMissingFields.join(", ")}` : "Save and deploy agent to ElevenLabs"}
                 >
                   {saving ? (
                     <>

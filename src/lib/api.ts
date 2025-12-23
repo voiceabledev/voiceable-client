@@ -135,11 +135,27 @@ class ApiClient {
           }
         }
         
-        throw new Error(errorMessage);
+        const error = new Error(errorMessage);
+        // Attach additional error details if available
+        if (data.details) {
+          (error as any).details = data.details;
+        }
+        if (data.error) {
+          (error as any).errorCode = data.error;
+        }
+        throw error;
       }
       
       const errorMessage = data.status?.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'An error occurred');
-      throw new Error(errorMessage);
+      const error = new Error(errorMessage);
+      // Attach additional error details if available
+      if (data.details) {
+        (error as any).details = data.details;
+      }
+      if (data.error) {
+        (error as any).errorCode = data.error;
+      }
+      throw error;
     }
 
     return data;
