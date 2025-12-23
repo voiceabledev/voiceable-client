@@ -28,7 +28,7 @@ import { paymentsApi } from "@/lib/api";
 const buildItems = [
   { icon: Users, label: "Agents", path: "/assistants" },
   // { icon: GitBranch, label: "Workflows", path: "/workflows" },
-  { icon: Phone, label: "Phone Numbers", path: "/phone-numbers" },
+  // { icon: Phone, label: "Phone Numbers", path: "/phone-numbers" },
   // { icon: FileText, label: "Knowledge Base", path: "/files" },
   // { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
   { icon: Key, label: "Integrations", path: "/settings/integrations" },

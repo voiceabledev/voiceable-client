@@ -13,7 +13,10 @@ import {
   AlertTriangle,
   Palette,
   ArrowRight,
+  Layout,
 } from "lucide-react";
+import { TabSectionHeader } from "@/components/assistants/TabSectionHeader";
+import { TabSectionCard } from "@/components/assistants/TabSectionCard";
 import { Agent, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
@@ -273,26 +276,9 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">Custom Widget</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Embed a voice widget on your website
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePreviewWidget}
-            disabled={!agent?.elevenlabs_agent_id || !apiKey || apiKeyLoading}
-          >
-            <Phone className="h-4 w-4 mr-2" />
-            Preview Widget
-          </Button>
-        </div>
+    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="space-y-6">
+        <TabSectionHeader icon={Layout} label="WIDGET" />
 
         {/* Deployment Warning */}
         {!agent?.elevenlabs_agent_id && (
@@ -309,89 +295,106 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           </div>
         )}
 
-        {/* Design Studio Section */}
-        <div className="border border-border rounded-lg p-6 bg-gradient-to-br from-primary/5 to-primary/10">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Palette className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">Design Studio</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Customize your widget's appearance, colors, branding, and styling. 
-                See live previews as you make changes.
-              </p>
-              <Button
-                className="mt-4"
-                onClick={handleOpenDesignStudio}
-                disabled={!agent?.id && !agentId}
-              >
-                Open Design Studio
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* API Key Section */}
-        <div className="border border-border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Key className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-sm">Widget API Key</h3>
-            </div>
+        {/* Widget Configuration Section */}
+        <TabSectionCard
+          title="Widget Configuration"
+          description="Embed a voice widget on your website. Customize appearance, colors, and branding."
+          actionButton={
             <Button
               variant="outline"
               size="sm"
-              onClick={handleRefreshApiKey}
-              disabled={apiKeyLoading || apiKeyRefreshing}
+              onClick={handlePreviewWidget}
+              disabled={!agent?.elevenlabs_agent_id || !apiKey || apiKeyLoading}
             >
-              {apiKeyRefreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              <span className="ml-2">Refresh</span>
+              <Phone className="h-4 w-4 mr-2" />
+              Preview
             </Button>
-          </div>
-          
-          {apiKeyLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Generating API key...</span>
+          }
+        >
+          <div className="space-y-4">
+            {/* Design Studio */}
+            <div className="border border-border rounded-lg p-4 bg-gradient-to-br from-primary/5 to-primary/10">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Palette className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-sm mb-1">Design Studio</h4>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Customize your widget's appearance, colors, branding, and styling. See live previews as you make changes.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenDesignStudio}
+                    disabled={!agent?.id && !agentId}
+                  >
+                    Open Design Studio
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={apiKey}
-                  readOnly
-                  className="bg-secondary/50 font-mono text-sm"
-                />
+
+            {/* API Key Section */}
+            <div className="border border-border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="font-semibold text-sm">Widget API Key</h4>
+                </div>
                 <Button
                   variant="outline"
-                  size="icon"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(apiKey);
-                    toast({ title: 'Copied!', description: 'API key copied to clipboard' });
-                  }}
+                  size="sm"
+                  onClick={handleRefreshApiKey}
+                  disabled={apiKeyLoading || apiKeyRefreshing}
                 >
-                  <Copy className="h-4 w-4" />
+                  {apiKeyRefreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  <span className="ml-2">Refresh</span>
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                This key is used to authenticate widget requests. Keep it secure and refresh if compromised.
-              </p>
+              
+              {apiKeyLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Generating API key...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={apiKey}
+                      readOnly
+                      className="bg-secondary/50 font-mono text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(apiKey);
+                        toast({ title: 'Copied!', description: 'API key copied to clipboard' });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This key is used to authenticate widget requests. Keep it secure and refresh if compromised.
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
             {/* Embed Code */}
             <div className="border border-border rounded-lg overflow-hidden">
               <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Code className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Embed Code</h3>
+                  <h4 className="font-semibold text-sm">Embed Code</h4>
                 </div>
                 <Button
                   variant="outline"
@@ -432,7 +435,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
                 </li>
                 <li className="flex gap-2">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">2</span>
-              <span>Customize the widget appearance in the Design Studio</span>
+                  <span>Customize the widget appearance in the Design Studio</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">3</span>
@@ -442,7 +445,9 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
                 An API key is automatically generated for widget authentication. Refresh it if compromised.
               </p>
-        </div>
+            </div>
+          </div>
+        </TabSectionCard>
       </div>
     </div>
   );

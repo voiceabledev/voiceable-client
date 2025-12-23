@@ -15,15 +15,33 @@ import {
   Code,
   AudioLines,
   Mic,
+  Phone,
   Check,
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Search,
+  ShoppingCart,
+  Sparkles,
+  Plus,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { agentsApi, voicesApi, Voice } from "@/lib/api";
+import { agentsApi, voicesApi, Voice, phoneNumbersApi, AvailablePhoneNumber } from "@/lib/api";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
+import { SectionEntry, SectionPayload } from "@/types/assistant";
+import { PROMPT_TEMPLATE, DEFAULT_SYSTEM_PROMPT } from "@/constants/assistant";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const providers = [
   { value: "elevenlabs", label: "ElevenLabs", icon: "🎙️" },
@@ -130,8 +148,10 @@ type StepType = {
 const steps: StepType[] = [
   { id: 1, label: "Name", icon: User },
   { id: 2, label: "Model", icon: Code },
-  { id: 3, label: "Voice", icon: AudioLines },
-  { id: 4, label: "Transcriber", icon: Mic },
+  { id: 3, label: "Agent Behaviour", icon: Sparkles },
+  { id: 4, label: "Voice", icon: AudioLines },
+  { id: 5, label: "Transcriber", icon: Mic },
+  { id: 6, label: "Phone Number", icon: Phone },
 ];
 
 
@@ -149,12 +169,241 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // Step 2: Model
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-cluster");
-  const [systemPrompt, setSystemPrompt] = useState(
-    initialData?.systemPrompt || "# Customer Service & Support Agent Prompt\n"
-  );
   const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
 
-  // Step 3: Voice
+  // Step 3: Agent Behaviour (Scenarios, Phases, Voice & Tone)
+  const [scenarios, setScenarios] = useState<SectionEntry[]>([]);
+  const [phases, setPhases] = useState<SectionEntry[]>([]);
+  const [voiceTone, setVoiceTone] = useState<SectionEntry[]>([]);
+  const [showSectionModal, setShowSectionModal] = useState(false);
+  const [editingSectionType, setEditingSectionType] = useState<"scenarios" | "phases" | "voiceTone" | null>(null);
+  const [editingSectionEntry, setEditingSectionEntry] = useState<SectionEntry | null>(null);
+  const [sectionForm, setSectionForm] = useState<Omit<SectionEntry, "id">>({
+    title: "",
+    description: "",
+    notes: "",
+  });
+
+  // Generate system prompt from sections
+  const generateSystemPrompt = (): string => {
+    const formatSectionContent = (sectionTitle: string, sectionDescription: string, entries: SectionEntry[]): string => {
+      if (entries.length === 0) return "";
+
+      const formattedEntries = entries
+        .map((entry) => {
+          const title = entry.title.trim();
+          const description = entry.description.trim();
+          const notes = entry.notes?.trim();
+
+          if (!title && !description) return null;
+
+          let content = `- **${title || "Untitled"}**`;
+          if (description) {
+            content += `\n  ${description}`;
+          }
+          if (notes) {
+            content += `\n  _Note: ${notes}_`;
+          }
+          return content;
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      if (!formattedEntries) return "";
+
+      return `## ${sectionTitle}\n\n${sectionDescription}\n\n${formattedEntries}`;
+    };
+
+    const hasScenarios = scenarios.length > 0;
+    const hasPhases = phases.length > 0;
+    const hasVoiceTone = voiceTone.length > 0;
+    const hasSections = hasScenarios || hasPhases || hasVoiceTone;
+
+    if (!hasSections) {
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    const scenariosContent = formatSectionContent(
+      "Scenarios",
+      "These are the main scenarios you should be prepared to handle:",
+      scenarios
+    );
+
+    const phasesContent = formatSectionContent(
+      "Conversation Phases",
+      "Follow these phases during the conversation:",
+      phases
+    );
+
+    const voiceToneContent = formatSectionContent(
+      "Voice & Tone",
+      "Maintain the following tone and communication style:",
+      voiceTone
+    );
+
+    const prompt = PROMPT_TEMPLATE
+      .replace("{{SCENARIOS}}", scenariosContent)
+      .replace("{{PHASES}}", phasesContent)
+      .replace("{{VOICE_TONE}}", voiceToneContent)
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    return prompt;
+  };
+
+  const systemPrompt = generateSystemPrompt();
+
+  // Helper functions for section entries
+  const generateSectionEntryId = () => {
+    return `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const createSectionEntry = (overrides: Partial<SectionEntry> = {}): SectionEntry => ({
+    id: generateSectionEntryId(),
+    title: "",
+    description: "",
+    notes: "",
+    ...overrides,
+  });
+
+  const openSectionModal = (type: "scenarios" | "phases" | "voiceTone", entry?: SectionEntry) => {
+    setEditingSectionType(type);
+    if (entry) {
+      setEditingSectionEntry(entry);
+      setSectionForm({
+        title: entry.title,
+        description: entry.description,
+        notes: entry.notes || "",
+      });
+    } else {
+      setEditingSectionEntry(null);
+      setSectionForm({ title: "", description: "", notes: "" });
+    }
+    setShowSectionModal(true);
+  };
+
+  const closeSectionModal = () => {
+    setShowSectionModal(false);
+    setEditingSectionType(null);
+    setEditingSectionEntry(null);
+    setSectionForm({ title: "", description: "", notes: "" });
+  };
+
+  const saveSectionEntry = () => {
+    if (!editingSectionType) return;
+    
+    const getSetter = () => {
+      switch (editingSectionType) {
+        case "scenarios": return setScenarios;
+        case "phases": return setPhases;
+        case "voiceTone": return setVoiceTone;
+      }
+    };
+    
+    const setter = getSetter();
+    
+    if (editingSectionEntry) {
+      setter((prev) =>
+        prev.map((entry) =>
+          entry.id === editingSectionEntry.id
+            ? { ...entry, ...sectionForm }
+            : entry
+        )
+      );
+    } else {
+      setter((prev) => [...prev, createSectionEntry(sectionForm)]);
+    }
+    closeSectionModal();
+  };
+
+  const deleteSectionEntry = (type: "scenarios" | "phases" | "voiceTone", id: string) => {
+    const getSetter = () => {
+      switch (type) {
+        case "scenarios": return setScenarios;
+        case "phases": return setPhases;
+        case "voiceTone": return setVoiceTone;
+      }
+    };
+    const setter = getSetter();
+    setter((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  const renderSectionEditor = (
+    title: string,
+    description: string,
+    entries: SectionEntry[],
+    sectionType: "scenarios" | "phases" | "voiceTone",
+    addLabel: string
+  ) => (
+    <div className="border border-border rounded-lg bg-white p-4 space-y-4">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold">{title}</h4>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openSectionModal(sectionType)}
+          className="flex items-center gap-1"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {addLabel}
+        </Button>
+      </div>
+
+      {entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No {title.toLowerCase()} defined yet. Use the button above to add one.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 hover:bg-muted/50 transition-colors"
+            >
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => openSectionModal(sectionType, entry)}
+              >
+                <h5 className="text-sm font-medium truncate">
+                  {entry.title || <span className="text-muted-foreground italic">Untitled</span>}
+                </h5>
+                {entry.description && (
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {entry.description.length > 80
+                      ? `${entry.description.slice(0, 80)}...`
+                      : entry.description}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => openSectionModal(sectionType, entry)}
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  onClick={() => deleteSectionEntry(sectionType, entry.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Step 4: Voice
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -163,8 +412,19 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Step 4: Transcriber
+  // Step 5: Transcriber
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
+
+  // Step 5: Phone Number
+  const [selectedPhoneNumber, setSelectedPhoneNumber] = useState<AvailablePhoneNumber | null>(null);
+  const [phoneNumberLabel, setPhoneNumberLabel] = useState<string>("");
+  const [accountPhoneNumbers, setAccountPhoneNumbers] = useState<AvailablePhoneNumber[]>([]);
+  const [availablePhoneNumbers, setAvailablePhoneNumbers] = useState<AvailablePhoneNumber[]>([]);
+  const [loadingAccountNumbers, setLoadingAccountNumbers] = useState(false);
+  const [loadingAvailableNumbers, setLoadingAvailableNumbers] = useState(false);
+  const [phoneNumberStep, setPhoneNumberStep] = useState<"account" | "purchase">("account");
+  const [countryCode, setCountryCode] = useState("US");
+  const [areaCode, setAreaCode] = useState("");
 
   // Fetch voices if not provided
   useEffect(() => {
@@ -200,6 +460,44 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     fetchVoices();
   }, [propVoices, toast]);
 
+  // Fetch account phone numbers when on phone number step
+  useEffect(() => {
+    if (currentStep === (shouldSkipNameStep ? 5 : 5)) {
+      const fetchAccountNumbers = async () => {
+        setLoadingAccountNumbers(true);
+        try {
+          const response = await phoneNumbersApi.getAccountNumbers();
+          if (response.data) {
+            setAccountPhoneNumbers(response.data);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch account numbers:', err);
+        } finally {
+          setLoadingAccountNumbers(false);
+        }
+      };
+      fetchAccountNumbers();
+    }
+  }, [currentStep, shouldSkipNameStep]);
+
+  const fetchAvailablePhoneNumbers = async () => {
+    setLoadingAvailableNumbers(true);
+    try {
+      const response = await phoneNumbersApi.getAvailable(countryCode, areaCode || undefined);
+      if (response.data) {
+        setAvailablePhoneNumbers(response.data);
+      }
+    } catch (err) {
+      toast({
+        title: 'Error loading available numbers',
+        description: err instanceof Error ? err.message : 'Failed to fetch available phone numbers',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAvailableNumbers(false);
+    }
+  };
+
   const handleSetStep = (direction: -1 | 1) => {
     const minStep = shouldSkipNameStep ? 1 : 0;
     const maxStep = shouldSkipNameStep ? steps.length - 2 : steps.length - 1;
@@ -213,6 +511,25 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const handleSaveStep = async () => {
     setSaving(true);
     try {
+      // Serialize section entries
+      const serializeSectionEntries = (entries: SectionEntry[]): SectionPayload[] =>
+        entries
+          .map((entry) => {
+            const serialized: SectionPayload = {
+              title: entry.title.trim(),
+              description: entry.description.trim(),
+            };
+            if (entry.notes?.trim()) {
+              serialized.notes = entry.notes.trim();
+            }
+            return serialized.title || serialized.description || serialized.notes ? serialized : null;
+          })
+          .filter((value): value is SectionPayload => value !== null);
+
+      const serializedScenarios = serializeSectionEntries(scenarios);
+      const serializedPhases = serializeSectionEntries(phases);
+      const serializedTone = serializeSectionEntries(voiceTone);
+
       const config: Record<string, unknown> = {
         conversation_config: {
           model: {
@@ -221,10 +538,15 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             messages: [
               {
                 role: "system",
-                content: systemPrompt || "# Customer Service & Support Agent Prompt\n"
+                content: systemPrompt
               }
             ]
           },
+          // Include section entries in conversation_config
+          // Use Portuguese field names to match AssistantDetail.tsx
+          ...(serializedScenarios.length > 0 && { cenarios: serializedScenarios }),
+          ...(serializedPhases.length > 0 && { etapas: serializedPhases }),
+          ...(serializedTone.length > 0 && { tom_de_voz: serializedTone }),
           transcriber: {
             provider: "elevenlabs",
             language: selectedLanguage || "english",
@@ -276,9 +598,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         }
       }
 
-      // Only sync with ElevenLabs on Voice (step 2, index 2) and Transcriber (step 3, index 3) steps
-      // Steps array: [0: Name, 1: Model, 2: Voice, 3: Transcriber]
-      const shouldSyncWithElevenLabs = currentStep === 2 || currentStep === 3;
+      // Only sync with ElevenLabs on Voice (step 4, index 4) and Transcriber (step 5, index 5) steps
+      // Steps array: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Transcriber, 5: Phone Number]
+      const shouldSyncWithElevenLabs = currentStep === 4 || currentStep === 5;
+      
+      // Handle phone number assignment on step 5 (Phone Number step)
+      const isPhoneNumberStep = shouldSkipNameStep ? currentStep === 5 : currentStep === 5;
       
       // Ensure voice_id is set before syncing (required for ElevenLabs)
       const hasRequiredFields = shouldSyncWithElevenLabs ? selectedVoiceId && selectedVoiceId.trim() !== "" : true;
@@ -331,7 +656,35 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         });
       }
 
-      const maxStep = shouldSkipNameStep ? steps.length - 2 : steps.length - 1;
+      // Handle phone number assignment
+      if (isPhoneNumberStep && savedAgentId && selectedPhoneNumber && phoneNumberLabel.trim()) {
+        try {
+          const params = {
+            phone_number: selectedPhoneNumber.phone_number,
+            label: phoneNumberLabel.trim(),
+            provider: 'twilio' as const,
+            agent_id: savedAgentId,
+          };
+
+          await phoneNumbersApi.create(params);
+          toast({
+            title: 'Success',
+            description: 'Phone number assigned successfully.',
+          });
+        } catch (err) {
+          console.error('Failed to assign phone number:', err);
+          toast({
+            title: 'Warning',
+            description: 'Agent saved but failed to assign phone number. You can assign it later.',
+            variant: 'destructive',
+          });
+        }
+      }
+
+      // Steps: [0: Name, 1: Model, 2: Voice, 3: Transcriber, 4: Phone Number]
+      // If skipNameStep: start at 1, max is 4
+      // If not skipNameStep: start at 0, max is 4
+      const maxStep = steps.length - 1; // Always 4 (Phone Number step)
       if (currentStep === maxStep) {
         onComplete(savedAgentId);
       } else {
@@ -349,16 +702,20 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   };
 
   const isStepValid = () => {
-    // If name step is skipped, currentStep 0 = Model, 1 = Voice, 2 = Transcriber
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice, 3 = Transcriber
+    // If name step is skipped, currentStep 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Transcriber, 5 = Phone Number
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Transcriber, 5 = Phone Number
     if (shouldSkipNameStep) {
       switch (currentStep) {
         case 1: // Model step
-          return selectedModel.trim() !== "" && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
-        case 2: // Voice step
+          return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
+        case 2: // Agent Behaviour step (optional - can skip)
+          return true; // Agent behaviour is optional
+        case 3: // Voice step
           return selectedVoiceId.trim() !== "";
-        case 3: // Transcriber step
+        case 4: // Transcriber step
           return selectedLanguage.trim() !== "";
+        case 5: // Phone Number step (optional - can skip)
+          return true; // Phone number is optional
         default:
           return false;
       }
@@ -367,11 +724,15 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 0:
           return name.trim() !== "" && name.trim() !== "Enter a name for your assistant.";
         case 1:
-          return selectedModel.trim() !== "" && systemPrompt.trim() !== "" && systemPrompt.trim() !== "# Customer Service & Support Agent Prompt\n";
-        case 2:
-          return selectedVoiceId.trim() !== "";
+          return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
+        case 2: // Agent Behaviour step (optional - can skip)
+          return true; // Agent behaviour is optional
         case 3:
+          return selectedVoiceId.trim() !== "";
+        case 4:
           return selectedLanguage.trim() !== "";
+        case 5: // Phone Number step (optional - can skip)
+          return true; // Phone number is optional
         default:
           return false;
       }
@@ -455,8 +816,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const selectedVoice = voices.find(v => v.id === selectedVoiceId);
 
   const renderStepContent = () => {
-    // If name step is skipped, currentStep 1 = Model, 2 = Voice, 3 = Transcriber
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice, 3 = Transcriber
+    // If name step is skipped, currentStep 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Transcriber, 5 = Phone Number
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Transcriber, 5 = Phone Number
     if (shouldSkipNameStep) {
       switch (currentStep) {
         case 1: // Model step
@@ -504,18 +865,41 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">System Prompt</label>
-                <Textarea
-                  value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="Enter the system prompt for the assistant..."
-                  className="min-h-[250px] font-mono text-sm bg-white"
-                />
-              </div>
             </div>
           );
-        case 2: // Voice step
+        case 2: // Agent Behaviour step
+          return (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
+              </p>
+              
+              {renderSectionEditor(
+                "Scenarios",
+                "Define the main scenarios your agent should handle",
+                scenarios,
+                "scenarios",
+                "Add Scenario"
+              )}
+              
+              {renderSectionEditor(
+                "Conversation Phases",
+                "Define the phases your agent should follow during conversations",
+                phases,
+                "phases",
+                "Add Phase"
+              )}
+              
+              {renderSectionEditor(
+                "Voice & Tone",
+                "Define the tone and communication style your agent should maintain",
+                voiceTone,
+                "voiceTone",
+                "Add Tone"
+              )}
+            </div>
+          );
+        case 3: // Voice step
           return (
             <div className="space-y-4">
               <div>
@@ -561,7 +945,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               </div>
             </div>
           );
-        case 3: // Transcriber step
+        case 4: // Transcriber step
           return (
             <div className="space-y-4">
               <div>
@@ -590,6 +974,166 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                     <SelectItem value="multi">Multi</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+          );
+        case 5: // Phone Number step
+          return (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Optionally assign a phone number to this agent. You can skip this step and assign a number later.
+                </p>
+                
+                {phoneNumberStep === "account" ? (
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setPhoneNumberStep("purchase")}
+                        className="flex-1"
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Purchase New Number
+                      </Button>
+                    </div>
+                    
+                    {loadingAccountNumbers ? (
+                      <div className="flex items-center gap-2 p-4 border rounded-lg">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Loading account numbers...</span>
+                      </div>
+                    ) : accountPhoneNumbers.length > 0 ? (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {accountPhoneNumbers.map((number) => (
+                          <button
+                            key={number.phone_number}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPhoneNumber(number);
+                              setPhoneNumberLabel(number.phone_number);
+                            }}
+                            className={cn(
+                              "w-full p-3 border rounded-lg text-left transition-colors",
+                              selectedPhoneNumber?.phone_number === number.phone_number
+                                ? "border-primary bg-primary/5"
+                                : "hover:bg-secondary/50"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{number.phone_number}</div>
+                                {number.friendly_name && (
+                                  <div className="text-xs text-muted-foreground">{number.friendly_name}</div>
+                                )}
+                              </div>
+                              {selectedPhoneNumber?.phone_number === number.phone_number && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No numbers in your account</p>
+                        <p className="text-xs mt-1">Click "Purchase New Number" to buy one</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setPhoneNumberStep("account")}
+                        className="flex-1"
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Use Account Number
+                      </Button>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Select value={countryCode} onValueChange={setCountryCode}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">US</SelectItem>
+                          <SelectItem value="CA">CA</SelectItem>
+                          <SelectItem value="GB">GB</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Area code (optional)"
+                        value={areaCode}
+                        onChange={(e) => setAreaCode(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={fetchAvailablePhoneNumbers}
+                        disabled={loadingAvailableNumbers}
+                      >
+                        {loadingAvailableNumbers ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {availablePhoneNumbers.length > 0 && (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {availablePhoneNumbers.map((number) => (
+                          <button
+                            key={number.phone_number}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPhoneNumber(number);
+                              setPhoneNumberLabel(number.phone_number);
+                            }}
+                            className={cn(
+                              "w-full p-3 border rounded-lg text-left transition-colors",
+                              selectedPhoneNumber?.phone_number === number.phone_number
+                                ? "border-primary bg-primary/5"
+                                : "hover:bg-secondary/50"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{number.phone_number}</div>
+                                {number.region && (
+                                  <div className="text-xs text-muted-foreground">{number.region}</div>
+                                )}
+                              </div>
+                              {selectedPhoneNumber?.phone_number === number.phone_number && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {selectedPhoneNumber && (
+                  <div className="mt-4 p-4 border rounded-lg bg-secondary/50">
+                    <label className="text-sm font-medium mb-2 block">Label (optional)</label>
+                    <Input
+                      value={phoneNumberLabel}
+                      onChange={(e) => setPhoneNumberLabel(e.target.value)}
+                      placeholder="e.g., Main Line, Support Line"
+                      className="bg-white"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -658,18 +1202,41 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">System Prompt</label>
-                <Textarea
-                  value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="Enter the system prompt for the assistant..."
-                  className="min-h-[350px] font-mono text-sm bg-white"
-                />
-              </div>
             </div>
           );
-        case 2:
+        case 2: // Agent Behaviour step
+          return (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
+              </p>
+              
+              {renderSectionEditor(
+                "Scenarios",
+                "Define the main scenarios your agent should handle",
+                scenarios,
+                "scenarios",
+                "Add Scenario"
+              )}
+              
+              {renderSectionEditor(
+                "Conversation Phases",
+                "Define the phases your agent should follow during conversations",
+                phases,
+                "phases",
+                "Add Phase"
+              )}
+              
+              {renderSectionEditor(
+                "Voice & Tone",
+                "Define the tone and communication style your agent should maintain",
+                voiceTone,
+                "voiceTone",
+                "Add Tone"
+              )}
+            </div>
+          );
+        case 3: // Voice step
           return (
             <div className="space-y-4">
               <div>
@@ -715,7 +1282,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               </div>
             </div>
           );
-        case 3:
+        case 4: // Transcriber step
           return (
             <div className="space-y-4">
               <div>
@@ -747,6 +1314,166 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               </div>
             </div>
           );
+        case 5: // Phone Number step
+          return (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Optionally assign a phone number to this agent. You can skip this step and assign a number later.
+                </p>
+                
+                {phoneNumberStep === "account" ? (
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setPhoneNumberStep("purchase")}
+                        className="flex-1"
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Purchase New Number
+                      </Button>
+                    </div>
+                    
+                    {loadingAccountNumbers ? (
+                      <div className="flex items-center gap-2 p-4 border rounded-lg">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Loading account numbers...</span>
+                      </div>
+                    ) : accountPhoneNumbers.length > 0 ? (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {accountPhoneNumbers.map((number) => (
+                          <button
+                            key={number.phone_number}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPhoneNumber(number);
+                              setPhoneNumberLabel(number.phone_number);
+                            }}
+                            className={cn(
+                              "w-full p-3 border rounded-lg text-left transition-colors",
+                              selectedPhoneNumber?.phone_number === number.phone_number
+                                ? "border-primary bg-primary/5"
+                                : "hover:bg-secondary/50"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{number.phone_number}</div>
+                                {number.friendly_name && (
+                                  <div className="text-xs text-muted-foreground">{number.friendly_name}</div>
+                                )}
+                              </div>
+                              {selectedPhoneNumber?.phone_number === number.phone_number && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No numbers in your account</p>
+                        <p className="text-xs mt-1">Click "Purchase New Number" to buy one</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setPhoneNumberStep("account")}
+                        className="flex-1"
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Use Account Number
+                      </Button>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Select value={countryCode} onValueChange={setCountryCode}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">US</SelectItem>
+                          <SelectItem value="CA">CA</SelectItem>
+                          <SelectItem value="GB">GB</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Area code (optional)"
+                        value={areaCode}
+                        onChange={(e) => setAreaCode(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={fetchAvailablePhoneNumbers}
+                        disabled={loadingAvailableNumbers}
+                      >
+                        {loadingAvailableNumbers ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {availablePhoneNumbers.length > 0 && (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {availablePhoneNumbers.map((number) => (
+                          <button
+                            key={number.phone_number}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPhoneNumber(number);
+                              setPhoneNumberLabel(number.phone_number);
+                            }}
+                            className={cn(
+                              "w-full p-3 border rounded-lg text-left transition-colors",
+                              selectedPhoneNumber?.phone_number === number.phone_number
+                                ? "border-primary bg-primary/5"
+                                : "hover:bg-secondary/50"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium">{number.phone_number}</div>
+                                {number.region && (
+                                  <div className="text-xs text-muted-foreground">{number.region}</div>
+                                )}
+                              </div>
+                              {selectedPhoneNumber?.phone_number === number.phone_number && (
+                                <Check className="h-4 w-4 text-primary" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {selectedPhoneNumber && (
+                  <div className="mt-4 p-4 border rounded-lg bg-secondary/50">
+                    <label className="text-sm font-medium mb-2 block">Label (optional)</label>
+                    <Input
+                      value={phoneNumberLabel}
+                      onChange={(e) => setPhoneNumberLabel(e.target.value)}
+                      placeholder="e.g., Main Line, Support Line"
+                      className="bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
         default:
           return null;
       }
@@ -775,15 +1502,19 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             <p className="text-muted-foreground">
               {(() => {
                 if (shouldSkipNameStep) {
-                  if (currentStep === 1) return "Configure the AI model and system prompt for your assistant.";
-                  if (currentStep === 2) return "Select a voice for your assistant to use.";
-                  if (currentStep === 3) return "Choose the language for transcription.";
+                  if (currentStep === 1) return "Configure the AI model for your assistant.";
+                  if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
+                  if (currentStep === 3) return "Select a voice for your assistant to use.";
+                  if (currentStep === 4) return "Choose the language for transcription.";
+                  if (currentStep === 5) return "Optionally assign a phone number to this agent.";
                   return "";
                 } else {
                   if (currentStep === 0) return "Give your assistant a name to identify it.";
-                  if (currentStep === 1) return "Configure the AI model and system prompt for your assistant.";
-                  if (currentStep === 2) return "Select a voice for your assistant to use.";
-                  if (currentStep === 3) return "Choose the language for transcription.";
+                  if (currentStep === 1) return "Configure the AI model for your assistant.";
+                  if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
+                  if (currentStep === 3) return "Select a voice for your assistant to use.";
+                  if (currentStep === 4) return "Choose the language for transcription.";
+                  if (currentStep === 5) return "Optionally assign a phone number to this agent.";
                   return "";
                 }
               })()}
@@ -823,6 +1554,69 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           </Button>
         </div>
       </div>
+
+      {/* Section Entry Modal */}
+      <Dialog open={showSectionModal} onOpenChange={setShowSectionModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingSectionEntry ? "Edit Entry" : "Add Entry"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSectionType === "scenarios" && "Define a scenario your agent should handle."}
+              {editingSectionType === "phases" && "Define a conversation phase your agent should follow."}
+              {editingSectionType === "voiceTone" && "Define a tone or communication style for your agent."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="section-title">Title</Label>
+              <Input
+                id="section-title"
+                value={sectionForm.title}
+                onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
+                placeholder="Enter a title..."
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="section-description">Description</Label>
+              <Textarea
+                id="section-description"
+                value={sectionForm.description}
+                onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })}
+                placeholder="Enter a description..."
+                className="mt-1 min-h-[100px]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="section-notes">Notes (optional)</Label>
+              <Textarea
+                id="section-notes"
+                value={sectionForm.notes || ""}
+                onChange={(e) => setSectionForm({ ...sectionForm, notes: e.target.value })}
+                placeholder="Enter additional notes..."
+                className="mt-1 min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeSectionModal}>
+              Cancel
+            </Button>
+            <Button onClick={saveSectionEntry}>
+              {editingSectionEntry ? "Save Changes" : (() => {
+                switch (editingSectionType) {
+                  case "scenarios": return "Add Scenario";
+                  case "phases": return "Add Conversation Phase";
+                  case "voiceTone": return "Add Voice & Tone";
+                  default: return "Add Entry";
+                }
+              })()}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -72,187 +72,22 @@ import {
 import { cn } from "@/lib/utils";
 import WidgetTab from "@/components/assistants/WidgetTab";
 import ConversationsTab from "@/components/assistants/ConversationsTab";
+import PhoneNumbersTab from "@/components/assistants/PhoneNumbersTab";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import CostAndLatency from "@/components/assistants/CostAndLatency";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
+import { TabSectionHeader } from "@/components/assistants/TabSectionHeader";
+import { TabSectionCard } from "@/components/assistants/TabSectionCard";
+import { tabs, VALID_TABS, providers, modelsByProvider, WIDGET_API_KEY_NAME, PROMPT_TEMPLATE, DEFAULT_SYSTEM_PROMPT } from "@/constants/assistant";
+import type { SystemToolKey, TransferRuleSetting, HumanTransferRuleSetting, SystemToolSetting, WebhookTool, WebhookHeader, WebhookQueryParam, DynamicVariableAssignment, ClientTool, ClientToolParameter, SectionEntry, SectionPayload, SectionType } from "@/types/assistant";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
 import { agentsApi, Agent, voicesApi, Voice, agentFilesApi, AgentFile, awsS3Api, conversationsApi, secretsApi, ElevenLabsSecret, apiKeysApi, integrationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { IntegrationForm } from "@/components/integrations/IntegrationForm";
 import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
 
-const tabs = [
-  { id: "configuration", label: "Configuration", icon: Settings },
-  { id: "prompt-logic", label: "Prompt Logic", icon: FileText },
-  { id: "tools", label: "Tools", icon: Wrench },
-  { id: "widget", label: "Widget", icon: Layout },
-  { id: "conversations", label: "Conversations", icon: MessageSquare },
-  // { id: "advanced", label: "Advanced", icon: Settings },
-];
-
-const providers = [
-  { value: "elevenlabs", label: "ElevenLabs", icon: "🎙️" },
-  { value: "google", label: "Google", icon: "🔷" },
-  { value: "openai", label: "OpenAI", icon: "🤖" },
-  { value: "anthropic", label: "Anthropic", icon: "🧠" },
-  { value: "custom", label: "Custom", icon: "⚙️" },
-  { value: "meta", label: "Meta", icon: "🦙" },
-  { value: "mistral", label: "Mistral", icon: "🌊" },
-  { value: "cohere", label: "Cohere", icon: "⚡" },
-  { value: "groq", label: "Groq", icon: "🚀" },
-  { value: "perplexity", label: "Perplexity", icon: "🔍" },
-];
-
-const modelsByProvider: Record<string, { value: string; label: string }[]> = {
-  elevenlabs: [
-    { value: "glm-45-air-fp8", label: "GLM-4.5-Air" },
-    { value: "qwen3-30b-a3b", label: "Qwen3-30B-A3B" },
-    { value: "qwen3-4b", label: "Qwen3-4B" },
-    { value: "gpt-oss-120b", label: "GPT-OSS-120B" },
-    { value: "gpt-oss-20b", label: "GPT-OSS-20B" },
-    { value: "custom-llm", label: "Custom LLM" },
-  ],
-  google: [
-    { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-  ],
-  openai: [
-    { value: "gpt-5", label: "GPT-5" },
-    { value: "gpt-5.1", label: "GPT-5.1" },
-    { value: "gpt-5-mini", label: "GPT-5 Mini" },
-    { value: "gpt-5-nano", label: "GPT-5 Nano" },
-    { value: "gpt-4.1", label: "GPT-4.1" },
-    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-    { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
-    { value: "gpt-4o", label: "GPT-4o" },
-    { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-    { value: "gpt-4o-cluster", label: "GPT 4o Cluster" },
-    { value: "gpt-4", label: "GPT-4" },
-  ],
-  anthropic: [
-    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-    { value: "claude-sonnet-4", label: "Claude Sonnet 4" },
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-    { value: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet" },
-    { value: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
-    { value: "claude-3-haiku", label: "Claude 3 Haiku" },
-  ],
-  meta: [
-    { value: "llama-3-70b", label: "Llama 3 70B" },
-    { value: "llama-3-8b", label: "Llama 3 8B" },
-    { value: "llama-2-70b", label: "Llama 2 70B" },
-  ],
-  mistral: [
-    { value: "mistral-large", label: "Mistral Large" },
-    { value: "mistral-medium", label: "Mistral Medium" },
-    { value: "mistral-small", label: "Mistral Small" },
-  ],
-  cohere: [
-    { value: "command-r-plus", label: "Command R+" },
-    { value: "command-r", label: "Command R" },
-    { value: "command", label: "Command" },
-  ],
-  groq: [
-    { value: "llama-3-70b-8192", label: "Llama 3 70B" },
-    { value: "llama-3-8b-8192", label: "Llama 3 8B" },
-    { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" },
-  ],
-  perplexity: [
-    { value: "llama-3-sonar-large-32k-online", label: "Sonar Large 32k Online" },
-    { value: "llama-3-sonar-small-32k-online", label: "Sonar Small 32k Online" },
-  ],
-  custom: [
-    { value: "custom-llm", label: "Custom LLM" },
-  ],
-};
-
-const WIDGET_API_KEY_NAME = "Widget API Key";
-
-const VALID_TABS = ["configuration", "prompt-logic", "tools", "conversations", "widget", "advanced"] as const;
-
-const SYSTEM_TOOL_KEYS = [
-  "end_call",
-  "detect_language",
-  "skip_turn",
-  "transfer_to_agent",
-  "transfer_to_number",
-  "play_keypad_touch_tone",
-  "voicemail_detection"
-] as const;
-
-type SystemToolKey = typeof SYSTEM_TOOL_KEYS[number];
-
-type TransferRuleSetting = {
-  agent: string;
-  condition: string;
-  delayMs: number;
-  transferMessage: string;
-  enableFirstMessage: boolean;
-};
-
-type HumanTransferRuleSetting = {
-  transferType: "conference";
-  destinationType: "phone_number";
-  phoneNumber: string;
-  condition: string;
-};
-
-type SystemToolSetting = {
-  name: string;
-  description: string;
-  disableInterruptions: boolean;
-  transferRules?: TransferRuleSetting[];
-  humanTransferRules?: HumanTransferRuleSetting[];
-};
-
-// Webhook Tool Types
-type WebhookHeader = {
-  id: string;
-  type: "secret" | "value";
-  name: string;
-  value: string; // secret key name or literal value
-};
-
-type WebhookQueryParam = {
-  id: string;
-  dataType: "string" | "number" | "boolean" | "array" | "object";
-  identifier: string;
-  required: boolean;
-  valueType: "llm_prompt" | "static";
-  description: string;
-  enumValues: string[];
-};
-
-type DynamicVariableAssignment = {
-  id: string;
-  variableName: string;
-  isNewVariable: boolean;
-  jsonPath: string;
-};
-
-type WebhookTool = {
-  id: string;
-  name: string;
-  description: string;
-  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-  url: string;
-  responseTimeout: number;
-  disableInterruptions: boolean;
-  preToolSpeech: "auto" | "always" | "never";
-  executionMode: "parallel" | "sequential";
-  toolCallSound: "none" | "beep" | "chime";
-  authentication: string;
-  headers: WebhookHeader[];
-  queryParams: WebhookQueryParam[];
-  dynamicVariableAssignments: DynamicVariableAssignment[];
-};
+// Import SYSTEM_TOOL_KEYS from types
+import { SYSTEM_TOOL_KEYS } from "@/types/assistant";
 
 const getEmptyWebhookTool = (): WebhookTool => ({
   id: crypto.randomUUID(),
@@ -295,28 +130,7 @@ const getEmptyDynamicVariableAssignment = (): DynamicVariableAssignment => ({
   jsonPath: "",
 });
 
-// Client Tool Types
-type ClientToolParameter = {
-  id: string;
-  dataType: "string" | "number" | "boolean" | "array" | "object";
-  identifier: string;
-  required: boolean;
-  valueType: "llm_prompt" | "static";
-  description: string;
-  enumValues: string[];
-};
-
-type ClientTool = {
-  id: string;
-  name: string;
-  description: string;
-  waitForResponse: boolean;
-  disableInterruptions: boolean;
-  preToolSpeech: "auto" | "always" | "never";
-  executionMode: "immediate" | "on_turn_end";
-  parameters: ClientToolParameter[];
-  dynamicVariableAssignments: DynamicVariableAssignment[];
-};
+// Client Tool Types are now imported from types file
 
 const getEmptyClientTool = (): ClientTool => ({
   id: crypto.randomUUID(),
@@ -392,51 +206,7 @@ const getDefaultSystemToolExpanded = (): Record<SystemToolKey, boolean> => ({
   voicemail_detection: false
 });
 
-// Fixed prompt template with variable placeholders
-// Users cannot modify this template - they only define content for the variables
-const PROMPT_TEMPLATE = `# Voice Assistant
-
-You are a helpful voice assistant. Follow the behavior guidelines and instructions below to assist users effectively.
-
-{{SCENARIOS}}
-
-{{PHASES}}
-
-{{VOICE_TONE}}
-
-## Guidelines
-
-- Be concise and direct in your responses
-- Listen actively and confirm understanding when needed
-- Stay within the defined scenarios and escalate when necessary
-- Maintain the specified tone throughout the conversation
-`;
-
-// Fallback when no sections are defined
-const DEFAULT_SYSTEM_PROMPT = `# Voice Assistant
-
-You are a helpful voice assistant. Your role is to assist users with their requests in a clear, friendly, and professional manner.
-
-## Guidelines
-
-- Be concise and direct in your responses
-- Maintain a helpful and professional tone
-- Ask clarifying questions when needed
-- Provide accurate information based on available context
-`;
-
-type SectionEntry = {
-  id: string;
-  title: string;
-  description: string;
-  notes?: string;
-};
-
-type SectionPayload = {
-  title: string;
-  description: string;
-  notes?: string;
-};
+// Prompt templates and section types are now imported from constants/types files
 
 const generateSectionEntryId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -1047,7 +817,7 @@ export default function AssistantDetail() {
     });
   };
 
-  const handleDeleteIntegrationTool = async (integrationType: string) => {
+  const handleDeleteIntegrationTool = async (integrationType: string, skipConfirmation: boolean = false) => {
     if (!agent?.id) {
       toast({
         title: "Cannot delete",
@@ -1057,9 +827,11 @@ export default function AssistantDetail() {
       return;
     }
 
-    // Show confirmation dialog
-    if (!confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will also remove any associated webhook tools.`)) {
-      return;
+    // Show confirmation dialog unless skipped (e.g., when called from handleDeleteIntegration)
+    if (!skipConfirmation) {
+      if (!confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will also remove any associated webhook tools.`)) {
+        return;
+      }
     }
 
     // Store the current values for potential revert
@@ -1212,10 +984,63 @@ export default function AssistantDetail() {
     setShowIntegrationModal(true);
   };
 
-  const selectIntegrationToAdd = (integrationType: string) => {
+  const selectIntegrationToAdd = async (integrationType: string) => {
     setConnectingIntegrationType(integrationType);
-    setEditingIntegrationConfig({});
-    setIntegrationModalStep('credentials');
+    
+    // If integration is already configured for the user, enable it for this agent directly
+    const isAlreadyConfigured = userIntegrations.some(i => i.type === integrationType);
+    if (isAlreadyConfigured && agent?.id) {
+      setConnectingIntegrationLoading(true);
+      try {
+        // Enable the integration for this agent
+        const availableTools = getAvailableToolsForIntegration(integrationType);
+        const integrationToolsForBackend: Record<string, { enabled: boolean; enabled_tools: string[] }> = {
+          ...Object.fromEntries(
+            Object.entries(agentIntegrationTools).map(([key, value]) => [
+              key,
+              { enabled: true, enabled_tools: value.enabledTools }
+            ])
+          ),
+          [integrationType]: {
+            enabled: true,
+            enabled_tools: availableTools
+          }
+        };
+
+        await agentsApi.update(agent.id, {
+          integration_tools: integrationToolsForBackend
+        });
+
+        // Update local state
+        setAgentIntegrationTools(prev => ({
+          ...prev,
+          [integrationType]: {
+            enabled: true,
+            enabledTools: availableTools
+          }
+        }));
+
+        toast({
+          title: 'Success',
+          description: `${formatToolName(integrationType)} has been enabled for this agent.`,
+        });
+
+        closeIntegrationConnectionModal();
+      } catch (err) {
+        console.error('Failed to enable integration for agent:', err);
+        toast({
+          title: 'Error',
+          description: `Failed to enable ${formatToolName(integrationType)} for this agent.`,
+          variant: 'destructive',
+        });
+      } finally {
+        setConnectingIntegrationLoading(false);
+      }
+    } else {
+      // New integration - show credentials form
+      setEditingIntegrationConfig({});
+      setIntegrationModalStep('credentials');
+    }
   };
 
   const openEditIntegrationModal = async (integrationType: string) => {
@@ -1273,8 +1098,9 @@ export default function AssistantDetail() {
       if (agent?.id) {
         // Always call handleDeleteIntegrationTool if agent is saved, even if not in state
         // This ensures webhook tools are deleted
+        // Skip confirmation since we already confirmed in handleDeleteIntegration
         if (agentIntegrationTools[connectingIntegrationType]) {
-          await handleDeleteIntegrationTool(connectingIntegrationType);
+          await handleDeleteIntegrationTool(connectingIntegrationType, true);
         } else {
           // Integration not in state but might have webhook tools, delete them
           const integrationToolNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] || [];
@@ -1436,35 +1262,30 @@ export default function AssistantDetail() {
         
         // Automatically create individual webhook tools for each action in Pipedrive and Calendly
         if (connectingIntegrationType === 'pipedrive' || connectingIntegrationType === 'calendly') {
-          const baseWebhookUrl = connectingIntegrationType === 'pipedrive' 
-            ? 'https://api.voiceable.com/api/v1/integrations/pipedrive/webhook'
-            : 'https://api.voiceable.com/api/v1/integrations/calendly/webhook';
-          
           const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType] || [];
           
           // Create a webhook tool for each action
           const newWebhookTools: WebhookTool[] = toolDisplayNames.map(displayName => {
             const actionName = displayNameToActionName(displayName, connectingIntegrationType);
             
-            // Create agent_id query parameter
-            const agentIdParam: WebhookQueryParam = {
-              ...getEmptyWebhookQueryParam(),
-              identifier: 'agent_id',
-              description: 'The agent ID',
-              required: true,
-              valueType: 'llm_prompt',
+            // Create webhook URL with action name
+            const webhookUrl = `https://api.voiceable.dev/webhook/${actionName}`;
+            
+            // Create authorization header with secret type
+            const authHeader: WebhookHeader = {
+              ...getEmptyWebhookHeader(),
+              type: 'secret',
+              name: 'authorization',
+              value: 'Bearer',
             };
             
-            // Create action query parameter with constant value
-            const actionParam: WebhookQueryParam = {
+            // Create id query parameter with LLM prompt value type
+            const idParam: WebhookQueryParam = {
               ...getEmptyWebhookQueryParam(),
-              identifier: 'action',
-              description: 'The action to perform',
+              identifier: 'id',
+              description: 'The ID parameter',
               required: true,
-              valueType: 'static',
-              // For static value, we'll need to set it in the constant_value field
-              // but since our type uses enumValues, we'll use that for now
-              enumValues: [actionName],
+              valueType: 'llm_prompt',
             };
             
             // Get description based on action
@@ -1500,8 +1321,9 @@ export default function AssistantDetail() {
               name: displayName,
               description: getDescription(displayName),
               method: 'POST',
-              url: baseWebhookUrl,
-              queryParams: [agentIdParam, actionParam],
+              url: webhookUrl,
+              headers: [authHeader],
+              queryParams: [idParam],
             };
           });
           
@@ -2210,9 +2032,10 @@ export default function AssistantDetail() {
       
       // Load section variables from stored JSON
       // The system prompt is generated from a fixed template + these variables
-      setCenarios(parseSectionEntries(config.cenarios));
-      setEtapas(parseSectionEntries(config.etapas));
-      setTomDeVoz(parseSectionEntries(config.tom_de_voz ?? config.tone_of_voice));
+      // Support both English (from CreateAgentWizard) and Portuguese (legacy) field names
+      setCenarios(parseSectionEntries(config.scenarios ?? config.cenarios));
+      setEtapas(parseSectionEntries(config.phases ?? config.etapas));
+      setTomDeVoz(parseSectionEntries(config.voice_tone ?? config.tom_de_voz ?? config.tone_of_voice));
       
       // Extract first message
       if (typeof config.first_message === 'string') {
@@ -2740,16 +2563,8 @@ export default function AssistantDetail() {
         };
       }
       
-      // Also add any user integrations that aren't in agent integration tools yet
-      userIntegrations.forEach(({ type }) => {
-        if (!converted[type]) {
-          const availableTools = getAvailableToolsForIntegration(type);
-          converted[type] = {
-            enabled: true,
-            enabledTools: availableTools
-          };
-        }
-      });
+      // Only include integrations that are actually in the agent's integration_tools
+      // Don't auto-add user integrations that aren't associated with this agent
       
       // Only update state if the data actually changed (compare JSON strings to avoid unnecessary updates)
       const newDataStr = JSON.stringify(converted);
@@ -2757,24 +2572,8 @@ export default function AssistantDetail() {
         lastLoadedIntegrationToolsRef.current = newDataStr;
         setAgentIntegrationTools(converted);
       }
-    } else if (userIntegrations.length > 0) {
-      // If no agent integration_tools but user has integrations, auto-enable them
-      const converted: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
-      userIntegrations.forEach(({ type }) => {
-        const availableTools = getAvailableToolsForIntegration(type);
-        converted[type] = {
-          enabled: true,
-          enabledTools: availableTools
-        };
-      });
-      
-      const newDataStr = JSON.stringify(converted);
-      if (lastLoadedIntegrationToolsRef.current !== newDataStr) {
-        lastLoadedIntegrationToolsRef.current = newDataStr;
-        setAgentIntegrationTools(converted);
-      }
-    } else if (!agent?.integration_tools && userIntegrations.length === 0) {
-      // Only clear if agent has no integration_tools and no user integrations
+    } else {
+      // If agent has no integration_tools, clear the state (don't auto-enable user integrations)
       if (lastLoadedIntegrationToolsRef.current !== '') {
         lastLoadedIntegrationToolsRef.current = '';
         setAgentIntegrationTools({});
@@ -4344,35 +4143,24 @@ export default function AssistantDetail() {
             <WidgetTab agent={agent} agentId={agentId} />
           ) : activeTab === "conversations" ? (
             <ConversationsTab assistantName={agentName} agentId={agent?.id} />
+          ) : activeTab === "phone-numbers" ? (
+            <PhoneNumbersTab agent={agent} agentId={agentId} />
           ) : activeTab === "tools" ? (
             <div className="flex-1 flex overflow-hidden min-w-0">
               <div className="flex-1 overflow-y-auto p-4 md:p-6">
                 <div className="space-y-6">
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Wrench className="h-4 w-4" />
-                    <span>TOOLS</span>
-                  </div>
+                  <TabSectionHeader icon={Wrench} label="TOOLS" />
                 
                 {/* System Tools */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <button 
-                    className="w-full flex items-start justify-between gap-2"
-                    onClick={() => setSystemToolsSectionExpanded(!systemToolsSectionExpanded)}
-                  >
-                    <div className="text-left flex-1">
-                      <h3 className="text-base md:text-lg font-semibold">System tools</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">
-                        Allow the agent to perform built-in actions.
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {Object.values(systemTools).filter(Boolean).length} active tool{Object.values(systemTools).filter(Boolean).length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", systemToolsSectionExpanded && "rotate-180")} />
-                  </button>
-                  
-                  {systemToolsSectionExpanded && (
-                    <div className="mt-4 md:mt-6 space-y-3">
+                <TabSectionCard
+                  title="System tools"
+                  description="Allow the agent to perform built-in actions."
+                  count={`${Object.values(systemTools).filter(Boolean).length} active tool${Object.values(systemTools).filter(Boolean).length !== 1 ? 's' : ''}`}
+                  collapsible
+                  expanded={systemToolsSectionExpanded}
+                  onToggle={() => setSystemToolsSectionExpanded(!systemToolsSectionExpanded)}
+                >
+                  <div className="space-y-3">
                     {/* End call */}
                     <div className="border border-border rounded-lg">
                       <div className="flex items-center justify-between p-3 bg-secondary/50">
@@ -4438,40 +4226,19 @@ export default function AssistantDetail() {
                         />
                       </div>
                     </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                </TabSectionCard>
 
                 {/* External Integration Tools */}
-                <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-                  <div className="flex items-start justify-between gap-2">
-                    <button 
-                      className="flex-1 flex items-start justify-between gap-2"
-                      onClick={() => setExternalIntegrationToolsSectionExpanded(!externalIntegrationToolsSectionExpanded)}
-                    >
-                      <div className="text-left flex-1">
-                        <h3 className="text-base md:text-lg font-semibold">External integration tools</h3>
-                        <p className="text-xs md:text-sm text-muted-foreground">
-                          Allow the agent to perform client-side and external integrations.
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {getUserDefinedWebhooks().length + clientTools.length} tool{(getUserDefinedWebhooks().length + clientTools.length) !== 1 ? 's' : ''} configured
-                        </p>
-                      </div>
-                      <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", externalIntegrationToolsSectionExpanded && "rotate-180")} />
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex justify-end">
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      {/* <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openClientToolModal()}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Client Tool
-                      </Button> */}
+                <TabSectionCard
+                  title="External integration tools"
+                  description="Allow the agent to perform client-side and external integrations."
+                  count={`${getUserDefinedWebhooks().length + clientTools.length} tool${(getUserDefinedWebhooks().length + clientTools.length) !== 1 ? 's' : ''} configured`}
+                  collapsible
+                  expanded={externalIntegrationToolsSectionExpanded}
+                  onToggle={() => setExternalIntegrationToolsSectionExpanded(!externalIntegrationToolsSectionExpanded)}
+                  actionButtons={
+                    <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -4481,11 +4248,9 @@ export default function AssistantDetail() {
                         Webhook Tool
                       </Button>
                     </div>
-                  </div>
-                    
-                  
-                  {externalIntegrationToolsSectionExpanded && (
-                    <div className="mt-4 md:mt-6">
+                  }
+                >
+                  <div>
                       {/* List existing tools */}
                   {(getUserDefinedWebhooks().length > 0 || clientTools.length > 0) && (
                     <div className="space-y-2">
@@ -4530,15 +4295,14 @@ export default function AssistantDetail() {
                     </div>
                   )}
                   
-                      {getUserDefinedWebhooks().length === 0 && clientTools.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <p className="text-sm">No external tools configured yet.</p>
-                          <p className="text-xs mt-1">Add webhook or client tools to extend your agent's capabilities.</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                    {getUserDefinedWebhooks().length === 0 && clientTools.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">No external tools configured yet.</p>
+                        <p className="text-xs mt-1">Add webhook or client tools to extend your agent's capabilities.</p>
+                      </div>
+                    )}
+                  </div>
+                </TabSectionCard>
 
                 {/* CRM/Scheduling Integration Tools */}
                 <div className="bg-card border border-border rounded-lg p-4 md:p-6">
@@ -4550,10 +4314,10 @@ export default function AssistantDetail() {
                       <div className="text-left flex-1">
                         <h3 className="text-base md:text-lg font-semibold">Integration tools</h3>
                         <p className="text-xs md:text-sm text-muted-foreground">
-                          Connect your agent to CRM and scheduling integrations.
+                          Connect your agent to CRM and scheduling integrations. Integration credentials are shared across all your agents.
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          {userIntegrations.length} integration{userIntegrations.length !== 1 ? 's' : ''} connected
+                          {Object.keys(agentIntegrationTools).length} integration{Object.keys(agentIntegrationTools).length !== 1 ? 's' : ''} connected to this agent
                         </p>
                       </div>
                       <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1", integrationToolsSectionExpanded && "rotate-180")} />
@@ -4574,9 +4338,9 @@ export default function AssistantDetail() {
                   {integrationToolsSectionExpanded && (
                     <div className="mt-4 md:mt-6">
                       {/* Connected Integrations */}
-                  {userIntegrations.length > 0 ? (
+                  {Object.keys(agentIntegrationTools).length > 0 ? (
                     <div className="space-y-3">
-                      {userIntegrations.map(({ type: integrationType }) => {
+                      {Object.keys(agentIntegrationTools).map((integrationType) => {
                         const availableTools = getAvailableToolsForIntegration(integrationType);
                         const enabledTools = agentIntegrationTools[integrationType]?.enabledTools || availableTools;
                         const isExpanded = integrationToolsExpanded[integrationType] || false;
@@ -5179,10 +4943,7 @@ export default function AssistantDetail() {
           ) : activeTab === "prompt-logic" ? (
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               <div className="space-y-6">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <FileText className="h-4 w-4" />
-                  <span>PROMPT LOGIC</span>
-                </div>
+                <TabSectionHeader icon={FileText} label="PROMPT LOGIC" />
                 
                 {/* First Message Configuration */}
                 <div className="bg-card border border-border rounded-lg p-4 md:p-6">
@@ -7114,7 +6875,7 @@ export default function AssistantDetail() {
               
               <div className="grid gap-3 py-4">
                 {availableIntegrationTypes
-                  .filter(type => !userIntegrations.some(i => i.type === type))
+                  .filter(type => !agentIntegrationTools[type])
                   .map((integrationType) => (
                     <button
                       key={integrationType}
@@ -7131,9 +6892,9 @@ export default function AssistantDetail() {
                     </button>
                   ))}
                 
-                {availableIntegrationTypes.filter(type => !userIntegrations.some(i => i.type === type)).length === 0 && (
+                {availableIntegrationTypes.filter(type => !agentIntegrationTools[type]).length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">All available integrations are already connected.</p>
+                    <p className="text-sm">All available integrations are already connected to this agent.</p>
                   </div>
                 )}
               </div>

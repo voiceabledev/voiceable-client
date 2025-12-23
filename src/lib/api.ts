@@ -116,6 +116,28 @@ class ApiClient {
     }
 
     if (!response.ok) {
+      // Handle 401 Unauthorized - redirect to login only for user authentication errors
+      if (response.status === 401) {
+        const errorMessage = data.status?.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'An error occurred');
+        
+        // Only redirect to login if it's a user authentication error, not an ElevenLabs API key error
+        // User auth errors: "Authentication required."
+        // ElevenLabs API key errors: "Invalid ElevenLabs API key." or similar
+        const isUserAuthError = errorMessage === 'Authentication required.' || 
+                                errorMessage.toLowerCase().includes('authentication required');
+        
+        if (isUserAuthError) {
+          // Clear token if present
+          this.setToken(null);
+          // Redirect to login page
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
       const errorMessage = data.status?.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'An error occurred');
       throw new Error(errorMessage);
     }

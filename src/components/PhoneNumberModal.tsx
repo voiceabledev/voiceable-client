@@ -24,9 +24,10 @@ import { Loader2, Search, Phone, Check, ShoppingCart, CheckCircle2 } from "lucid
 interface PhoneNumberModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultAgentId?: string;
 }
 
-export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) {
+export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNumberModalProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const [step, setStep] = useState<"account" | "assign">("account");
@@ -49,18 +50,22 @@ export function PhoneNumberModal({ open, onOpenChange }: PhoneNumberModalProps) 
       fetchAccountNumbers();
       // Reset available numbers when modal opens
       setAvailableNumbers([]);
+      // Set default agent if provided
+      if (defaultAgentId) {
+        setSelectedAgentId(defaultAgentId);
+      }
     } else {
       // Reset state when modal closes
       setStep("account");
       setSelectedNumber(null);
       setLabel("");
-      setSelectedAgentId("none");
+      setSelectedAgentId(defaultAgentId || "none");
       setAreaCode("");
       setAccountNumbers([]);
       setAvailableNumbers([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, defaultAgentId]);
 
   const fetchAgents = async () => {
     setLoadingAgents(true);
