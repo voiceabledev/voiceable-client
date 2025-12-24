@@ -69,6 +69,15 @@ const getIntegrationToolDescription = (displayName: string, integrationType: str
       "Cancel Event": "Cancel a scheduled event in Calendly",
       "Reschedule Event": "Reschedule a scheduled event in Calendly",
     },
+    calcom: {
+      "Get Event Types": "Get all available event types from Cal.com. Returns event type IDs needed for booking.",
+      "Get Available Slots": "Check available time slots for booking on Cal.com. Returns array of available times.",
+      "Create Booking": "Create a new booking/appointment on Cal.com with attendee details.",
+      "Get All Bookings": "Get all bookings from Cal.com within a time window.",
+      "Get Booking": "Get details of a specific booking by its unique ID (UID).",
+      "Reschedule Booking": "Reschedule an existing booking to a new time.",
+      "Cancel Booking": "Cancel an existing booking on Cal.com.",
+    },
     hubspot: {
       "Get Contact": "Retrieve a contact from HubSpot by ID",
       "Create Contact": "Create a new contact in HubSpot",
@@ -99,8 +108,9 @@ const createIntegrationWebhookTool = (
   const actionName = displayNameToActionName(displayName, integrationType);
   
   // Use the backend webhook endpoint for this integration
+  // Route: POST /api/v1/webhooks/:integration_type
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api/v1";
-  const webhookUrl = `${baseUrl.replace(/\/api\/v1\/?$/, "")}/api/v1/integrations/${integrationType}/webhook`;
+  const webhookUrl = `${baseUrl.replace(/\/api\/v1\/?$/, "")}/api/v1/webhooks/${integrationType}`;
   
   // Create header with agent ID
   const agentIdHeader: WebhookHeader = {

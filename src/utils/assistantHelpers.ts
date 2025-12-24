@@ -482,7 +482,7 @@ export const getAvailableToolsForIntegration = (integrationType: string): string
     salesforce: ["get_contact", "create_contact", "update_contact", "search_contacts"],
     google_calendar: ["get_events", "create_event", "update_event", "delete_event"],
     outlook_calendar: ["get_events", "create_event", "update_event", "delete_event"],
-    calcom: ["get_event_types", "create_booking", "get_bookings"]
+    calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"]
   };
   return toolsMap[integrationType] || [];
 };

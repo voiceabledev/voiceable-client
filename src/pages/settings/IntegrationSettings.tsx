@@ -237,11 +237,12 @@ const INTEGRATION_TOOLS: Record<string, string[]> = {
   ],
   calcom: [
     "Get Event Types",
-    "Get Availability",
+    "Get Available Slots",
     "Create Booking",
-    "Get Scheduled Events",
-    "Cancel Event",
-    "Reschedule Event"
+    "Get All Bookings",
+    "Get Booking",
+    "Reschedule Booking",
+    "Cancel Booking"
   ]
 };
 

@@ -186,6 +186,15 @@ export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
     "Search Accounts",
     "Create Task",
     "Create Event"
+  ],
+  calcom: [
+    "Get Event Types",
+    "Get Available Slots",
+    "Create Booking",
+    "Get All Bookings",
+    "Get Booking",
+    "Reschedule Booking",
+    "Cancel Booking"
   ]
 };
 
@@ -358,6 +367,15 @@ export const displayNameToActionName = (displayName: string, integrationType: st
       "Create Task": "create_task",
       "Create Event": "create_event",
     },
+    calcom: {
+      "Get Event Types": "get_event_types",
+      "Get Available Slots": "get_available_slots",
+      "Create Booking": "create_booking",
+      "Get All Bookings": "list_bookings",
+      "Get Booking": "get_booking",
+      "Reschedule Booking": "reschedule_booking",
+      "Cancel Booking": "cancel_booking",
+    },
   };
   return mapping[integrationType]?.[displayName] || displayName.toLowerCase().replace(/\s+/g, "_");
 };
@@ -419,6 +437,15 @@ export const actionNameToDisplayName = (actionName: string, integrationType: str
       "create_task": "Create Task",
       "create_event": "Create Event",
     },
+    calcom: {
+      "get_event_types": "Get Event Types",
+      "get_available_slots": "Get Available Slots",
+      "create_booking": "Create Booking",
+      "list_bookings": "Get All Bookings",
+      "get_booking": "Get Booking",
+      "reschedule_booking": "Reschedule Booking",
+      "cancel_booking": "Cancel Booking",
+    },
   };
   return mapping[integrationType]?.[actionName] || actionName.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 };
@@ -429,6 +456,7 @@ export const getIntegrationDescription = (integrationType: string): string => {
     calendly: "Scheduling and appointment automation",
     hubspot: "Customer platform and CRM",
     salesforce: "Enterprise CRM and customer success",
+    calcom: "Scheduling and calendar management",
   };
   return descriptions[integrationType] || "Connect external tools to your assistant";
 };
@@ -440,6 +468,7 @@ export const getIntegrationFullDescription = (integrationType: string): string =
     calendly: "Enable scheduling capabilities by connecting your Calendly account. Assistant can book and manage meetings.",
     hubspot: "Full CRM integration with HubSpot to manage leads, contacts, and deals seamlessly.",
     salesforce: "Deep integration with Salesforce CRM for enterprise-grade customer relationship management.",
+    calcom: "Connect your Cal.com account to enable scheduling capabilities. Assistant can check availability, book meetings, and manage appointments.",
   };
   return descriptions[integrationType] || "Connect this integration to expand your assistant's capabilities.";
 };
