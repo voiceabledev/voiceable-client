@@ -10,7 +10,6 @@ import {
   Pause,
   RotateCcw,
   RotateCw,
-  MoreHorizontal,
   Info,
   Loader2,
 } from "lucide-react";
@@ -218,9 +217,6 @@ const ConversationDetailPanel = ({
           <span className="text-xs md:text-sm text-muted-foreground ml-auto">
             {formatTime(currentTime)} / {formatTime(duration) || selectedConversation.duration}
           </span>
-          <button className="text-muted-foreground hover:text-foreground">
-            <MoreHorizontal className="h-3.5 w-3.5 md:h-4 md:w-4" />
-          </button>
         </div>
       </div>
     </div>
@@ -246,9 +242,9 @@ const ConversationDetailPanel = ({
     </div>
 
     {/* Tab Content */}
-    <div className="flex-1 overflow-auto p-3 md:p-4 min-h-0">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-4 min-h-0">
       {activeDetailTab === "overview" && (
-        <div className="space-y-3 md:space-y-4 pb-4">
+        <div className="space-y-4 md:space-y-5 pb-4">
           <div>
             <h3 className="text-xs md:text-sm font-semibold mb-2">Summary</h3>
             <p className="text-xs md:text-sm text-muted-foreground whitespace-normal">
@@ -256,64 +252,69 @@ const ConversationDetailPanel = ({
             </p>
           </div>
 
-          <div className="flex items-center justify-between py-2">
-            <span className="text-xs md:text-sm text-muted-foreground">Call status</span>
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-xs",
-                selectedConversation.status === "Successful" &&
-                  "bg-success/10 text-success border-success/20"
-              )}
-            >
-              {selectedConversation.status}
-            </Badge>
-          </div>
-
-          <div className="flex items-center justify-between py-2">
-            <span className="text-xs md:text-sm text-muted-foreground">User ID</span>
-            <span className="text-xs md:text-sm font-mono text-muted-foreground truncate ml-2">
-              {selectedConversation.userId}
-            </span>
-          </div>
-
-          {/* Metadata Section */}
-          <div className="border-t border-border pt-3 md:pt-4 mt-3 md:mt-4">
-            <h3 className="text-xs md:text-sm font-semibold mb-2 md:mb-3">Metadata</h3>
-            <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm">
-              <div className="flex justify-between">
+          {/* Call Information */}
+          <div className="space-y-2 md:space-y-2.5">
+            <h3 className="text-xs md:text-sm font-semibold">Call Information</h3>
+            <div className="space-y-2 text-xs md:text-sm">
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-muted-foreground">Status</span>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs",
+                    selectedConversation.status === "Successful" &&
+                      "bg-success/10 text-success border-success/20",
+                    selectedConversation.status === "Failed" &&
+                      "bg-destructive/10 text-destructive border-destructive/20",
+                    selectedConversation.status === "In Progress" &&
+                      "bg-warning/10 text-warning border-warning/20"
+                  )}
+                >
+                  {selectedConversation.status}
+                </Badge>
+              </div>
+              <div className="flex justify-between py-1.5">
                 <span className="text-muted-foreground">Date</span>
                 <span className="truncate ml-2">{selectedConversation.date}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Connection duration</span>
+              <div className="flex justify-between py-1.5">
+                <span className="text-muted-foreground">Duration</span>
                 <span>{selectedConversation.duration}</span>
               </div>
-              {selectedConversation.credits && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Credits (call)</span>
-                    <span>{selectedConversation.credits.call}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Credits (LLM)</span>
-                    <span>{selectedConversation.credits.llm}</span>
-                  </div>
-                </>
-              )}
-              {selectedConversation.llmCost && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">LLM Cost</span>
-                  <span>{selectedConversation.llmCost}</span>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* Usage & Costs */}
+          {(selectedConversation.credits || selectedConversation.llmCost) && (
+            <div className="space-y-2 md:space-y-2.5">
+              <h3 className="text-xs md:text-sm font-semibold">Usage & Costs</h3>
+              <div className="space-y-2 text-xs md:text-sm">
+                {selectedConversation.credits && (
+                  <>
+                    <div className="flex justify-between py-1.5">
+                      <span className="text-muted-foreground">Call credits</span>
+                      <span>{selectedConversation.credits.call}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <span className="text-muted-foreground">LLM credits</span>
+                      <span>{selectedConversation.credits.llm}</span>
+                    </div>
+                  </>
+                )}
+                {selectedConversation.llmCost && (
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-muted-foreground">LLM cost</span>
+                    <span>{selectedConversation.llmCost}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {activeDetailTab === "transcription" && (
-        <div className="space-y-3 md:space-y-4">
+        <div className="space-y-3 md:space-y-4 pb-4">
           {conversationDetails?.transcript && conversationDetails.transcript.length > 0 ? (
             conversationDetails.transcript.map((turn, index) => (
               <div
@@ -419,7 +420,7 @@ export default function Conversations() {
     }
   }, [selectedConversation?.id, fetchConversationDetails]);
 
-  // Show detail panel when conversation is selected on mobile
+  // Show detail panel when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
       setShowDetailPanel(true);
@@ -748,10 +749,7 @@ export default function Conversations() {
       {/* Content */}
       <div className="flex-1 flex relative min-h-0 overflow-hidden">
         {/* Table */}
-        <div className={cn(
-          "flex-1 overflow-auto min-h-0",
-          selectedConversation && "hidden md:block"
-        )}>
+        <div className="flex-1 overflow-auto min-h-0">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
               <thead>
@@ -826,69 +824,47 @@ export default function Conversations() {
           </div>
         </div>
 
-        {/* Detail Panel */}
-        {selectedConversation && (
+        {/* Modal with Overlay */}
+        {selectedConversation && showDetailPanel && (
           <>
-            {/* Mobile: Bottom Sheet */}
-            {showDetailPanel && (
-              <>
-                <div 
-                  className="fixed inset-0 bg-black/50 z-40 md:hidden"
-                  onClick={() => {
+            {/* Overlay */}
+            <div 
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => {
+                setShowDetailPanel(false);
+                setSelectedConversation(null);
+                setConversationDetails(null);
+              }}
+            />
+            {/* Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+              <div 
+                className="bg-card border border-border rounded-lg shadow-lg w-full max-w-2xl h-[90vh] flex flex-col overflow-hidden pointer-events-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ConversationDetailPanel
+                  selectedConversation={selectedConversation}
+                  conversationDetails={conversationDetails}
+                  onClose={() => {
                     setShowDetailPanel(false);
                     setSelectedConversation(null);
+                    setConversationDetails(null);
                   }}
+                  activeDetailTab={activeDetailTab}
+                  setActiveDetailTab={setActiveDetailTab}
+                  isPlaying={isPlaying}
+                  setIsPlaying={setIsPlaying}
+                  currentTime={currentTime}
+                  duration={duration}
+                  audioUrl={audioUrl}
+                  toast={toast}
+                  isPlayerReady={isPlayerReady}
+                  onSeekBack={handleSeekBack}
+                  onSeekForward={handleSeekForward}
+                  audioRef={audioRef}
                 />
-                <div className="fixed inset-x-0 bottom-0 top-1/4 bg-card border-t border-border z-50 flex flex-col rounded-t-lg md:hidden overflow-hidden min-h-0">
-                  <ConversationDetailPanel
-                    selectedConversation={selectedConversation}
-                    conversationDetails={conversationDetails}
-                    onClose={() => {
-                      setShowDetailPanel(false);
-                      setSelectedConversation(null);
-                      setConversationDetails(null);
-                    }}
-                    activeDetailTab={activeDetailTab}
-                    setActiveDetailTab={setActiveDetailTab}
-                    isPlaying={isPlaying}
-                    setIsPlaying={setIsPlaying}
-                    currentTime={currentTime}
-                    duration={duration}
-                    audioUrl={audioUrl}
-                    toast={toast}
-                    isPlayerReady={isPlayerReady}
-                    onSeekBack={handleSeekBack}
-                    onSeekForward={handleSeekForward}
-                    audioRef={audioRef}
-                  />
-                </div>
-              </>
-            )}
-            
-            {/* Desktop: Side Panel */}
-            <div className="hidden md:flex w-[500px] border-l border-border flex-col h-full overflow-hidden">
-              <ConversationDetailPanel
-                selectedConversation={selectedConversation}
-                conversationDetails={conversationDetails}
-                onClose={() => {
-                  setSelectedConversation(null);
-                  setConversationDetails(null);
-                }}
-                activeDetailTab={activeDetailTab}
-                setActiveDetailTab={setActiveDetailTab}
-                isPlaying={isPlaying}
-                setIsPlaying={setIsPlaying}
-                currentTime={currentTime}
-                duration={duration}
-                audioUrl={audioUrl}
-                toast={toast}
-                isPlayerReady={isPlayerReady}
-                onSeekBack={handleSeekBack}
-                onSeekForward={handleSeekForward}
-                audioRef={audioRef}
-              />
+              </div>
             </div>
-            
           </>
         )}
       </div>

@@ -129,3 +129,374 @@ You are a helpful voice assistant. Your role is to assist users with their reque
 - Ask clarifying questions when needed
 - Provide accurate information based on available context
 `;
+
+// Integration tools mapping for display
+export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
+  pipedrive: [
+    // "Get Deal",
+    "Create Deal",
+    // "Update Deal",
+    "Search Deals",
+    "Get Person",
+    "Create Person",
+    // "Update Person",
+    // "Search Persons",
+    // "Get Organization",
+    // "Create Organization",
+    // "Update Organization",
+    // "Search Organizations",
+    // "Create Note",
+    // "Create Activity"
+  ],
+  calendly: [
+    // "Get Event Types",
+    "Create Booking",
+    "Cancel Event",
+    "Reschedule Event",
+    "Get Availability",
+    "Get Scheduled Events",
+  ],
+  hubspot: [
+    "Get Contact",
+    "Create Contact",
+    "Update Contact",
+    "Search Contacts",
+    "Get Company",
+    "Create Company",
+    "Search Companies",
+    "Get Deal",
+    "Update Deal",
+    "Search Deals",
+    "Create Note",
+    "Search Notes",
+    "Get Task"
+  ],
+  salesforce: [
+    "Get Lead",
+    "Create Lead",
+    "Update Lead",
+    "Search Leads",
+    "Get Opportunity",
+    "Create Opportunity",
+    "Update Opportunity",
+    "Search Opportunities",
+    "Get Account",
+    "Create Account",
+    "Update Account",
+    "Search Accounts",
+    "Create Task",
+    "Create Event"
+  ]
+};
+
+// Integration metadata for display
+export const INTEGRATION_METADATA: Record<string, { name: string; icon: string; iconBg: string; url?: string }> = {
+  pipedrive: {
+    name: "Pipedrive",
+    icon: "PD",
+    iconBg: "bg-emerald-600",
+    url: "https://www.pipedrive.com",
+  },
+  calendly: {
+    name: "Calendly",
+    icon: "C",
+    iconBg: "bg-orange-500",
+    url: "https://calendly.com",
+  },
+  hubspot: {
+    name: "HubSpot CRM",
+    icon: "HS",
+    iconBg: "bg-blue-600",
+    url: "https://app.hubspot.com",
+  },
+  salesforce: {
+    name: "Salesforce",
+    icon: "SF",
+    iconBg: "bg-sky-500",
+    url: "https://www.salesforce.com",
+  },
+};
+
+export const getAvailableIntegrationTypes = () => {
+  // Define all available integrations with their metadata
+  const integrations = [
+    {
+      id: "pipedrive",
+      name: INTEGRATION_METADATA.pipedrive.name,
+      description: getIntegrationDescription("pipedrive"),
+      icon: INTEGRATION_METADATA.pipedrive.icon,
+      iconBg: INTEGRATION_METADATA.pipedrive.iconBg,
+      status: "available" as const,
+    },
+    {
+      id: "calcom",
+      name: "Cal.com",
+      description: "Use Cal.com event links to manage availability across calendars",
+      icon: "📅",
+      iconBg: "bg-purple-600",
+      status: "available" as const,
+    },
+    {
+      id: "calendly",
+      name: INTEGRATION_METADATA.calendly.name,
+      description: getIntegrationDescription("calendly"),
+      icon: INTEGRATION_METADATA.calendly.icon,
+      iconBg: INTEGRATION_METADATA.calendly.iconBg,
+      status: "upcoming" as const,
+    },
+    {
+      id: "hubspot",
+      name: INTEGRATION_METADATA.hubspot.name,
+      description: getIntegrationDescription("hubspot"),
+      icon: INTEGRATION_METADATA.hubspot.icon,
+      iconBg: INTEGRATION_METADATA.hubspot.iconBg,
+      status: "upcoming" as const,
+    },
+    {
+      id: "salesforce",
+      name: INTEGRATION_METADATA.salesforce.name,
+      description: getIntegrationDescription("salesforce"),
+      icon: INTEGRATION_METADATA.salesforce.icon,
+      iconBg: INTEGRATION_METADATA.salesforce.iconBg,
+      status: "upcoming" as const,
+    },
+    {
+      id: "google_calendar",
+      name: "Google Calendar",
+      description: "Overlay availability and events from Google Calendar",
+      icon: "📆",
+      iconBg: "bg-blue-500",
+      status: "upcoming" as const,
+    },
+    {
+      id: "outlook_calendar",
+      name: "Outlook Calendar",
+      description: "Integrate Microsoft Outlook calendars for scheduling",
+      icon: "📧",
+      iconBg: "bg-sky-700",
+      status: "upcoming" as const,
+    },
+  ];
+
+  return integrations;
+};
+
+export const getIntegrationIcon = (integrationType: string): string => {
+  const icons: Record<string, string> = {
+    pipedrive: "🔷",
+    calendly: "📅",
+    hubspot: "🟠",
+    salesforce: "☁️",
+    google_calendar: "📆",
+    outlook_calendar: "📧",
+    calcom: "📅",
+  };
+  return icons[integrationType] || "🔌";
+};
+
+export const formatToolName = (toolName: string): string => {
+  return toolName
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+export const displayNameToActionName = (displayName: string, integrationType: string): string => {
+  const mapping: Record<string, Record<string, string>> = {
+    pipedrive: {
+      "Get Deal": "get_deal",
+      "Create Deal": "create_deal",
+      "Update Deal": "update_deal",
+      "Search Deals": "search_deals",
+      "Get Person": "get_contact",
+      "Create Person": "create_contact",
+      "Update Person": "update_contact",
+      "Search Persons": "search_contacts",
+      "Get Organization": "get_company",
+      "Create Organization": "create_company",
+      "Update Organization": "update_organization",
+      "Search Organizations": "search_companies",
+      "Create Note": "create_note",
+      "Create Activity": "create_activity",
+    },
+    calendly: {
+      "Get Event Types": "get_event_types",
+      "Get Availability": "get_availability",
+      "Create Booking": "create_booking",
+      "Get Scheduled Events": "get_scheduled_events",
+      "Cancel Event": "cancel_event",
+      "Reschedule Event": "reschedule_event",
+    },
+    hubspot: {
+      "Get Contact": "get_contact",
+      "Create Contact": "create_contact",
+      "Update Contact": "update_contact",
+      "Search Contacts": "search_contacts",
+      "Get Company": "get_company",
+      "Create Company": "create_company",
+      "Search Companies": "search_companies",
+      "Get Deal": "get_deal",
+      "Update Deal": "update_deal",
+      "Search Deals": "search_deals",
+      "Create Note": "create_note",
+      "Search Notes": "search_notes",
+      "Get Task": "get_task",
+    },
+    salesforce: {
+      "Get Lead": "get_lead",
+      "Create Lead": "create_lead",
+      "Update Lead": "update_lead",
+      "Search Leads": "search_leads",
+      "Get Opportunity": "get_opportunity",
+      "Create Opportunity": "create_opportunity",
+      "Update Opportunity": "update_opportunity",
+      "Search Opportunities": "search_opportunities",
+      "Get Account": "get_account",
+      "Create Account": "create_account",
+      "Update Account": "update_account",
+      "Search Accounts": "search_accounts",
+      "Create Task": "create_task",
+      "Create Event": "create_event",
+    },
+  };
+  return mapping[integrationType]?.[displayName] || displayName.toLowerCase().replace(/\s+/g, "_");
+};
+
+export const actionNameToDisplayName = (actionName: string, integrationType: string): string => {
+  const mapping: Record<string, Record<string, string>> = {
+    pipedrive: {
+      "get_deal": "Get Deal",
+      "create_deal": "Create Deal",
+      "update_deal": "Update Deal",
+      "search_deals": "Search Deals",
+      "get_contact": "Get Person",
+      "create_contact": "Create Person",
+      "update_contact": "Update Person",
+      "search_contacts": "Search Persons",
+      "get_company": "Get Organization",
+      "create_company": "Create Organization",
+      "update_organization": "Update Organization",
+      "search_companies": "Search Organizations",
+      "create_note": "Create Note",
+      "create_activity": "Create Activity",
+    },
+    calendly: {
+      "get_event_types": "Get Event Types",
+      "get_availability": "Get Availability",
+      "create_booking": "Create Booking",
+      "get_scheduled_events": "Get Scheduled Events",
+      "cancel_event": "Cancel Event",
+      "reschedule_event": "Reschedule Event",
+    },
+    hubspot: {
+      "get_contact": "Get Contact",
+      "create_contact": "Create Contact",
+      "update_contact": "Update Contact",
+      "search_contacts": "Search Contacts",
+      "get_company": "Get Company",
+      "create_company": "Create Company",
+      "search_companies": "Search Companies",
+      "get_deal": "Get Deal",
+      "update_deal": "Update Deal",
+      "search_deals": "Search Deals",
+      "create_note": "Create Note",
+      "search_notes": "Search Notes",
+      "get_task": "Get Task",
+    },
+    salesforce: {
+      "get_lead": "Get Lead",
+      "create_lead": "Create Lead",
+      "update_lead": "Update Lead",
+      "search_leads": "Search Leads",
+      "get_opportunity": "Get Opportunity",
+      "create_opportunity": "Create Opportunity",
+      "update_opportunity": "Update Opportunity",
+      "search_opportunities": "Search Opportunities",
+      "get_account": "Get Account",
+      "create_account": "Create Account",
+      "update_account": "Update Account",
+      "search_accounts": "Search Accounts",
+      "create_task": "Create Task",
+      "create_event": "Create Event",
+    },
+  };
+  return mapping[integrationType]?.[actionName] || actionName.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+};
+
+export const getIntegrationDescription = (integrationType: string): string => {
+  const descriptions: Record<string, string> = {
+    pipedrive: "CRM and pipeline management",
+    calendly: "Scheduling and appointment automation",
+    hubspot: "Customer platform and CRM",
+    salesforce: "Enterprise CRM and customer success",
+  };
+  return descriptions[integrationType] || "Connect external tools to your assistant";
+};
+
+export const getIntegrationFullDescription = (integrationType: string): string => {
+  const descriptions: Record<string, string> = {
+    pipedrive:
+      "Connect your Pipedrive CRM to allow the assistant to manage deals, contacts, and organizations directly from conversations.",
+    calendly: "Enable scheduling capabilities by connecting your Calendly account. Assistant can book and manage meetings.",
+    hubspot: "Full CRM integration with HubSpot to manage leads, contacts, and deals seamlessly.",
+    salesforce: "Deep integration with Salesforce CRM for enterprise-grade customer relationship management.",
+  };
+  return descriptions[integrationType] || "Connect this integration to expand your assistant's capabilities.";
+};
+
+import { getEmptyWebhookHeader, getEmptyWebhookQueryParam, getEmptyWebhookTool } from "@/utils/assistantHelpers";
+import type { WebhookTool, WebhookHeader, WebhookQueryParam } from "@/types/assistant";
+
+export const createWebhookToolForIntegrationAction = (displayName: string, integrationType: string): WebhookTool => {
+  const actionName = displayNameToActionName(displayName, integrationType);
+  const webhookUrl = `https://api.voiceable.dev/webhook/${actionName}`;
+
+  const authHeader: WebhookHeader = {
+    ...getEmptyWebhookHeader(),
+    type: "secret",
+    name: "X-API-Key",
+    value: "mQHjGa98PGSD1Geqo0nb",
+  };
+
+  const idParam: WebhookQueryParam = {
+    ...getEmptyWebhookQueryParam(),
+    identifier: "id",
+    description: "The ID parameter",
+    required: true,
+    valueType: "llm_prompt",
+  };
+
+  const descriptions: Record<string, string> = {
+    "Get Deal": "Retrieve a deal from Pipedrive by ID",
+    "Create Deal": "Create a new deal in Pipedrive",
+    "Update Deal": "Update an existing deal in Pipedrive",
+    "Search Deals": "Search for deals in Pipedrive",
+    "Get Person": "Retrieve a person/contact from Pipedrive by ID",
+    "Create Person": "Create a new person/contact in Pipedrive",
+    "Update Person": "Update an existing person/contact in Pipedrive",
+    "Search Persons": "Search for persons/contacts in Pipedrive",
+    "Get Organization": "Retrieve an organization from Pipedrive by ID",
+    "Create Organization": "Create a new organization in Pipedrive",
+    "Update Organization": "Update an existing organization in Pipedrive",
+    "Search Organizations": "Search for organizations in Pipedrive",
+    "Create Note": "Create a note in Pipedrive",
+    "Create Activity": "Create an activity in Pipedrive",
+    "Get Event Types": "Get available event types from Calendly",
+    "Get Availability": "Get availability for a Calendly event type",
+    "Create Booking": "Create a new booking in Calendly",
+    "Get Scheduled Events": "Get scheduled events from Calendly",
+    "Cancel Event": "Cancel a scheduled event in Calendly",
+    "Reschedule Event": "Reschedule a scheduled event in Calendly",
+  };
+
+  return {
+    ...getEmptyWebhookTool(),
+    id: crypto.randomUUID(),
+    name: displayName,
+    description: descriptions[displayName] || `${displayName} action for ${integrationType}`,
+    method: "POST",
+    url: webhookUrl,
+    headers: [authHeader],
+    queryParams: [idParam],
+  };
+};

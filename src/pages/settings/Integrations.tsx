@@ -362,7 +362,7 @@ const schedulingProviders: IntegrationProvider[] = [
     description: "Bring Calendly booking links into your assistant workflows.",
     icon: "C",
     iconBg: "bg-orange-500",
-    status: "available",
+    status: "upcoming",
     order: 3
   }
   ,
@@ -372,7 +372,7 @@ const schedulingProviders: IntegrationProvider[] = [
     description: "Use Cal.com event links to manage availability across calendars.",
     icon: "Cal",
     iconBg: "bg-purple-600",
-    status: "upcoming",
+    status: "available",
     order: 4
   }
 ];

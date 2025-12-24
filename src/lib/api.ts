@@ -349,6 +349,11 @@ export const integrationsApi = {
     return response;
   },
 
+  deleteFromAgent: async (agentId: string, integrationType: string) => {
+    const response = await apiClient.delete(`/agents/${agentId}/integrations/${integrationType}`);
+    return response;
+  },
+
   getSchemas: async () => {
     const response = await apiClient.get<IntegrationSchema[]>('/integrations/schemas');
     return response;
@@ -413,6 +418,8 @@ export interface UpdateAgentParams {
   platform_settings?: Record<string, unknown>;
   widget_config?: WidgetConfig;
   tags?: string[];
+  webhook_tools?: Array<Record<string, unknown>>;
+  integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
 }
 
 export const agentsApi = {

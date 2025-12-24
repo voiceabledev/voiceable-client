@@ -196,20 +196,20 @@ const INTEGRATION_TOOLS: Record<string, string[]> = {
     "Create Event"
   ],
   pipedrive: [
-    "Get Deal",
-    "Create Deal",
-    "Update Deal",
-    "Search Deals",
     "Get Person",
     "Create Person",
-    "Update Person",
-    "Search Persons",
-    "Get Organization",
-    "Create Organization",
-    "Update Organization",
-    "Search Organizations",
-    "Create Note",
-    "Create Activity"
+    "Get Deal",
+    "Create Deal",
+    // "Update Deal",
+    "Search Deals",
+    // "Update Person",
+    // "Search Persons",
+    // "Get Organization",
+    // "Create Organization",
+    // "Update Organization",
+    // "Search Organizations",
+    // "Create Note",
+    // "Create Activity"
   ],
   calendly: [
     "Get Event Types",
@@ -234,6 +234,14 @@ const INTEGRATION_TOOLS: Record<string, string[]> = {
     "Delete Event",
     "Get Free/Busy",
     "Get Calendar List"
+  ],
+  calcom: [
+    "Get Event Types",
+    "Get Availability",
+    "Create Booking",
+    "Get Scheduled Events",
+    "Cancel Event",
+    "Reschedule Event"
   ]
 };
 
@@ -496,20 +504,16 @@ export default function IntegrationSettings() {
                   {INTEGRATION_CREDENTIAL_TYPES[integrationType] && (
                     <div className="space-y-2">
                       <h2 className="text-sm font-medium">Credential type</h2>
-                      <p className="text-xs text-muted-foreground mb-3">
+                      {/* <p className="text-xs text-muted-foreground mb-3">
                         Select a credential to use for this integration.
-                      </p>
+                      </p> */}
                       <div className="relative">
-                        <select
-                          className="w-full bg-secondary/50 border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          value={INTEGRATION_CREDENTIAL_TYPES[integrationType].value}
-                          disabled
-                        >
-                          <option value={INTEGRATION_CREDENTIAL_TYPES[integrationType].value}>
-                            {INTEGRATION_CREDENTIAL_TYPES[integrationType].label}
-                          </option>
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <input
+                          type="text"
+                          readOnly
+                          className="w-full bg-secondary/50 border border-border rounded-md px-3 py-2 text-sm cursor-default"
+                          value={INTEGRATION_CREDENTIAL_TYPES[integrationType].label}
+                        />
                       </div>
                     </div>
                   )}
