@@ -130,7 +130,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
-        <div className="px-6 py-5 border-b bg-gradient-to-r from-background to-secondary/10">
+        <div className="px-6 py-5 border-b bg-gradient-to-r from-background to-secondary/10 flex-shrink-0">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -248,7 +248,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                 </Button>
               </div>
 
-              <ScrollArea className="flex-1 overflow-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 <div className="p-6">
                   <TabsContent value="credentials" className="mt-0 space-y-6">
                     <div className="space-y-6">
@@ -340,7 +340,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                       </Badge>
                     </div>
 
-                    <div className="grid gap-2">
+                    <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
                       {connectingIntegrationType && INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType]?.map((toolName) => {
                         const isSelected = selectedIntegrationToolsForModal.includes(toolName);
                         return (
@@ -385,12 +385,12 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     </div>
                   </TabsContent>
                 </div>
-              </ScrollArea>
+              </div>
             </Tabs>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-between items-center">
+        <div className="px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-between items-center flex-shrink-0">
           <div>
             {editingIntegrationConfig && !showDeleteConfirm && (
               <Button 

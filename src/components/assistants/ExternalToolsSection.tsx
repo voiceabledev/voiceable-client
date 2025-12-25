@@ -1,6 +1,7 @@
 import React from "react";
-import { Globe, Code, Edit, Plus, Trash2 } from "lucide-react";
+import { Globe, Code, Edit, Plus, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
 type WebhookToolSummary = {
   id: string;
@@ -52,14 +53,22 @@ export const ExternalToolsSection: React.FC<ExternalToolsSectionProps> = ({
             {totalCount} tool{totalCount !== 1 ? "s" : ""} configured
           </p>
         </div>
+        <ChevronDown
+          className={cn(
+            "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
+            expanded && "rotate-180",
+          )}
+        />
       </button>
 
-      <div className="flex mt-3 justify-end">
-        <Button variant="outline" size="sm" onClick={onAddWebhook}>
-          <Plus className="h-4 w-4 mr-2" />
-          Webhook Tool
-        </Button>
-      </div>
+      {expanded && (
+        <div className="flex mt-3 justify-end">
+          <Button variant="outline" size="sm" onClick={onAddWebhook}>
+            <Plus className="h-4 w-4 mr-2" />
+            Webhook Tool
+          </Button>
+        </div>
+      )}
 
       {expanded && (
         <div className="mt-4 md:mt-6">

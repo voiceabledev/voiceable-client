@@ -62,6 +62,8 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   onDeleteIntegration,
 }) => {
   const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(true);
+  const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(true);
+  const [externalToolsSectionExpanded, setExternalToolsSectionExpanded] = useState(true);
 
   // Transform agentIntegrationTools array to Record format expected by AgentIntegrationToolsSection
   const agentIntegrationToolsRecord = useMemo(() => {
@@ -88,8 +90,8 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
         systemTools={systemTools}
         onToggleTool={(key, checked) => onToggleSystemTool(key as keyof SystemToolsState)}
         onOpenSettings={onOpenSystemToolSettings ? (key) => onOpenSystemToolSettings(key as keyof SystemToolsState) : undefined}
-        expanded={true}
-        onToggleExpanded={() => {}}
+        expanded={systemToolsSectionExpanded}
+        onToggleExpanded={() => setSystemToolsSectionExpanded(prev => !prev)}
       />
       
       <ExternalToolsSection
@@ -106,8 +108,8 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
           if (tool) onEditClientTool(tool);
         }}
         onDeleteClientTool={onDeleteClientTool}
-        expanded={true}
-        onToggleExpanded={() => {}}
+        expanded={externalToolsSectionExpanded}
+        onToggleExpanded={() => setExternalToolsSectionExpanded(prev => !prev)}
       />
 
       <AgentIntegrationToolsSection

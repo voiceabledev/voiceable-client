@@ -42,8 +42,8 @@ export const PromptPreviewModal: React.FC<PromptPreviewModalProps> = ({
           </DialogHeader>
         </div>
 
-        <ScrollArea className="flex-1 p-6">
-          <div className="space-y-8">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-6 space-y-8">
             {/* System Prompt Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">

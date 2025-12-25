@@ -39,6 +39,7 @@ const getEmptyWebhookTool = (): WebhookTool => ({
   authentication: "",
   headers: [],
   queryParams: [],
+  pathParams: [],
   dynamicVariableAssignments: [],
 });
 
@@ -99,6 +100,202 @@ const getIntegrationToolDescription = (displayName: string, integrationType: str
     `${displayName} action for ${integrationType}`;
 };
 
+// Get body parameters for an integration action
+// Returns the action parameter and a nested data object with properties
+const getIntegrationBodyParams = (
+  displayName: string,
+  integrationType: string,
+  actionName: string
+): WebhookQueryParam[] => {
+  const bodyParams: WebhookQueryParam[] = [];
+  
+  // Action parameter - always present, with constant value
+  const actionParam: WebhookQueryParam = {
+    ...getEmptyWebhookQueryParam(),
+    identifier: "action",
+    description: "", // Empty description for constant values
+    required: true,
+    valueType: "static", // Use "static" to indicate constant value
+    dataType: "string",
+    enumValues: [actionName], // Use enumValues to store the constant value
+  };
+  bodyParams.push(actionParam);
+  
+  // Create data object with nested properties based on integration type and action
+  if (integrationType === "calcom") {
+    const dataProperties: WebhookQueryParam[] = [];
+    
+    if (actionName === "get_available_slots") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "eventTypeId",
+          description: "This is going to be the event type that the user chooses",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "number",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "timeZone",
+          description: "America/Vancouver",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "startTime",
+          description: "Start time should be today.\n\nExample:\n{\"eventTypeId\": 4166361, \"timeZone\": \"America/Vancouver\", \"startTime\": \"2025-12-30T00:00:00.000Z\",\"endTime\": \"2026-01-02T00:00:00.000Z\"}",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "endTime",
+          description: "It should be in 2 weeks.\n\nExample:\n{\"eventTypeId\": 4166361, \"timeZone\": \"America/Vancouver\", \"startTime\": \"2025-12-30T00:00:00.000Z\",\"endTime\": \"2026-01-02T00:00:00.000Z\"}",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "create_booking") {
+      // Create attendee object with nested properties
+      const attendeeProperties: WebhookQueryParam[] = [
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "name",
+          description: "Ask the person their name.",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "email",
+          description: "Ask the person their email. Ask them to say letter by letter.",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "timeZone",
+          description: "America/Vancouver",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      ];
+      
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "eventTypeId",
+          description: "We need to get the event type id in the Get Event Types tool trigger.",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "start",
+          description: "Today's date with this format \"2025-12-30T09:30:00.000-08:00\"",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "attendee",
+          description: "Name of person who is attending the meeting and sending an invite",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "object",
+          properties: attendeeProperties,
+        }
+      );
+    } else if (actionName === "reschedule_booking") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "id",
+          description: "The ID of the booking to reschedule. This is the booking ID from Cal.com.",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "start",
+          description: "The new start time for the rescheduled booking. Format: \"2025-12-30T18:00:00.000Z\"",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "reschedulingReason",
+          description: "The reason for rescheduling the booking. Example: \"User requested a new time\"",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "cancel_booking") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "id",
+          description: "The ID of the booking to cancel. This is the booking ID from Cal.com.",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "get_booking") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "id",
+          description: "The ID of the booking to retrieve. This is the booking ID from Cal.com.",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    }
+    // Note: Actions like "list_bookings" (Get All Bookings) and "get_event_types" (Get Event Types)
+    // don't require a data object - they only send the action parameter
+    // If dataProperties is empty, no data object will be created
+    
+    // Create the data object with all properties (only if there are properties to add)
+    if (dataProperties.length > 0) {
+      const dataObject: WebhookQueryParam = {
+        ...getEmptyWebhookQueryParam(),
+        identifier: "data",
+        description: actionName === "get_available_slots" 
+          ? "Example:\n\n{\"eventTypeId\": 4166361, \"timeZone\": \"America/Vancouver\", \"startTime\": \"2025-12-30T00:00:00.000Z\",\"endTime\": \"2026-01-02T00:00:00.000Z\"}"
+          : actionName === "reschedule_booking"
+          ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\", \"start\": \"2025-12-30T18:00:00.000Z\", \"reschedulingReason\": \"User requested a new time\"}"
+          : actionName === "cancel_booking"
+          ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\"}"
+          : actionName === "get_booking"
+          ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\"}"
+          : "Data that needs to be sent to the webhook.",
+        required: true,
+        valueType: "llm_prompt",
+        dataType: "object",
+        properties: dataProperties,
+      };
+      bodyParams.push(dataObject);
+    }
+  }
+  
+  return bodyParams;
+};
+
 // Create a webhook tool for an integration action
 const createIntegrationWebhookTool = (
   displayName: string,
@@ -120,24 +317,23 @@ const createIntegrationWebhookTool = (
     value: agentId,
   };
   
-  // Create action query parameter
-  const actionParam: WebhookQueryParam = {
-    ...getEmptyWebhookQueryParam(),
-    identifier: "action",
-    description: `The action to perform. Must be: ${actionName}`,
-    required: true,
-    valueType: "llm_prompt",
-  };
+  // Get body parameters (action + data parameters if any)
+  const bodyParams = getIntegrationBodyParams(displayName, integrationType, actionName);
   
   return {
     ...getEmptyWebhookTool(),
     id: crypto.randomUUID(),
-    name: displayName,
+    name: displayName, // Keep display name format - backend will convert to underscore format
     description: getIntegrationToolDescription(displayName, integrationType),
     method: "POST",
     url: webhookUrl,
     headers: [agentIdHeader],
-    queryParams: [actionParam],
+    queryParams: [], // No query params - action goes in body
+    bodyParams: bodyParams, // Action + data parameters in request body
+    executionMode: "parallel", // Will be converted to "immediate" by backend
+    disableInterruptions: false,
+    preToolSpeech: "auto",
+    responseTimeout: 20,
   };
 };
 

@@ -44,12 +44,18 @@ export const SystemToolsSection: React.FC<SystemToolsSectionProps> = ({
           const isEnabled = Boolean(systemTools[tool.key]);
           return (
             <div key={tool.key} className="border border-border rounded-lg">
-              <div className="flex items-center justify-between p-3 bg-secondary/50">
+              <div 
+                className="flex items-center justify-between p-3 bg-secondary/50"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <span className="text-sm font-medium">{tool.label}</span>
                 <div className="flex items-center gap-2">
                   {isEnabled && onOpenSettings ? (
                     <button
-                      onClick={() => onOpenSettings(tool.key)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenSettings(tool.key);
+                      }}
                       className="text-muted-foreground hover:text-primary transition-colors"
                       title="Open settings"
                     >
@@ -58,10 +64,12 @@ export const SystemToolsSection: React.FC<SystemToolsSectionProps> = ({
                   ) : (
                     <Settings className="h-4 w-4 text-muted-foreground opacity-30" />
                   )}
-                  <Switch
-                    checked={isEnabled}
-                    onCheckedChange={(checked) => onToggleTool(tool.key, checked)}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={isEnabled}
+                      onCheckedChange={(checked) => onToggleTool(tool.key, checked)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

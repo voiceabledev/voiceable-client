@@ -713,6 +713,272 @@ export const WebhookToolModal: React.FC<WebhookToolModalProps> = ({
                             </p>
                           </div>
 
+                          {/* Object Properties Section for Query Params */}
+                          {param.dataType === "object" && (
+                            <div className="space-y-4 border-t pt-4">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Properties</Label>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newParam = getEmptyWebhookQueryParam();
+                                    const currentProperties = param.properties || [];
+                                    updateQueryParam(index, {
+                                      properties: [...currentProperties, newParam]
+                                    });
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add property
+                                </Button>
+                              </div>
+                              {(!param.properties || param.properties.length === 0) ? (
+                                <p className="text-sm text-muted-foreground">No properties defined. Click "Add property" to create one.</p>
+                              ) : (
+                                <div className="space-y-4 pl-4 border-l-2">
+                                  {param.properties.map((prop, propIndex) => (
+                                    <div key={prop.id} className="border rounded-lg p-4 space-y-3 bg-secondary/30">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                          <Label>Data type</Label>
+                                          <Select
+                                            value={prop.dataType}
+                                            onValueChange={(val: "string" | "number" | "boolean" | "array" | "object") => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, dataType: val };
+                                              updateQueryParam(index, { properties: updatedProperties });
+                                            }}
+                                          >
+                                            <SelectTrigger>
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {["string", "number", "boolean", "array", "object"].map((type) => (
+                                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label>Identifier</Label>
+                                          <Input
+                                            value={prop.identifier}
+                                            onChange={(e) => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, identifier: e.target.value };
+                                              updateQueryParam(index, { properties: updatedProperties });
+                                            }}
+                                            placeholder="Property identifier"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                          checked={prop.required}
+                                          onCheckedChange={(checked) => {
+                                            const updatedProperties = [...(param.properties || [])];
+                                            updatedProperties[propIndex] = { ...prop, required: checked === true };
+                                            updateQueryParam(index, { properties: updatedProperties });
+                                          }}
+                                        />
+                                        <Label className="text-sm font-normal cursor-pointer">Required</Label>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Description</Label>
+                                        <Textarea
+                                          value={prop.description}
+                                          onChange={(e) => {
+                                            const updatedProperties = [...(param.properties || [])];
+                                            updatedProperties[propIndex] = { ...prop, description: e.target.value };
+                                            updateQueryParam(index, { properties: updatedProperties });
+                                          }}
+                                          placeholder="Describe this property..."
+                                          className="min-h-[60px]"
+                                        />
+                                      </div>
+                                      <div className="flex justify-end">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            const updatedProperties = (param.properties || []).filter((_, i) => i !== propIndex);
+                                            updateQueryParam(index, { properties: updatedProperties });
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Array Item Configuration Section for Query Params */}
+                          {param.dataType === "array" && (
+                            <div className="space-y-4 border-t pt-4">
+                              <Label className="text-base font-semibold">Item</Label>
+                              <div className="space-y-4 pl-4 border-l-2">
+                                <div className="space-y-2">
+                                  <Label>Data type</Label>
+                                  <Select
+                                    value={param.itemType || "string"}
+                                    onValueChange={(val: "string" | "number" | "boolean" | "object") => {
+                                      updateQueryParam(index, { itemType: val });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {["string", "number", "boolean", "object"].map((type) => (
+                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Description</Label>
+                                  <Textarea
+                                    value={param.itemDescription || ""}
+                                    onChange={(e) => {
+                                      updateQueryParam(index, { itemDescription: e.target.value });
+                                    }}
+                                    placeholder="Describe the array items..."
+                                    className="min-h-[60px]"
+                                  />
+                                </div>
+                                {param.itemType === "object" && (
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-sm font-semibold">Item Properties</Label>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const newParam = getEmptyWebhookQueryParam();
+                                          const currentItemProperties = param.itemProperties || [];
+                                          updateQueryParam(index, {
+                                            itemProperties: [...currentItemProperties, newParam]
+                                          });
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add property
+                                      </Button>
+                                    </div>
+                                    {(!param.itemProperties || param.itemProperties.length === 0) ? (
+                                      <p className="text-sm text-muted-foreground">No properties defined for array items.</p>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {param.itemProperties.map((itemProp, itemPropIndex) => (
+                                          <div key={itemProp.id} className="border rounded-lg p-3 space-y-3 bg-secondary/30">
+                                            <div className="grid grid-cols-2 gap-4">
+                                              <div className="space-y-2">
+                                                <Label className="text-xs">Data type</Label>
+                                                <Select
+                                                  value={itemProp.dataType}
+                                                  onValueChange={(val: "string" | "number" | "boolean" | "array" | "object") => {
+                                                    const updatedItemProperties = [...(param.itemProperties || [])];
+                                                    updatedItemProperties[itemPropIndex] = { ...itemProp, dataType: val };
+                                                    updateQueryParam(index, { itemProperties: updatedItemProperties });
+                                                  }}
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {["string", "number", "boolean", "array", "object"].map((type) => (
+                                                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label className="text-xs">Identifier</Label>
+                                                <Input
+                                                  value={itemProp.identifier}
+                                                  onChange={(e) => {
+                                                    const updatedItemProperties = [...(param.itemProperties || [])];
+                                                    updatedItemProperties[itemPropIndex] = { ...itemProp, identifier: e.target.value };
+                                                    updateQueryParam(index, { itemProperties: updatedItemProperties });
+                                                  }}
+                                                  placeholder="Property identifier"
+                                                />
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                              <Checkbox
+                                                checked={itemProp.required}
+                                                onCheckedChange={(checked) => {
+                                                  const updatedItemProperties = [...(param.itemProperties || [])];
+                                                  updatedItemProperties[itemPropIndex] = { ...itemProp, required: checked === true };
+                                                  updateQueryParam(index, { itemProperties: updatedItemProperties });
+                                                }}
+                                              />
+                                              <Label className="text-xs font-normal cursor-pointer">Required</Label>
+                                            </div>
+                                            <div className="space-y-2">
+                                              <Label className="text-xs">Description</Label>
+                                              <Textarea
+                                                value={itemProp.description}
+                                                onChange={(e) => {
+                                                  const updatedItemProperties = [...(param.itemProperties || [])];
+                                                  updatedItemProperties[itemPropIndex] = { ...itemProp, description: e.target.value };
+                                                  updateQueryParam(index, { itemProperties: updatedItemProperties });
+                                                }}
+                                                placeholder="Describe this property..."
+                                                className="min-h-[50px] text-xs"
+                                              />
+                                            </div>
+                                            <div className="flex justify-end">
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  const updatedItemProperties = (param.itemProperties || []).filter((_, i) => i !== itemPropIndex);
+                                                  updateQueryParam(index, { itemProperties: updatedItemProperties });
+                                                }}
+                                              >
+                                                <Trash2 className="h-3 w-3 mr-1" />
+                                                Delete
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {param.itemType && param.itemType !== "object" && (
+                                  <div className="space-y-2">
+                                    <Label>Enum Values (optional)</Label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        placeholder="Enter an enum value"
+                                        value={param.itemEnumValues?.join(", ") || ""}
+                                        onChange={(e) => {
+                                          const values = e.target.value.split(",").map(v => v.trim()).filter(v => v);
+                                          updateQueryParam(index, { itemEnumValues: values });
+                                        }}
+                                      />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      Add predefined values that the LLM can select from for array items.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           <div className="flex justify-end">
                             <Button variant="ghost" size="sm" onClick={() => removeQueryParam(index)}>
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -1029,6 +1295,272 @@ export const WebhookToolModal: React.FC<WebhookToolModalProps> = ({
                               Add predefined values that the LLM can select from. If no values are provided, the LLM can use any string value.
                             </p>
                           </div>
+
+                          {/* Object Properties Section */}
+                          {param.dataType === "object" && (
+                            <div className="space-y-4 border-t pt-4">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Properties</Label>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newParam = getEmptyWebhookBodyParam();
+                                    const currentProperties = param.properties || [];
+                                    updateBodyParam(index, {
+                                      properties: [...currentProperties, newParam]
+                                    });
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add property
+                                </Button>
+                              </div>
+                              {(!param.properties || param.properties.length === 0) ? (
+                                <p className="text-sm text-muted-foreground">No properties defined. Click "Add property" to create one.</p>
+                              ) : (
+                                <div className="space-y-4 pl-4 border-l-2">
+                                  {param.properties.map((prop, propIndex) => (
+                                    <div key={prop.id} className="border rounded-lg p-4 space-y-3 bg-secondary/30">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                          <Label>Data type</Label>
+                                          <Select
+                                            value={prop.dataType}
+                                            onValueChange={(val: "string" | "number" | "boolean" | "array" | "object") => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, dataType: val };
+                                              updateBodyParam(index, { properties: updatedProperties });
+                                            }}
+                                          >
+                                            <SelectTrigger>
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {["string", "number", "boolean", "array", "object"].map((type) => (
+                                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label>Identifier</Label>
+                                          <Input
+                                            value={prop.identifier}
+                                            onChange={(e) => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, identifier: e.target.value };
+                                              updateBodyParam(index, { properties: updatedProperties });
+                                            }}
+                                            placeholder="Property identifier"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                          checked={prop.required}
+                                          onCheckedChange={(checked) => {
+                                            const updatedProperties = [...(param.properties || [])];
+                                            updatedProperties[propIndex] = { ...prop, required: checked === true };
+                                            updateBodyParam(index, { properties: updatedProperties });
+                                          }}
+                                        />
+                                        <Label className="text-sm font-normal cursor-pointer">Required</Label>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label>Description</Label>
+                                        <Textarea
+                                          value={prop.description}
+                                          onChange={(e) => {
+                                            const updatedProperties = [...(param.properties || [])];
+                                            updatedProperties[propIndex] = { ...prop, description: e.target.value };
+                                            updateBodyParam(index, { properties: updatedProperties });
+                                          }}
+                                          placeholder="Describe this property..."
+                                          className="min-h-[60px]"
+                                        />
+                                      </div>
+                                      <div className="flex justify-end">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            const updatedProperties = (param.properties || []).filter((_, i) => i !== propIndex);
+                                            updateBodyParam(index, { properties: updatedProperties });
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-2" />
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Array Item Configuration Section */}
+                          {param.dataType === "array" && (
+                            <div className="space-y-4 border-t pt-4">
+                              <Label className="text-base font-semibold">Item</Label>
+                              <div className="space-y-4 pl-4 border-l-2">
+                                <div className="space-y-2">
+                                  <Label>Data type</Label>
+                                  <Select
+                                    value={param.itemType || "string"}
+                                    onValueChange={(val: "string" | "number" | "boolean" | "object") => {
+                                      updateBodyParam(index, { itemType: val });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {["string", "number", "boolean", "object"].map((type) => (
+                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Description</Label>
+                                  <Textarea
+                                    value={param.itemDescription || ""}
+                                    onChange={(e) => {
+                                      updateBodyParam(index, { itemDescription: e.target.value });
+                                    }}
+                                    placeholder="Describe the array items..."
+                                    className="min-h-[60px]"
+                                  />
+                                </div>
+                                {param.itemType === "object" && (
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-sm font-semibold">Item Properties</Label>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const newParam = getEmptyWebhookBodyParam();
+                                          const currentItemProperties = param.itemProperties || [];
+                                          updateBodyParam(index, {
+                                            itemProperties: [...currentItemProperties, newParam]
+                                          });
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add property
+                                      </Button>
+                                    </div>
+                                    {(!param.itemProperties || param.itemProperties.length === 0) ? (
+                                      <p className="text-sm text-muted-foreground">No properties defined for array items.</p>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {param.itemProperties.map((itemProp, itemPropIndex) => (
+                                          <div key={itemProp.id} className="border rounded-lg p-3 space-y-3 bg-secondary/30">
+                                            <div className="grid grid-cols-2 gap-4">
+                                              <div className="space-y-2">
+                                                <Label className="text-xs">Data type</Label>
+                                                <Select
+                                                  value={itemProp.dataType}
+                                                  onValueChange={(val: "string" | "number" | "boolean" | "array" | "object") => {
+                                                    const updatedItemProperties = [...(param.itemProperties || [])];
+                                                    updatedItemProperties[itemPropIndex] = { ...itemProp, dataType: val };
+                                                    updateBodyParam(index, { itemProperties: updatedItemProperties });
+                                                  }}
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {["string", "number", "boolean", "array", "object"].map((type) => (
+                                                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <Label className="text-xs">Identifier</Label>
+                                                <Input
+                                                  value={itemProp.identifier}
+                                                  onChange={(e) => {
+                                                    const updatedItemProperties = [...(param.itemProperties || [])];
+                                                    updatedItemProperties[itemPropIndex] = { ...itemProp, identifier: e.target.value };
+                                                    updateBodyParam(index, { itemProperties: updatedItemProperties });
+                                                  }}
+                                                  placeholder="Property identifier"
+                                                />
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                              <Checkbox
+                                                checked={itemProp.required}
+                                                onCheckedChange={(checked) => {
+                                                  const updatedItemProperties = [...(param.itemProperties || [])];
+                                                  updatedItemProperties[itemPropIndex] = { ...itemProp, required: checked === true };
+                                                  updateBodyParam(index, { itemProperties: updatedItemProperties });
+                                                }}
+                                              />
+                                              <Label className="text-xs font-normal cursor-pointer">Required</Label>
+                                            </div>
+                                            <div className="space-y-2">
+                                              <Label className="text-xs">Description</Label>
+                                              <Textarea
+                                                value={itemProp.description}
+                                                onChange={(e) => {
+                                                  const updatedItemProperties = [...(param.itemProperties || [])];
+                                                  updatedItemProperties[itemPropIndex] = { ...itemProp, description: e.target.value };
+                                                  updateBodyParam(index, { itemProperties: updatedItemProperties });
+                                                }}
+                                                placeholder="Describe this property..."
+                                                className="min-h-[50px] text-xs"
+                                              />
+                                            </div>
+                                            <div className="flex justify-end">
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  const updatedItemProperties = (param.itemProperties || []).filter((_, i) => i !== itemPropIndex);
+                                                  updateBodyParam(index, { itemProperties: updatedItemProperties });
+                                                }}
+                                              >
+                                                <Trash2 className="h-3 w-3 mr-1" />
+                                                Delete
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {param.itemType && param.itemType !== "object" && (
+                                  <div className="space-y-2">
+                                    <Label>Enum Values (optional)</Label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        placeholder="Enter an enum value"
+                                        value={param.itemEnumValues?.join(", ") || ""}
+                                        onChange={(e) => {
+                                          const values = e.target.value.split(",").map(v => v.trim()).filter(v => v);
+                                          updateBodyParam(index, { itemEnumValues: values });
+                                        }}
+                                      />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      Add predefined values that the LLM can select from for array items.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           <div className="flex justify-end">
                             <Button variant="ghost" size="sm" onClick={() => removeBodyParam(index)}>

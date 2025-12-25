@@ -56,6 +56,13 @@ export type WebhookQueryParam = {
   valueType: "llm_prompt" | "static";
   description: string;
   enumValues: string[];
+  // For object type: nested properties
+  properties?: WebhookQueryParam[];
+  // For array type: item configuration
+  itemType?: "string" | "number" | "boolean" | "object";
+  itemDescription?: string;
+  itemEnumValues?: string[];
+  itemProperties?: WebhookQueryParam[]; // For array of objects
 };
 
 export type WebhookPathParam = {
@@ -66,6 +73,13 @@ export type WebhookPathParam = {
   valueType: "llm_prompt" | "static";
   description: string;
   enumValues: string[];
+  // For object type: nested properties
+  properties?: WebhookPathParam[];
+  // For array type: item configuration
+  itemType?: "string" | "number" | "boolean" | "object";
+  itemDescription?: string;
+  itemEnumValues?: string[];
+  itemProperties?: WebhookPathParam[]; // For array of objects
 };
 
 export type DynamicVariableAssignment = {

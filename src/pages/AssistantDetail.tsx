@@ -21,6 +21,7 @@ import { AdvancedTab } from "@/components/assistants/AdvancedTab";
 import { ToolsTab } from "@/components/assistants/ToolsTab";
 import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSettingsPanel";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
+import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 
 // Modals
 import { WebhookToolModal } from "@/components/assistants/modals/WebhookToolModal";
@@ -397,6 +398,28 @@ export default function AssistantDetail() {
       enabledIntegrations,
     }, null, 2);
   }, [systemTools, clientHook.clientTools, webhookHook.webhookTools, integrationHook.agentIntegrationTools]);
+
+  // Show wizard for new assistants
+  if (isNew) {
+    const locationState = location.state as { templateId?: string; assistantName?: string } | null;
+    return (
+      <CreateAgentWizard
+        onComplete={(agentId) => {
+          if (agentId) {
+            navigate(`/assistants/${agentId}`);
+          } else {
+            navigate("/assistants");
+          }
+        }}
+        voices={voices}
+        loadingVoices={loadingVoices}
+        initialData={{
+          assistantName: locationState?.assistantName || "New Assistant",
+          skipNameStep: !!locationState?.assistantName,
+        }}
+      />
+    );
+  }
 
   if (agentData.loading) {
     return (
