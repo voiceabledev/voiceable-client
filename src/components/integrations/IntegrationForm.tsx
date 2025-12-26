@@ -30,24 +30,9 @@ export function IntegrationForm({
   const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
-  const [maskedPasswords, setMaskedPasswords] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setConfig(initialConfig);
-    // Create masked versions of password fields
-    const masked: Record<string, string> = {};
-    Object.keys(initialConfig).forEach((key) => {
-      const value = initialConfig[key];
-      if (value && typeof value === 'string' && !value.includes('*')) {
-        // It's an actual password value, create a masked version
-        if (value.length > 4) {
-          masked[key] = `${'*'.repeat(value.length - 4)}${value.slice(-4)}`;
-        } else if (value.length > 0) {
-          masked[key] = '****';
-        }
-      }
-    });
-    setMaskedPasswords(masked);
   }, [initialConfig]);
 
   const togglePasswordVisibility = (fieldName: string) => {
@@ -77,7 +62,9 @@ export function IntegrationForm({
 
     // Check required fields
     schema.required.forEach((fieldName) => {
-      if (!config[fieldName] || String(config[fieldName]).trim() === '') {
+      const value = config[fieldName];
+      
+      if (!value || String(value).trim() === '') {
         newErrors[fieldName] = 'This field is required';
       }
     });
@@ -146,29 +133,6 @@ export function IntegrationForm({
       case 'password': {
         const isVisible = visiblePasswords[fieldName] || false;
         const stringValue = String(value || '');
-        const isMaskedValue = stringValue.includes('*');
-        const hasMaskedVersion = maskedPasswords[fieldName];
-        
-        // Determine what to display:
-        // - If visible: show actual value (or masked if it's a masked value from API)
-        // - If hidden: show masked version (if we have one) or password dots
-        let displayValue: string;
-        let inputType: 'text' | 'password';
-        
-        if (isVisible) {
-          // Show actual value (or masked value if that's what we have)
-          displayValue = stringValue;
-          inputType = 'text';
-        } else {
-          // Show masked version if available, otherwise show the value as password dots
-          if (hasMaskedVersion && !isMaskedValue) {
-            displayValue = hasMaskedVersion;
-            inputType = 'text'; // Show masked as text so it's visible
-          } else {
-            displayValue = stringValue;
-            inputType = 'password'; // Show as password dots
-          }
-        }
         
         return (
           <div key={fieldName} className="space-y-2">
@@ -179,21 +143,11 @@ export function IntegrationForm({
             <div className="relative">
               <Input
                 id={fieldName}
-                type={inputType}
+                type={isVisible ? 'text' : 'password'}
                 placeholder={fieldConfig.placeholder || 'Enter your API key'}
-                value={displayValue}
+                value={stringValue}
                 onChange={(e) => {
-                  // When user types, update the actual value and clear masked version
-                  const newValue = e.target.value;
-                  handleFieldChange(fieldName, newValue);
-                  // Clear masked version when user starts typing
-                  if (maskedPasswords[fieldName]) {
-                    setMaskedPasswords((prev) => {
-                      const updated = { ...prev };
-                      delete updated[fieldName];
-                      return updated;
-                    });
-                  }
+                  handleFieldChange(fieldName, e.target.value);
                 }}
                 className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm pr-10 ${
                   error ? 'border-destructive' : ''
@@ -364,4 +318,3 @@ export function IntegrationForm({
     </form>
   );
 }
-
