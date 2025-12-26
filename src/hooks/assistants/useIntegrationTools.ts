@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { AgentIntegrationTool, WebhookTool, WebhookHeader, WebhookQueryParam, Agent } from "@/types/assistant";
 import type { UserIntegration, IntegrationSchema } from "@/types/integrations";
 import { integrationsApi, agentsApi } from "@/lib/api";
@@ -110,9 +110,10 @@ const getIntegrationBodyParams = (
   const bodyParams: WebhookQueryParam[] = [];
   
   // Action parameter - always present, with constant value
+  // Use webhook_action to avoid conflicts with Rails params[:action]
   const actionParam: WebhookQueryParam = {
     ...getEmptyWebhookQueryParam(),
-    identifier: "action",
+    identifier: "webhook_action",
     description: "", // Empty description for constant values
     required: true,
     valueType: "static", // Use "static" to indicate constant value
@@ -122,7 +123,142 @@ const getIntegrationBodyParams = (
   bodyParams.push(actionParam);
   
   // Create data object with nested properties based on integration type and action
-  if (integrationType === "calcom") {
+  if (integrationType === "pipedrive") {
+    const dataProperties: WebhookQueryParam[] = [];
+    
+    if (actionName === "create_contact" || actionName === "create_person") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "name",
+          description: "Full name of the contact",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "email",
+          description: "Email address of the contact (optional)",
+          required: false,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "phone",
+          description: "Phone number of the contact (optional)",
+          required: false,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "search_contact" || actionName === "search_contacts" || actionName === "search_persons") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "term",
+          description: "Search term to find contacts (e.g., email, name)",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "create_deal") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "title",
+          description: "Title of the deal",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "person_id",
+          description: "ID of the person to associate with the deal",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "number",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "value",
+          description: "Value of the deal (optional)",
+          required: false,
+          valueType: "llm_prompt",
+          dataType: "number",
+        },
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "currency",
+          description: "Currency code (e.g., USD, EUR) (optional)",
+          required: false,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "search_deals") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "term",
+          description: "Search term to find deals. Use email",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "string",
+        }
+      );
+    } else if (actionName === "get_contact" || actionName === "get_person") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "person_id",
+          description: "ID of the person to retrieve",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "number",
+        }
+      );
+    } else if (actionName === "get_deal") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "deal_id",
+          description: "ID of the deal to retrieve",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "number",
+        }
+      );
+    } else if (actionName === "get_all_deals") {
+      dataProperties.push(
+        {
+          ...getEmptyWebhookQueryParam(),
+          identifier: "person_id",
+          description: "ID of the person to get deals for",
+          required: true,
+          valueType: "llm_prompt",
+          dataType: "number",
+        }
+      );
+    }
+    
+    // Create the data object with all properties (only if there are properties to add)
+    if (dataProperties.length > 0) {
+      const dataObject: WebhookQueryParam = {
+        ...getEmptyWebhookQueryParam(),
+        identifier: "data",
+        description: "Data that needs to be sent to the webhook.",
+        required: true,
+        valueType: "llm_prompt",
+        dataType: "object",
+        properties: dataProperties,
+      };
+      bodyParams.push(dataObject);
+    }
+  } else if (integrationType === "calcom") {
     const dataProperties: WebhookQueryParam[] = [];
     
     if (actionName === "get_available_slots") {
@@ -344,7 +480,28 @@ export function useIntegrationTools(
   const [agentIntegrationTools, setAgentIntegrationTools] = useState<AgentIntegrationTool[]>([]);
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
   const [integrationToolsExpanded, setIntegrationToolsExpanded] = useState<Record<string, boolean>>({});
-  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+  const [showIntegrationModal, setShowIntegrationModalRaw] = useState(false);
+  const showIntegrationModalRef = useRef(showIntegrationModal);
+  
+  // Update ref when state changes
+  useEffect(() => {
+    showIntegrationModalRef.current = showIntegrationModal;
+  }, [showIntegrationModal]);
+  
+  // Wrap setShowIntegrationModal to add logging
+  const setShowIntegrationModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    const currentValue = showIntegrationModalRef.current;
+    const newValue = typeof value === 'function' ? value(currentValue) : value;
+    console.log('[useIntegrationTools] setShowIntegrationModal called', {
+      value: newValue,
+      currentValue: currentValue,
+      isSavingToolsRef: isSavingToolsRef.current,
+      isClosingModalRef: isClosingModalRef.current,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n')
+    });
+    setShowIntegrationModalRaw(value);
+  }, []);
   const [integrationModalStep, setIntegrationModalStep] = useState<"select" | "connect" | "tools">("select");
   const [integrationModalTab, setIntegrationModalTab] = useState<"about" | "credentials" | "tools">("about");
   const [connectingIntegrationType, setConnectingIntegrationType] = useState<string | null>(null);
@@ -352,6 +509,11 @@ export function useIntegrationTools(
   const [connectingIntegrationLoading, setConnectingIntegrationLoading] = useState(false);
   const [editingIntegrationConfig, setEditingIntegrationConfig] = useState<UserIntegration | null>(null);
   const [selectedIntegrationToolsForModal, setSelectedIntegrationToolsForModal] = useState<string[]>([]);
+  
+  // Ref to track if we're in the process of saving tools (to prevent modal from reopening)
+  const isSavingToolsRef = useRef(false);
+  // Ref to track if we're in the process of closing the modal (to prevent double close)
+  const isClosingModalRef = useRef(false);
   
   const { toast } = useToast();
 
@@ -413,6 +575,17 @@ export function useIntegrationTools(
   }, []);
 
   const openAddIntegrationModal = useCallback(() => {
+    console.log('[useIntegrationTools] openAddIntegrationModal called', {
+      isSavingToolsRef: isSavingToolsRef.current,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack
+    });
+    // Don't open modal if we're in the process of saving tools
+    if (isSavingToolsRef.current) {
+      console.log('[useIntegrationTools] openAddIntegrationModal: Blocked - saving tools');
+      return;
+    }
+    console.log('[useIntegrationTools] openAddIntegrationModal: Opening modal');
     setIntegrationModalStep("select");
     setShowIntegrationModal(true);
   }, []);
@@ -510,6 +683,19 @@ export function useIntegrationTools(
   }, [connectingIntegrationType, userIntegrations, toast]);
 
   const openEditIntegrationModal = useCallback(async (integration: UserIntegration | string): Promise<void> => {
+    console.log('[useIntegrationTools] openEditIntegrationModal called', {
+      integration: typeof integration === 'string' ? integration : integration.integration_type,
+      isSavingToolsRef: isSavingToolsRef.current,
+      isClosingModalRef: isClosingModalRef.current,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n')
+    });
+    // Don't open modal if we're in the process of saving tools or closing
+    if (isSavingToolsRef.current || isClosingModalRef.current) {
+      console.log('[useIntegrationTools] openEditIntegrationModal: Blocked - saving tools or closing modal');
+      return;
+    }
+
     // Determine integration type immediately
     const integrationType = typeof integration === 'string' ? integration : integration.integration_type;
     
@@ -536,6 +722,7 @@ export function useIntegrationTools(
       });
 
     // Open the modal immediately with available data
+    console.log('[useIntegrationTools] openEditIntegrationModal: Opening modal');
     setConnectingIntegrationType(integrationType);
     setIntegrationModalStep("connect");
     setIntegrationModalTab("credentials");
@@ -568,12 +755,34 @@ export function useIntegrationTools(
   }, [userIntegrations, agentIntegrationTools]);
 
   const closeIntegrationConnectionModal = useCallback(() => {
+    console.log('[useIntegrationTools] closeIntegrationConnectionModal called', {
+      isClosingModalRef: isClosingModalRef.current,
+      timestamp: new Date().toISOString(),
+      stackTrace: new Error().stack
+    });
+    // Prevent double close
+    if (isClosingModalRef.current) {
+      console.log('[useIntegrationTools] closeIntegrationConnectionModal: Blocked - already closing');
+      return;
+    }
+    isClosingModalRef.current = true;
+    console.log('[useIntegrationTools] closeIntegrationConnectionModal: Set isClosingModalRef to true, updating state...');
+    
     setShowIntegrationModal(false);
     setConnectingIntegrationType(null);
     setEditingIntegrationConfig(null);
     setSelectedIntegrationToolsForModal([]);
     setIntegrationModalStep("select");
     setIntegrationModalTab("about");
+    
+    console.log('[useIntegrationTools] closeIntegrationConnectionModal: State updated, showIntegrationModal set to false');
+    
+    // Reset the flag after a longer delay to prevent modal from reopening
+    // This should match or exceed the isSavingToolsRef timeout to ensure consistent blocking
+    setTimeout(() => {
+      console.log('[useIntegrationTools] closeIntegrationConnectionModal: Resetting isClosingModalRef to false');
+      isClosingModalRef.current = false;
+    }, 1200); // Increased from 100ms to 1200ms to match isSavingToolsRef timeout
   }, []);
 
   const handleDeleteIntegration = useCallback(async (
@@ -651,6 +860,11 @@ export function useIntegrationTools(
     onSave?: (updatedTools: AgentIntegrationTool[], updatedWebhookTools: WebhookTool[]) => Promise<void>,
     onPublish?: () => Promise<void>
   ) => {
+    console.log('[useIntegrationTools] saveSelectedIntegrationTools: Starting', {
+      agentId: agent?.id,
+      connectingIntegrationType,
+      timestamp: new Date().toISOString()
+    });
     if (!agent || !connectingIntegrationType) {
       toast({
         title: "Error",
@@ -660,8 +874,9 @@ export function useIntegrationTools(
       return;
     }
 
-    // Close the modal immediately to prevent flickering
-    closeIntegrationConnectionModal();
+    // Set flag to prevent modal from reopening during save
+    isSavingToolsRef.current = true;
+    console.log('[useIntegrationTools] saveSelectedIntegrationTools: Set isSavingToolsRef to true');
 
     try {
       const agentId = agent.id || "new";
@@ -729,27 +944,46 @@ export function useIntegrationTools(
       const updatedIntegrationTools = [...otherIntegrationTools, ...newTools];
       setAgentIntegrationTools(updatedIntegrationTools);
 
-      // Save the agent with updated integration tools and webhook tools
+      // Save and publish together - both must complete before closing
       if (onSave) {
+        console.log('[useIntegrationTools] saveSelectedIntegrationTools: Calling onSave...');
         await onSave(updatedIntegrationTools, updatedWebhookTools);
+        console.log('[useIntegrationTools] saveSelectedIntegrationTools: onSave completed');
       }
 
       // Publish to sync with ElevenLabs (creates webhook tools)
       if (onPublish && agent.id && agent.id !== "create") {
+        console.log('[useIntegrationTools] saveSelectedIntegrationTools: Calling onPublish...');
         await onPublish();
+        console.log('[useIntegrationTools] saveSelectedIntegrationTools: onPublish completed');
       }
 
       toast({
         title: "Success",
         description: `${toolActionNames.length} tool(s) enabled${newWebhookTools.length > 0 ? ` and ${newWebhookTools.length} webhook tool(s) created` : ""}.`,
       });
+
+      // Close the modal after all operations complete successfully
+      // Keep isSavingToolsRef set to prevent modal from reopening during state updates
+      console.log('[useIntegrationTools] saveSelectedIntegrationTools: All operations complete, calling closeIntegrationConnectionModal');
+      closeIntegrationConnectionModal();
     } catch (error) {
-      console.error("Failed to save integration tools:", error);
+      console.error("[useIntegrationTools] saveSelectedIntegrationTools: Error occurred", error);
       toast({
         title: "Error",
         description: "Failed to save integration tools.",
         variant: "destructive",
       });
+      // Close the modal even on error
+      console.log('[useIntegrationTools] saveSelectedIntegrationTools: Error case, calling closeIntegrationConnectionModal');
+      closeIntegrationConnectionModal();
+    } finally {
+      // Reset flag after a longer delay to prevent modal from reopening
+      // This ensures any state updates from fetchAgentDetails or other operations don't trigger a reopen
+      setTimeout(() => {
+        console.log('[useIntegrationTools] saveSelectedIntegrationTools: Resetting isSavingToolsRef to false');
+        isSavingToolsRef.current = false;
+      }, 1000); // Increased from 100ms to 1000ms to prevent reopening
     }
   }, [
     connectingIntegrationType,

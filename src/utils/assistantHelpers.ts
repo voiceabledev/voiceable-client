@@ -358,12 +358,65 @@ export const parseWebhookToolFromElevenLabs = (tool: Record<string, unknown>): W
   const requestHeaders = apiSchema?.request_headers as Record<string, unknown> | undefined;
   const assignments = (tool.assignments as Array<Record<string, unknown>>) || [];
 
+  // Check if this is an integration webhook (URL contains /webhooks/)
+  const url = typeof apiSchema?.url === "string" ? apiSchema.url : "";
+  const isIntegrationWebhook = url.includes("/webhooks/");
+
+  // Parse body params, converting "action" to "webhook_action" for integration webhooks
+  const bodyParams: WebhookQueryParam[] = [];
+  
+  if (bodyProperties) {
+    for (const [key, prop] of Object.entries(bodyProperties)) {
+      // For integration webhooks, convert "action" to "webhook_action"
+      const identifier = isIntegrationWebhook && key === "action" ? "webhook_action" : key;
+      
+      // Handle nested "data" object structure for integration webhooks
+      if (isIntegrationWebhook && key === "data" && prop.type === "object") {
+        const dataProps = prop.properties as Record<string, Record<string, unknown>> | undefined;
+        const dataRequired = (prop.required as string[]) || [];
+        
+        // Create the data object parameter with nested properties
+        bodyParams.push({
+          id: crypto.randomUUID(),
+          dataType: "object",
+          identifier: "data",
+          required: requiredBodyParams.includes("data"),
+          valueType: "llm_prompt",
+          description: typeof prop.description === "string" ? prop.description : "",
+          enumValues: [],
+          properties: dataProps
+            ? Object.entries(dataProps).map(([dataKey, dataProp]) => ({
+                id: crypto.randomUUID(),
+                dataType: (dataProp.type as "string" | "number" | "boolean" | "array" | "object") || "string",
+                identifier: dataKey,
+                required: dataRequired.includes(dataKey),
+                valueType: dataProp.is_system_provided ? "static" : "llm_prompt",
+                description: typeof dataProp.description === "string" ? dataProp.description : "",
+                enumValues: Array.isArray(dataProp.enum) ? (dataProp.enum as string[]) : [],
+              }))
+            : [],
+        });
+      } else {
+        // Regular parameter
+        bodyParams.push({
+          id: crypto.randomUUID(),
+          dataType: (prop.type as "string" | "number" | "boolean" | "array" | "object") || "string",
+          identifier,
+          required: requiredBodyParams.includes(key),
+          valueType: prop.is_system_provided ? "static" : "llm_prompt",
+          description: typeof prop.description === "string" ? prop.description : "",
+          enumValues: Array.isArray(prop.enum) ? (prop.enum as string[]) : [],
+        });
+      }
+    }
+  }
+
   return {
     id: crypto.randomUUID(),
     name: typeof tool.name === "string" ? tool.name : "",
     description: typeof tool.description === "string" ? tool.description : "",
     method: (apiSchema?.method as "GET" | "POST" | "PUT" | "DELETE" | "PATCH") || "GET",
-    url: typeof apiSchema?.url === "string" ? apiSchema.url : "",
+    url,
     responseTimeout: typeof tool.response_timeout_secs === "number" ? tool.response_timeout_secs : 20,
     disableInterruptions: tool.disable_interruptions === true,
     preToolSpeech: tool.force_pre_tool_speech === true ? "always" : "auto",
@@ -403,6 +456,7 @@ export const parseWebhookToolFromElevenLabs = (tool: Record<string, unknown>): W
           enumValues: Array.isArray(prop.enum) ? (prop.enum as string[]) : [],
         }))
       : [],
+    bodyParams,
     dynamicVariableAssignments: assignments.map((a) => ({
       id: crypto.randomUUID(),
       variableName: typeof a.dynamic_variable === "string" ? a.dynamic_variable : "",

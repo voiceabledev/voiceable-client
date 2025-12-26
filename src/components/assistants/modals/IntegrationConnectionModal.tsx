@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +86,21 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 }) => {
   const [apiKey, setApiKey] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isClosingRef = useRef(false);
+  const prevOpenRef = useRef(open);
+
+  // Track when the open prop changes
+  useEffect(() => {
+    if (prevOpenRef.current !== open) {
+      console.log('[IntegrationModal] open prop changed', {
+        from: prevOpenRef.current,
+        to: open,
+        isClosingRef: isClosingRef.current,
+        timestamp: new Date().toISOString()
+      });
+      prevOpenRef.current = open;
+    }
+  }, [open]);
 
   // Load API key when editing (mask it)
   useEffect(() => {
@@ -127,8 +142,76 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 
   const integrationMeta = INTEGRATION_METADATA[connectingIntegrationType || ''] || { name: 'Integration', icon: '🔌', iconBg: 'bg-gray-500' };
 
+  // Wrap onOpenChange to prevent double close
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    console.log('[IntegrationModal] handleOpenChange called', {
+      newOpen,
+      isClosingRef: isClosingRef.current,
+      timestamp: new Date().toISOString()
+    });
+    // If we're programmatically closing, ignore the Dialog's onOpenChange
+    if (isClosingRef.current && !newOpen) {
+      console.log('[IntegrationModal] handleOpenChange: Blocked - already closing programmatically');
+      return;
+    }
+    console.log('[IntegrationModal] handleOpenChange: Calling onOpenChange', newOpen);
+    onOpenChange(newOpen);
+  }, [onOpenChange]);
+
+  // Wrap closeIntegrationConnectionModal to set the flag
+  const handleClose = useCallback(() => {
+    console.log('[IntegrationModal] handleClose called', {
+      timestamp: new Date().toISOString()
+    });
+    isClosingRef.current = true;
+    console.log('[IntegrationModal] handleClose: Set isClosingRef to true, calling closeIntegrationConnectionModal');
+    closeIntegrationConnectionModal();
+    // Reset flag after a delay
+    setTimeout(() => {
+      console.log('[IntegrationModal] handleClose: Resetting isClosingRef to false');
+      isClosingRef.current = false;
+    }, 200);
+  }, [closeIntegrationConnectionModal]);
+
+  // Wrap saveSelectedIntegrationTools to set the flag right before closing
+  const handleSaveSelectedIntegrationTools = useCallback(async () => {
+    console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Starting save operation', {
+      timestamp: new Date().toISOString(),
+      isClosingRef: isClosingRef.current
+    });
+    // Set flag BEFORE save starts - this ensures it's set when closeIntegrationConnectionModal is called
+    // The flag doesn't prevent the modal from staying open during save, it only prevents double-close
+    isClosingRef.current = true;
+    console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Set isClosingRef to true BEFORE save');
+    try {
+      // Wait for save to complete (this includes onSave and onPublish)
+      // The hook will call closeIntegrationConnectionModal() after this completes
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Calling saveSelectedIntegrationTools...');
+      await saveSelectedIntegrationTools();
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Save completed successfully');
+      // Flag is already set, so Dialog's onOpenChange will be blocked when closeIntegrationConnectionModal is called
+      // Use a microtask to ensure the flag is set before any state updates propagate
+      await Promise.resolve();
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Microtask completed');
+      // Reset flag after a delay to allow the close to complete
+      setTimeout(() => {
+        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting isClosingRef to false');
+        isClosingRef.current = false;
+      }, 300);
+    } catch (error) {
+      console.error('[IntegrationModal] handleSaveSelectedIntegrationTools: Error occurred', error);
+      // Flag is already set, so Dialog's onOpenChange will be blocked
+      await Promise.resolve();
+      setTimeout(() => {
+        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting isClosingRef to false (error case)');
+        isClosingRef.current = false;
+      }, 300);
+      throw error;
+    }
+  }, [saveSelectedIntegrationTools]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
         <div className="px-6 py-5 border-b bg-gradient-to-r from-background to-secondary/10 flex-shrink-0">
           <DialogHeader>
@@ -408,11 +491,21 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                 <Button 
                   variant="destructive" 
                   size="sm"
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[IntegrationModal] Delete button clicked', {
+                      integrationId: editingIntegrationConfig?.id,
+                      timestamp: new Date().toISOString()
+                    });
                     if (editingIntegrationConfig) {
                       setShowDeleteConfirm(false);
+                      // Set flag before async operation
+                      isClosingRef.current = true;
+                      console.log('[IntegrationModal] Delete: Set isClosingRef to true, calling handleDeleteIntegration');
                       await handleDeleteIntegration(editingIntegrationConfig.id);
-                      closeIntegrationConnectionModal();
+                      console.log('[IntegrationModal] Delete: handleDeleteIntegration completed, calling handleClose');
+                      handleClose();
                     }
                   }}
                 >
@@ -429,15 +522,17 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
             )}
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={closeIntegrationConnectionModal} className="min-w-24">
+            <Button variant="outline" onClick={handleClose} className="min-w-24">
               Cancel
             </Button>
             {integrationModalStep !== "select" && (
               <>
                 {integrationModalTab === "tools" ? (
                   <Button 
-                    onClick={async () => {
-                      await saveSelectedIntegrationTools();
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      await handleSaveSelectedIntegrationTools();
                     }}
                     className="min-w-32"
                   >
