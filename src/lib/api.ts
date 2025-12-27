@@ -240,6 +240,11 @@ export const authApi = {
     return response;
   },
 
+  getCurrentUser: async () => {
+    const response = await apiClient.get('/user/current');
+    return response;
+  },
+
   resetPassword: async (email: string) => {
     return apiClient.post('/auth/password/reset', {
       user: { email },
@@ -1045,6 +1050,28 @@ export interface Payment {
   created_at: string;
 }
 
+export interface CreditTransaction {
+  id: number;
+  conversation_id: string;
+  agent_name?: string;
+  amount_cents: number;
+  amount_dollars: number;
+  created_at: string;
+  duration_seconds?: number;
+  message_count?: number;
+  model_provider?: string;
+  llm_model_name?: string;
+  voice_name?: string;
+  transport_type?: string;
+  cost_breakdown: {
+    hosting: number;
+    transport: number;
+    tts: number;
+    stt: number;
+    llm: number;
+  };
+}
+
 export interface PaymentIntentResponse {
   client_secret: string;
   payment_intent_id: string;
@@ -1098,7 +1125,26 @@ export const paymentsApi = {
   },
 
   creditBalance: async () => {
-    const response = await apiClient.get<{ balance: number; balance_cents: number }>('/payments/credit_balance');
+    const response = await apiClient.get<{ 
+      balance: number; 
+      balance_cents: number;
+      total_payments_cents: number;
+      total_refunds_cents: number;
+      total_deductions_cents: number;
+    }>('/payments/credit_balance');
+    return response;
+  },
+
+  creditTransactions: async (params?: { limit?: number; offset?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    const queryString = queryParams.toString();
+    const endpoint = `/payments/credit_transactions${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{
+      transactions: CreditTransaction[];
+      total: number;
+    }>(endpoint);
     return response;
   },
 };
@@ -1136,5 +1182,257 @@ export const secretsApi = {
   delete: async (secretId: string) => {
     const response = await apiClient.delete(`/secrets/${secretId}`);
     return response;
+  },
+};
+
+// Admin API types
+export interface AdminUser {
+  id: number;
+  email: string;
+  role: 'user' | 'admin' | 'enterprise';
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
+export interface AdminAgent {
+  id: number;
+  name: string;
+  user_id: number;
+  elevenlabs_agent_id?: string;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminIntegration {
+  id: number;
+  user_id: number;
+  integration_type: string;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminCampaign {
+  id: number;
+  name: string;
+  user_id: number;
+  agent_id: number;
+  phone_number_id: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminPhoneNumber {
+  id: number;
+  phone_number: string;
+  user_id: number;
+  agent_id?: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminApiKey {
+  id: number;
+  user_id: number;
+  key_type: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginationMeta {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+  has_more: boolean;
+}
+
+export const adminApi = {
+  users: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/users${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: AdminUser[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminUser }>(`/admin/users/${id}`);
+      return response;
+    },
+    update: async (id: number, data: { role?: 'user' | 'admin' | 'enterprise'; email?: string }) => {
+      const response = await apiClient.put<{ data: AdminUser }>(`/admin/users/${id}`, {
+        user: data,
+      });
+      return response;
+    },
+    destroy: async (id: number) => {
+      const response = await apiClient.delete(`/admin/users/${id}`);
+      return response;
+    },
+  },
+  agents: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/agents${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: AdminAgent[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminAgent }>(`/admin/agents/${id}`);
+      return response;
+    },
+  },
+  conversations: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/conversations${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{ data: unknown[] }>(endpoint);
+      return response;
+    },
+    show: async (id: string) => {
+      const response = await apiClient.get<{ data: unknown }>(`/admin/conversations/${id}`);
+      return response;
+    },
+  },
+  integrations: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/integrations${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: AdminIntegration[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminIntegration }>(`/admin/integrations/${id}`);
+      return response;
+    },
+  },
+  campaigns: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/campaigns${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: AdminCampaign[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminCampaign }>(`/admin/campaigns/${id}`);
+      return response;
+    },
+  },
+  phoneNumbers: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/phone_numbers${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: AdminPhoneNumber[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminPhoneNumber }>(`/admin/phone_numbers/${id}`);
+      return response;
+    },
+  },
+  apiKeys: {
+    list: async (params?: { page?: number; per_page?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/api_keys${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: AdminApiKey[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminApiKey }>(`/admin/api_keys/${id}`);
+      return response;
+    },
+  },
+  payments: {
+    list: async (params?: { page?: number; per_page?: number; user_id?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      if (params?.user_id) queryParams.append('user_id', params.user_id.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/payments${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: unknown[];
+        pagination: PaginationMeta;
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: unknown }>(`/admin/payments/${id}`);
+      return response;
+    },
+  },
+  creditTransactions: {
+    list: async (params?: { page?: number; per_page?: number; user_id?: number; transaction_type?: 'deduction' | 'refund' }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      if (params?.user_id) queryParams.append('user_id', params.user_id.toString());
+      if (params?.transaction_type) queryParams.append('transaction_type', params.transaction_type);
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/credit_transactions${queryString ? `?${queryString}` : ''}`;
+      const response = await apiClient.get<{
+        data: unknown[];
+        pagination: PaginationMeta;
+        summary?: {
+          total_deductions_cents: number;
+          total_deductions_dollars: number;
+          total_refunds_cents: number;
+          total_refunds_dollars: number;
+          total_spending_cents: number;
+          total_spending_dollars: number;
+          net_balance_cents: number;
+          net_balance_dollars: number;
+        };
+      }>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: unknown }>(`/admin/credit_transactions/${id}`);
+      return response;
+    },
   },
 };

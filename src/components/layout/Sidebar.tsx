@@ -18,6 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
   GitBranch,
+  Shield,
+  Users2,
+  Plug,
 } from "lucide-react";
 import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 import { Button } from "@/components/ui/button";
@@ -42,6 +45,10 @@ const outboundItems = [
   { icon: PhoneOutgoing, label: "Campaigns", path: "/outbound" },
 ];
 
+const adminItems = [
+  { icon: Shield, label: "Admin Panel", path: "/admin/users" },
+];
+
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
@@ -52,6 +59,7 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMobileMenuChange }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, signOut, isAdmin } = useAuth();
   const [currentBalance, setCurrentBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
@@ -106,8 +114,6 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
     }
   }, [location.pathname, isMobile, onMobileMenuChange]);
 
-  const { user, signOut } = useAuth();
-  
   const handleSignOut = async () => {
     const redirectPath = await signOut();
     if (redirectPath) {
@@ -248,6 +254,16 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
             {renderNavItem({ icon: Settings, label: "Settings", path: "/settings" })}
           </div>
         </div>
+
+        {/* Admin Section - Only visible to admins */}
+        {isAdmin && (
+          <div>
+            {showFullContent && <p className="section-label">Admin</p>}
+            <div className="space-y-0.5">
+              {adminItems.map(renderNavItem)}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Footer */}

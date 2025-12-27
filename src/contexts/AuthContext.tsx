@@ -2,9 +2,10 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { authApi, apiClient } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
-interface User {
+export interface User {
   id: number;
   email: string;
+  role?: 'user' | 'admin' | 'enterprise';
   created_at: string;
   updated_at: string;
 }
@@ -13,6 +14,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  isEnterprise: boolean;
   signUp: (email: string, password: string, passwordConfirmation: string) => Promise<string | void>;
   signIn: (email: string, password: string) => Promise<string | void>;
   signOut: () => Promise<string>;
@@ -30,10 +33,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check if user is already authenticated
     const token = apiClient.getToken();
     if (token) {
-      // Try to get user info from token or verify with backend
-      // For now, we'll check if token exists and set loading to false
-      // In a production app, you'd verify the token with the backend
-      setLoading(false);
+      // Fetch current user from backend
+      authApi.getCurrentUser()
+        .then((response) => {
+          if (response.data) {
+            const userData = response.data as Record<string, unknown>;
+            const user: User = {
+              id: userData.id as number,
+              email: userData.email as string,
+              role: (userData.role as 'user' | 'admin' | 'enterprise') || 'user',
+              created_at: userData.created_at as string,
+              updated_at: userData.updated_at as string,
+            };
+            setUser(user);
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching current user:', error);
+          // If token is invalid, clear it
+          apiClient.setToken(null);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     } else {
       setLoading(false);
     }
@@ -48,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user: User = {
           id: userData.id as number,
           email: userData.email as string,
+          role: (userData.role as 'user' | 'admin' | 'enterprise') || 'user',
           created_at: userData.created_at as string,
           updated_at: userData.updated_at as string,
         };
@@ -79,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user: User = {
           id: userData.id as number,
           email: userData.email as string,
+          role: (userData.role as 'user' | 'admin' | 'enterprise') || 'user',
           created_at: userData.created_at as string,
           updated_at: userData.updated_at as string,
         };
@@ -144,12 +168,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const isAdmin = user?.role === 'admin';
+  const isEnterprise = user?.role === 'enterprise';
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isAuthenticated: !!user,
+        isAdmin,
+        isEnterprise,
         signUp,
         signIn,
         signOut,

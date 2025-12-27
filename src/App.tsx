@@ -45,6 +45,17 @@ import BubbleVoice from "@/pages/BubbleVoice";
 import WidgetDesignStudio from "@/pages/WidgetDesignStudio";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
+import AdminLayout from "@/pages/admin/AdminLayout";
+import AdminUsers from "@/pages/admin/Users";
+import AdminAgents from "@/pages/admin/Agents";
+import AdminPayments from "@/pages/admin/Payments";
+import AdminConversationSpending from "@/pages/admin/ConversationSpending";
+import AdminIntegrations from "@/pages/admin/Integrations";
+import AdminCampaigns from "@/pages/admin/Campaigns";
+import AdminPhoneNumbers from "@/pages/admin/PhoneNumbers";
+import AdminApiKeys from "@/pages/admin/ApiKeys";
+import AdminFinancialSimulation from "@/pages/admin/FinancialSimulation";
+import { AdminRoute } from "@/components/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +110,21 @@ const App = () => (
                 <Route path="/settings/profile" element={<Profile />} />
                 <Route path="/settings/financial-simulation" element={<FinancialSimulation />} />
               </Route>
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                <Route index element={<Navigate to="/admin/users" replace />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="agents" element={<AdminAgents />} />
+                <Route path="integrations" element={<AdminIntegrations />} />
+                <Route path="campaigns" element={<AdminCampaigns />} />
+                <Route path="phone-numbers" element={<AdminPhoneNumbers />} />
+                <Route path="api-keys" element={<AdminApiKeys />} />
+                <Route path="payments" element={<AdminPayments />} />
+                <Route path="conversation-spending" element={<AdminConversationSpending />} />
+                <Route path="financial-simulation" element={<AdminFinancialSimulation />} />
+              </Route>
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
