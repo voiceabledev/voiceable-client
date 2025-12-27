@@ -62,7 +62,8 @@ export default function AdminAgents() {
   }, [page]);
 
   const filteredAgents = agents.filter(agent =>
-    agent.name.toLowerCase().includes(searchTerm.toLowerCase())
+    agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    agent.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -97,7 +98,7 @@ export default function AdminAgents() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search agents by name..."
+                placeholder="Search agents by name or user email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -116,7 +117,7 @@ export default function AdminAgents() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>User ID</TableHead>
+                    <TableHead>User</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                   </TableRow>
@@ -132,7 +133,7 @@ export default function AdminAgents() {
                     filteredAgents.map((agent) => (
                       <TableRow key={agent.id}>
                         <TableCell className="font-medium">{agent.name}</TableCell>
-                        <TableCell>{agent.user_id}</TableCell>
+                        <TableCell>{agent.user_email || `User #${agent.user_id}`}</TableCell>
                         <TableCell>
                           {agent.published ? (
                             <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">

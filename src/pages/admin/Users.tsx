@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,8 @@ import {
 export default function AdminUsers() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(100);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,6 +60,18 @@ export default function AdminUsers() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => window.removeEventListener('resize', updateHeaderHeight);
+  }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -156,8 +170,11 @@ export default function AdminUsers() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border flex-shrink-0 bg-card/50 backdrop-blur-sm">
+      {/* Header - Fixed */}
+      <div 
+        ref={headerRef}
+        className="p-4 md:p-6 border-b border-border flex-shrink-0 bg-card/50 backdrop-blur-sm sticky top-0 z-20"
+      >
         <div className="flex items-center gap-3 md:gap-4">
           <Button
             variant="ghost"
@@ -206,6 +223,8 @@ export default function AdminUsers() {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Total Credits</TableHead>
+                    <TableHead>Total Spent</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -213,7 +232,7 @@ export default function AdminUsers() {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
@@ -222,6 +241,12 @@ export default function AdminUsers() {
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.email}</TableCell>
                         <TableCell>{getRoleBadge(user.role)}</TableCell>
+                        <TableCell>
+                          ${((user.total_credits || 0) / 100).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          ${((user.total_spent || 0) / 100).toFixed(2)}
+                        </TableCell>
                         <TableCell>
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>

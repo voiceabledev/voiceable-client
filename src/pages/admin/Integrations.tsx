@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -20,12 +21,15 @@ import {
 import { adminApi, AdminIntegration } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+type IntegrationFilter = 'all' | 'agent' | 'user';
+
 export default function AdminIntegrations() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [integrations, setIntegrations] = useState<AdminIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<IntegrationFilter>('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -38,7 +42,12 @@ export default function AdminIntegrations() {
   const fetchIntegrations = async () => {
     setLoading(true);
     try {
-      const response = await adminApi.integrations.list({ page, per_page: 30 });
+      const typeParam = filterType === 'all' ? undefined : filterType;
+      const response = await adminApi.integrations.list({ 
+        page, 
+        per_page: 30,
+        type: typeParam
+      });
       if (response.data) {
         setIntegrations(response.data.data || []);
         setPagination(response.data.pagination || pagination);
@@ -56,12 +65,20 @@ export default function AdminIntegrations() {
   };
 
   useEffect(() => {
+    setPage(1); // Reset to first page when filter changes
+  }, [filterType]);
+
+  useEffect(() => {
     fetchIntegrations();
-  }, [page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterType]);
 
   const filteredIntegrations = integrations.filter(integration =>
     integration.integration_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    integration.user_id.toString().includes(searchTerm)
+    integration.user_id.toString().includes(searchTerm) ||
+    integration.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    integration.agent_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    integration.agent_id?.toString().includes(searchTerm)
   );
 
   return (
@@ -82,7 +99,7 @@ export default function AdminIntegrations() {
               Admin - Integrations
             </h2>
             <p className="text-sm md:text-base text-muted-foreground">
-              View all user integrations
+              View all integrations
             </p>
           </div>
         </div>
@@ -91,12 +108,19 @@ export default function AdminIntegrations() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-          {/* Search */}
-          <div className="flex items-center gap-4">
+          {/* Filters */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <Tabs value={filterType} onValueChange={(value) => setFilterType(value as IntegrationFilter)}>
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="agent">Agent Integrations</TabsTrigger>
+                <TabsTrigger value="user">User Integrations</TabsTrigger>
+              </TabsList>
+            </Tabs>
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by type or user ID..."
+                placeholder="Search by type, user email, or agent name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -115,14 +139,16 @@ export default function AdminIntegrations() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Type</TableHead>
-                    <TableHead>User ID</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Agent</TableHead>
                     <TableHead>Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredIntegrations.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         No integrations found
                       </TableCell>
                     </TableRow>
@@ -135,7 +161,19 @@ export default function AdminIntegrations() {
                             {integration.integration_type}
                           </Badge>
                         </TableCell>
-                        <TableCell>{integration.user_id}</TableCell>
+                        <TableCell>
+                          <Badge variant={integration.integration_category === 'agent' ? 'default' : 'secondary'}>
+                            {integration.integration_category === 'agent' ? 'Agent' : 'User'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{integration.user_email || `User #${integration.user_id}`}</TableCell>
+                        <TableCell>
+                          {integration.agent_name ? (
+                            <span>{integration.agent_name} (ID: {integration.agent_id})</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {new Date(integration.created_at).toLocaleDateString()}
                         </TableCell>

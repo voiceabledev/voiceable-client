@@ -61,7 +61,9 @@ export default function AdminPhoneNumbers() {
 
   const filteredPhoneNumbers = phoneNumbers.filter(pn =>
     pn.phone_number.includes(searchTerm) ||
-    pn.user_id.toString().includes(searchTerm)
+    pn.user_id.toString().includes(searchTerm) ||
+    pn.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pn.agent_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -96,7 +98,7 @@ export default function AdminPhoneNumbers() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by phone number or user ID..."
+                placeholder="Search by phone number, user email, or agent name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -115,8 +117,8 @@ export default function AdminPhoneNumbers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Phone Number</TableHead>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>Agent ID</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Agent</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                   </TableRow>
@@ -132,8 +134,8 @@ export default function AdminPhoneNumbers() {
                     filteredPhoneNumbers.map((pn) => (
                       <TableRow key={pn.id}>
                         <TableCell className="font-medium">{pn.phone_number}</TableCell>
-                        <TableCell>{pn.user_id}</TableCell>
-                        <TableCell>{pn.agent_id || '-'}</TableCell>
+                        <TableCell>{pn.user_email || `User #${pn.user_id}`}</TableCell>
+                        <TableCell>{pn.agent_name || (pn.agent_id ? `Agent #${pn.agent_id}` : '-')}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{pn.status}</Badge>
                         </TableCell>

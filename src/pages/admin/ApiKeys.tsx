@@ -62,7 +62,8 @@ export default function AdminApiKeys() {
   const filteredApiKeys = apiKeys.filter(apiKey =>
     apiKey.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     apiKey.key_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    apiKey.user_id.toString().includes(searchTerm)
+    apiKey.user_id.toString().includes(searchTerm) ||
+    apiKey.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -97,7 +98,7 @@ export default function AdminApiKeys() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, type, or user ID..."
+                placeholder="Search by name, type, or user email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -117,7 +118,7 @@ export default function AdminApiKeys() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead>User ID</TableHead>
+                    <TableHead>User</TableHead>
                     <TableHead>Created</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -138,7 +139,7 @@ export default function AdminApiKeys() {
                             {apiKey.key_type}
                           </Badge>
                         </TableCell>
-                        <TableCell>{apiKey.user_id}</TableCell>
+                        <TableCell>{apiKey.user_email || `User #${apiKey.user_id}`}</TableCell>
                         <TableCell>
                           {new Date(apiKey.created_at).toLocaleDateString()}
                         </TableCell>

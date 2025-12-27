@@ -1193,12 +1193,15 @@ export interface AdminUser {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+  total_credits?: number;
+  total_spent?: number;
 }
 
 export interface AdminAgent {
   id: number;
   name: string;
   user_id: number;
+  user_email?: string;
   elevenlabs_agent_id?: string;
   published: boolean;
   created_at: string;
@@ -1208,8 +1211,13 @@ export interface AdminAgent {
 export interface AdminIntegration {
   id: number;
   user_id: number;
+  user_email?: string;
   integration_type: string;
-  config: Record<string, unknown>;
+  config?: Record<string, unknown>; // For user integrations
+  enabled_tools?: string[]; // For agent integrations
+  agent_id?: number; // For agent integrations
+  agent_name?: string; // For agent integrations
+  integration_category?: 'agent' | 'user'; // Added by backend when fetching all
   created_at: string;
   updated_at: string;
 }
@@ -1229,7 +1237,9 @@ export interface AdminPhoneNumber {
   id: number;
   phone_number: string;
   user_id: number;
+  user_email?: string;
   agent_id?: number;
+  agent_name?: string;
   status: string;
   created_at: string;
   updated_at: string;
@@ -1238,6 +1248,7 @@ export interface AdminPhoneNumber {
 export interface AdminApiKey {
   id: number;
   user_id: number;
+  user_email?: string;
   key_type: string;
   name: string;
   created_at: string;
@@ -1315,10 +1326,11 @@ export const adminApi = {
     },
   },
   integrations: {
-    list: async (params?: { page?: number; per_page?: number }) => {
+    list: async (params?: { page?: number; per_page?: number; type?: 'agent' | 'user' }) => {
       const queryParams = new URLSearchParams();
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+      if (params?.type) queryParams.append('type', params.type);
       const queryString = queryParams.toString();
       const endpoint = `/admin/integrations${queryString ? `?${queryString}` : ''}`;
       const response = await apiClient.get<{

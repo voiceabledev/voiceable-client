@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
@@ -30,11 +31,40 @@ const adminNavItems = [
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(120);
+  const [footerHeight, setFooterHeight] = useState(60);
+
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+
+    const updateFooterHeight = () => {
+      if (footerRef.current) {
+        setFooterHeight(footerRef.current.offsetHeight);
+      }
+    };
+
+    updateHeaderHeight();
+    updateFooterHeight();
+    window.addEventListener('resize', () => {
+      updateHeaderHeight();
+      updateFooterHeight();
+    });
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight);
+      window.removeEventListener('resize', updateFooterHeight);
+    };
+  }, []);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border flex-shrink-0 bg-card/50 backdrop-blur-sm">
+      {/* Header - Fixed */}
+      <div ref={headerRef} className="p-4 md:p-6 border-b border-border flex-shrink-0 bg-card/50 backdrop-blur-sm z-30 fixed top-0 left-0 right-0">
         <div className="flex items-center gap-3 md:gap-4">
           <Button
             variant="ghost"
@@ -56,9 +86,12 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-border bg-card/50 flex-shrink-0 overflow-y-auto">
+      <div className="flex-1 flex overflow-hidden" style={{ marginTop: `${headerHeight}px` }}>
+        {/* Sidebar - Fixed */}
+        <aside 
+          className="w-64 border-r border-border bg-card/50 flex-shrink-0 fixed left-0 overflow-y-auto z-10" 
+          style={{ top: `${headerHeight}px`, height: `calc(100vh - ${headerHeight}px - ${footerHeight}px)` }}
+        >
           <nav className="p-4 space-y-1">
             {adminNavItems.map((item) => {
               const Icon = item.icon;
@@ -81,13 +114,33 @@ export default function AdminLayout() {
               );
             })}
           </nav>
-        </div>
+        </aside>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-hidden">
-          <Outlet />
+        {/* Main Content - Offset for fixed sidebar */}
+        <div className="flex-1 overflow-hidden ml-64 flex flex-col">
+          <div className="flex-1 overflow-y-auto pb-[var(--footer-height)]" style={{ paddingBottom: `${footerHeight}px` }}>
+            <Outlet />
+          </div>
         </div>
       </div>
+
+      {/* Footer - Fixed */}
+      <footer 
+        ref={footerRef}
+        className="border-t border-border flex-shrink-0 bg-card/50 backdrop-blur-sm z-20 fixed left-0 right-0 bottom-0"
+        style={{ marginLeft: '256px' }}
+      >
+        <div className="p-4 md:p-6">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Admin Panel - Manage all system resources
+            </p>
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} Voice Agent App
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
