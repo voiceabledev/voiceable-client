@@ -30,7 +30,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { adminApi, AgentTemplate } from "@/lib/api";
+import { adminApi, AgentTemplate, AgentBehaviour } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +48,7 @@ const iconOptions = [
 export default function AdminTemplates() {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<AgentTemplate[]>([]);
+  const [behaviours, setBehaviours] = useState<AgentBehaviour[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AgentTemplate | null>(null);
@@ -60,6 +61,7 @@ export default function AdminTemplates() {
     icon_url: "",
     active: true,
     position: 0,
+    agent_behaviour_id: undefined as number | undefined,
   });
   const [iconType, setIconType] = useState<"builtin" | "custom">("builtin");
 
@@ -82,9 +84,21 @@ export default function AdminTemplates() {
     }
   }, [toast]);
 
+  const fetchBehaviours = useCallback(async () => {
+    try {
+      const response = await adminApi.behaviours.list();
+      if (response.data) {
+        setBehaviours(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching behaviours:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTemplates();
-  }, [fetchTemplates]);
+    fetchBehaviours();
+  }, [fetchTemplates, fetchBehaviours]);
 
   const handleCreate = () => {
     setEditingTemplate(null);
@@ -97,6 +111,7 @@ export default function AdminTemplates() {
       icon_url: "",
       active: true,
       position: templates.length,
+      agent_behaviour_id: undefined,
     });
     setIconType("builtin");
     setDialogOpen(true);
@@ -113,6 +128,7 @@ export default function AdminTemplates() {
       icon_url: template.icon_url || "",
       active: template.active ?? true,
       position: template.position || 0,
+      agent_behaviour_id: template.agent_behaviour_id,
     });
     setIconType(template.icon_url ? "custom" : "builtin");
     setDialogOpen(true);
@@ -274,6 +290,7 @@ export default function AdminTemplates() {
                 <TableHead>Title</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Icon</TableHead>
+                <TableHead>Behaviour</TableHead>
                 <TableHead className="w-20">Active</TableHead>
                 <TableHead className="w-32">Actions</TableHead>
               </TableRow>
@@ -313,6 +330,11 @@ export default function AdminTemplates() {
                     ) : (
                       <span className="text-xs text-muted-foreground">None</span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground">
+                      {template.agent_behaviour?.name || "None"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     {template.active ? (
@@ -467,6 +489,28 @@ export default function AdminTemplates() {
                 />
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="agent_behaviour_id">Behaviour</Label>
+              <select
+                id="agent_behaviour_id"
+                value={formData.agent_behaviour_id || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    agent_behaviour_id: e.target.value ? parseInt(e.target.value) : undefined,
+                  })
+                }
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">None</option>
+                {behaviours.map((behaviour) => (
+                  <option key={behaviour.id} value={behaviour.id}>
+                    {behaviour.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="position">Position</Label>

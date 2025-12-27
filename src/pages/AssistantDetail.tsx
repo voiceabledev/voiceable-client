@@ -2,6 +2,14 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Globe,
@@ -47,8 +55,9 @@ import {
   getAvailableIntegrationTypes,
   displayNameToActionName,
 } from "@/constants/assistant";
-import { voicesApi, type Voice } from "@/lib/api";
+import { voicesApi, type Voice, adminApi, type AgentBehaviour } from "@/lib/api";
 import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
+import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 
 export default function AssistantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -104,6 +113,10 @@ export default function AssistantDetail() {
   const [systemToolSettingsMap, setSystemToolSettingsMap] = useState<Record<string, SystemToolSetting>>({});
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [selectedSystemTool, setSelectedSystemTool] = useState<string | null>(null);
+  const [behaviourConfig, setBehaviourConfig] = useState<BehaviourConfig | undefined>(undefined);
+  const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
+  const [loadingBehaviours, setLoadingBehaviours] = useState(false);
+  const [selectedBehaviourId, setSelectedBehaviourId] = useState<number | undefined>(undefined);
 
   const agentData = useAgentData(
     id,
@@ -120,6 +133,279 @@ export default function AssistantDetail() {
   );
 
   const { fetchAgentDetails } = agentData;
+
+  // Fetch available behaviours
+  useEffect(() => {
+    const fetchBehaviours = async () => {
+      setLoadingBehaviours(true);
+      try {
+        const response = await adminApi.behaviours.list();
+        if (response.data) {
+          setAvailableBehaviours(Array.isArray(response.data) ? response.data : []);
+        }
+      } catch (error) {
+        console.error("Error fetching behaviours:", error);
+      } finally {
+        setLoadingBehaviours(false);
+      }
+    };
+    
+    fetchBehaviours();
+  }, []);
+
+  // Load behaviour config when agent is loaded
+  useEffect(() => {
+    const loadBehaviour = async () => {
+      if (!agentData.conversationConfig) return;
+      
+      const behaviourId = agentData.conversationConfig.agent_behaviour_id as number | undefined;
+      setSelectedBehaviourId(behaviourId);
+      
+      // First, check if we have the config saved in conversation_config (faster, no API call needed)
+      const savedConfig = agentData.conversationConfig.agent_behaviour_config as BehaviourConfig | undefined;
+      
+      console.log("Loading behaviour - ID:", behaviourId, "Saved config:", savedConfig);
+      
+      if (behaviourId) {
+        // If we have saved config with all sections, use it immediately for instant UI update
+        if (savedConfig && savedConfig.scenarios && savedConfig.phases && savedConfig.voiceTone) {
+          console.log("Using saved config immediately:", savedConfig);
+          setBehaviourConfig(savedConfig);
+          // Still fetch from API in the background to ensure we have the latest, but don't wait
+          adminApi.behaviours.show(behaviourId).then(response => {
+            if (response.data) {
+              const behaviour = response.data;
+              const config: BehaviourConfig = {};
+              behaviour.sections?.forEach(section => {
+                if (section.section_type === "scenarios") {
+                  config.scenarios = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                } else if (section.section_type === "phases") {
+                  config.phases = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                } else if (section.section_type === "voice_tone") {
+                  config.voiceTone = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                }
+              });
+              // Only update if the fetched config is different (to avoid unnecessary re-renders)
+              setBehaviourConfig(config);
+            }
+          }).catch(error => {
+            console.error("Error loading behaviour from API:", error);
+            // Keep using saved config if API fails
+          });
+        } else {
+          // No saved config, fetch from API
+          try {
+            const response = await adminApi.behaviours.show(behaviourId);
+            if (response.data) {
+              const behaviour = response.data;
+              console.log("Fetched behaviour from API:", behaviour);
+              const config: BehaviourConfig = {};
+              behaviour.sections?.forEach(section => {
+                if (section.section_type === "scenarios") {
+                  config.scenarios = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                } else if (section.section_type === "phases") {
+                  config.phases = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                } else if (section.section_type === "voice_tone") {
+                  config.voiceTone = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                }
+              });
+              console.log("Setting config from API:", config);
+              setBehaviourConfig(config);
+            }
+          } catch (error) {
+            console.error("Error loading behaviour:", error);
+            setBehaviourConfig(undefined);
+          }
+        }
+      } else {
+        setBehaviourConfig(undefined);
+      }
+    };
+    
+    loadBehaviour();
+  }, [agentData.conversationConfig]);
+
+  // Handle behaviour change
+  const handleBehaviourChange = async (behaviourId: string) => {
+    if (!agentData.agent) return;
+    
+    const newBehaviourId = behaviourId === "none" ? undefined : parseInt(behaviourId, 10);
+    
+    try {
+      let newConfig: BehaviourConfig | undefined = undefined;
+      
+      if (newBehaviourId) {
+        // Load the new behaviour config
+        try {
+          console.log("Fetching behaviour with ID:", newBehaviourId);
+          const response = await adminApi.behaviours.show(newBehaviourId);
+          console.log("Behaviour API response:", response);
+          console.log("Response data:", response.data);
+          
+          if (response.data) {
+            const behaviour = response.data;
+            console.log("Behaviour object:", behaviour);
+            console.log("Behaviour sections:", behaviour.sections);
+            
+            newConfig = {};
+            if (behaviour.sections && behaviour.sections.length > 0) {
+              behaviour.sections.forEach(section => {
+                console.log("Processing section:", section);
+                if (section.section_type === "scenarios") {
+                  newConfig!.scenarios = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                } else if (section.section_type === "phases") {
+                  newConfig!.phases = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                } else if (section.section_type === "voice_tone") {
+                  newConfig!.voiceTone = {
+                    label: section.label,
+                    description: section.description,
+                    add_label: section.add_label,
+                    title_placeholder: section.title_placeholder,
+                    description_placeholder: section.description_placeholder,
+                    notes_placeholder: section.notes_placeholder,
+                    notes_label: section.notes_label,
+                  };
+                }
+              });
+              console.log("Built newConfig:", newConfig);
+            } else {
+              console.warn("No sections found in behaviour:", behaviour);
+            }
+          } else {
+            console.error("No data in response:", response);
+          }
+        } catch (error) {
+          console.error("Error fetching behaviour:", error);
+          throw error; // Re-throw to be caught by outer try-catch
+        }
+      }
+      
+      // Update conversation config in local state first
+      const currentConfig = agentData.conversationConfig || {};
+      const updatedConfig = {
+        ...currentConfig,
+        agent_behaviour_id: newBehaviourId,
+        agent_behaviour_config: newConfig, // This will be undefined if no behaviour selected, or the config object if one is selected
+      };
+      
+      console.log("handleBehaviourChange - updatedConfig:", {
+        agent_behaviour_id: updatedConfig.agent_behaviour_id,
+        agent_behaviour_config: updatedConfig.agent_behaviour_config,
+        newConfig
+      });
+      
+      // Update conversationConfig state directly FIRST (handleSave reads from this)
+      // This ensures handleSave will see the updated values
+      if (agentData.setConversationConfig) {
+        agentData.setConversationConfig(updatedConfig);
+      }
+      
+      // Update local UI state immediately for responsiveness
+      setSelectedBehaviourId(newBehaviourId);
+      setBehaviourConfig(newConfig);
+      
+      console.log("Setting behaviour config:", newConfig);
+      
+      // Save to backend using handleSave with all current values
+      // handleSave will use the updated conversationConfig via ref (which we just set above)
+      await agentData.handleSave(
+        webhookHook.webhookTools,
+        clientHook.clientTools,
+        integrationHook.agentIntegrationTools,
+        sectionHook.cenarios,
+        sectionHook.etapas,
+        sectionHook.tomDeVoz,
+        systemTools,
+        systemToolSettings,
+        filesHook.attachedFiles,
+        systemToolSettingsMap
+      );
+      
+      // Refresh agent data to ensure we have the latest from backend
+      // This will trigger the useEffect to reload the behaviour config
+      await agentData.fetchAgentDetails();
+      
+      toast({
+        title: "Success",
+        description: "Agent behaviour updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating behaviour:", error);
+      // Revert local state on error
+      const currentBehaviourId = agentData.conversationConfig?.agent_behaviour_id as number | undefined;
+      setSelectedBehaviourId(currentBehaviourId);
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update behaviour.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Core Data Loading
   useEffect(() => {
@@ -728,27 +1014,60 @@ export default function AssistantDetail() {
                   setShowVoiceSelector={setShowVoiceSelector}
                 />
               ) : activeTab === "prompt-logic" ? (
-                <PromptLogicTab
-                  agent={agentData.agent}
-                  onUpdate={agentData.handleUpdate}
-                  scenarios={sectionHook.cenarios}
-                  phases={sectionHook.etapas}
-                  voiceTone={sectionHook.tomDeVoz}
-                  onAddSectionEntry={sectionHook.addSectionEntry}
-                  onEditSectionEntry={sectionHook.openSectionModal}
-                  onRemoveSectionEntry={sectionHook.removeSectionEntryById}
-                  attachedFiles={filesHook.attachedFiles}
-                  onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
-                  onFileDelete={filesHook.handleFileDelete}
-                  onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
-                  uploadingFiles={filesHook.uploadingFiles}
-                  isNew={isNew}
-                  agentFiles={filesHook.agentFiles}
-                  loadingAvailableFiles={filesHook.loadingAvailableFiles}
-                  assigningFile={filesHook.assigningFile}
-                  fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
-                  setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
-                />
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold">Prompt Logic</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Configure scenarios, phases, and voice tone for your agent
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="behaviour-select" className="text-sm font-medium">
+                        Behaviour Template:
+                      </Label>
+                      <Select
+                        value={selectedBehaviourId?.toString() || "none"}
+                        onValueChange={handleBehaviourChange}
+                        disabled={loadingBehaviours || !agentData.agent}
+                      >
+                        <SelectTrigger id="behaviour-select" className="w-[200px]">
+                          <SelectValue placeholder="Select behaviour" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Default (No Template)</SelectItem>
+                          {availableBehaviours.map((behaviour) => (
+                            <SelectItem key={behaviour.id} value={behaviour.id.toString()}>
+                              {behaviour.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <PromptLogicTab
+                    agent={agentData.agent}
+                    onUpdate={agentData.handleUpdate}
+                    scenarios={sectionHook.cenarios}
+                    phases={sectionHook.etapas}
+                    voiceTone={sectionHook.tomDeVoz}
+                    onAddSectionEntry={sectionHook.addSectionEntry}
+                    onEditSectionEntry={sectionHook.openSectionModal}
+                    onRemoveSectionEntry={sectionHook.removeSectionEntryById}
+                    attachedFiles={filesHook.attachedFiles}
+                    onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
+                    onFileDelete={filesHook.handleFileDelete}
+                    onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
+                    uploadingFiles={filesHook.uploadingFiles}
+                    isNew={isNew}
+                    agentFiles={filesHook.agentFiles}
+                    loadingAvailableFiles={filesHook.loadingAvailableFiles}
+                    assigningFile={filesHook.assigningFile}
+                    fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
+                    setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
+                    behaviourConfig={behaviourConfig}
+                  />
+                </div>
               ) : activeTab === "advanced" ? (
                 <AdvancedTab
                   agent={agentData.agent}

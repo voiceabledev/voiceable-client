@@ -478,6 +478,31 @@ export const agentsApi = {
   },
 };
 
+// Agent Behaviours API
+export interface AgentBehaviourSection {
+  id: number;
+  section_type: "scenarios" | "phases" | "voice_tone";
+  label: string;
+  description?: string;
+  add_label?: string;
+  title_placeholder?: string;
+  description_placeholder?: string;
+  notes_placeholder?: string;
+  notes_label?: string;
+  position?: number;
+}
+
+export interface AgentBehaviour {
+  id: number;
+  name: string;
+  description?: string;
+  active?: boolean;
+  position?: number;
+  sections?: AgentBehaviourSection[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Agent Templates API
 export interface AgentTemplate {
   id: number;
@@ -489,6 +514,8 @@ export interface AgentTemplate {
   icon_url?: string;
   active?: boolean;
   position?: number;
+  agent_behaviour_id?: number;
+  agent_behaviour?: AgentBehaviour;
   created_at?: string;
   updated_at?: string;
 }
@@ -1402,6 +1429,32 @@ export const adminApi = {
     },
     destroy: async (id: number) => {
       const response = await apiClient.delete(`/admin/agent_templates/${id}`);
+      return response;
+    },
+  },
+  behaviours: {
+    list: async () => {
+      const response = await apiClient.get<AgentBehaviour[]>('/admin/agent_behaviours');
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<AgentBehaviour>(`/admin/agent_behaviours/${id}`);
+      return response;
+    },
+    create: async (data: Omit<AgentBehaviour, 'id' | 'created_at' | 'updated_at'> & { sections?: Omit<AgentBehaviourSection, 'id'>[] }) => {
+      const response = await apiClient.post<{ data: AgentBehaviour }>('/admin/agent_behaviours', {
+        agent_behaviour: data,
+      });
+      return response;
+    },
+    update: async (id: number, data: Partial<Omit<AgentBehaviour, 'id' | 'created_at' | 'updated_at'>> & { sections?: Omit<AgentBehaviourSection, 'id'>[] }) => {
+      const response = await apiClient.put<{ data: AgentBehaviour }>(`/admin/agent_behaviours/${id}`, {
+        agent_behaviour: data,
+      });
+      return response;
+    },
+    destroy: async (id: number) => {
+      const response = await apiClient.delete(`/admin/agent_behaviours/${id}`);
       return response;
     },
   },

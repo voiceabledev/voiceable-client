@@ -15,6 +15,7 @@ import {
   TrendingDown,
   Calculator,
   FileText,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ const adminNavCategories: NavCategory[] = [
       { icon: Users, label: "Users", path: "/admin/users" },
       { icon: Users2, label: "Agents", path: "/admin/agents" },
       { icon: FileText, label: "Templates", path: "/admin/templates" },
+      { icon: Settings, label: "Behaviours", path: "/admin/behaviours" },
     ],
   },
   {

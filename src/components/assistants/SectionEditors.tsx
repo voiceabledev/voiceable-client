@@ -12,6 +12,22 @@ export type SectionEntry = {
 
 export type SectionType = "scenarios" | "phases" | "voiceTone";
 
+export type BehaviourSectionConfig = {
+  label: string;
+  description?: string;
+  add_label?: string;
+  title_placeholder?: string;
+  description_placeholder?: string;
+  notes_placeholder?: string;
+  notes_label?: string;
+};
+
+export type BehaviourConfig = {
+  scenarios?: BehaviourSectionConfig;
+  phases?: BehaviourSectionConfig;
+  voiceTone?: BehaviourSectionConfig;
+};
+
 export type SectionEditorConfig = {
   title: string;
   description: string;
@@ -33,6 +49,7 @@ type SectionEditorsProps = {
   onAddEntry: (type: SectionType) => void;
   onEditEntry: (type: SectionType, entryId: string) => void;
   onRemoveEntry: (type: SectionType, id: string) => void;
+  behaviourConfig?: BehaviourConfig;
 };
 
 export const SectionEditors: React.FC<SectionEditorsProps> = ({
@@ -44,7 +61,64 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
   onAddEntry,
   onEditEntry,
   onRemoveEntry,
+  behaviourConfig,
 }) => {
+  // Default configurations (fallback)
+  const defaultConfigs = {
+    scenarios: {
+      title: "Scenarios",
+      description: "List the main scenarios the assistant should cover (e.g., Catálogo, Serviço).",
+      addLabel: "Add scenario",
+      titlePlaceholder: "Scenario name",
+      descriptionPlaceholder: "Describe what should happen in this scenario",
+      notesPlaceholder: "Optional instructions, edge cases, or requirements",
+      notesLabel: "Optional guidance for this scenario",
+    },
+    phases: {
+      title: "Phases",
+      description: "Break down the stages or flow steps the assistant should follow.",
+      addLabel: "Add phase",
+      titlePlaceholder: "Stage name",
+      descriptionPlaceholder: "Explain what happens in this stage",
+      notesPlaceholder: "Optional transition tips or reminders for operators",
+      notesLabel: "Optional flow guidance",
+    },
+    voiceTone: {
+      title: "Voice Tone",
+      description: "Describe how the assistant should sound, including restrictions or tone preferences.",
+      addLabel: "Add tone",
+      titlePlaceholder: "Tone label (e.g., Professional)",
+      descriptionPlaceholder: "Describe the desired tone",
+      notesPlaceholder: "Optional vocabulary restrictions or style notes",
+      notesLabel: "Optional tone rules",
+    },
+  };
+
+  // Get configuration for a section type, using behaviour config if available
+  const getSectionConfig = (type: SectionType) => {
+    const defaultConfig = defaultConfigs[type];
+    const behaviourSection = behaviourConfig?.[type];
+
+    console.log(`SectionEditors - getSectionConfig for ${type}:`, {
+      behaviourConfig,
+      behaviourSection,
+      defaultConfig
+    });
+
+    if (behaviourSection) {
+      return {
+        title: behaviourSection.label || defaultConfig.title,
+        description: behaviourSection.description || defaultConfig.description,
+        addLabel: behaviourSection.add_label || defaultConfig.addLabel,
+        titlePlaceholder: behaviourSection.title_placeholder || defaultConfig.titlePlaceholder,
+        descriptionPlaceholder: behaviourSection.description_placeholder || defaultConfig.descriptionPlaceholder,
+        notesPlaceholder: behaviourSection.notes_placeholder || defaultConfig.notesPlaceholder,
+        notesLabel: behaviourSection.notes_label || defaultConfig.notesLabel,
+      };
+    }
+
+    return defaultConfig;
+  };
   const renderSectionEditor = ({
     title,
     description,
@@ -138,39 +212,48 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
         <div className="mt-4 md:mt-6 space-y-5">
           <p className="text-xs text-muted-foreground">Prompt generated automatically based on the sections below.</p>
           <div className="space-y-5">
-            {renderSectionEditor({
-              title: "Scenarios",
-              description: "List the main scenarios the assistant should cover (e.g., Catálogo, Serviço).",
-              entries: cenarios,
-              sectionType: "scenarios",
-              addLabel: "Add scenario",
-              titlePlaceholder: "Scenario name",
-              descriptionPlaceholder: "Describe what should happen in this scenario",
-              notesPlaceholder: "Optional instructions, edge cases, or requirements",
-              notesLabel: "Optional guidance for this scenario",
-            })}
-            {renderSectionEditor({
-              title: "Phases",
-              description: "Break down the stages or flow steps the assistant should follow.",
-              entries: etapas,
-              sectionType: "phases",
-              addLabel: "Add phase",
-              titlePlaceholder: "Stage name",
-              descriptionPlaceholder: "Explain what happens in this stage",
-              notesPlaceholder: "Optional transition tips or reminders for operators",
-              notesLabel: "Optional flow guidance",
-            })}
-            {renderSectionEditor({
-              title: "Voice Tone",
-              description: "Describe how the assistant should sound, including restrictions or tone preferences.",
-              entries: tomDeVoz,
-              sectionType: "voiceTone",
-              addLabel: "Add tone",
-              titlePlaceholder: "Tone label (e.g., Professional)",
-              descriptionPlaceholder: "Describe the desired tone",
-              notesPlaceholder: "Optional vocabulary restrictions or style notes",
-              notesLabel: "Optional tone rules",
-            })}
+            {(() => {
+              const config = getSectionConfig("scenarios");
+              return renderSectionEditor({
+                title: config.title,
+                description: config.description,
+                entries: cenarios,
+                sectionType: "scenarios",
+                addLabel: config.addLabel,
+                titlePlaceholder: config.titlePlaceholder,
+                descriptionPlaceholder: config.descriptionPlaceholder,
+                notesPlaceholder: config.notesPlaceholder,
+                notesLabel: config.notesLabel,
+              });
+            })()}
+            {(() => {
+              const config = getSectionConfig("phases");
+              return renderSectionEditor({
+                title: config.title,
+                description: config.description,
+                entries: etapas,
+                sectionType: "phases",
+                addLabel: config.addLabel,
+                titlePlaceholder: config.titlePlaceholder,
+                descriptionPlaceholder: config.descriptionPlaceholder,
+                notesPlaceholder: config.notesPlaceholder,
+                notesLabel: config.notesLabel,
+              });
+            })()}
+            {(() => {
+              const config = getSectionConfig("voiceTone");
+              return renderSectionEditor({
+                title: config.title,
+                description: config.description,
+                entries: tomDeVoz,
+                sectionType: "voiceTone",
+                addLabel: config.addLabel,
+                titlePlaceholder: config.titlePlaceholder,
+                descriptionPlaceholder: config.descriptionPlaceholder,
+                notesPlaceholder: config.notesPlaceholder,
+                notesLabel: config.notesLabel,
+              });
+            })()}
           </div>
         </div>
       )}

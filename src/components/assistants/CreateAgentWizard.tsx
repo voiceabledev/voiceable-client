@@ -29,10 +29,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { agentsApi, voicesApi, Voice, phoneNumbersApi, AvailablePhoneNumber } from "@/lib/api";
+import { agentsApi, voicesApi, Voice, phoneNumbersApi, AvailablePhoneNumber, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi } from "@/lib/api";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import { SectionEntry, SectionPayload } from "@/types/assistant";
 import { PROMPT_TEMPLATE, DEFAULT_SYSTEM_PROMPT } from "@/constants/assistant";
+import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 import {
   Dialog,
   DialogContent,
@@ -183,6 +184,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     description: "",
     notes: "",
   });
+  const [behaviourConfig, setBehaviourConfig] = useState<BehaviourConfig | undefined>(undefined);
+  const [template, setTemplate] = useState<AgentTemplate | null>(null);
+  const [currentBehaviourId, setCurrentBehaviourId] = useState<number | undefined>(undefined);
+  const [currentBehaviourName, setCurrentBehaviourName] = useState<string | undefined>(undefined);
+  const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
+  const [loadingBehaviours, setLoadingBehaviours] = useState(false);
 
   // Generate system prompt from template and custom sections
   // This ensures the template is preserved and only custom sections are added/removed
@@ -403,80 +410,113 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     setter((prev) => prev.filter((entry) => entry.id !== id));
   };
 
-  const renderSectionEditor = (
-    title: string,
-    description: string,
-    entries: SectionEntry[],
-    sectionType: "scenarios" | "phases" | "voiceTone",
-    addLabel: string
-  ) => (
-    <div className="border border-border rounded-lg bg-white p-4 space-y-4">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h4 className="text-sm font-semibold">{title}</h4>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => openSectionModal(sectionType)}
-          className="flex items-center gap-1"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {addLabel}
-        </Button>
-      </div>
+  const getSectionConfig = (sectionType: "scenarios" | "phases" | "voiceTone") => {
+    const defaultConfigs = {
+      scenarios: {
+        title: "Scenarios",
+        description: "Define the main scenarios your agent should handle",
+        addLabel: "Add Scenario",
+      },
+      phases: {
+        title: "Conversation Phases",
+        description: "Define the phases your agent should follow during conversations",
+        addLabel: "Add Phase",
+      },
+      voiceTone: {
+        title: "Voice & Tone",
+        description: "Define the tone and communication style your agent should maintain",
+        addLabel: "Add Tone",
+      },
+    };
 
-      {entries.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No {title.toLowerCase()} defined yet. Use the button above to add one.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 hover:bg-muted/50 transition-colors"
-            >
+    const defaultConfig = defaultConfigs[sectionType];
+    const behaviourSection = behaviourConfig?.[sectionType];
+
+    if (behaviourSection) {
+      return {
+        title: behaviourSection.label || defaultConfig.title,
+        description: behaviourSection.description || defaultConfig.description,
+        addLabel: behaviourSection.add_label || defaultConfig.addLabel,
+      };
+    }
+
+    return defaultConfig;
+  };
+
+  const renderSectionEditor = (
+    entries: SectionEntry[],
+    sectionType: "scenarios" | "phases" | "voiceTone"
+  ) => {
+    const config = getSectionConfig(sectionType);
+    return (
+      <div className="border border-border rounded-lg bg-white p-4 space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h4 className="text-sm font-semibold">{config.title}</h4>
+            <p className="text-sm text-muted-foreground">{config.description}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openSectionModal(sectionType)}
+            className="flex items-center gap-1"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {config.addLabel}
+          </Button>
+        </div>
+
+        {entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No {config.title.toLowerCase()} defined yet. Use the button above to add one.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {entries.map((entry) => (
               <div
-                className="flex-1 min-w-0 cursor-pointer"
-                onClick={() => openSectionModal(sectionType, entry)}
+                key={entry.id}
+                className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 hover:bg-muted/50 transition-colors"
               >
-                <h5 className="text-sm font-medium truncate">
-                  {entry.title || <span className="text-muted-foreground italic">Untitled</span>}
-                </h5>
-                {entry.description && (
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {entry.description.length > 80
-                      ? `${entry.description.slice(0, 80)}...`
-                      : entry.description}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
                   onClick={() => openSectionModal(sectionType, entry)}
                 >
-                  <Edit className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                  onClick={() => deleteSectionEntry(sectionType, entry.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                  <h5 className="text-sm font-medium truncate">
+                    {entry.title || <span className="text-muted-foreground italic">Untitled</span>}
+                  </h5>
+                  {entry.description && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {entry.description.length > 80
+                        ? `${entry.description.slice(0, 80)}...`
+                        : entry.description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => openSectionModal(sectionType, entry)}
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    onClick={() => deleteSectionEntry(sectionType, entry.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Step 4: Voice
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
@@ -500,6 +540,312 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [phoneNumberStep, setPhoneNumberStep] = useState<"account" | "purchase">("account");
   const [countryCode, setCountryCode] = useState("US");
   const [areaCode, setAreaCode] = useState("");
+
+  // Handle behaviour change
+  const handleBehaviourChange = async (behaviourId: string) => {
+    const newBehaviourId = behaviourId === "none" ? undefined : parseInt(behaviourId, 10);
+    
+    if (newBehaviourId) {
+      try {
+        setLoadingBehaviours(true);
+        const response = await adminApi.behaviours.show(newBehaviourId);
+        if (response.data) {
+          const behaviour = response.data;
+          const config: BehaviourConfig = {};
+          behaviour.sections?.forEach(section => {
+            if (section.section_type === "scenarios") {
+              config.scenarios = {
+                label: section.label,
+                description: section.description,
+                add_label: section.add_label,
+                title_placeholder: section.title_placeholder,
+                description_placeholder: section.description_placeholder,
+                notes_placeholder: section.notes_placeholder,
+                notes_label: section.notes_label,
+              };
+            } else if (section.section_type === "phases") {
+              config.phases = {
+                label: section.label,
+                description: section.description,
+                add_label: section.add_label,
+                title_placeholder: section.title_placeholder,
+                description_placeholder: section.description_placeholder,
+                notes_placeholder: section.notes_placeholder,
+                notes_label: section.notes_label,
+              };
+            } else if (section.section_type === "voice_tone") {
+              config.voiceTone = {
+                label: section.label,
+                description: section.description,
+                add_label: section.add_label,
+                title_placeholder: section.title_placeholder,
+                description_placeholder: section.description_placeholder,
+                notes_placeholder: section.notes_placeholder,
+                notes_label: section.notes_label,
+              };
+            }
+          });
+          setBehaviourConfig(config);
+          setCurrentBehaviourId(behaviour.id);
+          setCurrentBehaviourName(behaviour.name);
+        }
+      } catch (error) {
+        console.error("Error loading behaviour:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load behaviour template.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingBehaviours(false);
+      }
+    } else {
+      // Reset to default behaviour
+      const defaultBehaviour = availableBehaviours.find(b => b.name === "Default");
+      if (defaultBehaviour) {
+        const config: BehaviourConfig = {};
+        defaultBehaviour.sections?.forEach(section => {
+          if (section.section_type === "scenarios") {
+            config.scenarios = {
+              label: section.label,
+              description: section.description,
+              add_label: section.add_label,
+              title_placeholder: section.title_placeholder,
+              description_placeholder: section.description_placeholder,
+              notes_placeholder: section.notes_placeholder,
+              notes_label: section.notes_label,
+            };
+          } else if (section.section_type === "phases") {
+            config.phases = {
+              label: section.label,
+              description: section.description,
+              add_label: section.add_label,
+              title_placeholder: section.title_placeholder,
+              description_placeholder: section.description_placeholder,
+              notes_placeholder: section.notes_placeholder,
+              notes_label: section.notes_label,
+            };
+          } else if (section.section_type === "voice_tone") {
+            config.voiceTone = {
+              label: section.label,
+              description: section.description,
+              add_label: section.add_label,
+              title_placeholder: section.title_placeholder,
+              description_placeholder: section.description_placeholder,
+              notes_placeholder: section.notes_placeholder,
+              notes_label: section.notes_label,
+            };
+          }
+        });
+        setBehaviourConfig(config);
+        setCurrentBehaviourId(defaultBehaviour.id);
+        setCurrentBehaviourName(defaultBehaviour.name);
+      } else {
+        setBehaviourConfig(undefined);
+        setCurrentBehaviourId(undefined);
+        setCurrentBehaviourName(undefined);
+      }
+    }
+  };
+
+  // Fetch available behaviours
+  useEffect(() => {
+    const fetchBehaviours = async () => {
+      setLoadingBehaviours(true);
+      try {
+        const response = await adminApi.behaviours.list();
+        if (response.data) {
+          setAvailableBehaviours(Array.isArray(response.data) ? response.data : []);
+        }
+      } catch (error) {
+        console.error("Error fetching behaviours:", error);
+      } finally {
+        setLoadingBehaviours(false);
+      }
+    };
+    
+    fetchBehaviours();
+  }, []);
+
+  // Load template and behaviour (or default behaviour if no template)
+  useEffect(() => {
+    const loadTemplate = async () => {
+      try {
+        if (initialData?.templateId) {
+          // Load template and its associated behaviour
+          const response = await agentTemplatesApi.list();
+          if (response.data) {
+            const templates = Array.isArray(response.data) ? response.data : [];
+            const foundTemplate = templates.find(t => t.id.toString() === initialData.templateId);
+            if (foundTemplate) {
+              setTemplate(foundTemplate);
+              
+              // If template has a behaviour ID, load the full behaviour with sections
+              if (foundTemplate.agent_behaviour_id && foundTemplate.agent_behaviour) {
+                // Check if sections are already loaded in the response
+                if (foundTemplate.agent_behaviour.sections && foundTemplate.agent_behaviour.sections.length > 0) {
+                  // Sections are included, use them
+                  const config: BehaviourConfig = {};
+                  foundTemplate.agent_behaviour.sections.forEach(section => {
+                    if (section.section_type === "scenarios") {
+                      config.scenarios = {
+                        label: section.label,
+                        description: section.description,
+                        add_label: section.add_label,
+                        title_placeholder: section.title_placeholder,
+                        description_placeholder: section.description_placeholder,
+                        notes_placeholder: section.notes_placeholder,
+                        notes_label: section.notes_label,
+                      };
+                    } else if (section.section_type === "phases") {
+                      config.phases = {
+                        label: section.label,
+                        description: section.description,
+                        add_label: section.add_label,
+                        title_placeholder: section.title_placeholder,
+                        description_placeholder: section.description_placeholder,
+                        notes_placeholder: section.notes_placeholder,
+                        notes_label: section.notes_label,
+                      };
+                    } else if (section.section_type === "voice_tone") {
+                      config.voiceTone = {
+                        label: section.label,
+                        description: section.description,
+                        add_label: section.add_label,
+                        title_placeholder: section.title_placeholder,
+                        description_placeholder: section.description_placeholder,
+                        notes_placeholder: section.notes_placeholder,
+                        notes_label: section.notes_label,
+                      };
+                    }
+                  });
+                  setBehaviourConfig(config);
+                  setCurrentBehaviourId(foundTemplate.agent_behaviour.id);
+                  setCurrentBehaviourName(foundTemplate.agent_behaviour.name);
+                } else {
+                  // Sections not included, fetch the full behaviour
+                  try {
+                    const behaviourResponse = await adminApi.behaviours.show(foundTemplate.agent_behaviour_id);
+                    if (behaviourResponse.data) {
+                      const behaviour = behaviourResponse.data;
+                      if (behaviour.sections && behaviour.sections.length > 0) {
+                        const config: BehaviourConfig = {};
+                        behaviour.sections.forEach((section) => {
+                        if (section.section_type === "scenarios") {
+                          config.scenarios = {
+                            label: section.label,
+                            description: section.description,
+                            add_label: section.add_label,
+                            title_placeholder: section.title_placeholder,
+                            description_placeholder: section.description_placeholder,
+                            notes_placeholder: section.notes_placeholder,
+                            notes_label: section.notes_label,
+                          };
+                        } else if (section.section_type === "phases") {
+                          config.phases = {
+                            label: section.label,
+                            description: section.description,
+                            add_label: section.add_label,
+                            title_placeholder: section.title_placeholder,
+                            description_placeholder: section.description_placeholder,
+                            notes_placeholder: section.notes_placeholder,
+                            notes_label: section.notes_label,
+                          };
+                        } else if (section.section_type === "voice_tone") {
+                          config.voiceTone = {
+                            label: section.label,
+                            description: section.description,
+                            add_label: section.add_label,
+                            title_placeholder: section.title_placeholder,
+                            description_placeholder: section.description_placeholder,
+                            notes_placeholder: section.notes_placeholder,
+                            notes_label: section.notes_label,
+                          };
+                        }
+                        });
+                        setBehaviourConfig(config);
+                        setCurrentBehaviourId(behaviour.id);
+                        setCurrentBehaviourName(behaviour.name);
+                      }
+                    }
+                  } catch (error) {
+                    console.error("Error loading template behaviour:", error);
+                    // Fallback to default behaviour
+                    await loadDefaultBehaviour();
+                  }
+                }
+              } else {
+                // Template has no behaviour, load default
+                await loadDefaultBehaviour();
+              }
+            }
+          }
+        } else {
+          // No template selected, load default behaviour
+          await loadDefaultBehaviour();
+        }
+      } catch (error) {
+        console.error("Error loading template/behaviour:", error);
+        // Fallback to default behaviour on error
+        await loadDefaultBehaviour();
+      }
+    };
+
+    const loadDefaultBehaviour = async () => {
+      try {
+        const response = await adminApi.behaviours.list();
+        if (response.data) {
+          const behaviours = Array.isArray(response.data) ? response.data : [];
+          const defaultBehaviour = behaviours.find(b => b.name === "Default");
+          if (defaultBehaviour?.sections) {
+            const config: BehaviourConfig = {};
+            defaultBehaviour.sections.forEach(section => {
+              if (section.section_type === "scenarios") {
+                config.scenarios = {
+                  label: section.label,
+                  description: section.description,
+                  add_label: section.add_label,
+                  title_placeholder: section.title_placeholder,
+                  description_placeholder: section.description_placeholder,
+                  notes_placeholder: section.notes_placeholder,
+                  notes_label: section.notes_label,
+                };
+              } else if (section.section_type === "phases") {
+                config.phases = {
+                  label: section.label,
+                  description: section.description,
+                  add_label: section.add_label,
+                  title_placeholder: section.title_placeholder,
+                  description_placeholder: section.description_placeholder,
+                  notes_placeholder: section.notes_placeholder,
+                  notes_label: section.notes_label,
+                };
+              } else if (section.section_type === "voice_tone") {
+                config.voiceTone = {
+                  label: section.label,
+                  description: section.description,
+                  add_label: section.add_label,
+                  title_placeholder: section.title_placeholder,
+                  description_placeholder: section.description_placeholder,
+                  notes_placeholder: section.notes_placeholder,
+                  notes_label: section.notes_label,
+                };
+              }
+            });
+            setBehaviourConfig(config);
+            setCurrentBehaviourId(defaultBehaviour.id);
+            setCurrentBehaviourName(defaultBehaviour.name);
+            // Set template to null to indicate no template selected
+            setTemplate(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading default behaviour:", error);
+      }
+    };
+    
+    loadTemplate();
+  }, [initialData?.templateId]);
 
   // Fetch voices if not provided
   useEffect(() => {
@@ -620,6 +966,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           // Save the template prompt if provided (from template selection)
           ...(initialData?.systemPrompt ? {
             system_prompt_template: initialData.systemPrompt
+          } : {}),
+          // Store behaviour reference and config (either from template or default)
+          ...(behaviourConfig && currentBehaviourId ? {
+            agent_behaviour_id: currentBehaviourId,
+            // Also store the config for useAgentData to use section labels
+            agent_behaviour_config: behaviourConfig,
           } : {}),
           // Include section entries in prompt_sections (matching useAgentData.ts structure)
           prompt_sections: {
@@ -950,33 +1302,46 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 2: // Agent Behaviour step
           return (
             <div className="space-y-6">
-              <p className="text-sm text-muted-foreground">
-                Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
-              </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="behaviour-select-wizard-skip" className="text-sm font-medium">
+                    Behaviour Template:
+                  </Label>
+                  <Select
+                    value={currentBehaviourId?.toString() || "none"}
+                    onValueChange={handleBehaviourChange}
+                    disabled={loadingBehaviours}
+                  >
+                    <SelectTrigger id="behaviour-select-wizard-skip" className="w-[250px]">
+                      <SelectValue placeholder="Select behaviour" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Default (No Template)</SelectItem>
+                      {availableBehaviours.map((behaviour) => (
+                        <SelectItem key={behaviour.id} value={behaviour.id.toString()}>
+                          {behaviour.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {currentBehaviourName && (
+                  <p className="text-xs text-muted-foreground">
+                    Using behaviour configuration: <strong className="text-foreground">{currentBehaviourName}</strong>
+                  </p>
+                )}
+              </div>
               
-              {renderSectionEditor(
-                "Scenarios",
-                "Define the main scenarios your agent should handle",
-                scenarios,
-                "scenarios",
-                "Add Scenario"
-              )}
-              
-              {renderSectionEditor(
-                "Conversation Phases",
-                "Define the phases your agent should follow during conversations",
-                phases,
-                "phases",
-                "Add Phase"
-              )}
-              
-              {renderSectionEditor(
-                "Voice & Tone",
-                "Define the tone and communication style your agent should maintain",
-                voiceTone,
-                "voiceTone",
-                "Add Tone"
-              )}
+              {renderSectionEditor(scenarios, "scenarios")}
+              {renderSectionEditor(phases, "phases")}
+              {renderSectionEditor(voiceTone, "voiceTone")}
             </div>
           );
         case 3: // Voice step
@@ -1287,33 +1652,46 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 2: // Agent Behaviour step
           return (
             <div className="space-y-6">
-              <p className="text-sm text-muted-foreground">
-                Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
-              </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="behaviour-select-wizard-normal" className="text-sm font-medium">
+                    Behaviour Template:
+                  </Label>
+                  <Select
+                    value={currentBehaviourId?.toString() || "none"}
+                    onValueChange={handleBehaviourChange}
+                    disabled={loadingBehaviours}
+                  >
+                    <SelectTrigger id="behaviour-select-wizard-normal" className="w-[250px]">
+                      <SelectValue placeholder="Select behaviour" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Default (No Template)</SelectItem>
+                      {availableBehaviours.map((behaviour) => (
+                        <SelectItem key={behaviour.id} value={behaviour.id.toString()}>
+                          {behaviour.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {currentBehaviourName && (
+                  <p className="text-xs text-muted-foreground">
+                    Using behaviour configuration: <strong className="text-foreground">{currentBehaviourName}</strong>
+                  </p>
+                )}
+              </div>
               
-              {renderSectionEditor(
-                "Scenarios",
-                "Define the main scenarios your agent should handle",
-                scenarios,
-                "scenarios",
-                "Add Scenario"
-              )}
-              
-              {renderSectionEditor(
-                "Conversation Phases",
-                "Define the phases your agent should follow during conversations",
-                phases,
-                "phases",
-                "Add Phase"
-              )}
-              
-              {renderSectionEditor(
-                "Voice & Tone",
-                "Define the tone and communication style your agent should maintain",
-                voiceTone,
-                "voiceTone",
-                "Add Tone"
-              )}
+              {renderSectionEditor(scenarios, "scenarios")}
+              {renderSectionEditor(phases, "phases")}
+              {renderSectionEditor(voiceTone, "voiceTone")}
             </div>
           );
         case 3: // Voice step

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { FirstMessageSection } from "./sections/FirstMessageSection";
-import { SectionEditors } from "./SectionEditors";
+import { SectionEditors, type BehaviourConfig } from "./SectionEditors";
 import { FilesSection } from "./sections/FilesSection";
 import type { Agent, SectionEntry, AgentFile, SectionType } from "@/types/assistant";
 
@@ -24,6 +24,7 @@ type PromptLogicTabProps = {
   assigningFile: string | null;
   fetchAllAvailableFiles: () => Promise<void>;
   setShowChooseFilesDialog: (show: boolean) => void;
+  behaviourConfig?: BehaviourConfig;
 };
 
 export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
@@ -46,6 +47,7 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
   assigningFile,
   fetchAllAvailableFiles,
   setShowChooseFilesDialog,
+  behaviourConfig,
 }) => {
   const [firstMessageExpanded, setFirstMessageExpanded] = useState(true);
   const [agentBehaviourExpanded, setAgentBehaviourExpanded] = useState(true);
@@ -102,6 +104,7 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
           if (entry) onEditSectionEntry(type, entry);
         }}
         onRemoveEntry={onRemoveSectionEntry}
+        behaviourConfig={behaviourConfig}
       />
 
       <FilesSection

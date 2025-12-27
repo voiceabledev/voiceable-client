@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { agentsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { generateSectionEntryId } from "@/utils/assistantHelpers";
@@ -14,6 +14,7 @@ import type {
   TransferRule,
   HumanTransferRule
 } from "@/types/assistant";
+import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 
 export function useAgentData(
   id: string | undefined,
@@ -29,11 +30,25 @@ export function useAgentData(
   setSystemToolSettings: (settings: SystemToolSetting) => void
 ) {
   const [agent, setAgent] = useState<Agent | null>(null);
-  const [conversationConfig, setConversationConfig] = useState<Record<string, unknown> | null>(null);
+  const [conversationConfig, setConversationConfigState] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const { toast } = useToast();
+  
+  // Use a ref to store the latest conversationConfig so handleSave always has the most recent value
+  const conversationConfigRef = useRef<Record<string, unknown> | null>(null);
+  
+  // Custom setter that updates both state and ref synchronously
+  const setConversationConfig = useCallback((config: Record<string, unknown> | null) => {
+    conversationConfigRef.current = config;
+    setConversationConfigState(config);
+  }, []);
+  
+  // Keep ref in sync with state (backup in case setConversationConfig is called directly)
+  useEffect(() => {
+    conversationConfigRef.current = conversationConfig;
+  }, [conversationConfig]);
 
   const handleUpdate = useCallback((updates: Partial<Agent>) => {
     setAgent((prev) => (prev ? { ...prev, ...updates } : null));
@@ -221,7 +236,7 @@ export function useAgentData(
     } finally {
       setLoading(false);
     }
-  }, [id, setWebhookTools, setClientTools, setAgentIntegrationTools, setAttachedFiles, setAgentFiles, setCenarios, setEtapas, setTomDeVoz, setSystemTools, setSystemToolSettings, toast]);
+  }, [id, setWebhookTools, setClientTools, setAgentIntegrationTools, setAttachedFiles, setAgentFiles, setCenarios, setEtapas, setTomDeVoz, setSystemTools, setSystemToolSettings, toast, setConversationConfig]);
 
   const buildConfiguration = useCallback((
     webhookTools: WebhookTool[],
@@ -338,8 +353,9 @@ export function useAgentData(
       // 1. system_prompt_template: Base template selected when creating the agent
       // 2. system_prompt_tools: Integration tool prompts (managed by backend)
       // 3. system_prompt_behaviours: Formatted behavior sections (scenarios, phases, voice tone)
-      // CRITICAL: Use conversationConfig state (from API) instead of agent.conversation_config
-      const currentConfig = conversationConfig || {};
+      // CRITICAL: Use conversationConfigRef to get the latest value (state updates are async)
+      // The ref is updated synchronously when setConversationConfig is called, so it always has the latest value
+      const currentConfig = conversationConfigRef.current || conversationConfig || {};
       
       // Read the three components
       const systemPromptTemplate = (currentConfig.system_prompt_template as string) || "";
@@ -374,7 +390,7 @@ export function useAgentData(
       // Build conversation_config with all the nested fields
       // Start by preserving existing config structure to avoid losing data
       const updatedConversationConfig: Record<string, unknown> = {
-        ...currentConfig, // Preserve all existing config first
+        ...currentConfig, // Preserve all existing config first (including agent_behaviour_id and agent_behaviour_config)
         voice_id: agent.voice_id || undefined,
         first_message: agent.first_message || undefined,
         first_message_mode: agent.first_message_mode || undefined,
@@ -388,6 +404,28 @@ export function useAgentData(
           voiceTone,
         },
       };
+      
+      // CRITICAL: Always preserve behaviour config from currentConfig (which comes from the ref)
+      // The ref is updated synchronously when setConversationConfig is called, so it should have the latest values
+      // We need to explicitly preserve these even if they're undefined, because they might have been explicitly set
+      // Check both if the key exists OR if the value is not undefined (to catch newly set values)
+      if (currentConfig.agent_behaviour_id !== undefined || 'agent_behaviour_id' in currentConfig) {
+        updatedConversationConfig.agent_behaviour_id = currentConfig.agent_behaviour_id;
+      }
+      if (currentConfig.agent_behaviour_config !== undefined || 'agent_behaviour_config' in currentConfig) {
+        updatedConversationConfig.agent_behaviour_config = currentConfig.agent_behaviour_config;
+      }
+      
+      // Debug log to verify config is being preserved
+      console.log("handleSave - preserving behaviour config:", {
+        agent_behaviour_id: updatedConversationConfig.agent_behaviour_id,
+        agent_behaviour_config: updatedConversationConfig.agent_behaviour_config,
+        currentConfig_has_id: 'agent_behaviour_id' in currentConfig,
+        currentConfig_has_config: 'agent_behaviour_config' in currentConfig,
+        currentConfig_id: currentConfig.agent_behaviour_id,
+        currentConfig_config: currentConfig.agent_behaviour_config,
+        currentConfig_keys: Object.keys(currentConfig)
+      });
 
       // Add transcriber configuration if language is set
       if (agent.language) {
@@ -396,8 +434,31 @@ export function useAgentData(
         };
       }
       
+      // Get behaviour config from conversation_config if available
+      // If only ID is present, we'll use defaults (config should be loaded by AssistantDetail)
+      let behaviourConfig: BehaviourConfig | undefined = (currentConfig.agent_behaviour_config as BehaviourConfig) || undefined;
+      
+      // If config is missing but ID is present, use empty config (will fall back to defaults)
+      if (!behaviourConfig && currentConfig.agent_behaviour_id) {
+        behaviourConfig = undefined; // Will use defaults in formatSectionContent
+      }
+      
       // Format behavior sections for system_prompt_behaviours
-      const formatSectionContent = (sectionTitle: string, sectionDescription: string, entries: SectionEntry[]): string => {
+      const formatSectionContent = (sectionType: "scenarios" | "phases" | "voiceTone", entries: SectionEntry[]): string => {
+        if (entries.length === 0) return "";
+        
+        // Get section config from behaviour or use defaults
+        const defaultConfigs = {
+          scenarios: { title: "Additional Scenarios", description: "These are additional scenarios you should be prepared to handle:" },
+          phases: { title: "Additional Conversation Phases", description: "Follow these additional phases during the conversation:" },
+          voiceTone: { title: "Additional Voice & Tone", description: "Maintain these additional tone and communication style guidelines:" },
+        };
+        
+        const defaultConfig = defaultConfigs[sectionType];
+        const behaviourSection = behaviourConfig?.[sectionType];
+        
+        const sectionTitle = behaviourSection?.label || defaultConfig.title;
+        const sectionDescription = behaviourSection?.description || defaultConfig.description;
         if (entries.length === 0) return "";
 
         const formattedEntries = entries
@@ -428,33 +489,21 @@ export function useAgentData(
       const behaviourSections: string[] = [];
       
       if (scenarios.length > 0) {
-        const scenariosContent = formatSectionContent(
-          "Additional Scenarios",
-          "These are additional scenarios you should be prepared to handle:",
-          scenarios
-        );
+        const scenariosContent = formatSectionContent("scenarios", scenarios);
         if (scenariosContent) {
           behaviourSections.push(scenariosContent);
         }
       }
       
       if (phases.length > 0) {
-        const phasesContent = formatSectionContent(
-          "Additional Conversation Phases",
-          "Follow these additional phases during the conversation:",
-          phases
-        );
+        const phasesContent = formatSectionContent("phases", phases);
         if (phasesContent) {
           behaviourSections.push(phasesContent);
         }
       }
       
       if (voiceTone.length > 0) {
-        const voiceToneContent = formatSectionContent(
-          "Additional Voice & Tone",
-          "Maintain these additional tone and communication style guidelines:",
-          voiceTone
-        );
+        const voiceToneContent = formatSectionContent("voiceTone", voiceTone);
         if (voiceToneContent) {
           behaviourSections.push(voiceToneContent);
         }
@@ -499,6 +548,9 @@ export function useAgentData(
       updatedConversationConfig.system_prompt_template = templateToUse;
       updatedConversationConfig.system_prompt_tools = systemPromptTools;
       updatedConversationConfig.system_prompt_behaviours = systemPromptBehaviours;
+      // Preserve behaviour config if it exists
+      // Behaviour config is already preserved above in the spread, but ensure it's explicitly set
+      // (This is a safety check in case the spread doesn't work as expected)
       updatedConversationConfig.model = modelConfig;
 
       // Build system tools payload with description and disableInterruptions for each tool
@@ -620,6 +672,7 @@ export function useAgentData(
     agent,
     conversationConfig,
     setAgent,
+    setConversationConfig,
     loading,
     saving,
     publishing,
