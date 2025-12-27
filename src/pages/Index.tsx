@@ -239,7 +239,7 @@ const communityStats = [
 ];
 
 const communityLinks = [
-  { icon: BookOpen, title: "Docs", href: "https://voiceable.mintlify.app/" },
+  { icon: BookOpen, title: "Docs", href: "https://docs.voiceable.dev/" },
   { icon: Github, title: "GitHub", href: "https://github.com" },
   { icon: Users, title: "Community", href: "https://discord.com" },
 ];

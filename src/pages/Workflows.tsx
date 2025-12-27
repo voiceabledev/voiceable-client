@@ -66,7 +66,7 @@ export default function Workflows() {
             Upload JSON
           </Button>
           <Button variant="outline" onClick={() => {
-            window.location.href = "https://voiceable.mintlify.app/";
+            window.location.href = "https://docs.voiceable.dev/";
           }}>
             <FileText className="h-4 w-4 mr-2" />
             Docs

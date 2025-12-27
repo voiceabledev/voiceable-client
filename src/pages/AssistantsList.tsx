@@ -1497,7 +1497,7 @@ export default function AssistantsList() {
           <div className="flex items-center gap-2">
             <h1 className="text-xl md:text-2xl font-semibold">Assistants</h1>
             <a 
-              href="https://voiceable.mintlify.app/" 
+              href="https://docs.voiceable.dev/" 
               className="text-muted-foreground hover:text-foreground"
               target="_blank"
               rel="noopener noreferrer"

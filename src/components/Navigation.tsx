@@ -77,7 +77,7 @@ export function Navigation() {
             Pricing
           </Link>
           {/* <a 
-            href="https://voiceable.mintlify.app/" 
+            href="https://docs.voiceable.dev/" 
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             target="_blank"
             rel="noopener noreferrer"

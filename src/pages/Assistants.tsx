@@ -155,7 +155,7 @@ const AssistantsListContent = ({
         {showFullContent && (
           <>
             <h2 className="text-base md:text-lg font-semibold">Assistants</h2>
-            <a href="https://voiceable.mintlify.app/" className="text-muted-foreground hover:text-foreground ml-auto">
+            <a href="https://docs.voiceable.dev/" className="text-muted-foreground hover:text-foreground ml-auto">
               <span className="flex items-center gap-1 text-xs">
                 Docs <ExternalLink className="h-3 w-3" />
               </span>
