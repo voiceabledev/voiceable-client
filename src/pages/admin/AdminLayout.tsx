@@ -14,6 +14,7 @@ import {
   CreditCard,
   TrendingDown,
   Calculator,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ const adminNavCategories: NavCategory[] = [
     items: [
       { icon: Users, label: "Users", path: "/admin/users" },
       { icon: Users2, label: "Agents", path: "/admin/agents" },
+      { icon: FileText, label: "Templates", path: "/admin/templates" },
     ],
   },
   {

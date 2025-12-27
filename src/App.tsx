@@ -55,6 +55,7 @@ import AdminCampaigns from "@/pages/admin/Campaigns";
 import AdminPhoneNumbers from "@/pages/admin/PhoneNumbers";
 import AdminApiKeys from "@/pages/admin/ApiKeys";
 import AdminFinancialSimulation from "@/pages/admin/FinancialSimulation";
+import AdminTemplates from "@/pages/admin/Templates";
 import { AdminRoute } from "@/components/AdminRoute";
 
 const queryClient = new QueryClient();
@@ -116,6 +117,7 @@ const App = () => (
                 <Route index element={<Navigate to="/admin/users" replace />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="agents" element={<AdminAgents />} />
+                <Route path="templates" element={<AdminTemplates />} />
                 <Route path="integrations" element={<AdminIntegrations />} />
                 <Route path="campaigns" element={<AdminCampaigns />} />
                 <Route path="phone-numbers" element={<AdminPhoneNumbers />} />

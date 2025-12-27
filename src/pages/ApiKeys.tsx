@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Key, Lock, Plus, Eye, EyeOff, Copy, Trash2, Search, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Key, Lock, Plus, Eye, EyeOff, Copy, Trash2, Search, Loader2, Building2 } from "lucide-react";
 import { apiKeysApi, ApiKey, agentsApi, Agent } from "@/lib/api";
 
 export default function ApiKeys() {
@@ -26,15 +27,13 @@ export default function ApiKeys() {
   const [publicKeyVisible, setPublicKeyVisible] = useState<Record<number, boolean>>({});
   const [showPrivateModal, setShowPrivateModal] = useState(false);
   const [showPublicModal, setShowPublicModal] = useState(false);
+  const [showContactSalesModal, setShowContactSalesModal] = useState(false);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { isEnterprise, loading: authLoading } = useAuth();
   
-  useEffect(() => {
-    fetchApiKeys();
-  }, []);
-
-  const fetchApiKeys = async () => {
+  const fetchApiKeys = useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiKeysApi.list();
@@ -50,7 +49,13 @@ export default function ApiKeys() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (isEnterprise) {
+      fetchApiKeys();
+    }
+  }, [isEnterprise, fetchApiKeys]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this API key?')) {
@@ -100,6 +105,76 @@ export default function ApiKeys() {
   const handleKeyCreated = () => {
     fetchApiKeys();
   };
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Show enterprise-only message if user is not enterprise
+  if (!isEnterprise) {
+    return (
+      <div className="h-full flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Key className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <h1 className="text-lg md:text-xl font-semibold">API Keys</h1>
+          </div>
+        </div>
+
+        {/* Content - Enterprise Only Message */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex items-center justify-center h-full p-4 md:p-6">
+            <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-8 md:p-12 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 bg-primary/10 rounded-full">
+                  <Key className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold mb-4">API Keys Available for Enterprise</h2>
+              <p className="text-muted-foreground mb-8 text-base md:text-lg leading-relaxed">
+                API Keys are currently available for Enterprise customers only. 
+                Please contact our support team to upgrade to Enterprise and gain access to API Keys.
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => setShowContactSalesModal(true)}
+                  className="w-full sm:w-auto"
+                >
+                  <Building2 className="h-5 w-5 mr-2" />
+                  Contact Sales
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Sales Modal */}
+        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}

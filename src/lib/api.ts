@@ -478,6 +478,28 @@ export const agentsApi = {
   },
 };
 
+// Agent Templates API
+export interface AgentTemplate {
+  id: number;
+  title: string;
+  description: string;
+  system_prompt: string;
+  first_message: string;
+  icon_name?: string;
+  icon_url?: string;
+  active?: boolean;
+  position?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const agentTemplatesApi = {
+  list: async () => {
+    const response = await apiClient.get<AgentTemplate[]>('/agent_templates');
+    return response;
+  },
+};
+
 // Agent Files API
 export interface AgentFile {
   id: number;
@@ -714,116 +736,16 @@ function formatDuration(seconds: number): string {
 
 export const metricsApi = {
   get: async (filters?: MetricsFilters) => {
-    // Fetch conversations for the current period
-    // Use pagination to get all conversations
-    const currentFilters: ConversationFilters = {
-      page_size: 100, // Reasonable page size
-      agent_id: filters?.agent_id,
-      call_start_before_unix: filters?.call_start_before_unix,
-      call_start_after_unix: filters?.call_start_after_unix,
-      summary_mode: 'include',
-    };
+    const params = new URLSearchParams();
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id);
+    if (filters?.call_start_before_unix) params.append('call_start_before_unix', filters.call_start_before_unix.toString());
+    if (filters?.call_start_after_unix) params.append('call_start_after_unix', filters.call_start_after_unix.toString());
 
-    let allConversations: Conversation[] = [];
-    let cursor: string | undefined = undefined;
-    let hasMore = true;
-
-    // Fetch all conversations using pagination
-    try {
-      while (hasMore) {
-        const response = await conversationsApi.list({
-          ...currentFilters,
-          cursor,
-        });
-
-        if (response.data) {
-          allConversations = [...allConversations, ...response.data];
-          
-          // Check if there are more pages
-          // Note: The response might not have has_more, so we'll check cursor
-          const responseWithCursor = response as ApiResponse<Conversation[]> & { cursor?: string; has_more?: boolean };
-          cursor = responseWithCursor.cursor;
-          hasMore = !!cursor && response.data.length === currentFilters.page_size;
-          
-          // Safety limit: don't fetch more than 10,000 conversations
-          if (allConversations.length >= 10000) {
-            break;
-          }
-        } else {
-          hasMore = false;
-        }
-      }
-    } catch (error) {
-      // If there's an error (e.g., no API key, API error), return empty metrics
-      console.error('Error fetching conversations for metrics:', error);
-      return {
-        status: { code: 200, message: 'Metrics retrieved successfully.' },
-        data: {
-          numberOfCalls: 0,
-          avgDuration: '0:00',
-          totalCost: 0,
-          avgCost: 0,
-        },
-      };
-    }
-
-    const conversations = allConversations;
+    const queryString = params.toString();
+    const endpoint = `/metrics${queryString ? `?${queryString}` : ''}`;
     
-    // Calculate metrics
-    const numberOfCalls = conversations.length;
-    
-    // Parse durations and calculate average
-    let totalDurationSecs = 0;
-    let validDurations = 0;
-    
-    conversations.forEach((conv) => {
-      // Try to get duration from metadata first
-      const durationSecs = 
-        (conv.metadata?.call_duration_secs as number) ||
-        (conv.metadata?.['call_duration_secs'] as number);
-      
-      if (durationSecs && typeof durationSecs === 'number') {
-        totalDurationSecs += durationSecs;
-        validDurations++;
-      } else if (conv.duration) {
-        // Parse formatted duration string (e.g., "5:30")
-        const parts = conv.duration.split(':');
-        if (parts.length === 2) {
-          const minutes = parseInt(parts[0], 10) || 0;
-          const seconds = parseInt(parts[1], 10) || 0;
-          const totalSecs = minutes * 60 + seconds;
-          totalDurationSecs += totalSecs;
-          validDurations++;
-        }
-      }
-    });
-
-    const avgDurationSecs = validDurations > 0 ? totalDurationSecs / validDurations : 0;
-    const avgDuration = formatDuration(avgDurationSecs);
-
-    // Calculate costs from credits if available
-    let totalCost = 0;
-    conversations.forEach((conv) => {
-      // Check for credits in metadata
-      const credits = conv.metadata?.credits as { call?: number; llm?: number } | undefined;
-      if (credits) {
-        const callCredits = credits.call || 0;
-        const llmCredits = credits.llm || 0;
-        totalCost += callCredits + llmCredits;
-      }
-    });
-
-    const avgCost = numberOfCalls > 0 ? totalCost / numberOfCalls : 0;
-
-    return {
-      status: { code: 200, message: 'Metrics retrieved successfully.' },
-      data: {
-        numberOfCalls,
-        avgDuration,
-        totalCost,
-        avgCost,
-      },
-    };
+    const response = await apiClient.get<Metrics>(endpoint);
+    return response;
   },
 };
 
@@ -1454,6 +1376,32 @@ export const adminApi = {
     },
     show: async (id: number) => {
       const response = await apiClient.get<{ data: unknown }>(`/admin/credit_transactions/${id}`);
+      return response;
+    },
+  },
+  templates: {
+    list: async () => {
+      const response = await apiClient.get<AgentTemplate[]>('/admin/agent_templates');
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AgentTemplate }>(`/admin/agent_templates/${id}`);
+      return response;
+    },
+    create: async (data: Omit<AgentTemplate, 'id' | 'created_at' | 'updated_at'>) => {
+      const response = await apiClient.post<{ data: AgentTemplate }>('/admin/agent_templates', {
+        agent_template: data,
+      });
+      return response;
+    },
+    update: async (id: number, data: Partial<Omit<AgentTemplate, 'id' | 'created_at' | 'updated_at'>>) => {
+      const response = await apiClient.put<{ data: AgentTemplate }>(`/admin/agent_templates/${id}`, {
+        agent_template: data,
+      });
+      return response;
+    },
+    destroy: async (id: number) => {
+      const response = await apiClient.delete(`/admin/agent_templates/${id}`);
       return response;
     },
   },
