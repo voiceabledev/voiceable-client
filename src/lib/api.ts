@@ -1206,6 +1206,16 @@ export interface AdminAgent {
   published: boolean;
   created_at: string;
   updated_at: string;
+  conversation_config?: Record<string, unknown>;
+  client_tools?: Array<Record<string, unknown>>;
+  webhook_tools?: Array<Record<string, unknown>>;
+  integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
+  phone_numbers?: Array<{
+    id: number;
+    phone_number: string;
+    provider: string;
+    elevenlabs_phone_number_id?: string;
+  }>;
 }
 
 export interface AdminIntegration {

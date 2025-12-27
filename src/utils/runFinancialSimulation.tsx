@@ -29,7 +29,11 @@ interface SimulationResults {
   };
 }
 
-export function FinancialSimulationRunner() {
+interface FinancialSimulationRunnerProps {
+  hideHeader?: boolean;
+}
+
+export function FinancialSimulationRunner({ hideHeader = false }: FinancialSimulationRunnerProps = {}) {
   const [selectedScenario, setSelectedScenario] = useState<keyof typeof SCENARIOS>('moderate');
   const [months, setMonths] = useState(12);
   const [customConfig, setCustomConfig] = useState<SimulationConfig>(SCENARIOS.moderate);
@@ -61,13 +65,15 @@ export function FinancialSimulationRunner() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Financial Simulation</h1>
-        <p className="text-muted-foreground">
-          Project revenue, costs, and profitability based on user growth and usage patterns
-        </p>
-      </div>
+    <div className={`space-y-6 ${hideHeader ? '' : 'p-6 max-w-7xl mx-auto'}`}>
+      {!hideHeader && (
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Financial Simulation</h1>
+          <p className="text-muted-foreground">
+            Project revenue, costs, and profitability based on user growth and usage patterns
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>

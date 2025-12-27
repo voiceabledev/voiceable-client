@@ -1,8 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -18,9 +31,17 @@ import {
   Users,
   CheckCircle,
   XCircle,
+  ExternalLink,
+  Phone,
+  Code,
+  Webhook,
+  Plug,
+  FileText,
+  ChevronDown,
 } from "lucide-react";
 import { adminApi, AdminAgent } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import ConversationsTab from "@/components/assistants/ConversationsTab";
 
 export default function AdminAgents() {
   const navigate = useNavigate();
@@ -36,14 +57,24 @@ export default function AdminAgents() {
     total_pages: 1,
     has_more: false,
   });
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [agentDetails, setAgentDetails] = useState<AdminAgent | null>(null);
+  const [loadingAgent, setLoadingAgent] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
       const response = await adminApi.agents.list({ page, per_page: 30 });
       if (response.data) {
         setAgents(response.data.data || []);
-        setPagination(response.data.pagination || pagination);
+        setPagination(response.data.pagination || {
+          page: 1,
+          per_page: 30,
+          total: 0,
+          total_pages: 1,
+          has_more: false,
+        });
       }
     } catch (error) {
       console.error("Error fetching agents:", error);
@@ -55,16 +86,47 @@ export default function AdminAgents() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, toast]);
 
   useEffect(() => {
     fetchAgents();
-  }, [page]);
+  }, [fetchAgents]);
 
   const filteredAgents = agents.filter(agent =>
     agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     agent.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleAgentClick = async (agentId: number) => {
+    setSelectedAgentId(agentId);
+    setDialogOpen(true);
+    setLoadingAgent(true);
+    
+    try {
+      const response = await adminApi.agents.show(agentId);
+      if (response.data?.data) {
+        setAgentDetails(response.data.data);
+      } else if (response.data && typeof response.data === 'object' && 'id' in response.data) {
+        // Fallback: if data is directly in response.data
+        setAgentDetails(response.data as unknown as AdminAgent);
+      }
+    } catch (error) {
+      console.error("Error fetching agent details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load agent details.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingAgent(false);
+    }
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedAgentId(null);
+    setAgentDetails(null);
+  };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -132,7 +194,16 @@ export default function AdminAgents() {
                   ) : (
                     filteredAgents.map((agent) => (
                       <TableRow key={agent.id}>
-                        <TableCell className="font-medium">{agent.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <Button
+                            variant="link"
+                            className="h-auto p-0 text-primary hover:underline font-medium"
+                            onClick={() => handleAgentClick(agent.id)}
+                          >
+                            {agent.name}
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </Button>
+                        </TableCell>
                         <TableCell>{agent.user_email || `User #${agent.user_id}`}</TableCell>
                         <TableCell>
                           {agent.published ? (
@@ -186,6 +257,334 @@ export default function AdminAgents() {
           )}
         </div>
       </div>
+
+      {/* Agent Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
+        <DialogContent className="max-w-6xl h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogTitle>Agent Details</DialogTitle>
+            <DialogDescription>
+              View agent information and conversations
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingAgent ? (
+            <div className="flex items-center justify-center py-12 flex-1">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : agentDetails ? (
+            <div className="flex-1 overflow-hidden flex flex-col px-6 pb-6">
+              <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden min-h-0">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="tools">Tools</TabsTrigger>
+                  <TabsTrigger value="prompt">Prompt</TabsTrigger>
+                  <TabsTrigger value="phone-numbers">Phone Numbers</TabsTrigger>
+                  <TabsTrigger value="conversations">Conversations</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="details" className="flex-1 overflow-y-auto mt-0">
+                  <div className="space-y-6">
+                    {/* Basic Information */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Name</label>
+                          <p className="text-base font-semibold">{agentDetails.name}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Status</label>
+                          <div className="mt-1">
+                            {agentDetails.published ? (
+                              <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Published
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Unpublished
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">User</label>
+                          <p className="text-base">{agentDetails.user_email || `User #${agentDetails.user_id}`}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">ElevenLabs Agent ID</label>
+                          <p className="text-sm font-mono">{agentDetails.elevenlabs_agent_id || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Created</label>
+                          <p className="text-base">{new Date(agentDetails.created_at).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Updated</label>
+                          <p className="text-base">{new Date(agentDetails.updated_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="tools" className="flex-1 overflow-y-auto mt-0">
+                  <div className="space-y-6">
+                    {/* Integration Tools */}
+                    {agentDetails.integration_tools && Object.keys(agentDetails.integration_tools).length > 0 ? (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Plug className="h-5 w-5" />
+                          Integration Tools
+                        </h3>
+                        <div className="space-y-2">
+                          {Object.entries(agentDetails.integration_tools).map(([type, config]) => (
+                            <div key={type} className="border rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium capitalize">{type.replace('_', ' ')}</span>
+                                <Badge variant={config.enabled ? "default" : "secondary"}>
+                                  {config.enabled ? "Enabled" : "Disabled"}
+                                </Badge>
+                              </div>
+                              {config.enabled_tools && config.enabled_tools.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-sm text-muted-foreground mb-1">Enabled Tools:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {config.enabled_tools.map((tool) => (
+                                      <Badge key={tool} variant="outline" className="text-xs">
+                                        {tool}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Plug className="h-5 w-5" />
+                          Integration Tools
+                        </h3>
+                        <p className="text-muted-foreground">No integration tools configured</p>
+                      </div>
+                    )}
+
+                    {/* Webhook Tools */}
+                    {agentDetails.webhook_tools && agentDetails.webhook_tools.length > 0 ? (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Webhook className="h-5 w-5" />
+                          Webhook Tools ({agentDetails.webhook_tools.length})
+                        </h3>
+                        <div className="space-y-2">
+                          {agentDetails.webhook_tools.map((tool: Record<string, unknown>, index: number) => (
+                            <div key={index} className="border rounded-lg p-3">
+                              <div className="font-medium">{tool.name as string || `Webhook ${index + 1}`}</div>
+                              {tool.url && (
+                                <p className="text-sm text-muted-foreground mt-1 font-mono truncate">
+                                  {(tool.url as string).substring(0, 60)}...
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Webhook className="h-5 w-5" />
+                          Webhook Tools
+                        </h3>
+                        <p className="text-muted-foreground">No webhook tools configured</p>
+                      </div>
+                    )}
+
+                    {/* Client Tools */}
+                    {agentDetails.client_tools && agentDetails.client_tools.length > 0 ? (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Code className="h-5 w-5" />
+                          Client Tools ({agentDetails.client_tools.length})
+                        </h3>
+                        <div className="space-y-2">
+                          {agentDetails.client_tools.map((tool: Record<string, unknown>, index: number) => (
+                            <div key={index} className="border rounded-lg p-3">
+                              <div className="font-medium">{tool.name as string || `Client Tool ${index + 1}`}</div>
+                              {tool.description && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {tool.description as string}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Code className="h-5 w-5" />
+                          Client Tools
+                        </h3>
+                        <p className="text-muted-foreground">No client tools configured</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="prompt" className="flex-1 overflow-y-auto mt-0">
+                  {agentDetails.conversation_config ? (() => {
+                    const config = agentDetails.conversation_config as Record<string, unknown>;
+                    const templatePrompt = config.system_prompt_template as string | undefined;
+                    const toolsPrompt = config.system_prompt_tools as string | undefined;
+                    const behavioursPrompt = config.system_prompt_behaviours as string | undefined;
+                    
+                    const hasAnyPrompt = templatePrompt || toolsPrompt || behavioursPrompt;
+                    
+                    if (!hasAnyPrompt) {
+                      return (
+                        <div className="flex items-center justify-center py-12">
+                          <p className="text-muted-foreground">No prompt configured</p>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            System Prompt Components
+                          </h3>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {/* Template Prompt */}
+                          {templatePrompt && (
+                            <Collapsible defaultOpen={false}>
+                              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                                <span className="text-sm font-medium">Template System Prompt</span>
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="bg-muted rounded-lg p-4 mt-2">
+                                  <pre className="text-sm whitespace-pre-wrap font-mono overflow-x-auto max-h-96 overflow-y-auto">
+                                    {templatePrompt}
+                                  </pre>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          
+                          {/* Tools Prompt */}
+                          {toolsPrompt && (
+                            <Collapsible defaultOpen={false}>
+                              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                                <span className="text-sm font-medium">Tools System Prompt</span>
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="bg-muted rounded-lg p-4 mt-2">
+                                  <pre className="text-sm whitespace-pre-wrap font-mono overflow-x-auto max-h-96 overflow-y-auto">
+                                    {toolsPrompt}
+                                  </pre>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          
+                          {/* Behaviours Prompt */}
+                          {behavioursPrompt && (
+                            <Collapsible defaultOpen={false}>
+                              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+                                <span className="text-sm font-medium">Behaviours System Prompt</span>
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="bg-muted rounded-lg p-4 mt-2">
+                                  <pre className="text-sm whitespace-pre-wrap font-mono overflow-x-auto max-h-96 overflow-y-auto">
+                                    {behavioursPrompt}
+                                  </pre>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })() : (
+                    <div className="flex items-center justify-center py-12">
+                      <p className="text-muted-foreground">No conversation config available</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="phone-numbers" className="flex-1 overflow-y-auto mt-0">
+                  {agentDetails.phone_numbers && agentDetails.phone_numbers.length > 0 ? (
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Phone className="h-5 w-5" />
+                          Phone Numbers ({agentDetails.phone_numbers.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        {agentDetails.phone_numbers.map((phone) => (
+                          <div key={phone.id} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-medium font-mono text-lg">{phone.phone_number}</p>
+                                <p className="text-sm text-muted-foreground capitalize mt-1">{phone.provider}</p>
+                              </div>
+                              {phone.elevenlabs_phone_number_id && (
+                                <div className="ml-4">
+                                  <p className="text-xs text-muted-foreground mb-1">ElevenLabs ID</p>
+                                  <Badge variant="outline" className="text-xs font-mono">
+                                    {phone.elevenlabs_phone_number_id.substring(0, 12)}...
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-12">
+                      <p className="text-muted-foreground">No phone numbers associated with this agent</p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="conversations" className="flex-1 overflow-hidden mt-0 min-h-0">
+                  {agentDetails.elevenlabs_agent_id ? (
+                    <div className="h-full overflow-hidden">
+                      <ConversationsTab 
+                        assistantName={agentDetails.name} 
+                        agentId={agentDetails.elevenlabs_agent_id} 
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-12 h-full">
+                      <p className="text-muted-foreground">
+                        No ElevenLabs Agent ID available. Conversations cannot be loaded.
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12 flex-1">
+              <p className="text-muted-foreground">No agent details available</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

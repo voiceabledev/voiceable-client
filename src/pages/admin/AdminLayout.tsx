@@ -17,16 +17,47 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const adminNavItems = [
-  { icon: Users, label: "Users", path: "/admin/users" },
-  { icon: Users2, label: "Agents", path: "/admin/agents" },
-  { icon: Plug, label: "Integrations", path: "/admin/integrations" },
-  { icon: PhoneOutgoing, label: "Campaigns", path: "/admin/campaigns" },
-  { icon: Phone, label: "Phone Numbers", path: "/admin/phone-numbers" },
-  { icon: Key, label: "API Keys", path: "/admin/api-keys" },
-  { icon: CreditCard, label: "Payments", path: "/admin/payments" },
-  { icon: TrendingDown, label: "Conversation Spending", path: "/admin/conversation-spending" },
-  { icon: Calculator, label: "Financial Simulation", path: "/admin/financial-simulation" },
+interface NavItem {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  path: string;
+}
+
+interface NavCategory {
+  label: string;
+  items: NavItem[];
+}
+
+const adminNavCategories: NavCategory[] = [
+  {
+    label: "Users & Agents",
+    items: [
+      { icon: Users, label: "Users", path: "/admin/users" },
+      { icon: Users2, label: "Agents", path: "/admin/agents" },
+    ],
+  },
+  {
+    label: "Integrations & Access",
+    items: [
+      { icon: Plug, label: "Integrations", path: "/admin/integrations" },
+      { icon: Key, label: "API Keys", path: "/admin/api-keys" },
+    ],
+  },
+  {
+    label: "Communication",
+    items: [
+      { icon: PhoneOutgoing, label: "Campaigns", path: "/admin/campaigns" },
+      { icon: Phone, label: "Phone Numbers", path: "/admin/phone-numbers" },
+    ],
+  },
+  {
+    label: "Financial",
+    items: [
+      { icon: CreditCard, label: "Payments", path: "/admin/payments" },
+      { icon: TrendingDown, label: "Conversation Spending", path: "/admin/conversation-spending" },
+      { icon: Calculator, label: "Financial Simulation", path: "/admin/financial-simulation" },
+    ],
+  },
 ];
 
 export default function AdminLayout() {
@@ -92,27 +123,36 @@ export default function AdminLayout() {
           className="w-64 border-r border-border bg-card/50 flex-shrink-0 fixed left-0 overflow-y-auto z-10" 
           style={{ top: `${headerHeight}px`, height: `calc(100vh - ${headerHeight}px - ${footerHeight}px)` }}
         >
-          <nav className="p-4 space-y-1">
-            {adminNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    )
-                  }
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
+          <nav className="p-4 space-y-6">
+            {adminNavCategories.map((category) => (
+              <div key={category.label} className="space-y-2">
+                <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {category.label}
+                </h3>
+                <div className="space-y-1">
+                  {category.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          )
+                        }
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
         </aside>
 
