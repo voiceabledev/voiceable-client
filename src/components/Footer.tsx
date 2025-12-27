@@ -9,7 +9,7 @@ const footerLinks = {
     { name: "Leads Reviver", href: "/leads-reviver" },
     { name: "Appointment Confirmation", href: "/confirmation" },
     { name: "Pricing", href: "/pricing" },
-    // { name: "Documentation", href: "https://contextor.mintlify.app/" }
+    // { name: "Documentation", href: "https://voiceable.mintlify.app/" }
   ],
   company: [
     // { name: "About", href: "/about" },

@@ -560,7 +560,7 @@ const CustomAgents = () => {
               variant="outline"
               className="uppercase tracking-wider text-xs py-6 px-12"
               onClick={() => {
-                window.location.href = "https://contextor.mintlify.app/";
+                window.location.href = "https://voiceable.mintlify.app/";
               }}
             >
               Read the Docs

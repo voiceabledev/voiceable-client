@@ -39,7 +39,7 @@ export function Header({ title, showDocs = true, rightContent }: HeaderProps) {
       <div className="flex items-center gap-2">
         {showDocs && (
           <>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => window.open('https://contextor.mintlify.app/', '_blank')}>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => window.open('https://voiceable.mintlify.app/', '_blank')}>
               <FileText className="h-4 w-4 mr-2" />
               Docs
             </Button>
