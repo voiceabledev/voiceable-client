@@ -35,7 +35,7 @@ const buildItems = [
   // { icon: FileText, label: "Knowledge Base", path: "/files" },
   // { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
   { icon: Key, label: "Integrations", path: "/settings/integrations" },
-  // { icon: Key, label: "API Keys", path: "/api-keys" },
+  { icon: Key, label: "API Keys", path: "/api-keys" },
 ];
 
 const evaluateItems = [

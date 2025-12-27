@@ -59,7 +59,43 @@ import { AdminRoute } from "@/components/AdminRoute";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+// Component to handle docs subdomain - embed Mintlify docs
+const DocsViewer = () => {
+  return (
+    <div style={{ width: '100%', height: '100vh', margin: 0, padding: 0, overflow: 'hidden' }}>
+      <iframe
+        src="https://contextor.mintlify.app/"
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          display: 'block'
+        }}
+        title="Voiceable.dev API Documentation"
+        allow="fullscreen"
+      />
+    </div>
+  );
+};
+
+// Check if current hostname is docs subdomain
+const isDocsSubdomain = () => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return hostname.startsWith('docs.') || hostname === 'docs.voiceable.dev';
+};
+
+const App = () => {
+  // If on docs subdomain, show docs viewer
+  if (isDocsSubdomain()) {
+    return (
+      <HelmetProvider>
+        <DocsViewer />
+      </HelmetProvider>
+    );
+  }
+
+  return (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -132,6 +168,7 @@ const App = () => (
       </AuthProvider>
     </QueryClientProvider>
   </HelmetProvider>
-);
+  );
+};
 
 export default App;

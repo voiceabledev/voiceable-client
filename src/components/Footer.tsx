@@ -12,8 +12,8 @@ const footerLinks = {
     // { name: "Documentation", href: "https://contextor.mintlify.app/" }
   ],
   company: [
-    { name: "About", href: "/about" },
-    { name: "Contact", href: "/contact" },
+    // { name: "About", href: "/about" },
+    // { name: "Contact", href: "/contact" },
     { name: "Privacy", href: "/privacy" },
     { name: "Terms", href: "/terms" }
   ]
@@ -68,13 +68,10 @@ export function Footer() {
         <div className="pt-8 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">© 2025 — All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-              <Twitter className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="https://www.linkedin.com/company/voiceable" className="text-muted-foreground hover:text-foreground transition-colors">
               <Linkedin className="w-5 h-5" />
             </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="https://github.com/voiceable" className="text-muted-foreground hover:text-foreground transition-colors">
               <Github className="w-5 h-5" />
             </a>
           </div>
