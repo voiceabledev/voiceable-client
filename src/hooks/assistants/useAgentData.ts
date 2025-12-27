@@ -29,6 +29,7 @@ export function useAgentData(
   setSystemToolSettings: (settings: SystemToolSetting) => void
 ) {
   const [agent, setAgent] = useState<Agent | null>(null);
+  const [conversationConfig, setConversationConfig] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -50,6 +51,8 @@ export function useAgentData(
       const raw = response.data as unknown as Record<string, unknown>;
 
       const conversationConfig = (raw.conversation_config || {}) as Record<string, unknown>;
+      // Store the full conversation_config for accessing system prompt
+      setConversationConfig(conversationConfig);
       const platformSettings = (raw.platform_settings || {}) as Record<string, unknown>;
       const modelConfig = (conversationConfig.model || {}) as Record<string, unknown>;
       const transcriberConfig = (conversationConfig.transcriber || {}) as Record<string, unknown>;
@@ -331,8 +334,47 @@ export function useAgentData(
         }
       });
 
+      // Build system prompt from three components:
+      // 1. system_prompt_template: Base template selected when creating the agent
+      // 2. system_prompt_tools: Integration tool prompts (managed by backend)
+      // 3. system_prompt_behaviours: Formatted behavior sections (scenarios, phases, voice tone)
+      // CRITICAL: Use conversationConfig state (from API) instead of agent.conversation_config
+      const currentConfig = conversationConfig || {};
+      
+      // Read the three components
+      const systemPromptTemplate = (currentConfig.system_prompt_template as string) || "";
+      const systemPromptTools = (currentConfig.system_prompt_tools as string) || "";
+      
+      // Backward compatibility: If system_prompt_template is missing, try to read from existing prompt
+      let templateToUse = systemPromptTemplate;
+      if (!templateToUse) {
+        const currentModelConfig = (currentConfig.model as Record<string, unknown>) || {};
+        const currentMessages = (currentModelConfig.messages as Array<{ role: string; content: string }>) || [];
+        const currentSystemMessage = currentMessages.find(m => m.role === 'system');
+        const existingPrompt = (currentSystemMessage?.content as string) || "";
+        
+        if (existingPrompt) {
+          // Try to extract template by removing integration prompts and behavior sections
+          let extractedTemplate = existingPrompt;
+          // Remove integration prompts (marked with === INTEGRATION_INSTRUCTIONS_* ===)
+          extractedTemplate = extractedTemplate.replace(/\n=== INTEGRATION_INSTRUCTIONS_\w+ ===[\s\S]*?(?=\n=== INTEGRATION_INSTRUCTIONS_|$)/g, '').trim();
+          // Remove behavior sections (Additional Scenarios, Additional Conversation Phases, Additional Voice & Tone)
+          extractedTemplate = extractedTemplate.replace(/## Additional (Scenarios|Conversation Phases|Voice & Tone)[\s\S]*?(?=\n## |\n=== |$)/g, '').trim();
+          if (extractedTemplate) {
+            templateToUse = extractedTemplate;
+          }
+        }
+      }
+      
+      if (!templateToUse) {
+        console.warn("No system_prompt_template found. Using default fallback.");
+        templateToUse = "# Customer Service & Support Agent Prompt\n";
+      }
+      
       // Build conversation_config with all the nested fields
-      const conversationConfig: Record<string, unknown> = {
+      // Start by preserving existing config structure to avoid losing data
+      const updatedConversationConfig: Record<string, unknown> = {
+        ...currentConfig, // Preserve all existing config first
         voice_id: agent.voice_id || undefined,
         first_message: agent.first_message || undefined,
         first_message_mode: agent.first_message_mode || undefined,
@@ -347,51 +389,117 @@ export function useAgentData(
         },
       };
 
-      // Add model configuration if provider and model are set
-      if (agent.provider || agent.model) {
-        conversationConfig.model = {
-          provider: agent.provider || 'openai',
-          model: agent.model || '',
-        };
-      }
-
       // Add transcriber configuration if language is set
       if (agent.language) {
-        conversationConfig.transcriber = {
+        updatedConversationConfig.transcriber = {
           language: agent.language,
         };
       }
+      
+      // Format behavior sections for system_prompt_behaviours
+      const formatSectionContent = (sectionTitle: string, sectionDescription: string, entries: SectionEntry[]): string => {
+        if (entries.length === 0) return "";
 
-      // Build system prompt from prompt sections
-      const systemPromptParts: string[] = [];
-      if (scenarios.length > 0 || phases.length > 0 || voiceTone.length > 0) {
-        scenarios.forEach(s => {
-          if (s.title || s.description) {
-            systemPromptParts.push(`## ${s.title || 'Untitled'}\n${s.description || ''}`);
-          }
-        });
-        phases.forEach(p => {
-          if (p.title || p.description) {
-            systemPromptParts.push(`## ${p.title || 'Untitled'}\n${p.description || ''}`);
-          }
-        });
-        voiceTone.forEach(v => {
-          if (v.title || v.description) {
-            systemPromptParts.push(`## ${v.title || 'Untitled'}\n${v.description || ''}`);
-          }
-        });
-      }
+        const formattedEntries = entries
+          .map((entry) => {
+            const title = entry.title.trim();
+            const description = entry.description.trim();
+            const notes = entry.notes?.trim();
 
-      if (systemPromptParts.length > 0) {
-        const modelConfig = (conversationConfig.model as Record<string, unknown>) || {};
-        modelConfig.messages = [
-          {
-            role: 'system',
-            content: systemPromptParts.join('\n\n')
-          }
-        ];
-        conversationConfig.model = modelConfig;
+            if (!title && !description) return null;
+
+            let content = `- **${title || "Untitled"}**`;
+            if (description) {
+              content += `\n  ${description}`;
+            }
+            if (notes) {
+              content += `\n  _Note: ${notes}_`;
+            }
+            return content;
+          })
+          .filter(Boolean)
+          .join("\n\n");
+
+        if (!formattedEntries) return "";
+        return `## ${sectionTitle}\n\n${sectionDescription}\n\n${formattedEntries}`;
+      };
+      
+      // Build behavior sections
+      const behaviourSections: string[] = [];
+      
+      if (scenarios.length > 0) {
+        const scenariosContent = formatSectionContent(
+          "Additional Scenarios",
+          "These are additional scenarios you should be prepared to handle:",
+          scenarios
+        );
+        if (scenariosContent) {
+          behaviourSections.push(scenariosContent);
+        }
       }
+      
+      if (phases.length > 0) {
+        const phasesContent = formatSectionContent(
+          "Additional Conversation Phases",
+          "Follow these additional phases during the conversation:",
+          phases
+        );
+        if (phasesContent) {
+          behaviourSections.push(phasesContent);
+        }
+      }
+      
+      if (voiceTone.length > 0) {
+        const voiceToneContent = formatSectionContent(
+          "Additional Voice & Tone",
+          "Maintain these additional tone and communication style guidelines:",
+          voiceTone
+        );
+        if (voiceToneContent) {
+          behaviourSections.push(voiceToneContent);
+        }
+      }
+      
+      // Build system_prompt_behaviours from formatted sections
+      const systemPromptBehaviours = behaviourSections.join("\n\n");
+      
+      // Combine the three components: template + tools + behaviours
+      const promptParts: string[] = [];
+      if (templateToUse) {
+        promptParts.push(templateToUse.trim());
+      }
+      if (systemPromptTools) {
+        promptParts.push(systemPromptTools.trim());
+      }
+      if (systemPromptBehaviours) {
+        promptParts.push(systemPromptBehaviours.trim());
+      }
+      
+      const finalPrompt = promptParts.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+      
+      // Update system message with the final combined prompt
+      const currentModelConfig = (currentConfig.model as Record<string, unknown>) || {};
+      const currentMessages = (currentModelConfig.messages as Array<{ role: string; content: string }>) || [];
+      const existingMessages = currentMessages.filter(m => m.role !== 'system');
+      existingMessages.unshift({
+        role: 'system',
+        content: finalPrompt
+      });
+      
+      const modelConfig = { ...currentModelConfig };
+      modelConfig.messages = existingMessages;
+      
+      // Update model provider/model if set
+      if (agent.provider || agent.model) {
+        modelConfig.provider = agent.provider || 'openai';
+        modelConfig.model = agent.model || '';
+      }
+      
+      // Save the three components and the combined prompt
+      updatedConversationConfig.system_prompt_template = templateToUse;
+      updatedConversationConfig.system_prompt_tools = systemPromptTools;
+      updatedConversationConfig.system_prompt_behaviours = systemPromptBehaviours;
+      updatedConversationConfig.model = modelConfig;
 
       // Build system tools payload with description and disableInterruptions for each tool
       const systemToolsPayload: Record<string, unknown> = {};
@@ -432,7 +540,7 @@ export function useAgentData(
 
       const basePayload = {
         name: agent.name,
-        conversation_config: conversationConfig,
+        conversation_config: updatedConversationConfig,
         system_tools: systemToolsPayload,
         webhook_tools: webhookTools,
         client_tools: clientTools,
@@ -467,14 +575,9 @@ export function useAgentData(
         }
       } else {
         await agentsApi.update(id, payload as unknown as Parameters<typeof agentsApi.update>[1]);
-        // Refresh the agent data after saving to ensure UI is in sync
-        await fetchAgentDetails();
+        // Don't refresh after save - state is already updated locally
+        // This prevents double refresh when deleting integrations (handlePublish will refresh)
       }
-
-      toast({
-        title: "Success",
-        description: "Assistant saved successfully.",
-      });
     } catch (error) {
       console.error("Failed to save agent:", error);
       toast({
@@ -485,7 +588,7 @@ export function useAgentData(
     } finally {
       setSaving(false);
     }
-  }, [agent, id, fetchAgentDetails, toast]);
+  }, [agent, conversationConfig, id, toast]);
 
   const handlePublish = useCallback(async () => {
     if (!id || id === "create") return;
@@ -515,6 +618,7 @@ export function useAgentData(
 
   return {
     agent,
+    conversationConfig,
     setAgent,
     loading,
     saving,

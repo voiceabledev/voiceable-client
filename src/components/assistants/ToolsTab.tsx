@@ -123,6 +123,13 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
           // Pass the integration type directly - the hook will handle fetching if needed
           onEditIntegration(integrationType);
         }}
+        onDeleteIntegration={async (integrationType) => {
+          // Find the user integration by type to get its ID
+          const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
+          if (userIntegration?.id) {
+            await onDeleteIntegration(String(userIntegration.id));
+          }
+        }}
         onToggleTool={onToggleIntegrationTool}
         INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
         getIntegrationIcon={getIntegrationIcon}

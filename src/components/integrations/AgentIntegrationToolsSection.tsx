@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
-import { ChevronDown, Edit, Plus } from "lucide-react";
+import { ChevronDown, Edit, Plus, Trash2, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 type AgentIntegrationToolsState = Record<
@@ -20,6 +20,7 @@ type AgentIntegrationToolsSectionProps = {
   onToggleIntegrationExpanded: (integrationType: string) => void;
   onOpenAddIntegrationModal: () => void;
   onOpenEditIntegrationModal: (integrationType: string) => void;
+  onDeleteIntegration: (integrationType: string) => Promise<void>;
   onToggleTool: (integrationType: string, displayName: string, enabled: boolean) => void;
   INTEGRATION_TOOLS_DISPLAY: Record<string, string[]>;
   getIntegrationIcon: (integrationType: string) => string;
@@ -35,6 +36,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   onToggleIntegrationExpanded,
   onOpenAddIntegrationModal,
   onOpenEditIntegrationModal,
+  onDeleteIntegration,
   onToggleTool,
   INTEGRATION_TOOLS_DISPLAY,
   getIntegrationIcon,
@@ -42,6 +44,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   displayNameToActionName,
 }) => {
   const connectedCount = Object.keys(agentIntegrationTools).length;
+  const [deletingIntegrationType, setDeletingIntegrationType] = useState<string | null>(null);
 
   return (
     <div className="bg-card border border-border rounded-lg p-4 md:p-6">
@@ -101,6 +104,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
@@ -114,6 +118,33 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={deletingIntegrationType !== null}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will disable all tools for this integration.`)) {
+                              setDeletingIntegrationType(integrationType);
+                              try {
+                                await onDeleteIntegration(integrationType);
+                              } finally {
+                                setDeletingIntegrationType(null);
+                              }
+                            }
+                          }}
+                          title="Remove integration from agent"
+                        >
+                          {deletingIntegrationType === integrationType ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"

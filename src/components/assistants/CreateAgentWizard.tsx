@@ -184,7 +184,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     notes: "",
   });
 
-  // Generate system prompt from sections
+  // Generate system prompt from template and custom sections
+  // This ensures the template is preserved and only custom sections are added/removed
   const generateSystemPrompt = (): string => {
     const formatSectionContent = (sectionTitle: string, sectionDescription: string, entries: SectionEntry[]): string => {
       if (entries.length === 0) return "";
@@ -214,41 +215,115 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       return `## ${sectionTitle}\n\n${sectionDescription}\n\n${formattedEntries}`;
     };
 
+    // Preserve the original template prompt exactly as provided
+    const templatePrompt = initialData?.systemPrompt || "";
+    
+    // Check for custom sections
     const hasScenarios = scenarios.length > 0;
     const hasPhases = phases.length > 0;
     const hasVoiceTone = voiceTone.length > 0;
-    const hasSections = hasScenarios || hasPhases || hasVoiceTone;
-
-    if (!hasSections) {
+    const hasCustomSections = hasScenarios || hasPhases || hasVoiceTone;
+    
+    // If no template and no custom sections, use default
+    if (!templatePrompt && !hasCustomSections) {
       return DEFAULT_SYSTEM_PROMPT;
     }
+    
+    // If no template but we have custom sections, use the simple template structure
+    if (!templatePrompt && hasCustomSections) {
+      const scenariosContent = formatSectionContent(
+        "Scenarios",
+        "These are the main scenarios you should be prepared to handle:",
+        scenarios
+      );
 
-    const scenariosContent = formatSectionContent(
-      "Scenarios",
-      "These are the main scenarios you should be prepared to handle:",
-      scenarios
-    );
+      const phasesContent = formatSectionContent(
+        "Conversation Phases",
+        "Follow these phases during the conversation:",
+        phases
+      );
 
-    const phasesContent = formatSectionContent(
-      "Conversation Phases",
-      "Follow these phases during the conversation:",
-      phases
-    );
+      const voiceToneContent = formatSectionContent(
+        "Voice & Tone",
+        "Maintain the following tone and communication style:",
+        voiceTone
+      );
 
-    const voiceToneContent = formatSectionContent(
-      "Voice & Tone",
-      "Maintain the following tone and communication style:",
-      voiceTone
-    );
+      const prompt = PROMPT_TEMPLATE
+        .replace("{{SCENARIOS}}", scenariosContent)
+        .replace("{{PHASES}}", phasesContent)
+        .replace("{{VOICE_TONE}}", voiceToneContent)
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
 
-    const prompt = PROMPT_TEMPLATE
-      .replace("{{SCENARIOS}}", scenariosContent)
-      .replace("{{PHASES}}", phasesContent)
-      .replace("{{VOICE_TONE}}", voiceToneContent)
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-
-    return prompt;
+      return prompt;
+    }
+    
+    // We have a template prompt - preserve it exactly and only append custom sections
+    if (!hasCustomSections) {
+      // No custom sections, return template as-is
+      return templatePrompt;
+    }
+    
+    // Remove any existing custom sections from template (if editing an existing agent)
+    // This ensures we don't duplicate sections when rebuilding
+    const customSectionMarkers = [
+      /## Additional Scenarios[\s\S]*?(?=\n## |\n=== |$)/,
+      /## Additional Conversation Phases[\s\S]*?(?=\n## |\n=== |$)/,
+      /## Additional Voice & Tone[\s\S]*?(?=\n## |\n=== |$)/,
+    ];
+    
+    let cleanedTemplate = templatePrompt;
+    customSectionMarkers.forEach(marker => {
+      cleanedTemplate = cleanedTemplate.replace(marker, '').trim();
+    });
+    cleanedTemplate = cleanedTemplate.replace(/\n{3,}/g, "\n\n").trim();
+    
+    // Build new custom sections
+    const customSections: string[] = [];
+    
+    if (hasScenarios) {
+      const scenariosContent = formatSectionContent(
+        "Additional Scenarios",
+        "These are additional scenarios you should be prepared to handle:",
+        scenarios
+      );
+      if (scenariosContent) {
+        customSections.push(scenariosContent);
+      }
+    }
+    
+    if (hasPhases) {
+      const phasesContent = formatSectionContent(
+        "Additional Conversation Phases",
+        "Follow these additional phases during the conversation:",
+        phases
+      );
+      if (phasesContent) {
+        customSections.push(phasesContent);
+      }
+    }
+    
+    if (hasVoiceTone) {
+      const voiceToneContent = formatSectionContent(
+        "Additional Voice & Tone",
+        "Maintain these additional tone and communication style guidelines:",
+        voiceTone
+      );
+      if (voiceToneContent) {
+        customSections.push(voiceToneContent);
+      }
+    }
+    
+    // Append custom sections to cleaned template
+    // This preserves the template structure while adding/updating custom sections
+    if (customSections.length > 0) {
+      const appendedSections = customSections.join("\n\n");
+      return `${cleanedTemplate}\n\n${appendedSections}`.replace(/\n{3,}/g, "\n\n").trim();
+    }
+    
+    // No custom sections, return cleaned template
+    return cleanedTemplate || templatePrompt;
   };
 
   const systemPrompt = generateSystemPrompt();
@@ -542,11 +617,16 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               }
             ]
           },
-          // Include section entries in conversation_config
-          // Use Portuguese field names to match AssistantDetail.tsx
-          ...(serializedScenarios.length > 0 && { cenarios: serializedScenarios }),
-          ...(serializedPhases.length > 0 && { etapas: serializedPhases }),
-          ...(serializedTone.length > 0 && { tom_de_voz: serializedTone }),
+          // Save the template prompt if provided (from template selection)
+          ...(initialData?.systemPrompt ? {
+            system_prompt_template: initialData.systemPrompt
+          } : {}),
+          // Include section entries in prompt_sections (matching useAgentData.ts structure)
+          prompt_sections: {
+            scenarios: serializedScenarios,
+            phases: serializedPhases,
+            voiceTone: serializedTone,
+          },
           transcriber: {
             provider: "elevenlabs",
             language: selectedLanguage || "english",

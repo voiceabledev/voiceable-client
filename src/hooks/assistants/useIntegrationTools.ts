@@ -488,18 +488,7 @@ export function useIntegrationTools(
     showIntegrationModalRef.current = showIntegrationModal;
   }, [showIntegrationModal]);
   
-  // Wrap setShowIntegrationModal to add logging
   const setShowIntegrationModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    const currentValue = showIntegrationModalRef.current;
-    const newValue = typeof value === 'function' ? value(currentValue) : value;
-    console.log('[useIntegrationTools] setShowIntegrationModal called', {
-      value: newValue,
-      currentValue: currentValue,
-      isSavingToolsRef: isSavingToolsRef.current,
-      isClosingModalRef: isClosingModalRef.current,
-      timestamp: new Date().toISOString(),
-      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n')
-    });
     setShowIntegrationModalRaw(value);
   }, []);
   const [integrationModalStep, setIntegrationModalStep] = useState<"select" | "connect" | "tools">("select");
@@ -509,11 +498,6 @@ export function useIntegrationTools(
   const [connectingIntegrationLoading, setConnectingIntegrationLoading] = useState(false);
   const [editingIntegrationConfig, setEditingIntegrationConfig] = useState<UserIntegration | null>(null);
   const [selectedIntegrationToolsForModal, setSelectedIntegrationToolsForModal] = useState<string[]>([]);
-  
-  // Ref to track if we're in the process of saving tools (to prevent modal from reopening)
-  const isSavingToolsRef = useRef(false);
-  // Ref to track if we're in the process of closing the modal (to prevent double close)
-  const isClosingModalRef = useRef(false);
   
   const { toast } = useToast();
 
@@ -575,20 +559,12 @@ export function useIntegrationTools(
   }, []);
 
   const openAddIntegrationModal = useCallback(() => {
-    console.log('[useIntegrationTools] openAddIntegrationModal called', {
-      isSavingToolsRef: isSavingToolsRef.current,
-      timestamp: new Date().toISOString(),
-      stackTrace: new Error().stack
-    });
-    // Don't open modal if we're in the process of saving tools
-    if (isSavingToolsRef.current) {
-      console.log('[useIntegrationTools] openAddIntegrationModal: Blocked - saving tools');
-      return;
+    if (showIntegrationModalRef.current) {
+      return; // Already open
     }
-    console.log('[useIntegrationTools] openAddIntegrationModal: Opening modal');
     setIntegrationModalStep("select");
     setShowIntegrationModal(true);
-  }, []);
+  }, [setShowIntegrationModal]);
 
   const selectIntegrationToAdd = useCallback(async (type: string) => {
     setConnectingIntegrationType(type);
@@ -612,8 +588,12 @@ export function useIntegrationTools(
       const existingIntegration = userIntegrations.find(i => i.integration_type === type);
       if (existingIntegration) {
         setEditingIntegrationConfig(existingIntegration);
+        // For existing integrations, don't pre-select all tools - let the useEffect handle it
       } else {
         setEditingIntegrationConfig(null);
+        // For new integrations, pre-select all available tools
+        const availableTools = INTEGRATION_TOOLS_DISPLAY[type as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+        setSelectedIntegrationToolsForModal(availableTools);
       }
     } catch (error) {
       console.error("Failed to fetch integration schema:", error);
@@ -683,23 +663,9 @@ export function useIntegrationTools(
   }, [connectingIntegrationType, userIntegrations, toast]);
 
   const openEditIntegrationModal = useCallback(async (integration: UserIntegration | string): Promise<void> => {
-    console.log('[useIntegrationTools] openEditIntegrationModal called', {
-      integration: typeof integration === 'string' ? integration : integration.integration_type,
-      isSavingToolsRef: isSavingToolsRef.current,
-      isClosingModalRef: isClosingModalRef.current,
-      timestamp: new Date().toISOString(),
-      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n')
-    });
-    // Don't open modal if we're in the process of saving tools or closing
-    if (isSavingToolsRef.current || isClosingModalRef.current) {
-      console.log('[useIntegrationTools] openEditIntegrationModal: Blocked - saving tools or closing modal');
-      return;
-    }
-
-    // Determine integration type immediately
     const integrationType = typeof integration === 'string' ? integration : integration.integration_type;
     
-    // Try to find integration data in the list first (synchronous)
+    // Find integration data in the list
     let integrationData: UserIntegration | null = null;
     if (typeof integration === 'string') {
       integrationData = userIntegrations.find(i => i.integration_type === integration) || null;
@@ -711,18 +677,15 @@ export function useIntegrationTools(
     const enabledToolsForIntegration = agentIntegrationTools
       .filter(tool => tool.integration_type === integrationType && tool.enabled)
       .map(tool => {
-        // Convert action name (snake_case) back to display name
         const displayName = actionNameToDisplayName(tool.tool_name, integrationType);
         return displayName;
       })
       .filter(displayName => {
-        // Only include display names that exist in INTEGRATION_TOOLS_DISPLAY
         const availableTools = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
         return availableTools.includes(displayName);
       });
 
-    // Open the modal immediately with available data
-    console.log('[useIntegrationTools] openEditIntegrationModal: Opening modal');
+    // Open the modal with available data
     setConnectingIntegrationType(integrationType);
     setIntegrationModalStep("connect");
     setIntegrationModalTab("credentials");
@@ -730,15 +693,13 @@ export function useIntegrationTools(
     setSelectedIntegrationToolsForModal(enabledToolsForIntegration);
     setShowIntegrationModal(true);
     
-    // If integration not found in the list, try to fetch it from the API (async, after modal opens)
+    // If integration not found, try to fetch it from the API
     if (!integrationData && typeof integration === 'string') {
       try {
         const response = await integrationsApi.get(integrationType);
         if (response.data) {
           const fetchedIntegration = response.data;
-          // Update the editing config with fetched data
           setEditingIntegrationConfig(fetchedIntegration);
-          // Update the userIntegrations list with the fetched integration
           setUserIntegrations(prev => {
             const existing = prev.find(i => i.id === fetchedIntegration.id);
             if (!existing) {
@@ -748,42 +709,19 @@ export function useIntegrationTools(
           });
         }
       } catch (error) {
-        // Integration not found or not configured - modal is already open in connect mode
-        console.log(`Integration ${integrationType} not found, modal opened in connect mode`);
+        // Integration not found - modal is already open in connect mode
       }
     }
-  }, [userIntegrations, agentIntegrationTools]);
+  }, [userIntegrations, agentIntegrationTools, setShowIntegrationModal]);
 
   const closeIntegrationConnectionModal = useCallback(() => {
-    console.log('[useIntegrationTools] closeIntegrationConnectionModal called', {
-      isClosingModalRef: isClosingModalRef.current,
-      timestamp: new Date().toISOString(),
-      stackTrace: new Error().stack
-    });
-    // Prevent double close
-    if (isClosingModalRef.current) {
-      console.log('[useIntegrationTools] closeIntegrationConnectionModal: Blocked - already closing');
-      return;
-    }
-    isClosingModalRef.current = true;
-    console.log('[useIntegrationTools] closeIntegrationConnectionModal: Set isClosingModalRef to true, updating state...');
-    
     setShowIntegrationModal(false);
     setConnectingIntegrationType(null);
     setEditingIntegrationConfig(null);
     setSelectedIntegrationToolsForModal([]);
     setIntegrationModalStep("select");
     setIntegrationModalTab("about");
-    
-    console.log('[useIntegrationTools] closeIntegrationConnectionModal: State updated, showIntegrationModal set to false');
-    
-    // Reset the flag after a longer delay to prevent modal from reopening
-    // This should match or exceed the isSavingToolsRef timeout to ensure consistent blocking
-    setTimeout(() => {
-      console.log('[useIntegrationTools] closeIntegrationConnectionModal: Resetting isClosingModalRef to false');
-      isClosingModalRef.current = false;
-    }, 1200); // Increased from 100ms to 1200ms to match isSavingToolsRef timeout
-  }, []);
+  }, [setShowIntegrationModal]);
 
   const handleDeleteIntegration = useCallback(async (
     id: string | number,
@@ -860,11 +798,6 @@ export function useIntegrationTools(
     onSave?: (updatedTools: AgentIntegrationTool[], updatedWebhookTools: WebhookTool[]) => Promise<void>,
     onPublish?: () => Promise<void>
   ) => {
-    console.log('[useIntegrationTools] saveSelectedIntegrationTools: Starting', {
-      agentId: agent?.id,
-      connectingIntegrationType,
-      timestamp: new Date().toISOString()
-    });
     if (!agent || !connectingIntegrationType) {
       toast({
         title: "Error",
@@ -874,117 +807,82 @@ export function useIntegrationTools(
       return;
     }
 
-    // Set flag to prevent modal from reopening during save
-    isSavingToolsRef.current = true;
-    console.log('[useIntegrationTools] saveSelectedIntegrationTools: Set isSavingToolsRef to true');
+    const agentId = agent.id || "new";
+    
+    // Convert display names to action names (snake_case)
+    const toolActionNames = selectedIntegrationToolsForModal.map(displayName => 
+      displayNameToActionName(displayName, connectingIntegrationType)
+    );
 
-    try {
-      const agentId = agent.id || "new";
-      
-      // Convert display names to action names (snake_case)
-      const toolActionNames = selectedIntegrationToolsForModal.map(displayName => 
-        displayNameToActionName(displayName, connectingIntegrationType)
+    // Find tools that are being removed
+    const currentToolsForIntegration = agentIntegrationTools.filter(
+      tool => tool.integration_type === connectingIntegrationType
+    );
+    const currentToolNames = currentToolsForIntegration.map(t => t.tool_name);
+    const removedToolNames = currentToolNames.filter(name => !toolActionNames.includes(name));
+
+    // Get display names for removed tools (for webhook matching)
+    const removedDisplayNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType]?.filter(displayName => {
+      const actionName = displayNameToActionName(displayName, connectingIntegrationType);
+      return removedToolNames.includes(actionName);
+    }) || [];
+
+    // Remove webhook tools that correspond to removed integration tools
+    let updatedWebhookTools = [...webhookTools];
+    if (removedDisplayNames.length > 0) {
+      updatedWebhookTools = updatedWebhookTools.filter(
+        wt => !removedDisplayNames.includes(wt.name)
       );
-
-      // Find tools that are being removed (were in agentIntegrationTools but not in new selection)
-      const currentToolsForIntegration = agentIntegrationTools.filter(
-        tool => tool.integration_type === connectingIntegrationType
-      );
-      const currentToolNames = currentToolsForIntegration.map(t => t.tool_name);
-      const removedToolNames = currentToolNames.filter(name => !toolActionNames.includes(name));
-
-      // Get display names for removed tools (for webhook matching)
-      const removedDisplayNames = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType]?.filter(displayName => {
-        const actionName = displayNameToActionName(displayName, connectingIntegrationType);
-        return removedToolNames.includes(actionName);
-      }) || [];
-
-      // Remove webhook tools that correspond to removed integration tools
-      // Integration webhook tools use the display name as their name (e.g., "Get Deal", "Create Deal")
-      let updatedWebhookTools = [...webhookTools];
-      if (removedDisplayNames.length > 0) {
-        updatedWebhookTools = updatedWebhookTools.filter(
-          wt => !removedDisplayNames.includes(wt.name)
-        );
-      }
-
-      // Create webhook tools for newly selected tools
-      const existingWebhookNames = new Set(updatedWebhookTools.map(wt => wt.name));
-      const newWebhookTools: WebhookTool[] = [];
-      
-      selectedIntegrationToolsForModal.forEach(displayName => {
-        // Only create if it doesn't already exist
-        if (!existingWebhookNames.has(displayName)) {
-          const webhookTool = createIntegrationWebhookTool(displayName, connectingIntegrationType, agentId);
-          newWebhookTools.push(webhookTool);
-        }
-      });
-
-      // Add new webhook tools
-      if (newWebhookTools.length > 0) {
-        updatedWebhookTools = [...updatedWebhookTools, ...newWebhookTools];
-      }
-
-      // Update webhook tools state
-      setWebhookTools(updatedWebhookTools);
-
-      // Remove existing integration tool entries for this integration type
-      const otherIntegrationTools = agentIntegrationTools.filter(
-        tool => tool.integration_type !== connectingIntegrationType
-      );
-
-      // Add new tools for this integration type
-      const newTools: AgentIntegrationTool[] = toolActionNames.map(toolName => ({
-        integration_type: connectingIntegrationType,
-        tool_name: toolName,
-        enabled: true,
-      }));
-
-      // Update the agent integration tools state
-      const updatedIntegrationTools = [...otherIntegrationTools, ...newTools];
-      setAgentIntegrationTools(updatedIntegrationTools);
-
-      // Save and publish together - both must complete before closing
-      if (onSave) {
-        console.log('[useIntegrationTools] saveSelectedIntegrationTools: Calling onSave...');
-        await onSave(updatedIntegrationTools, updatedWebhookTools);
-        console.log('[useIntegrationTools] saveSelectedIntegrationTools: onSave completed');
-      }
-
-      // Publish to sync with ElevenLabs (creates webhook tools)
-      if (onPublish && agent.id && agent.id !== "create") {
-        console.log('[useIntegrationTools] saveSelectedIntegrationTools: Calling onPublish...');
-        await onPublish();
-        console.log('[useIntegrationTools] saveSelectedIntegrationTools: onPublish completed');
-      }
-
-      toast({
-        title: "Success",
-        description: `${toolActionNames.length} tool(s) enabled${newWebhookTools.length > 0 ? ` and ${newWebhookTools.length} webhook tool(s) created` : ""}.`,
-      });
-
-      // Close the modal after all operations complete successfully
-      // Keep isSavingToolsRef set to prevent modal from reopening during state updates
-      console.log('[useIntegrationTools] saveSelectedIntegrationTools: All operations complete, calling closeIntegrationConnectionModal');
-      closeIntegrationConnectionModal();
-    } catch (error) {
-      console.error("[useIntegrationTools] saveSelectedIntegrationTools: Error occurred", error);
-      toast({
-        title: "Error",
-        description: "Failed to save integration tools.",
-        variant: "destructive",
-      });
-      // Close the modal even on error
-      console.log('[useIntegrationTools] saveSelectedIntegrationTools: Error case, calling closeIntegrationConnectionModal');
-      closeIntegrationConnectionModal();
-    } finally {
-      // Reset flag after a longer delay to prevent modal from reopening
-      // This ensures any state updates from fetchAgentDetails or other operations don't trigger a reopen
-      setTimeout(() => {
-        console.log('[useIntegrationTools] saveSelectedIntegrationTools: Resetting isSavingToolsRef to false');
-        isSavingToolsRef.current = false;
-      }, 1000); // Increased from 100ms to 1000ms to prevent reopening
     }
+
+    // Create webhook tools for newly selected tools
+    const existingWebhookNames = new Set(updatedWebhookTools.map(wt => wt.name));
+    const newWebhookTools: WebhookTool[] = [];
+    
+    selectedIntegrationToolsForModal.forEach(displayName => {
+      if (!existingWebhookNames.has(displayName)) {
+        const webhookTool = createIntegrationWebhookTool(displayName, connectingIntegrationType, agentId);
+        newWebhookTools.push(webhookTool);
+      }
+    });
+
+    // Add new webhook tools
+    if (newWebhookTools.length > 0) {
+      updatedWebhookTools = [...updatedWebhookTools, ...newWebhookTools];
+    }
+
+    // Update webhook tools state
+    setWebhookTools(updatedWebhookTools);
+
+    // Remove existing integration tool entries for this integration type
+    const otherIntegrationTools = agentIntegrationTools.filter(
+      tool => tool.integration_type !== connectingIntegrationType
+    );
+
+    // Add new tools for this integration type
+    const newTools: AgentIntegrationTool[] = toolActionNames.map(toolName => ({
+      integration_type: connectingIntegrationType,
+      tool_name: toolName,
+      enabled: true,
+    }));
+
+    // Update the agent integration tools state
+    const updatedIntegrationTools = [...otherIntegrationTools, ...newTools];
+    setAgentIntegrationTools(updatedIntegrationTools);
+
+    // Save and publish
+    if (onSave) {
+      await onSave(updatedIntegrationTools, updatedWebhookTools);
+    }
+
+    if (onPublish && agent.id && agent.id !== "create") {
+      await onPublish();
+    }
+
+    toast({
+      title: "Success",
+      description: `${toolActionNames.length} tool(s) enabled${newWebhookTools.length > 0 ? ` and ${newWebhookTools.length} webhook tool(s) created` : ""}.`,
+    });
   }, [
     connectingIntegrationType,
     selectedIntegrationToolsForModal,
@@ -992,7 +890,6 @@ export function useIntegrationTools(
     webhookTools,
     setAgentIntegrationTools,
     setWebhookTools,
-    closeIntegrationConnectionModal,
     toast,
   ]);
 

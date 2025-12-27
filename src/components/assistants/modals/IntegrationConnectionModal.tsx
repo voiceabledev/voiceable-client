@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,7 @@ import {
   ShieldCheck, 
   Wrench,
   Info,
-  Loader2,
-  Trash2
+  Loader2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -54,7 +53,6 @@ type IntegrationConnectionModalProps = {
   editingIntegrationConfig: UserIntegration | null;
   handleIntegrationConnect: (config: Record<string, string>) => void;
   closeIntegrationConnectionModal: () => void;
-  handleDeleteIntegration: (id: string | number) => Promise<void>;
   selectedIntegrationToolsForModal: string[];
   toggleModalToolSelection: (toolName: string) => void;
   setSelectedIntegrationToolsForModal: (tools: string[]) => void;
@@ -78,16 +76,17 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   editingIntegrationConfig,
   handleIntegrationConnect,
   closeIntegrationConnectionModal,
-  handleDeleteIntegration,
   selectedIntegrationToolsForModal,
   toggleModalToolSelection,
   setSelectedIntegrationToolsForModal,
   saveSelectedIntegrationTools,
 }) => {
   const [apiKey, setApiKey] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const isClosingRef = useRef(false);
   const prevOpenRef = useRef(open);
+  const isSavingRef = useRef(false);
+  const isOpeningRef = useRef(false);
 
   // Track when the open prop changes
   useEffect(() => {
@@ -98,6 +97,16 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
         isClosingRef: isClosingRef.current,
         timestamp: new Date().toISOString()
       });
+      
+      // If opening, set the opening flag temporarily
+      if (open && !prevOpenRef.current) {
+        isOpeningRef.current = true;
+        // Clear the opening flag after a short delay to allow the modal to fully open
+        setTimeout(() => {
+          isOpeningRef.current = false;
+        }, 100);
+      }
+      
       prevOpenRef.current = open;
     }
   }, [open]);
@@ -119,22 +128,35 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   // Populate selected tools when switching to tools tab if not already populated
   useEffect(() => {
     if (integrationModalTab === "tools" && connectingIntegrationType && selectedIntegrationToolsForModal.length === 0) {
-      // Find currently enabled tools for this integration type
-      const enabledToolsForIntegration = agentIntegrationTools
-        .filter(tool => tool.integration_type === connectingIntegrationType && tool.enabled)
-        .map(tool => {
-          // Convert action name (snake_case) back to display name
-          const displayName = actionNameToDisplayName(tool.tool_name, connectingIntegrationType);
-          return displayName;
-        })
-        .filter(displayName => {
-          // Only include display names that exist in INTEGRATION_TOOLS_DISPLAY
-          const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-          return availableTools.includes(displayName);
-        });
+      // Check if this integration is already connected to the agent
+      const hasIntegrationInAgent = agentIntegrationTools.some(
+        tool => tool.integration_type === connectingIntegrationType
+      );
       
-      if (enabledToolsForIntegration.length > 0) {
-        setSelectedIntegrationToolsForModal(enabledToolsForIntegration);
+      // If the integration is already connected to the agent, pre-select only enabled tools
+      if (hasIntegrationInAgent) {
+        const enabledToolsForIntegration = agentIntegrationTools
+          .filter(tool => tool.integration_type === connectingIntegrationType && tool.enabled)
+          .map(tool => {
+            // Convert action name (snake_case) back to display name
+            const displayName = actionNameToDisplayName(tool.tool_name, connectingIntegrationType);
+            return displayName;
+          })
+          .filter(displayName => {
+            // Only include display names that exist in INTEGRATION_TOOLS_DISPLAY
+            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+            return availableTools.includes(displayName);
+          });
+        
+        if (enabledToolsForIntegration.length > 0) {
+          setSelectedIntegrationToolsForModal(enabledToolsForIntegration);
+        }
+      } else {
+        // For new integrations (not yet connected to this agent), pre-select all available tools
+        const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+        if (availableTools.length > 0) {
+          setSelectedIntegrationToolsForModal(availableTools);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,26 +164,90 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 
   const integrationMeta = INTEGRATION_METADATA[connectingIntegrationType || ''] || { name: 'Integration', icon: '🔌', iconBg: 'bg-gray-500' };
 
-  // Wrap onOpenChange to prevent double close
+  // Compute which tools to display based on whether we're adding or editing
+  const toolsToDisplay = useMemo(() => {
+    if (!connectingIntegrationType) return [];
+    
+    const allAvailableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+    
+    // Check if this integration is already connected to the agent
+    const hasIntegrationInAgent = agentIntegrationTools.some(
+      tool => tool.integration_type === connectingIntegrationType
+    );
+    
+    // If the integration is already connected to the agent, only show enabled tools
+    if (hasIntegrationInAgent) {
+      const enabledToolsForIntegration = agentIntegrationTools
+        .filter(tool => tool.integration_type === connectingIntegrationType && tool.enabled)
+        .map(tool => {
+          const displayName = actionNameToDisplayName(tool.tool_name, connectingIntegrationType);
+          return displayName;
+        })
+        .filter(displayName => allAvailableTools.includes(displayName));
+      
+      return enabledToolsForIntegration;
+    }
+    
+    // If adding for the first time (even if integration exists in userIntegrations), show all available tools
+    return allAvailableTools;
+  }, [connectingIntegrationType, agentIntegrationTools]);
+
+  // Wrap onOpenChange to prevent double close and accidental closes
   const handleOpenChange = useCallback((newOpen: boolean) => {
     console.log('[IntegrationModal] handleOpenChange called', {
       newOpen,
       isClosingRef: isClosingRef.current,
+      isOpeningRef: isOpeningRef.current,
+      currentOpen: open,
       timestamp: new Date().toISOString()
     });
-    // If we're programmatically closing, ignore the Dialog's onOpenChange
+    
+    // If we're currently opening, ignore any close events (prevent accidental closes during opening animation)
+    if (isOpeningRef.current && !newOpen) {
+      console.log('[IntegrationModal] handleOpenChange: Blocked - modal is currently opening');
+      return;
+    }
+    
+    // If we're programmatically closing via our close handler, ignore the Dialog's onOpenChange
+    // This prevents the Dialog from calling onOpenChange again after we've already closed it
     if (isClosingRef.current && !newOpen) {
       console.log('[IntegrationModal] handleOpenChange: Blocked - already closing programmatically');
       return;
     }
+    
+    // If the state already matches what we're trying to set, ignore (prevent unnecessary updates)
+    if (newOpen === open) {
+      console.log('[IntegrationModal] handleOpenChange: Blocked - state already matches', { newOpen, open });
+      return;
+    }
+    
     console.log('[IntegrationModal] handleOpenChange: Calling onOpenChange', newOpen);
     onOpenChange(newOpen);
-  }, [onOpenChange]);
+  }, [onOpenChange, open]);
 
   // Wrap closeIntegrationConnectionModal to set the flag
   const handleClose = useCallback(() => {
+    // Prevent closing if modal is not actually open
+    if (!open) {
+      console.log('[IntegrationModal] handleClose: Blocked - modal not open');
+      return;
+    }
+    
+    // Prevent closing if we're currently opening
+    if (isOpeningRef.current) {
+      console.log('[IntegrationModal] handleClose: Blocked - modal is currently opening');
+      return;
+    }
+    
+    // Prevent closing if we're already closing
+    if (isClosingRef.current) {
+      console.log('[IntegrationModal] handleClose: Blocked - already closing');
+      return;
+    }
+    
     console.log('[IntegrationModal] handleClose called', {
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isOpen: open
     });
     isClosingRef.current = true;
     console.log('[IntegrationModal] handleClose: Set isClosingRef to true, calling closeIntegrationConnectionModal');
@@ -171,44 +257,59 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
       console.log('[IntegrationModal] handleClose: Resetting isClosingRef to false');
       isClosingRef.current = false;
     }, 200);
-  }, [closeIntegrationConnectionModal]);
+  }, [closeIntegrationConnectionModal, open]);
 
-  // Wrap saveSelectedIntegrationTools to set the flag right before closing
+  // Wrap saveSelectedIntegrationTools to handle closing after save
   const handleSaveSelectedIntegrationTools = useCallback(async () => {
+    // Prevent duplicate saves
+    if (isSavingRef.current || isSaving) {
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Already saving, ignoring duplicate call');
+      return;
+    }
+
     console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Starting save operation', {
       timestamp: new Date().toISOString(),
       isClosingRef: isClosingRef.current
     });
-    // Set flag BEFORE save starts - this ensures it's set when closeIntegrationConnectionModal is called
-    // The flag doesn't prevent the modal from staying open during save, it only prevents double-close
+    
+    // Set flags BEFORE save starts
+    isSavingRef.current = true;
+    setIsSaving(true);
     isClosingRef.current = true;
-    console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Set isClosingRef to true BEFORE save');
+    console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Set flags to true BEFORE save');
+    
     try {
       // Wait for save to complete (this includes onSave and onPublish)
-      // The hook will call closeIntegrationConnectionModal() after this completes
       console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Calling saveSelectedIntegrationTools...');
       await saveSelectedIntegrationTools();
       console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Save completed successfully');
-      // Flag is already set, so Dialog's onOpenChange will be blocked when closeIntegrationConnectionModal is called
-      // Use a microtask to ensure the flag is set before any state updates propagate
-      await Promise.resolve();
-      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Microtask completed');
-      // Reset flag after a delay to allow the close to complete
+      
+      // Close the modal after successful save
+      // The flag is already set, so Dialog's onOpenChange will be blocked
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after successful save');
+      closeIntegrationConnectionModal();
+      
+      // Reset flags after a delay to allow the close to complete
       setTimeout(() => {
-        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting isClosingRef to false');
+        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags to false');
         isClosingRef.current = false;
+        isSavingRef.current = false;
+        setIsSaving(false);
       }, 300);
     } catch (error) {
       console.error('[IntegrationModal] handleSaveSelectedIntegrationTools: Error occurred', error);
-      // Flag is already set, so Dialog's onOpenChange will be blocked
-      await Promise.resolve();
+      // On error, still close the modal but reset the flags
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after error');
+      closeIntegrationConnectionModal();
       setTimeout(() => {
-        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting isClosingRef to false (error case)');
+        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags to false (error case)');
         isClosingRef.current = false;
+        isSavingRef.current = false;
+        setIsSaving(false);
       }, 300);
-      throw error;
+      // Don't re-throw - we've already closed the modal and shown an error toast
     }
-  }, [saveSelectedIntegrationTools]);
+  }, [saveSelectedIntegrationTools, closeIntegrationConnectionModal, isSaving]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -321,6 +422,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                   </TabsTrigger>
                 </TabsList>
                 <Button 
+                  type="button"
                   variant="ghost" 
                   size="sm" 
                   onClick={goBackToIntegrationSelect}
@@ -424,7 +526,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
-                      {connectingIntegrationType && INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType]?.map((toolName) => {
+                      {toolsToDisplay.map((toolName) => {
                         const isSelected = selectedIntegrationToolsForModal.includes(toolName);
                         return (
                           <div
@@ -458,7 +560,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           </div>
                         );
                       })}
-                      {(!connectingIntegrationType || !INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType]?.length) && (
+                      {toolsToDisplay.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground">
                           <Wrench className="h-10 w-10 mx-auto mb-2 opacity-50" />
                           <p className="text-sm">No tools available for this integration</p>
@@ -473,74 +575,39 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
           )}
         </div>
 
-        <div className="px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-between items-center flex-shrink-0">
-          <div>
-            {editingIntegrationConfig && !showDeleteConfirm && (
-              <Button 
-                variant="ghost" 
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Remove Integration
-              </Button>
-            )}
-            {editingIntegrationConfig && showDeleteConfirm && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Are you sure?</span>
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('[IntegrationModal] Delete button clicked', {
-                      integrationId: editingIntegrationConfig?.id,
-                      timestamp: new Date().toISOString()
-                    });
-                    if (editingIntegrationConfig) {
-                      setShowDeleteConfirm(false);
-                      // Set flag before async operation
-                      isClosingRef.current = true;
-                      console.log('[IntegrationModal] Delete: Set isClosingRef to true, calling handleDeleteIntegration');
-                      await handleDeleteIntegration(editingIntegrationConfig.id);
-                      console.log('[IntegrationModal] Delete: handleDeleteIntegration completed, calling handleClose');
-                      handleClose();
-                    }
-                  }}
-                >
-                  Yes, Remove
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
+        <div className="px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-end items-center flex-shrink-0">
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleClose} className="min-w-24">
+            <Button type="button" variant="outline" onClick={handleClose} className="min-w-24">
               Cancel
             </Button>
             {integrationModalStep !== "select" && (
               <>
                 {integrationModalTab === "tools" ? (
                   <Button 
+                    type="button"
                     onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       await handleSaveSelectedIntegrationTools();
                     }}
+                    disabled={isSaving}
                     className="min-w-32"
                   >
-                    <ShieldCheck className="h-4 w-4 mr-2" />
-                    Save Tools
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-4 w-4 mr-2" />
+                        Save Tools
+                      </>
+                    )}
                   </Button>
                 ) : (
                   <Button 
+                    type="button"
                     onClick={async () => {
                       // Save/update the API key first
                       await handleIntegrationConnect({ api_key: apiKey });

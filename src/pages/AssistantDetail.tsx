@@ -7,6 +7,7 @@ import {
   Globe,
   Loader2,
   Edit,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +48,7 @@ import {
   displayNameToActionName,
 } from "@/constants/assistant";
 import { voicesApi, type Voice } from "@/lib/api";
-import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule } from "@/types/assistant";
+import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
 
 export default function AssistantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -101,6 +102,7 @@ export default function AssistantDetail() {
   });
   // Store settings per tool to preserve description and disableInterruptions for all tools
   const [systemToolSettingsMap, setSystemToolSettingsMap] = useState<Record<string, SystemToolSetting>>({});
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [selectedSystemTool, setSelectedSystemTool] = useState<string | null>(null);
 
   const agentData = useAgentData(
@@ -387,9 +389,12 @@ export default function AssistantDetail() {
       .map(([key]) => key);
     const clientToolNames = clientHook.clientTools.map((t) => t.name);
     const webhookToolNames = webhookHook.webhookTools.map((t) => t.name);
-    const enabledIntegrations = integrationHook.agentIntegrationTools
-      .filter((t) => t.enabled)
-      .map((t) => t.integration_type);
+    // Get unique integration types only (one per integration, not per tool)
+    const enabledIntegrations = Array.from(new Set(
+      integrationHook.agentIntegrationTools
+        .filter((t) => t.enabled)
+        .map((t) => t.integration_type)
+    ));
 
     return JSON.stringify({
       activeSystemTools,
@@ -399,9 +404,68 @@ export default function AssistantDetail() {
     }, null, 2);
   }, [systemTools, clientHook.clientTools, webhookHook.webhookTools, integrationHook.agentIntegrationTools]);
 
+  // Extract the three prompt components separately
+  const promptComponents = useMemo(() => {
+    if (!agentData.agent || !agentData.conversationConfig) {
+      return {
+        template: "",
+        tools: "",
+        behaviours: "",
+      };
+    }
+
+    const conversationConfig = agentData.conversationConfig;
+    const template = (conversationConfig.system_prompt_template as string) || "";
+    const tools = (conversationConfig.system_prompt_tools as string) || "";
+    const behaviours = (conversationConfig.system_prompt_behaviours as string) || "";
+
+    return {
+      template,
+      tools,
+      behaviours,
+    };
+  }, [agentData.agent, agentData.conversationConfig]);
+
+  // Get full system prompt for backward compatibility (combined from components)
+  const fullSystemPrompt = useMemo(() => {
+    const parts: string[] = [];
+    if (promptComponents.template) parts.push(promptComponents.template);
+    if (promptComponents.tools) parts.push(promptComponents.tools);
+    if (promptComponents.behaviours) parts.push(promptComponents.behaviours);
+    
+    if (parts.length > 0) {
+      return parts.join("\n\n").trim();
+    }
+
+    // Fallback: try to read from model.messages
+    if (agentData.conversationConfig?.model) {
+      const modelConfig = agentData.conversationConfig.model as Record<string, unknown>;
+      if (modelConfig.messages && Array.isArray(modelConfig.messages)) {
+        const systemMessage = modelConfig.messages.find(
+          (msg: unknown) => 
+            typeof msg === 'object' && 
+            msg !== null && 
+            (msg as Record<string, unknown>).role === 'system'
+        ) as { role: string; content: string } | undefined;
+        
+        if (systemMessage?.content) {
+          return systemMessage.content;
+        }
+      }
+    }
+
+    return "No system prompt found in agent configuration.";
+  }, [agentData.conversationConfig, promptComponents]);
+
   // Show wizard for new assistants
   if (isNew) {
-    const locationState = location.state as { templateId?: string; assistantName?: string } | null;
+    const locationState = location.state as { 
+      templateId?: string; 
+      assistantName?: string; 
+      systemPrompt?: string; 
+      firstMessage?: string;
+      skipNameStep?: boolean;
+    } | null;
     return (
       <CreateAgentWizard
         onComplete={(agentId) => {
@@ -414,8 +478,11 @@ export default function AssistantDetail() {
         voices={voices}
         loadingVoices={loadingVoices}
         initialData={{
+          templateId: locationState?.templateId,
           assistantName: locationState?.assistantName || "New Assistant",
-          skipNameStep: !!locationState?.assistantName,
+          systemPrompt: locationState?.systemPrompt,
+          firstMessage: locationState?.firstMessage,
+          skipNameStep: locationState?.skipNameStep ?? !!locationState?.assistantName,
         }}
       />
     );
@@ -509,6 +576,15 @@ export default function AssistantDetail() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => sectionHook.setShowPromptPreviewModal(true)}
+              className="h-8 md:h-9 text-xs md:text-sm"
+            >
+              <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+              Preview Prompt
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -803,34 +879,14 @@ export default function AssistantDetail() {
         userIntegrations={integrationHook.userIntegrations}
         connectingIntegrationType={integrationHook.connectingIntegrationType}
         goBackToIntegrationSelect={integrationHook.goBackToIntegrationSelect}
-        integrationSchemas={integrationHook.integrationSchemas}
+        integrationSchemas={integrationHook.integrationSchemas 
+          ? { [integrationHook.connectingIntegrationType || '']: integrationHook.integrationSchemas }
+          : {}}
         integrationModalTab={integrationHook.integrationModalTab}
         setIntegrationModalTab={integrationHook.setIntegrationModalTab}
         editingIntegrationConfig={integrationHook.editingIntegrationConfig}
         handleIntegrationConnect={integrationHook.handleIntegrationConnect}
         closeIntegrationConnectionModal={integrationHook.closeIntegrationConnectionModal}
-        handleDeleteIntegration={async (id) => {
-          await integrationHook.handleDeleteIntegration(
-            id,
-            agentData.agent,
-            async (updatedIntegrationTools, updatedWebhookTools) => {
-              // Save agent with updated integration tools and webhook tools
-              await agentData.handleSave(
-                updatedWebhookTools,
-                clientHook.clientTools,
-                updatedIntegrationTools,
-                sectionHook.cenarios,
-                sectionHook.etapas,
-                sectionHook.tomDeVoz,
-                systemTools,
-                systemToolSettings,
-                filesHook.attachedFiles,
-                systemToolSettingsMap
-              );
-            },
-            agentData.handlePublish
-          );
-        }}
         selectedIntegrationToolsForModal={integrationHook.selectedIntegrationToolsForModal}
         toggleModalToolSelection={integrationHook.toggleModalToolSelection}
         setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
@@ -869,8 +925,69 @@ export default function AssistantDetail() {
       <PromptPreviewModal
         open={sectionHook.showPromptPreviewModal}
         onOpenChange={sectionHook.setShowPromptPreviewModal}
+        systemPromptTemplate={promptComponents.template}
+        systemPromptTools={promptComponents.tools}
+        systemPromptBehaviours={promptComponents.behaviours}
         promptToolsSummary={promptToolsSummary}
-        derivedSystemPrompt={sectionHook.derivedSystemPrompt}
+        onSaveTemplate={async (newTemplate: string) => {
+          if (!agentData.agent) return;
+          
+          setSavingTemplate(true);
+          try {
+            // Update only the system_prompt_template and rebuild the combined prompt
+            const currentConfig = agentData.conversationConfig || {};
+            const updatedConfig = {
+              ...currentConfig,
+              system_prompt_template: newTemplate,
+            };
+            
+            // Rebuild the combined prompt from the three components
+            const promptParts: string[] = [];
+            if (newTemplate) promptParts.push(newTemplate.trim());
+            if (promptComponents.tools) promptParts.push(promptComponents.tools.trim());
+            if (promptComponents.behaviours) promptParts.push(promptComponents.behaviours.trim());
+            const combinedPrompt = promptParts.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+            
+            // Update the model messages with the combined prompt
+            const modelConfig = (currentConfig.model as Record<string, unknown>) || {};
+            const messages = (modelConfig.messages as Array<{ role: string; content: string }>) || [];
+            const updatedMessages = messages.filter(m => m.role !== 'system');
+            updatedMessages.unshift({
+              role: 'system',
+              content: combinedPrompt
+            });
+            
+            updatedConfig.model = {
+              ...modelConfig,
+              messages: updatedMessages,
+            };
+            
+            // Save directly to backend
+            const { agentsApi } = await import("@/lib/api");
+            await agentsApi.update(agentData.agent.id, {
+              conversation_config: updatedConfig,
+            } as unknown as Parameters<typeof agentsApi.update>[1]);
+            
+            // Refresh agent data to get the updated config
+            await agentData.fetchAgentDetails();
+            
+            toast({
+              title: "Success",
+              description: "System prompt template updated successfully.",
+            });
+          } catch (error) {
+            console.error("Failed to save template:", error);
+            toast({
+              title: "Error",
+              description: error instanceof Error ? error.message : "Failed to save template.",
+              variant: "destructive",
+            });
+            throw error;
+          } finally {
+            setSavingTemplate(false);
+          }
+        }}
+        saving={savingTemplate}
       />
 
       <ChooseFilesDialog

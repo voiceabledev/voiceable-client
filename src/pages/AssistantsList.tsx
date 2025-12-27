@@ -252,7 +252,7 @@ Remember that your ultimate goal is to match patients with the appropriate care 
   },
   {
     id: "feedback-gatherer",
-    title: "Feedback Gatherer",
+    title: "Feedback Gathered",
     description: "An engaging template for conducting surveys, collecting customer feedback, and gathering market research with high completion rates.",
     icon: Star,
     systemPrompt: `# Surveys & Feedback Collection Agent Prompt
@@ -510,7 +510,7 @@ Remember that your ultimate goal is to collect accurate, unbiased feedback that 
   },
   {
     id: "customer-support",
-    title: "Customer Support Specialist",
+    title: "Customer Success Specialist",
     description: "A comprehensive template for resolving product issues, answering questions, and ensuring satisfying customer experiences with technical knowledge and empathy.",
     icon: MessageCircle,
     systemPrompt: `# Customer Service & Support Agent Prompt

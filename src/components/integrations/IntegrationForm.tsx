@@ -112,6 +112,7 @@ export function IntegrationForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     
     if (!validate()) {
       return;
@@ -141,19 +142,29 @@ export function IntegrationForm({
               {isRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
             <div className="relative">
-              <Input
-                id={fieldName}
-                type={isVisible ? 'text' : 'password'}
-                placeholder={fieldConfig.placeholder || 'Enter your API key'}
-                value={stringValue}
-                onChange={(e) => {
-                  handleFieldChange(fieldName, e.target.value);
-                }}
-                className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm pr-10 ${
-                  error ? 'border-destructive' : ''
-                }`}
-                disabled={isLoading}
-              />
+            <Input
+              id={fieldName}
+              type={isVisible ? 'text' : 'password'}
+              placeholder={fieldConfig.placeholder || 'Enter your API key'}
+              value={stringValue}
+              onChange={(e) => {
+                handleFieldChange(fieldName, e.target.value);
+              }}
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter unless it's the submit button
+                if (e.key === 'Enter' && !hideSubmitButton) {
+                  // Allow Enter to submit the form normally
+                  return;
+                }
+                if (e.key === 'Enter' && hideSubmitButton) {
+                  e.preventDefault();
+                }
+              }}
+              className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm pr-10 ${
+                error ? 'border-destructive' : ''
+              }`}
+              disabled={isLoading}
+            />
               {stringValue && (
                 <button
                   type="button"
@@ -226,6 +237,12 @@ export function IntegrationForm({
               placeholder={fieldConfig.placeholder}
               value={String(value)}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter if submit button is hidden
+                if (e.key === 'Enter' && hideSubmitButton) {
+                  e.preventDefault();
+                }
+              }}
               className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
                 error ? 'border-destructive' : ''
               }`}
@@ -251,6 +268,12 @@ export function IntegrationForm({
               placeholder={fieldConfig.placeholder}
               value={value ? Number(value) : ''}
               onChange={(e) => handleFieldChange(fieldName, e.target.value ? Number(e.target.value) : '')}
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter if submit button is hidden
+                if (e.key === 'Enter' && hideSubmitButton) {
+                  e.preventDefault();
+                }
+              }}
               min={fieldConfig.min}
               max={fieldConfig.max}
               className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
@@ -279,6 +302,12 @@ export function IntegrationForm({
               placeholder={fieldConfig.placeholder}
               value={String(value)}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter if submit button is hidden
+                if (e.key === 'Enter' && hideSubmitButton) {
+                  e.preventDefault();
+                }
+              }}
               className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
                 error ? 'border-destructive' : ''
               }`}
@@ -300,7 +329,16 @@ export function IntegrationForm({
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+    <form 
+      onSubmit={handleSubmit} 
+      onKeyDown={(e) => {
+        // Prevent form submission on Enter if submit button is hidden
+        if (e.key === 'Enter' && hideSubmitButton) {
+          e.preventDefault();
+        }
+      }}
+      className="space-y-3 md:space-y-4"
+    >
       {orderedFields.map(([fieldName, fieldConfig]) => renderField(fieldName, fieldConfig))}
 
       {!hideSubmitButton && (
