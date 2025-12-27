@@ -20,6 +20,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<string | void>;
   signOut: () => Promise<string>;
   resetPassword: (email: string) => Promise<string | void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,10 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((response) => {
           if (response.data) {
             const userData = response.data as Record<string, unknown>;
+            // Handle role conversion (integer to string during migration)
+            let role: 'user' | 'admin' | 'enterprise' = 'user';
+            if (userData.role !== undefined && userData.role !== null) {
+              if (typeof userData.role === 'number') {
+                // Convert integer to string during migration
+                role = userData.role === 0 ? 'user' : userData.role === 1 ? 'admin' : 'enterprise';
+              } else if (typeof userData.role === 'string') {
+                role = (userData.role as 'user' | 'admin' | 'enterprise') || 'user';
+              }
+            }
+            
             const user: User = {
               id: userData.id as number,
               email: userData.email as string,
-              role: (userData.role as 'user' | 'admin' | 'enterprise') || 'user',
+              role,
               created_at: userData.created_at as string,
               updated_at: userData.updated_at as string,
             };
@@ -168,6 +180,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    const token = apiClient.getToken();
+    if (!token) {
+      return;
+    }
+    
+    try {
+      const response = await authApi.getCurrentUser();
+      if (response.data) {
+        const userData = response.data as Record<string, unknown>;
+        // Handle role conversion (integer to string during migration)
+        let role: 'user' | 'admin' | 'enterprise' = 'user';
+        if (userData.role !== undefined && userData.role !== null) {
+          if (typeof userData.role === 'number') {
+            // Convert integer to string during migration
+            role = userData.role === 0 ? 'user' : userData.role === 1 ? 'admin' : 'enterprise';
+          } else if (typeof userData.role === 'string') {
+            role = (userData.role as 'user' | 'admin' | 'enterprise') || 'user';
+          }
+        }
+        
+        const updatedUser: User = {
+          id: userData.id as number,
+          email: userData.email as string,
+          role,
+          created_at: userData.created_at as string,
+          updated_at: userData.updated_at as string,
+        };
+        setUser(updatedUser);
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   const isAdmin = user?.role === 'admin';
   const isEnterprise = user?.role === 'enterprise';
 
@@ -183,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        refreshUser,
       }}
     >
       {children}
