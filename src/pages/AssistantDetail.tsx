@@ -37,6 +37,7 @@ import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab from "@/components/assistants/OutcomeConfigTab";
+import { DashboardTab } from "@/components/assistants/DashboardTab";
 
 // Modals
 import { WebhookToolModal } from "@/components/assistants/modals/WebhookToolModal";
@@ -73,10 +74,22 @@ export default function AssistantDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
-  // Tab State
+  // Tab State - Map old tab names to new ones for backward compatibility
   const tabFromUrl = searchParams.get("tab");
+  const mapOldTabToNew = (tab: string | null): string => {
+    if (!tab) return "dashboard";
+    const mapping: Record<string, string> = {
+      "overview": "dashboard",
+      "conversations": "calls",
+      "outcomes": "performance",
+      "configuration": "settings",
+      "prompt-logic": "call-script"
+    };
+    return mapping[tab] || tab;
+  };
+  const mappedTab = mapOldTabToNew(tabFromUrl);
   const initialTab =
-    tabFromUrl && VALID_TABS.includes(tabFromUrl as (typeof VALID_TABS)[number]) ? tabFromUrl : "configuration";
+    mappedTab && VALID_TABS.includes(mappedTab as (typeof VALID_TABS)[number]) ? mappedTab : "dashboard";
   const [activeTab, setActiveTab] = useState(initialTab);
   const lastSetTabRef = useRef<string | null>(null);
 
@@ -814,6 +827,7 @@ export default function AssistantDetail() {
       systemPrompt?: string; 
       firstMessage?: string;
       skipNameStep?: boolean;
+      integrationTools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
     } | null;
     return (
       <CreateAgentWizard
@@ -832,6 +846,7 @@ export default function AssistantDetail() {
           systemPrompt: locationState?.systemPrompt,
           firstMessage: locationState?.firstMessage,
           skipNameStep: locationState?.skipNameStep ?? !!locationState?.assistantName,
+          integrationTools: locationState?.integrationTools,
         }}
       />
     );
@@ -1013,21 +1028,96 @@ export default function AssistantDetail() {
         <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
           {agentData.agent && (
             <>
-              {activeTab === "overview" ? (
-                <OverviewTab 
-                  agent={agentData.agent}
-                  onTestCall={() => {
-                    // TODO: Implement test call functionality
-                    toast({
-                      title: "Test Call",
-                      description: "Test call functionality coming soon. You can test your agent by making a real call to your phone number.",
-                    });
+              {activeTab === "dashboard" || activeTab === "overview" ? (
+                <DashboardTab agent={agentData.agent} agentId={agentId} />
+              ) : activeTab === "calls" || activeTab === "conversations" ? (
+                <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
+              ) : activeTab === "performance" || activeTab === "outcomes" ? (
+                <OutcomeConfigTab 
+                  agentId={agentId} 
+                  onAgentDataChange={fetchAgentDetails}
+                  onOpenEscalationPanel={() => {
+                    if (selectedSystemTool) {
+                      setSelectedSystemTool(null);
+                    }
+                    setShowEscalationPanel(true);
                   }}
+                  escalationRuleSettings={escalationRuleSettings}
+                  onEscalationRuleSettingsChange={setEscalationRuleSettings}
+                  onEnableTransferToNumber={async (settings: EscalationRuleSettings) => {
+                    setSystemTools(prev => ({
+                      ...prev,
+                      transfer_to_number: true,
+                    }));
+                    
+                    const updatedSettings: SystemToolSetting = {
+                      name: settings.name || 'transfer_to_number',
+                      description: settings.description || '',
+                      disableInterruptions: settings.disableInterruptions || false,
+                      humanTransferRules: settings.humanTransferRules || [],
+                    };
+                    
+                    setSystemToolSettings(updatedSettings);
+                    setSystemToolSettingsMap(prev => ({
+                      ...prev,
+                      transfer_to_number: updatedSettings,
+                    }));
+                    
+                    await agentData.handleSave(
+                      webhookHook.webhookTools,
+                      clientHook.clientTools,
+                      integrationHook.agentIntegrationTools,
+                      sectionHook.cenarios,
+                      sectionHook.etapas,
+                      sectionHook.tomDeVoz,
+                      {
+                        ...systemTools,
+                        transfer_to_number: true,
+                      },
+                      updatedSettings,
+                      filesHook.attachedFiles,
+                      {
+                        ...systemToolSettingsMap,
+                        transfer_to_number: updatedSettings,
+                      }
+                    );
+                  }}
+                />
+              ) : activeTab === "settings" || activeTab === "configuration" ? (
+                <ConfigurationTab
+                  agent={agentData.agent}
+                  onUpdate={agentData.handleUpdate}
+                  onPlayPreview={handlePlayPreview}
+                  loadingVoices={loadingVoices}
+                  selectedVoiceId={agentData.agent?.voice_id || null}
+                  selectedVoiceName={selectedVoiceName}
+                  setShowVoiceSelector={setShowVoiceSelector}
+                />
+              ) : activeTab === "call-script" || activeTab === "prompt-logic" ? (
+                <PromptLogicTab
+                  agent={agentData.agent}
+                  onUpdate={agentData.handleUpdate}
+                  scenarios={sectionHook.cenarios}
+                  phases={sectionHook.etapas}
+                  voiceTone={sectionHook.tomDeVoz}
+                  onAddSectionEntry={sectionHook.addSectionEntry}
+                  onEditSectionEntry={sectionHook.openSectionModal}
+                  onRemoveSectionEntry={sectionHook.removeSectionEntryById}
+                  attachedFiles={filesHook.attachedFiles}
+                  onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
+                  onFileDelete={filesHook.handleFileDelete}
+                  onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
+                  uploadingFiles={filesHook.uploadingFiles}
+                  isNew={isNew}
+                  agentFiles={filesHook.agentFiles}
+                  loadingAvailableFiles={filesHook.loadingAvailableFiles}
+                  assigningFile={filesHook.assigningFile}
+                  fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
+                  setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
+                  behaviourConfig={behaviourConfig}
                 />
               ) : activeTab === "widget" ? (
                 <WidgetTab agent={agentData.agent} agentId={agentId} />
-              ) : activeTab === "conversations" ? (
-                <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
               ) : activeTab === "phone-numbers" ? (
                 loadingCredits ? (
                   <div className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center">
@@ -1106,94 +1196,6 @@ export default function AssistantDetail() {
                         );
                       },
                       agentData.handlePublish
-                    );
-                  }}
-                />
-              ) : activeTab === "configuration" ? (
-                <ConfigurationTab
-                  agent={agentData.agent}
-                  onUpdate={agentData.handleUpdate}
-                  onPlayPreview={handlePlayPreview}
-                  loadingVoices={loadingVoices}
-                  selectedVoiceId={agentData.agent?.voice_id || null}
-                  selectedVoiceName={selectedVoiceName}
-                  setShowVoiceSelector={setShowVoiceSelector}
-                />
-              ) : activeTab === "prompt-logic" ? (
-                <PromptLogicTab
-                  agent={agentData.agent}
-                  onUpdate={agentData.handleUpdate}
-                  scenarios={sectionHook.cenarios}
-                  phases={sectionHook.etapas}
-                  voiceTone={sectionHook.tomDeVoz}
-                  onAddSectionEntry={sectionHook.addSectionEntry}
-                  onEditSectionEntry={sectionHook.openSectionModal}
-                  onRemoveSectionEntry={sectionHook.removeSectionEntryById}
-                  attachedFiles={filesHook.attachedFiles}
-                  onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
-                  onFileDelete={filesHook.handleFileDelete}
-                  onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
-                  uploadingFiles={filesHook.uploadingFiles}
-                  isNew={isNew}
-                  agentFiles={filesHook.agentFiles}
-                  loadingAvailableFiles={filesHook.loadingAvailableFiles}
-                  assigningFile={filesHook.assigningFile}
-                  fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
-                  setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
-                  behaviourConfig={behaviourConfig}
-                />
-              ) : activeTab === "outcomes" ? (
-                <OutcomeConfigTab 
-                  agentId={agentId} 
-                  onAgentDataChange={fetchAgentDetails}
-                  onOpenEscalationPanel={() => {
-                    // Close system tools panel if open
-                    if (selectedSystemTool) {
-                      setSelectedSystemTool(null);
-                    }
-                    setShowEscalationPanel(true);
-                  }}
-                  escalationRuleSettings={escalationRuleSettings}
-                  onEscalationRuleSettingsChange={setEscalationRuleSettings}
-                  onEnableTransferToNumber={async (settings: EscalationRuleSettings) => {
-                    // Enable transfer_to_number system tool
-                    setSystemTools(prev => ({
-                      ...prev,
-                      transfer_to_number: true,
-                    }));
-                    
-                    // Update system tool settings with escalation rule settings
-                    const updatedSettings: SystemToolSetting = {
-                      name: settings.name || 'transfer_to_number',
-                      description: settings.description || '',
-                      disableInterruptions: settings.disableInterruptions || false,
-                      humanTransferRules: settings.humanTransferRules || [],
-                    };
-                    
-                    setSystemToolSettings(updatedSettings);
-                    setSystemToolSettingsMap(prev => ({
-                      ...prev,
-                      transfer_to_number: updatedSettings,
-                    }));
-                    
-                    // Save the agent with updated system tools
-                    await agentData.handleSave(
-                      webhookHook.webhookTools,
-                      clientHook.clientTools,
-                      integrationHook.agentIntegrationTools,
-                      sectionHook.cenarios,
-                      sectionHook.etapas,
-                      sectionHook.tomDeVoz,
-                      {
-                        ...systemTools,
-                        transfer_to_number: true,
-                      },
-                      updatedSettings,
-                      filesHook.attachedFiles,
-                      {
-                        ...systemToolSettingsMap,
-                        transfer_to_number: updatedSettings,
-                      }
                     );
                   }}
                 />

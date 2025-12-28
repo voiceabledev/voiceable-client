@@ -1,17 +1,17 @@
 // Constants for Assistant Detail page
-import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3 } from "lucide-react";
+import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3, TrendingUp } from "lucide-react";
 
-export const VALID_TABS = ["overview", "configuration", "prompt-logic", "tools", "conversations", "widget", "phone-numbers", "outcomes", "advanced"] as const;
+export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-numbers", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
 
 export const tabs = [
-  { id: "overview", label: "Overview", icon: BarChart3 },
-  { id: "configuration", label: "Quick Settings", icon: Settings },
-  { id: "outcomes", label: "Call Outcomes", icon: Target },
-  { id: "prompt-logic", label: "Call Script", icon: FileText },
+  { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+  { id: "calls", label: "Calls", icon: MessageSquare },
+  { id: "performance", label: "Performance", icon: TrendingUp },
+  { id: "settings", label: "Settings", icon: Settings },
+  { id: "call-script", label: "Call Script", icon: FileText },
   { id: "tools", label: "Tools", icon: Wrench },
   { id: "widget", label: "Widget", icon: Layout },
   { id: "phone-numbers", label: "Phone Numbers", icon: Phone },
-  { id: "conversations", label: "Conversations", icon: MessageSquare },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 

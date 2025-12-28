@@ -571,6 +571,7 @@ export function useIntegrationTools(
     setIntegrationModalStep("connect");
     setIntegrationModalTab("credentials");
     setConnectingIntegrationLoading(true);
+    setShowIntegrationModal(true); // Open the modal
     
     try {
       // Fetch schema for the integration type
@@ -606,7 +607,7 @@ export function useIntegrationTools(
     } finally {
       setConnectingIntegrationLoading(false);
     }
-  }, [userIntegrations, toast]);
+  }, [userIntegrations, toast, setShowIntegrationModal]);
 
   const goBackToIntegrationSelect = useCallback(() => {
     setIntegrationModalStep("select");

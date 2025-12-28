@@ -417,6 +417,7 @@ export interface WidgetConfig {
 
 export interface Agent {
   id: string;
+  slug?: string;
   name?: string;
   created_at?: string;
   updated_at?: string;
@@ -437,6 +438,7 @@ export interface CreateAgentParams {
   platform_settings?: Record<string, unknown>;
   widget_config?: WidgetConfig;
   tags?: string[];
+  integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
 }
 
 export interface UpdateAgentParams {
@@ -1628,6 +1630,129 @@ export const dashboardsApi = {
     const queryString = params.toString();
     const endpoint = `/dashboards/failure_breakdown${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: FailureBreakdownData[] }>(endpoint);
+    return response;
+  },
+};
+
+// Business Goals API
+export interface BusinessGoal {
+  id: number;
+  name: string;
+  description: string;
+  success_criteria: Record<string, any>;
+  avg_cost_per_success: number;
+  typical_roi: number;
+  default_config: Record<string, any>;
+  required_integrations: string[];
+  active: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const businessGoalsApi = {
+  list: async () => {
+    const response = await apiClient.get<{ data: BusinessGoal[] }>('/business_goals');
+    return response;
+  },
+  get: async (id: number) => {
+    const response = await apiClient.get<{ data: BusinessGoal }>(`/business_goals/${id}`);
+    return response;
+  },
+};
+
+// Enhanced Metrics API for Agents
+export interface AgentMetrics {
+  roi: {
+    period: { start_date: string; end_date: string; days: number };
+    calls: { total: number; successful: number; escalated: number; failed: number };
+    success_rate: number;
+    escalation_rate: number;
+    costs: { total: number; cost_per_success: number; avg_cost_per_call: number; total_cents: number };
+    revenue: { estimated: number; revenue_per_success: number };
+    roi: { percentage: number; multiplier: number };
+    savings: { vs_human: number; human_cost_for_period: number };
+  };
+  performance: {
+    summary: { total_calls: number; successful: number; escalated: number; failed: number; success_rate: number; escalation_rate: number };
+    averages: { duration: { success: number; escalated: number; failed: number }; cost: { success: number; escalated: number; failed: number } };
+    escalation_analysis: { total: number; rate: number; top_reasons: Array<{ reason: string; count: number; percentage: number }>; avg_cost: number };
+    trends: Array<{ date: string; total: number; successful: number; success_rate: number }>;
+    insights: { whats_working: Array<any>; needs_improvement: Array<any> };
+  };
+}
+
+export interface AgentROI {
+  period: { start_date: string; end_date: string; days: number };
+  calls: { total: number; successful: number; escalated: number; failed: number };
+  success_rate: number;
+  escalation_rate: number;
+  costs: { total: number; cost_per_success: number; avg_cost_per_call: number; total_cents: number };
+  revenue: { estimated: number; revenue_per_success: number };
+  roi: { percentage: number; multiplier: number };
+  savings: { vs_human: number; human_cost_for_period: number };
+}
+
+export interface OptimizationSuggestion {
+  priority: 'high' | 'medium';
+  category: string;
+  title: string;
+  description: string;
+  impact: string;
+  estimated_savings?: number;
+  setup_time: string;
+  action: string;
+}
+
+export const agentMetricsApi = {
+  getMetrics: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/agents/${agentId}/metrics${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: AgentMetrics }>(endpoint);
+    return response;
+  },
+  getROI: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/agents/${agentId}/roi${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: AgentROI }>(endpoint);
+    return response;
+  },
+  getPerformance: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/agents/${agentId}/performance${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: any }>(endpoint);
+    return response;
+  },
+  getEscalations: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/agents/${agentId}/escalations${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: any }>(endpoint);
+    return response;
+  },
+  getOptimizationSuggestions: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/agents/${agentId}/optimization_suggestions${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: { high_impact: OptimizationSuggestion[]; medium_impact: OptimizationSuggestion[] } }>(endpoint);
     return response;
   },
 };

@@ -109,29 +109,35 @@ export default function Overview() {
         // In the future, you can fetch previous period metrics and calculate the change
         const change = "0.0%";
 
+        // Safely handle undefined/null values with defaults
+        const numberOfCalls = data.numberOfCalls ?? 0;
+        const avgDuration = data.avgDuration ?? "0:00";
+        const totalCost = data.totalCost ?? 0;
+        const avgCost = data.avgCost ?? 0;
+
         setMetrics([
           {
             label: "Number of Calls",
-            value: data.numberOfCalls.toString(),
+            value: numberOfCalls.toString(),
             change,
             icon: Phone,
           },
           {
             label: "Avg Duration",
-            value: data.avgDuration,
+            value: avgDuration,
             change,
             icon: Clock,
           },
           {
             label: "Total Cost",
-            value: data.totalCost.toFixed(2),
+            value: totalCost.toFixed(2),
             unit: "credits",
             change,
             icon: CreditCard,
           },
           {
             label: "Avg Cost",
-            value: data.avgCost.toFixed(2),
+            value: avgCost.toFixed(2),
             unit: "cr/call",
             change,
             icon: TrendingDown,

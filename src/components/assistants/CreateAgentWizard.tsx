@@ -1,356 +1,66 @@
-import React, { useState, useRef, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  User,
-  Code,
-  AudioLines,
-  Mic,
-  Eye,
-  Check,
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
-  Plus,
-  Edit,
-  Trash2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi } from "@/lib/api";
-import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
-import { SectionEntry, SectionPayload } from "@/types/assistant";
-import { PROMPT_TEMPLATE, DEFAULT_SYSTEM_PROMPT } from "@/constants/assistant";
+import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi } from "@/lib/api";
+import { SectionEntry, SectionPayload, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { useIntegrationTools } from "@/hooks/assistants/useIntegrationTools";
+import { IntegrationConnectionModal } from "@/components/assistants/modals/IntegrationConnectionModal";
+import { INTEGRATION_METADATA } from "@/constants/assistant";
+import type { AgentIntegrationTool, WebhookTool } from "@/types/assistant";
+import type { UserIntegration as IntegrationUserIntegration } from "@/types/integrations";
+import { PhoneNumberModal } from "@/components/PhoneNumberModal";
+import { CustomWidgetConfig, DEFAULT_CONFIG, toFullConfig } from "@/utils/widgetConfig";
+import { loadAndOpenWidget } from "@/utils/widgetLoader";
+import { getBackendBaseUrl } from "@/utils/widgetHelpers";
+import { providers, modelsByProvider, steps, WIDGET_SIZES, templateDefaults } from "./wizard/constants";
+import { getTemplateIntegrationTools, getSampleMessages, generateSystemPrompt as generateSystemPromptHelper, generateSectionEntryId, createSectionEntry, inferTemplateFromName, serializeSectionEntries } from "./wizard/helpers";
+import type { CreateAgentWizardProps, StepType } from "./wizard/types";
+import { CustomWidgetPreviewModal } from "./wizard/CustomWidgetPreviewModal";
+import { Steps } from "./wizard/WizardSteps";
+import { SectionEntryModal } from "./wizard/SectionEntryModal";
+import { useWizardState } from "./wizard/hooks/useWizardState";
+import { useVoicePreview } from "./wizard/hooks/useVoicePreview";
+import { useTemplateDefaults } from "./wizard/hooks/useTemplateDefaults";
+import { NameStep } from "./wizard/steps/NameStep";
+import { ModelStep } from "./wizard/steps/ModelStep";
+import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
+import { VoiceStep } from "./wizard/steps/VoiceStep";
+import { LanguageStep } from "./wizard/steps/LanguageStep";
+import { IntegrationsStep } from "./wizard/steps/IntegrationsStep";
+import { PreviewStep } from "./wizard/steps/PreviewStep";
 
-const providers = [
-  { value: "elevenlabs", label: "ElevenLabs", icon: "🎙️" },
-  { value: "google", label: "Google", icon: "🔷" },
-  { value: "openai", label: "OpenAI", icon: "🤖" },
-  { value: "anthropic", label: "Anthropic", icon: "🧠" },
-  { value: "custom", label: "Custom", icon: "⚙️" },
-  { value: "meta", label: "Meta", icon: "🦙" },
-  { value: "mistral", label: "Mistral", icon: "🌊" },
-  { value: "cohere", label: "Cohere", icon: "⚡" },
-  { value: "groq", label: "Groq", icon: "🚀" },
-  { value: "perplexity", label: "Perplexity", icon: "🔍" },
-];
-
-const modelsByProvider: Record<string, { value: string; label: string }[]> = {
-  elevenlabs: [
-    { value: "glm-45-air-fp8", label: "GLM-4.5-Air" },
-    { value: "qwen3-30b-a3b", label: "Qwen3-30B-A3B" },
-    { value: "qwen3-4b", label: "Qwen3-4B" },
-    { value: "gpt-oss-120b", label: "GPT-OSS-120B" },
-    { value: "gpt-oss-20b", label: "GPT-OSS-20B" },
-    { value: "custom-llm", label: "Custom LLM" },
-  ],
-  google: [
-    { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-  ],
-  openai: [
-    { value: "gpt-5", label: "GPT-5" },
-    { value: "gpt-5.1", label: "GPT-5.1" },
-    { value: "gpt-5-mini", label: "GPT-5 Mini" },
-    { value: "gpt-5-nano", label: "GPT-5 Nano" },
-    { value: "gpt-4.1", label: "GPT-4.1" },
-    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
-    { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
-    { value: "gpt-4o", label: "GPT-4o" },
-    { value: "gpt-4o-mini", label: "GPT-4o Mini" },
-    { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
-    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-    { value: "gpt-4o-cluster", label: "GPT 4o Cluster" },
-    { value: "gpt-4", label: "GPT-4" },
-  ],
-  anthropic: [
-    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-    { value: "claude-sonnet-4", label: "Claude Sonnet 4" },
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-    { value: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet" },
-    { value: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
-    { value: "claude-3-haiku", label: "Claude 3 Haiku" },
-  ],
-  meta: [
-    { value: "llama-3-70b", label: "Llama 3 70B" },
-    { value: "llama-3-8b", label: "Llama 3 8B" },
-    { value: "llama-2-70b", label: "Llama 2 70B" },
-  ],
-  mistral: [
-    { value: "mistral-large", label: "Mistral Large" },
-    { value: "mistral-medium", label: "Mistral Medium" },
-    { value: "mistral-small", label: "Mistral Small" },
-  ],
-  cohere: [
-    { value: "command-r-plus", label: "Command R+" },
-    { value: "command-r", label: "Command R" },
-    { value: "command", label: "Command" },
-  ],
-  groq: [
-    { value: "llama-3-70b-8192", label: "Llama 3 70B" },
-    { value: "llama-3-8b-8192", label: "Llama 3 8B" },
-    { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" },
-  ],
-  perplexity: [
-    { value: "llama-3-sonar-large-32k-online", label: "Sonar Large 32k Online" },
-    { value: "llama-3-sonar-small-32k-online", label: "Sonar Small 32k Online" },
-  ],
-  custom: [
-    { value: "custom-llm", label: "Custom LLM" },
-  ],
-};
-
-interface CreateAgentWizardProps {
-  onComplete: (agentId: string) => void;
-  voices?: Array<{ id: string; name?: string }>; // Optional, will fetch if not provided
-  loadingVoices?: boolean;
-  initialData?: {
-    templateId?: string;
-    assistantName?: string;
-    systemPrompt?: string;
-    firstMessage?: string;
-    skipNameStep?: boolean;
-  };
-}
-
-type StepType = {
-  id: number;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-};
-
-const steps: StepType[] = [
-  { id: 1, label: "Name", icon: User },
-  { id: 2, label: "Model", icon: Code },
-  { id: 3, label: "Agent Behaviour", icon: Sparkles },
-  { id: 4, label: "Voice", icon: AudioLines },
-  { id: 5, label: "Language", icon: Mic },
-  { id: 6, label: "Preview", icon: Eye },
-];
-
-// Template-specific pre-population data
-type TemplateDefaults = {
-  provider: string;
-  model: string;
-  recommendedVoiceIds?: string[]; // Voice IDs that work well for this template
-  scenarios: SectionEntry[];
-  phases: SectionEntry[];
-  voiceTone: SectionEntry[];
-};
-
-const templateDefaults: Record<string, TemplateDefaults> = {
-  "Care Coordinator": {
-    provider: "openai",
-    model: "gpt-4o",
-    recommendedVoiceIds: [], // Will be set based on available voices
-    scenarios: [
-      {
-        id: "template_scenario_1",
-        title: "Appointment Booking",
-        description: "Schedule new appointments by gathering patient information, preferred dates and times, and reason for visit. Confirm all details before finalizing.",
-        notes: "Always verify patient name, phone number, and appointment type. Check for insurance requirements if applicable.",
-      },
-      {
-        id: "template_scenario_2",
-        title: "Rescheduling Requests",
-        description: "Help patients reschedule existing appointments. Check availability, update the appointment, and send confirmation.",
-        notes: "If rescheduling is urgent (same day), offer to check for cancellations or escalate to office staff.",
-      },
-      {
-        id: "template_scenario_3",
-        title: "General Inquiries",
-        description: "Answer questions about office hours, location, services offered, insurance accepted, and general practice information.",
-        notes: "For medical questions beyond scheduling, politely transfer to a healthcare provider or provide after-hours contact information.",
-      },
-    ],
-    phases: [
-      {
-        id: "template_phase_1",
-        title: "Greeting & Introduction",
-        description: "Answer the call warmly and professionally. Introduce yourself as the scheduling assistant and offer assistance.",
-        notes: "Use a calm, reassuring tone. Example: 'Thank you for calling Wellness Partners. This is Riley, your scheduling assistant. How may I help you today?'",
-      },
-      {
-        id: "template_phase_2",
-        title: "Gathering Information",
-        description: "Listen carefully to understand the caller's needs. Ask clarifying questions to gather all necessary details for scheduling.",
-        notes: "Be patient and allow the caller to fully explain their needs before asking follow-up questions.",
-      },
-      {
-        id: "template_phase_3",
-        title: "Confirming Details",
-        description: "Repeat back all appointment details to ensure accuracy. Confirm date, time, patient name, and reason for visit.",
-        notes: "Double-check spelling of names and verify phone numbers. Ask if they need directions or have any questions.",
-      },
-      {
-        id: "template_phase_4",
-        title: "Professional Closing",
-        description: "Thank the caller, confirm next steps, and offer additional assistance if needed. End the call on a positive note.",
-        notes: "Remind them of any preparation needed (fasting, bringing insurance card, etc.) if relevant to their appointment type.",
-      },
-    ],
-    voiceTone: [
-      {
-        id: "template_tone_1",
-        title: "Professional & Compassionate",
-        description: "Maintain a professional, warm, and patient-focused tone. Speak clearly and check for understanding. Show empathy for health concerns.",
-        notes: "Avoid medical jargon. Use simple, clear language. Be reassuring when discussing health-related topics.",
-      },
-    ],
-  },
-  "Lead Qualification Specialist": {
-    provider: "openai",
-    model: "gpt-4o",
-    recommendedVoiceIds: [],
-    scenarios: [
-      {
-        id: "template_scenario_1",
-        title: "Lead Qualification",
-        description: "Engage with potential customers, understand their needs, and determine if they're a good fit for the product or service.",
-        notes: "Ask open-ended questions to understand pain points. Qualify based on budget, timeline, and decision-making authority.",
-      },
-      {
-        id: "template_scenario_2",
-        title: "Objection Handling",
-        description: "Address common concerns and objections professionally. Provide relevant information and overcome hesitations.",
-        notes: "Listen carefully to objections. Don't be pushy. Provide value and let the lead make an informed decision.",
-      },
-      {
-        id: "template_scenario_3",
-        title: "Appointment Scheduling",
-        description: "Schedule follow-up calls or meetings with qualified leads. Confirm details and send calendar invitations.",
-        notes: "Confirm time zones and preferred communication method. Send reminders 24 hours before scheduled calls.",
-      },
-    ],
-    phases: [
-      {
-        id: "template_phase_1",
-        title: "Opening & Rapport Building",
-        description: "Greet the lead warmly and establish rapport. Explain the purpose of the call and set expectations.",
-        notes: "Be enthusiastic but not overly salesy. Focus on understanding their needs first.",
-      },
-      {
-        id: "template_phase_2",
-        title: "Discovery & Qualification",
-        description: "Ask strategic questions to understand the lead's situation, challenges, and goals. Qualify their fit.",
-        notes: "Use BANT framework (Budget, Authority, Need, Timeline) to qualify leads effectively.",
-      },
-      {
-        id: "template_phase_3",
-        title: "Value Presentation",
-        description: "Present relevant solutions based on discovered needs. Highlight benefits that address their specific pain points.",
-        notes: "Tailor the pitch to what you learned in discovery. Focus on outcomes, not features.",
-      },
-      {
-        id: "template_phase_4",
-        title: "Next Steps & Close",
-        description: "Propose clear next steps. Schedule follow-ups, send materials, or transfer to sales team as appropriate.",
-        notes: "Always confirm next steps and timeline. Set expectations for what happens next.",
-      },
-    ],
-    voiceTone: [
-      {
-        id: "template_tone_1",
-        title: "Confident & Engaging",
-        description: "Speak with confidence and enthusiasm. Be engaging and conversational while maintaining professionalism.",
-        notes: "Match the energy level of the lead. Be adaptable - more formal for enterprise, more casual for SMB.",
-      },
-    ],
-  },
-  "Feedback Gathered": {
-    provider: "openai",
-    model: "gpt-4o",
-    recommendedVoiceIds: [],
-    scenarios: [
-      {
-        id: "template_scenario_1",
-        title: "Survey Completion",
-        description: "Guide callers through structured surveys, asking questions clearly and recording responses accurately.",
-        notes: "Keep questions concise. If a question is unclear, rephrase it. Thank them for each response.",
-      },
-      {
-        id: "template_scenario_2",
-        title: "Open-Ended Feedback",
-        description: "Encourage detailed feedback by asking open-ended questions. Listen actively and probe for specifics.",
-        notes: "Use phrases like 'Tell me more about that' or 'Can you give me an example?' to get richer feedback.",
-      },
-      {
-        id: "template_scenario_3",
-        title: "Follow-Up Questions",
-        description: "Ask relevant follow-up questions based on initial responses to gather deeper insights.",
-        notes: "Don't ask too many follow-ups. Focus on the most important areas for improvement.",
-      },
-    ],
-    phases: [
-      {
-        id: "template_phase_1",
-        title: "Introduction & Purpose",
-        description: "Explain the purpose of the call and how long it will take. Set expectations and ask for participation.",
-        notes: "Be transparent about time commitment. Example: 'This survey will take about 5 minutes of your time.'",
-      },
-      {
-        id: "template_phase_2",
-        title: "Question Delivery",
-        description: "Ask questions clearly, one at a time. Wait for complete answers before moving to the next question.",
-        notes: "If they give a brief answer, ask 'Is there anything else you'd like to add?' to get more detail.",
-      },
-      {
-        id: "template_phase_3",
-        title: "Active Listening",
-        description: "Show you're listening by acknowledging responses. Use phrases like 'I understand' or 'That makes sense.'",
-        notes: "Don't interrupt. Let them finish their thoughts completely before responding.",
-      },
-      {
-        id: "template_phase_4",
-        title: "Thank You & Closing",
-        description: "Thank them sincerely for their time and feedback. Explain how their input will be used.",
-        notes: "End on a positive note. Example: 'Your feedback helps us improve, and we really appreciate you taking the time.'",
-      },
-    ],
-    voiceTone: [
-      {
-        id: "template_tone_1",
-        title: "Friendly & Appreciative",
-        description: "Be warm, friendly, and genuinely appreciative of their time. Show enthusiasm for their feedback.",
-        notes: "Use a conversational, non-intimidating tone. Make them feel their opinion truly matters.",
-      },
-    ],
-  },
-};
-
+// Helper functions are now imported from ./wizard/helpers
+// Constants are now imported from ./wizard/constants
+// CustomWidgetPreviewModal is now imported from ./wizard/CustomWidgetPreviewModal
+// steps and templateDefaults are now imported from ./wizard/constants
 
 export default function CreateAgentWizard({ onComplete, voices: propVoices, loadingVoices: propLoadingVoices, initialData }: CreateAgentWizardProps) {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Get agent slug from URL params (for persistence across refreshes)
+  const urlAgentSlug = searchParams.get('slug');
+  const savedStep = searchParams.get('step');
+  
   // Skip name step if name is already provided
   const shouldSkipNameStep = initialData?.skipNameStep && initialData?.assistantName;
-  const [currentStep, setCurrentStep] = useState(shouldSkipNameStep ? 1 : 0);
+  const initialStep = savedStep ? parseInt(savedStep, 10) : (shouldSkipNameStep ? 1 : 0);
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [saving, setSaving] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [agentSlug, setAgentSlug] = useState<string | null>(urlAgentSlug || null);
+  const [loadingAgent, setLoadingAgent] = useState(!!urlAgentSlug);
 
   // Step 1: Name
   const [name, setName] = useState(initialData?.assistantName || "");
@@ -379,162 +89,92 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
   const [loadingBehaviours, setLoadingBehaviours] = useState(false);
 
-  // Generate system prompt from template and custom sections
-  // This ensures the template is preserved and only custom sections are added/removed
-  const generateSystemPrompt = (): string => {
-    const formatSectionContent = (sectionTitle: string, sectionDescription: string, entries: SectionEntry[]): string => {
-      if (entries.length === 0) return "";
+  // Integration tools state
+  const [webhookTools, setWebhookTools] = useState<WebhookTool[]>([]);
+  const integrationHook = useIntegrationTools(webhookTools, setWebhookTools);
+  const [userIntegrations, setUserIntegrations] = useState<IntegrationUserIntegration[]>([]);
+  const [loadingIntegrations, setLoadingIntegrations] = useState(false);
+  
+  // Widget preview and phone number modals
+  const [showWidgetPreview, setShowWidgetPreview] = useState(false);
+  const [showPhoneNumberModal, setShowPhoneNumberModal] = useState(false);
+  const [agentData, setAgentData] = useState<import("@/lib/api").Agent | null>(null);
+  const [widgetConfig, setWidgetConfig] = useState<CustomWidgetConfig>(DEFAULT_CONFIG);
+  const [apiKey, setApiKey] = useState<string>('');
+  
+  // inferTemplateFromName is now imported from ./wizard/helpers
 
-      const formattedEntries = entries
-        .map((entry) => {
-          const title = entry.title.trim();
-          const description = entry.description.trim();
-          const notes = entry.notes?.trim();
-
-          if (!title && !description) return null;
-
-          let content = `- **${title || "Untitled"}**`;
-          if (description) {
-            content += `\n  ${description}`;
-          }
-          if (notes) {
-            content += `\n  _Note: ${notes}_`;
-          }
-          return content;
-        })
-        .filter(Boolean)
-        .join("\n\n");
-
-      if (!formattedEntries) return "";
-
-      return `## ${sectionTitle}\n\n${sectionDescription}\n\n${formattedEntries}`;
-    };
-
-    // Preserve the original template prompt exactly as provided
-    const templatePrompt = initialData?.systemPrompt || "";
-    
-    // Check for custom sections
-    const hasScenarios = scenarios.length > 0;
-    const hasPhases = phases.length > 0;
-    const hasVoiceTone = voiceTone.length > 0;
-    const hasCustomSections = hasScenarios || hasPhases || hasVoiceTone;
-    
-    // If no template and no custom sections, use default
-    if (!templatePrompt && !hasCustomSections) {
-      return DEFAULT_SYSTEM_PROMPT;
-    }
-    
-    // If no template but we have custom sections, use the simple template structure
-    if (!templatePrompt && hasCustomSections) {
-      const scenariosContent = formatSectionContent(
-        "Scenarios",
-        "These are the main scenarios you should be prepared to handle:",
-        scenarios
-      );
-
-      const phasesContent = formatSectionContent(
-        "Conversation Phases",
-        "Follow these phases during the conversation:",
-        phases
-      );
-
-      const voiceToneContent = formatSectionContent(
-        "Voice & Tone",
-        "Maintain the following tone and communication style:",
-        voiceTone
-      );
-
-      const prompt = PROMPT_TEMPLATE
-        .replace("{{SCENARIOS}}", scenariosContent)
-        .replace("{{PHASES}}", phasesContent)
-        .replace("{{VOICE_TONE}}", voiceToneContent)
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
-
-      return prompt;
-    }
-    
-    // We have a template prompt - preserve it exactly and only append custom sections
-    if (!hasCustomSections) {
-      // No custom sections, return template as-is
-      return templatePrompt;
-    }
-    
-    // Remove any existing custom sections from template (if editing an existing agent)
-    // This ensures we don't duplicate sections when rebuilding
-    const customSectionMarkers = [
-      /## Additional Scenarios[\s\S]*?(?=\n## |\n=== |$)/,
-      /## Additional Conversation Phases[\s\S]*?(?=\n## |\n=== |$)/,
-      /## Additional Voice & Tone[\s\S]*?(?=\n## |\n=== |$)/,
-    ];
-    
-    let cleanedTemplate = templatePrompt;
-    customSectionMarkers.forEach(marker => {
-      cleanedTemplate = cleanedTemplate.replace(marker, '').trim();
-    });
-    cleanedTemplate = cleanedTemplate.replace(/\n{3,}/g, "\n\n").trim();
-    
-    // Build new custom sections
-    const customSections: string[] = [];
-    
-    if (hasScenarios) {
-      const scenariosContent = formatSectionContent(
-        "Additional Scenarios",
-        "These are additional scenarios you should be prepared to handle:",
-        scenarios
-      );
-      if (scenariosContent) {
-        customSections.push(scenariosContent);
+  // Get required integrations from template
+  // Priority: 1) initialData.integrationTools, 2) agentData.integration_tools (for existing agents), 3) template title, 4) inferred from agent name
+  const requiredIntegrations = React.useMemo(() => {
+    // Check initialData first (this is passed from AssistantsList when creating from template)
+    if (initialData?.integrationTools) {
+      const keys = Object.keys(initialData.integrationTools);
+      if (keys.length > 0) {
+        console.log('[CreateAgentWizard] Using integrations from initialData:', keys);
+        return keys;
+      } else {
+        console.log('[CreateAgentWizard] initialData.integrationTools exists but is empty:', initialData.integrationTools);
       }
     }
     
-    if (hasPhases) {
-      const phasesContent = formatSectionContent(
-        "Additional Conversation Phases",
-        "Follow these additional phases during the conversation:",
-        phases
-      );
-      if (phasesContent) {
-        customSections.push(phasesContent);
+    // Check agentData for existing integrations (when editing an existing agent)
+    if (agentData?.integration_tools) {
+      const keys = Object.keys(agentData.integration_tools);
+      if (keys.length > 0) {
+        console.log('[CreateAgentWizard] Using integrations from agentData:', keys);
+        return keys;
       }
     }
     
-    if (hasVoiceTone) {
-      const voiceToneContent = formatSectionContent(
-        "Additional Voice & Tone",
-        "Maintain these additional tone and communication style guidelines:",
-        voiceTone
-      );
-      if (voiceToneContent) {
-        customSections.push(voiceToneContent);
+    // Fallback: check template title if template is loaded
+    if (template?.title) {
+      const templateTools = getTemplateIntegrationTools(template.title);
+      const integrationKeys = Object.keys(templateTools);
+      console.log('[CreateAgentWizard] Template integrations:', {
+        templateTitle: template.title,
+        templateTools,
+        integrationKeys,
+        hasTools: integrationKeys.length > 0,
+        keysLength: integrationKeys.length
+      });
+      if (integrationKeys.length > 0) {
+        return integrationKeys;
       }
     }
     
-    // Append custom sections to cleaned template
-    // This preserves the template structure while adding/updating custom sections
-    if (customSections.length > 0) {
-      const appendedSections = customSections.join("\n\n");
-      return `${cleanedTemplate}\n\n${appendedSections}`.replace(/\n{3,}/g, "\n\n").trim();
+    // If template not loaded but we have agent name, try to infer template from name
+    if (!template && agentData?.name) {
+      const inferredTemplate = inferTemplateFromName(agentData.name);
+      if (inferredTemplate) {
+        console.log('[CreateAgentWizard] Inferred template from agent name:', inferredTemplate, 'agent name:', agentData.name);
+        const templateTools = getTemplateIntegrationTools(inferredTemplate);
+        const integrationKeys = Object.keys(templateTools);
+        if (integrationKeys.length > 0) {
+          console.log('[CreateAgentWizard] Using integrations from inferred template:', integrationKeys);
+          return integrationKeys;
+        }
+      }
     }
     
-    // No custom sections, return cleaned template
-    return cleanedTemplate || templatePrompt;
-  };
+    // If we have a templateId but template isn't loaded yet, try to get integrations from the mapping
+    // This is a fallback for when template is still loading
+    if (initialData?.templateId && !template) {
+      console.log('[CreateAgentWizard] Template not loaded yet, but we have templateId:', initialData.templateId);
+      // We can't get the title without the template, so return empty for now
+      // The template will be loaded in useEffect and then this will recalculate
+    }
+    
+    console.log('[CreateAgentWizard] No integrations found - template:', template?.title, 'templateId:', initialData?.templateId, 'agentData.integration_tools:', agentData?.integration_tools, 'agentData.name:', agentData?.name, 'initialData.integrationTools:', initialData?.integrationTools);
+    return [];
+  }, [template, initialData?.integrationTools, initialData?.templateId, agentData?.integration_tools, agentData?.name]);
+  
+  const hasRequiredIntegrations = requiredIntegrations.length > 0;
 
-  const systemPrompt = generateSystemPrompt();
+  // Generate system prompt using imported helper
+  const systemPrompt = generateSystemPromptHelper(initialData?.systemPrompt, scenarios, phases, voiceTone);
 
-  // Helper functions for section entries
-  const generateSectionEntryId = () => {
-    return `section_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  };
-
-  const createSectionEntry = (overrides: Partial<SectionEntry> = {}): SectionEntry => ({
-    id: generateSectionEntryId(),
-    title: "",
-    description: "",
-    notes: "",
-    ...overrides,
-  });
+  // generateSectionEntryId and createSectionEntry are now imported from ./wizard/helpers
 
   const openSectionModal = (type: "scenarios" | "phases" | "voiceTone", entry?: SectionEntry) => {
     setEditingSectionType(type);
@@ -598,113 +238,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     setter((prev) => prev.filter((entry) => entry.id !== id));
   };
 
-  const getSectionConfig = (sectionType: "scenarios" | "phases" | "voiceTone") => {
-    const defaultConfigs = {
-      scenarios: {
-        title: "Scenarios",
-        description: "Define the main scenarios your agent should handle",
-        addLabel: "Add Scenario",
-      },
-      phases: {
-        title: "Conversation Phases",
-        description: "Define the phases your agent should follow during conversations",
-        addLabel: "Add Phase",
-      },
-      voiceTone: {
-        title: "Voice & Tone",
-        description: "Define the tone and communication style your agent should maintain",
-        addLabel: "Add Tone",
-      },
-    };
-
-    const defaultConfig = defaultConfigs[sectionType];
-    const behaviourSection = behaviourConfig?.[sectionType];
-
-    if (behaviourSection) {
-      return {
-        title: behaviourSection.label || defaultConfig.title,
-        description: behaviourSection.description || defaultConfig.description,
-        addLabel: behaviourSection.add_label || defaultConfig.addLabel,
-      };
-    }
-
-    return defaultConfig;
-  };
-
-  const renderSectionEditor = (
-    entries: SectionEntry[],
-    sectionType: "scenarios" | "phases" | "voiceTone"
-  ) => {
-    const config = getSectionConfig(sectionType);
-    return (
-      <div className="border border-border rounded-lg bg-white p-4 space-y-4">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h4 className="text-sm font-semibold">{config.title}</h4>
-            <p className="text-sm text-muted-foreground">{config.description}</p>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openSectionModal(sectionType)}
-            className="flex items-center gap-1"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {config.addLabel}
-          </Button>
-        </div>
-
-        {entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No {config.title.toLowerCase()} defined yet. Use the button above to add one.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="group flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 hover:bg-muted/50 transition-colors"
-              >
-                <div
-                  className="flex-1 min-w-0 cursor-pointer"
-                  onClick={() => openSectionModal(sectionType, entry)}
-                >
-                  <h5 className="text-sm font-medium truncate">
-                    {entry.title || <span className="text-muted-foreground italic">Untitled</span>}
-                  </h5>
-                  {entry.description && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {entry.description.length > 80
-                        ? `${entry.description.slice(0, 80)}...`
-                        : entry.description}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => openSectionModal(sectionType, entry)}
-                  >
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                    onClick={() => deleteSectionEntry(sectionType, entry.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  // getSectionConfig and renderSectionEditor are now handled by AgentBehaviourStep component
 
   // Step 4: Voice
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
@@ -712,8 +246,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(propLoadingVoices || false);
   const [voiceSearchQuery, setVoiceSearchQuery] = useState("");
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Use voice preview hook
+  const { playingVoiceId, handlePlayPreview } = useVoicePreview();
 
   // Step 5: Language
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
@@ -895,7 +430,119 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     };
     
     fetchBehaviours();
-  }, []);
+  }, [currentBehaviourId, initialData?.templateId]);
+
+  // Load agent data if agentSlug exists in URL (for page refresh persistence)
+  useEffect(() => {
+    const loadAgentData = async () => {
+      if (!urlAgentSlug) {
+        setLoadingAgent(false);
+        return;
+      }
+
+      try {
+        setLoadingAgent(true);
+        const agentResponse = await agentsApi.get(urlAgentSlug);
+        if (agentResponse.data) {
+          const agent = agentResponse.data;
+          setAgentId(agent.id);
+          setAgentSlug(agent.slug || urlAgentSlug);
+          setAgentData(agent);
+          
+          // Restore form state from agent
+          setName(agent.name || "");
+          
+          // Restore model/provider from conversation config
+          if (agent.conversation_config?.model) {
+            const modelConfig = agent.conversation_config.model as { provider?: string; model?: string };
+            if (modelConfig.provider) setSelectedProvider(modelConfig.provider);
+            if (modelConfig.model) setSelectedModel(modelConfig.model);
+          }
+          
+          // Restore platform settings (voice, language)
+          if (agent.platform_settings) {
+            const platformSettings = agent.platform_settings as { voice_id?: string; language?: string };
+            if (platformSettings.voice_id) setSelectedVoiceId(platformSettings.voice_id);
+            if (platformSettings.language) setSelectedLanguage(platformSettings.language);
+          }
+          
+          // Restore section entries from prompt_sections
+          if (agent.conversation_config?.prompt_sections) {
+            const sections = agent.conversation_config.prompt_sections as {
+              scenarios?: SectionPayload[];
+              phases?: SectionPayload[];
+              voiceTone?: SectionPayload[];
+            };
+            if (sections.scenarios) {
+              setScenarios(sections.scenarios.map((s, idx) => ({
+                id: `restored_scenario_${idx}_${Date.now()}`,
+                title: s.title || "",
+                description: s.description || "",
+                notes: s.notes || "",
+              })));
+            }
+            if (sections.phases) {
+              setPhases(sections.phases.map((s, idx) => ({
+                id: `restored_phase_${idx}_${Date.now()}`,
+                title: s.title || "",
+                description: s.description || "",
+                notes: s.notes || "",
+              })));
+            }
+            if (sections.voiceTone) {
+              setVoiceTone(sections.voiceTone.map((s, idx) => ({
+                id: `restored_tone_${idx}_${Date.now()}`,
+                title: s.title || "",
+                description: s.description || "",
+                notes: s.notes || "",
+              })));
+            }
+          }
+          
+          // Restore widget config
+          if (agent.widget_config) {
+            const loadedConfig = toFullConfig(agent.widget_config);
+            setWidgetConfig(loadedConfig);
+          }
+          
+          // Restore first message if available
+          if (agent.conversation_config?.first_message) {
+            setFirstMessage(agent.conversation_config.first_message as string);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load agent data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load agent data. Starting fresh.',
+          variant: 'destructive',
+        });
+        // Clear invalid agent slug from URL
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('slug');
+          newParams.delete('step');
+          return newParams;
+        });
+      } finally {
+        setLoadingAgent(false);
+      }
+    };
+    
+    loadAgentData();
+  }, [urlAgentSlug, setSearchParams, toast]);
+
+  // Update URL when step or agentSlug changes
+  useEffect(() => {
+    if (agentSlug) {
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.set('slug', agentSlug);
+        newParams.set('step', currentStep.toString());
+        return newParams;
+      });
+    }
+  }, [agentSlug, currentStep, setSearchParams]);
 
   // Load template and behaviour (or default behaviour if no template)
   useEffect(() => {
@@ -1157,35 +804,140 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     }
   }, [template, voices, selectedVoiceId]);
 
+  // Fetch user integrations
+  useEffect(() => {
+    const fetchIntegrations = async () => {
+      setLoadingIntegrations(true);
+      try {
+        const response = await integrationsApi.list();
+        if (response.data) {
+          setUserIntegrations(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch integrations:', error);
+      } finally {
+        setLoadingIntegrations(false);
+      }
+    };
+    fetchIntegrations();
+  }, []);
+
+  // Fetch or create API key for widget preview
+  useEffect(() => {
+    const fetchOrCreateApiKey = async () => {
+      try {
+        const response = await apiKeysApi.list();
+        const existingKeys = response.data || [];
+        
+        // Look for an existing widget API key by name first
+        let widgetKey = existingKeys.find(
+          (key) => key.name === 'Widget API Key'
+        );
+        
+        // If no widget key exists, use any existing key
+        if (!widgetKey && existingKeys.length > 0) {
+          widgetKey = existingKeys[0]; // Use the first available key
+        }
+        
+        // Only create if no keys exist at all
+        if (!widgetKey) {
+          const createResponse = await apiKeysApi.create({
+            name: 'Widget API Key',
+            key_type: 'public',
+            transient_assistant: false,
+          });
+          if (createResponse.data) {
+            setApiKey(createResponse.data.key_value);
+          }
+        } else {
+          setApiKey(widgetKey.key_value);
+        }
+      } catch (error) {
+        console.error('Failed to fetch/create API key:', error);
+      }
+    };
+    fetchOrCreateApiKey();
+  }, []);
+
+  // Handle live widget preview
+  const handleLiveWidgetPreview = async () => {
+    if (!agentData?.elevenlabs_agent_id) {
+      toast({
+        title: "Deploy first",
+        description: "Publish the agent before previewing the widget.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!apiKey) {
+      toast({
+        title: "Widget preview unavailable",
+        description: "Could not load the widget API key. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await loadAndOpenWidget({
+        agentId: agentData.elevenlabs_agent_id,
+        apiKey: apiKey,
+        apiBaseUrl: getBackendBaseUrl(),
+        title: widgetConfig.title,
+        subtitle: widgetConfig.subtitle,
+        buttonText: widgetConfig.buttonText,
+        welcomeMessage: widgetConfig.welcomeMessage,
+        iconType: widgetConfig.iconType,
+        customIconUrl: widgetConfig.customIconUrl,
+        position: widgetConfig.position,
+        widgetSize: widgetConfig.widgetSize,
+        primaryColor: widgetConfig.primaryColor,
+        primaryTextColor: widgetConfig.primaryTextColor,
+        backgroundColor: widgetConfig.backgroundColor,
+        textColor: widgetConfig.textColor,
+        borderColor: widgetConfig.borderColor,
+        userBubbleColor: widgetConfig.userBubbleColor,
+        agentBubbleColor: widgetConfig.agentBubbleColor,
+        borderRadius: widgetConfig.borderRadius,
+      });
+    } catch (error) {
+      console.error("Failed to open widget preview:", error);
+      toast({
+        title: "Preview failed",
+        description: error instanceof Error ? error.message : "Could not open the widget preview.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSetStep = (direction: -1 | 1) => {
     const minStep = shouldSkipNameStep ? 1 : 0;
-    const maxStep = shouldSkipNameStep ? steps.length - 2 : steps.length - 1;
+    const previewStep = hasRequiredIntegrations ? 6 : 5;
+    const maxStep = previewStep;
     
     if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
     }
-    setCurrentStep((prev) => prev + direction);
+    
+    let nextStep = currentStep + direction;
+    
+    // Skip integrations step if not needed when going forward
+    if (direction === 1 && nextStep === 5 && !hasRequiredIntegrations) {
+      nextStep = 6; // Skip to preview
+    }
+    // Skip integrations step if not needed when going backward
+    if (direction === -1 && nextStep === 5 && !hasRequiredIntegrations) {
+      nextStep = 4; // Skip to language
+    }
+    
+    setCurrentStep(nextStep);
   };
 
   const handleSaveStep = async () => {
     setSaving(true);
     try {
-      // Serialize section entries
-      const serializeSectionEntries = (entries: SectionEntry[]): SectionPayload[] =>
-        entries
-          .map((entry) => {
-            const serialized: SectionPayload = {
-              title: entry.title.trim(),
-              description: entry.description.trim(),
-            };
-            if (entry.notes?.trim()) {
-              serialized.notes = entry.notes.trim();
-            }
-            return serialized.title || serialized.description || serialized.notes ? serialized : null;
-          })
-          .filter((value): value is SectionPayload => value !== null);
-
+      // Serialize section entries using imported helper
       const serializedScenarios = serializeSectionEntries(scenarios);
       const serializedPhases = serializeSectionEntries(phases);
       const serializedTone = serializeSectionEntries(voiceTone);
@@ -1252,18 +1004,68 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         });
         if (response.data) {
           savedAgentId = response.data.id;
+          // Update slug if available
+          if (response.data.slug) {
+            setAgentSlug(response.data.slug);
+          }
+          // Fetch full agent data for preview
+          try {
+            const agentResponse = await agentsApi.get(response.data.id);
+            if (agentResponse.data) {
+              setAgentData(agentResponse.data);
+              // Update slug if it's now available
+              if (agentResponse.data.slug) {
+                setAgentSlug(agentResponse.data.slug);
+              }
+              // Load widget config from agent
+              const loadedConfig = toFullConfig(agentResponse.data.widget_config);
+              setWidgetConfig(loadedConfig);
+            }
+          } catch (err) {
+            console.error('Failed to fetch agent data:', err);
+          }
         } else {
           throw new Error('Failed to update agent');
         }
       } else {
         // Create new agent
-        const response = await agentsApi.create({
+        const createParams = {
           name: name.trim(),
-          ...config
-        });
+          ...config,
+          ...(initialData?.integrationTools && Object.keys(initialData.integrationTools).length > 0
+            ? { integration_tools: initialData.integrationTools }
+            : {})
+        };
+        
+        const response = await agentsApi.create(createParams);
         if (response.data) {
           savedAgentId = response.data.id;
           setAgentId(response.data.id);
+          // Update URL with agent slug for persistence
+          const slug = response.data.slug || response.data.id; // Fallback to ID if slug not available yet
+          setAgentSlug(slug);
+          setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('slug', slug);
+            newParams.set('step', currentStep.toString());
+            return newParams;
+          });
+          // Fetch full agent data for preview
+          try {
+            const agentResponse = await agentsApi.get(response.data.id);
+            if (agentResponse.data) {
+              setAgentData(agentResponse.data);
+              // Update slug if it's now available
+              if (agentResponse.data.slug) {
+                setAgentSlug(agentResponse.data.slug);
+              }
+              // Load widget config from agent
+              const loadedConfig = toFullConfig(agentResponse.data.widget_config);
+              setWidgetConfig(loadedConfig);
+            }
+          } catch (err) {
+            console.error('Failed to fetch agent data:', err);
+          }
         } else {
           throw new Error('Failed to create agent');
         }
@@ -1324,14 +1126,64 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         });
       }
 
-      // Steps: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Preview]
-      // If skipNameStep: start at 1, max is 5
-      // If not skipNameStep: start at 0, max is 5
-      const maxStep = steps.length - 1; // Always 5 (Preview step)
-      if (currentStep === maxStep) {
-        onComplete(savedAgentId);
+      // Steps: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Integrations, 6: Preview]
+      // Preview step is always at index 6 (step 7 when counting from 1)
+      const previewStep = 6;
+      
+      console.log('[CreateAgentWizard] Step navigation:', {
+        currentStep,
+        previewStep,
+        hasRequiredIntegrations,
+        requiredIntegrations,
+        templateTitle: template?.title,
+        initialDataIntegrationTools: initialData?.integrationTools
+      });
+      
+      if (currentStep === previewStep) {
+        // On preview step, save the final configuration and then redirect
+        // The agent should already be saved, but ensure we have the latest slug
+        if (savedAgentId) {
+          // Fetch the latest agent data to get the slug
+          try {
+            const agentResponse = await agentsApi.get(savedAgentId);
+            if (agentResponse.data) {
+              const finalSlug = agentResponse.data.slug || savedAgentId;
+              setAgentSlug(finalSlug);
+              // Redirect to assistant detail page
+              onComplete(finalSlug);
+              return; // Exit early after redirect
+            }
+          } catch (err) {
+            console.error('Failed to fetch agent for redirect:', err);
+            // Fall back to using what we have
+            const agentIdentifier = agentSlug || savedAgentId;
+            if (agentIdentifier) {
+              onComplete(agentIdentifier);
+              return;
+            }
+          }
+        }
+        
+        // If we get here, something went wrong
+        toast({
+          title: 'Error',
+          description: 'Agent identifier not found. Please try again.',
+          variant: 'destructive',
+        });
+        return; // Don't continue if we can't redirect
       } else {
-        setCurrentStep((prev) => prev + 1);
+        // Move to next step
+        const nextStep = currentStep + 1;
+        
+        // Skip integrations step (5) if not needed when coming from Language (4)
+        // Use the hasRequiredIntegrations from useMemo which is already calculated correctly
+        if (nextStep === 5 && !hasRequiredIntegrations) {
+          console.log('[CreateAgentWizard] Skipping integrations step, going to preview');
+          setCurrentStep(6); // Skip to preview
+        } else {
+          console.log('[CreateAgentWizard] Moving to next step:', nextStep, 'hasRequiredIntegrations:', hasRequiredIntegrations);
+          setCurrentStep(nextStep);
+        }
       }
     } catch (err) {
       toast({
@@ -1357,7 +1209,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return selectedVoiceId.trim() !== "";
         case 4: // Language step
           return selectedLanguage.trim() !== "";
-        case 5: // Preview step
+        case 5: // Integrations step
+          return true; // Integrations step is always valid (optional to connect)
+        case 6: // Preview step
           return true; // Preview is always valid
         default:
           return false;
@@ -1374,7 +1228,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return selectedVoiceId.trim() !== "";
         case 4:
           return selectedLanguage.trim() !== "";
-        case 5: // Preview step
+        case 5: // Integrations step
+          return true; // Integrations step is always valid (optional to connect)
+        case 6: // Preview step
           return true; // Preview is always valid
         default:
           return false;
@@ -1382,78 +1238,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     }
   };
 
-  const handlePlayPreview = (voice: Voice) => {
-    if (!voice.preview_url) {
-      console.warn('No preview_url for voice:', voice.id, voice);
-      toast({
-        title: 'Preview unavailable',
-        description: 'This voice does not have a preview available.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    console.log('Playing preview for voice:', voice.id, 'URL:', voice.preview_url);
-
-    // Stop currently playing audio if any
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.currentTime = 0;
-      currentAudioRef.current = null;
-      setPlayingVoiceId(null);
-    }
-
-    // If clicking the same voice that's playing, just stop it
-    if (playingVoiceId === voice.id) {
-      setPlayingVoiceId(null);
-      return;
-    }
-
-    // Create and play new audio
-    const audio = new Audio(voice.preview_url);
-    currentAudioRef.current = audio;
-    setPlayingVoiceId(voice.id || null);
-
-    // Handle when audio ends
-    audio.addEventListener('ended', () => {
-      console.log('Audio ended for voice:', voice.id);
-      setPlayingVoiceId(null);
-      currentAudioRef.current = null;
-    });
-
-    // Handle errors
-    audio.addEventListener('error', (e) => {
-      console.error('Audio error for voice:', voice.id, e);
-      setPlayingVoiceId(null);
-      currentAudioRef.current = null;
-      toast({
-        title: 'Preview unavailable',
-        description: 'Could not play voice preview.',
-        variant: 'destructive',
-      });
-    });
-
-    audio.play().catch((err) => {
-      console.error('Error playing preview:', err, 'Voice:', voice.id, 'URL:', voice.preview_url);
-      setPlayingVoiceId(null);
-      currentAudioRef.current = null;
-      toast({
-        title: 'Preview unavailable',
-        description: 'Could not play voice preview. Please check your browser audio settings.',
-        variant: 'destructive',
-      });
-    });
-  };
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
-    };
-  }, []);
+  // handlePlayPreview is now provided by useVoicePreview hook
 
 
   const selectedVoice = voices.find(v => v.id === selectedVoiceId);
@@ -1465,192 +1250,71 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       switch (currentStep) {
         case 1: // Model step
           return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Provider</label>
-                <Select
-                  value={selectedProvider}
-                  onValueChange={(value) => {
-                    setSelectedProvider(value);
-                    const models = modelsByProvider[value];
-                    if (models && models.length > 0) {
-                      setSelectedModel(models[0].value);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providers.map((provider) => (
-                      <SelectItem key={provider.value} value={provider.value}>
-                        <span className="flex items-center gap-2">
-                          <span>{provider.icon}</span>
-                          <span>{provider.label}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Model</label>
-                <Select value={selectedModel} onValueChange={setSelectedModel}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelsByProvider[selectedProvider]?.map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <ModelStep
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              onProviderChange={setSelectedProvider}
+              onModelChange={setSelectedModel}
+            />
           );
         case 2: // Agent Behaviour step
           return (
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
-                  </p>
-                </div>
-              </div>
-              
-              {renderSectionEditor(scenarios, "scenarios")}
-              {renderSectionEditor(phases, "phases")}
-              {renderSectionEditor(voiceTone, "voiceTone")}
-            </div>
+            <AgentBehaviourStep
+              scenarios={scenarios}
+              phases={phases}
+              voiceTone={voiceTone}
+              behaviourConfig={behaviourConfig}
+              onOpenSectionModal={openSectionModal}
+              onDeleteSectionEntry={deleteSectionEntry}
+            />
           );
         case 3: // Voice step
           return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Voice</label>
-                {loadingVoices ? (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Loading voices...</span>
-                  </div>
-                ) : (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start bg-white"
-                      onClick={() => setShowVoiceSelector(true)}
-                    >
-                      {selectedVoice ? (
-                        <span className="flex items-center gap-2">
-                          <AudioLines className="h-4 w-4" />
-                          {selectedVoice.name || selectedVoice.id}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Select a voice</span>
-                      )}
-                    </Button>
-                    <VoiceSelectorDialog
-                      open={showVoiceSelector}
-                      onOpenChange={setShowVoiceSelector}
-                      voices={voices}
-                      selectedVoiceId={selectedVoiceId}
-                      onSelectVoice={(voiceId) => {
-                        setSelectedVoiceId(voiceId);
-                        setShowVoiceSelector(false);
-                      }}
-                      playingVoiceId={playingVoiceId}
-                      onPlayPreview={handlePlayPreview}
-                      searchQuery={voiceSearchQuery}
-                      onSearchChange={setVoiceSearchQuery}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
+            <VoiceStep
+              selectedVoiceId={selectedVoiceId}
+              voices={voices}
+              loadingVoices={loadingVoices}
+              showVoiceSelector={showVoiceSelector}
+              onShowVoiceSelectorChange={setShowVoiceSelector}
+              onSelectVoice={(voiceId) => {
+                setSelectedVoiceId(voiceId);
+                setShowVoiceSelector(false);
+              }}
+              playingVoiceId={playingVoiceId}
+              onPlayPreview={handlePlayPreview}
+              voiceSearchQuery={voiceSearchQuery}
+              onVoiceSearchChange={setVoiceSearchQuery}
+            />
           );
         case 4: // Language step
+          return <LanguageStep selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} />;
+        case 5: // Integrations step
           return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Language</label>
-                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="english">English</SelectItem>
-                    <SelectItem value="spanish">Spanish</SelectItem>
-                    <SelectItem value="french">French</SelectItem>
-                    <SelectItem value="german">German</SelectItem>
-                    <SelectItem value="italian">Italian</SelectItem>
-                    <SelectItem value="portuguese">Portuguese</SelectItem>
-                    <SelectItem value="polish">Polish</SelectItem>
-                    <SelectItem value="turkish">Turkish</SelectItem>
-                    <SelectItem value="russian">Russian</SelectItem>
-                    <SelectItem value="dutch">Dutch</SelectItem>
-                    <SelectItem value="czech">Czech</SelectItem>
-                    <SelectItem value="arabic">Arabic</SelectItem>
-                    <SelectItem value="chinese">Chinese</SelectItem>
-                    <SelectItem value="japanese">Japanese</SelectItem>
-                    <SelectItem value="hungarian">Hungarian</SelectItem>
-                    <SelectItem value="korean">Korean</SelectItem>
-                    <SelectItem value="multi">Multi</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <IntegrationsStep
+              requiredIntegrations={requiredIntegrations}
+              userIntegrations={userIntegrations}
+              loadingIntegrations={loadingIntegrations}
+              onConnectIntegration={async (integrationType, userIntegration) => {
+                if (userIntegration) {
+                  await integrationHook.openEditIntegrationModal(userIntegration);
+                } else {
+                  await integrationHook.selectIntegrationToAdd(integrationType);
+                }
+              }}
+            />
           );
-        case 5: // Preview step
+        case 6: // Preview step
           return (
-            <div className="space-y-6">
-              <p className="text-sm text-muted-foreground">
-                Review your agent configuration before completing the setup.
-              </p>
-              
-              <div className="space-y-4">
-                {/* Name */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Name</h3>
-                  </div>
-                  <p className="text-sm">{name || "Not set"}</p>
-                </div>
-
-                {/* Model */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Code className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Model</h3>
-                  </div>
-                  <p className="text-sm">
-                    {providers.find(p => p.value === selectedProvider)?.label} - {modelsByProvider[selectedProvider]?.find(m => m.value === selectedModel)?.label || selectedModel}
-                  </p>
-                </div>
-
-                {/* Voice */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AudioLines className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Voice</h3>
-                  </div>
-                  <p className="text-sm">{selectedVoice?.name || selectedVoiceId || "Not selected"}</p>
-                </div>
-
-                {/* Language */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mic className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Language</h3>
-                  </div>
-                  <p className="text-sm capitalize">{selectedLanguage || "Not set"}</p>
-                </div>
-              </div>
-            </div>
+            <PreviewStep
+              name={name}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              selectedVoice={selectedVoice}
+              selectedVoiceId={selectedVoiceId}
+              selectedLanguage={selectedLanguage}
+              onLiveWidgetPreview={handleLiveWidgetPreview}
+              onShowPhoneNumberModal={() => setShowPhoneNumberModal(true)}
+            />
           );
         default:
           return null;
@@ -1659,213 +1323,90 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       // Normal flow with name step
       switch (currentStep) {
         case 0:
-          return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Assistant Name</label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter a name for your assistant"
-                  className="w-full bg-white"
-                />
-              </div>
-            </div>
-          );
+          return <NameStep name={name} onNameChange={setName} />;
         case 1:
           return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Provider</label>
-                <Select
-                  value={selectedProvider}
-                  onValueChange={(value) => {
-                    setSelectedProvider(value);
-                    const models = modelsByProvider[value];
-                    if (models && models.length > 0) {
-                      setSelectedModel(models[0].value);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providers.map((provider) => (
-                      <SelectItem key={provider.value} value={provider.value}>
-                        <span className="flex items-center gap-2">
-                          <span>{provider.icon}</span>
-                          <span>{provider.label}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Model</label>
-                <Select value={selectedModel} onValueChange={setSelectedModel}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelsByProvider[selectedProvider]?.map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <ModelStep
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              onProviderChange={setSelectedProvider}
+              onModelChange={setSelectedModel}
+            />
           );
         case 2: // Agent Behaviour step
           return (
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Define scenarios, conversation phases, and voice tone to customize your agent's behavior. These are optional but help create a more tailored experience.
-                  </p>
-                </div>
-              </div>
-              
-              {renderSectionEditor(scenarios, "scenarios")}
-              {renderSectionEditor(phases, "phases")}
-              {renderSectionEditor(voiceTone, "voiceTone")}
-            </div>
+            <AgentBehaviourStep
+              scenarios={scenarios}
+              phases={phases}
+              voiceTone={voiceTone}
+              behaviourConfig={behaviourConfig}
+              onOpenSectionModal={openSectionModal}
+              onDeleteSectionEntry={deleteSectionEntry}
+            />
           );
         case 3: // Voice step
           return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Voice</label>
-                {loadingVoices ? (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Loading voices...</span>
-                  </div>
-                ) : (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start bg-white"
-                      onClick={() => setShowVoiceSelector(true)}
-                    >
-                      {selectedVoice ? (
-                        <span className="flex items-center gap-2">
-                          <AudioLines className="h-4 w-4" />
-                          {selectedVoice.name || selectedVoice.id}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Select a voice</span>
-                      )}
-                    </Button>
-                    <VoiceSelectorDialog
-                      open={showVoiceSelector}
-                      onOpenChange={setShowVoiceSelector}
-                      voices={voices}
-                      selectedVoiceId={selectedVoiceId}
-                      onSelectVoice={(voiceId) => {
-                        setSelectedVoiceId(voiceId);
-                        setShowVoiceSelector(false);
-                      }}
-                      playingVoiceId={playingVoiceId}
-                      onPlayPreview={handlePlayPreview}
-                      searchQuery={voiceSearchQuery}
-                      onSearchChange={setVoiceSearchQuery}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
+            <VoiceStep
+              selectedVoiceId={selectedVoiceId}
+              voices={voices}
+              loadingVoices={loadingVoices}
+              showVoiceSelector={showVoiceSelector}
+              onShowVoiceSelectorChange={setShowVoiceSelector}
+              onSelectVoice={(voiceId) => {
+                setSelectedVoiceId(voiceId);
+                setShowVoiceSelector(false);
+              }}
+              playingVoiceId={playingVoiceId}
+              onPlayPreview={handlePlayPreview}
+              voiceSearchQuery={voiceSearchQuery}
+              onVoiceSearchChange={setVoiceSearchQuery}
+            />
           );
         case 4: // Language step
+          return <LanguageStep selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} />;
+        case 5: // Integrations step
           return (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Language</label>
-                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="english">English</SelectItem>
-                    <SelectItem value="spanish">Spanish</SelectItem>
-                    <SelectItem value="french">French</SelectItem>
-                    <SelectItem value="german">German</SelectItem>
-                    <SelectItem value="italian">Italian</SelectItem>
-                    <SelectItem value="portuguese">Portuguese</SelectItem>
-                    <SelectItem value="polish">Polish</SelectItem>
-                    <SelectItem value="turkish">Turkish</SelectItem>
-                    <SelectItem value="russian">Russian</SelectItem>
-                    <SelectItem value="dutch">Dutch</SelectItem>
-                    <SelectItem value="czech">Czech</SelectItem>
-                    <SelectItem value="arabic">Arabic</SelectItem>
-                    <SelectItem value="chinese">Chinese</SelectItem>
-                    <SelectItem value="japanese">Japanese</SelectItem>
-                    <SelectItem value="hungarian">Hungarian</SelectItem>
-                    <SelectItem value="korean">Korean</SelectItem>
-                    <SelectItem value="multi">Multi</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <IntegrationsStep
+              requiredIntegrations={requiredIntegrations}
+              userIntegrations={userIntegrations}
+              loadingIntegrations={loadingIntegrations}
+              onConnectIntegration={async (integrationType, userIntegration) => {
+                if (userIntegration) {
+                  await integrationHook.openEditIntegrationModal(userIntegration);
+                } else {
+                  await integrationHook.selectIntegrationToAdd(integrationType);
+                }
+              }}
+            />
           );
-        case 5: // Preview step
+        case 6: // Preview step
           return (
-            <div className="space-y-6">
-              <p className="text-sm text-muted-foreground">
-                Review your agent configuration before completing the setup.
-              </p>
-              
-              <div className="space-y-4">
-                {/* Name */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Name</h3>
-                  </div>
-                  <p className="text-sm">{name || "Not set"}</p>
-                </div>
-
-                {/* Model */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Code className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Model</h3>
-                  </div>
-                  <p className="text-sm">
-                    {providers.find(p => p.value === selectedProvider)?.label} - {modelsByProvider[selectedProvider]?.find(m => m.value === selectedModel)?.label || selectedModel}
-                  </p>
-                </div>
-
-                {/* Voice */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AudioLines className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Voice</h3>
-                  </div>
-                  <p className="text-sm">{selectedVoice?.name || selectedVoiceId || "Not selected"}</p>
-                </div>
-
-                {/* Language */}
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mic className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="text-sm font-semibold">Language</h3>
-                  </div>
-                  <p className="text-sm capitalize">{selectedLanguage || "Not set"}</p>
-                </div>
-              </div>
-            </div>
+            <PreviewStep
+              name={name}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              selectedVoice={selectedVoice}
+              selectedVoiceId={selectedVoiceId}
+              selectedLanguage={selectedLanguage}
+              onLiveWidgetPreview={handleLiveWidgetPreview}
+              onShowPhoneNumberModal={() => setShowPhoneNumberModal(true)}
+            />
           );
         default:
           return null;
       }
     }
   };
+
+  // Show loading state when restoring agent data
+  if (loadingAgent) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading your assistant...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1893,7 +1434,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
                   if (currentStep === 3) return "Select a voice for your assistant to use.";
                   if (currentStep === 4) return "Choose the language for your agent.";
-                  if (currentStep === 5) return "Review your agent configuration before completing.";
+                  if (currentStep === 5) return hasRequiredIntegrations ? "Connect your integrations to enable the required tools." : "Review your agent configuration before completing.";
+                  if (currentStep === 6) return "Review your agent configuration before completing.";
                   return "";
                 } else {
                   if (currentStep === 0) return "Give your assistant a name to identify it.";
@@ -1901,7 +1443,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
                   if (currentStep === 3) return "Select a voice for your assistant to use.";
                   if (currentStep === 4) return "Choose the language for your agent.";
-                  if (currentStep === 5) return "Review your agent configuration before completing.";
+                  if (currentStep === 5) return hasRequiredIntegrations ? "Connect your integrations to enable the required tools." : "Review your agent configuration before completing.";
+                  if (currentStep === 6) return "Review your agent configuration before completing.";
                   return "";
                 }
               })()}
@@ -1943,189 +1486,88 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       </div>
 
       {/* Section Entry Modal */}
-      <Dialog open={showSectionModal} onOpenChange={setShowSectionModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingSectionEntry ? "Edit Entry" : "Add Entry"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingSectionType === "scenarios" && "Define a scenario your agent should handle."}
-              {editingSectionType === "phases" && "Define a conversation phase your agent should follow."}
-              {editingSectionType === "voiceTone" && "Define a tone or communication style for your agent."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="section-title">Title</Label>
-              <Input
-                id="section-title"
-                value={sectionForm.title}
-                onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
-                placeholder="Enter a title..."
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="section-description">Description</Label>
-              <Textarea
-                id="section-description"
-                value={sectionForm.description}
-                onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })}
-                placeholder="Enter a description..."
-                className="mt-1 min-h-[100px]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="section-notes">Notes (optional)</Label>
-              <Textarea
-                id="section-notes"
-                value={sectionForm.notes || ""}
-                onChange={(e) => setSectionForm({ ...sectionForm, notes: e.target.value })}
-                placeholder="Enter additional notes..."
-                className="mt-1 min-h-[80px]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeSectionModal}>
-              Cancel
-            </Button>
-            <Button onClick={saveSectionEntry}>
-              {editingSectionEntry ? "Save Changes" : (() => {
-                switch (editingSectionType) {
-                  case "scenarios": return "Add Scenario";
-                  case "phases": return "Add Conversation Phase";
-                  case "voiceTone": return "Add Voice & Tone";
-                  default: return "Add Entry";
-                }
-              })()}
-            </Button>
-          </DialogFooter>
+      <SectionEntryModal
+        open={showSectionModal}
+        onOpenChange={setShowSectionModal}
+        editingSectionType={editingSectionType}
+        editingSectionEntry={editingSectionEntry}
+        sectionForm={sectionForm}
+        onSectionFormChange={(form) => setSectionForm(form)}
+        onSave={saveSectionEntry}
+        onCancel={closeSectionModal}
+      />
+
+      {/* Integration Connection Modal */}
+      <IntegrationConnectionModal
+        open={integrationHook.showIntegrationModal}
+        onOpenChange={integrationHook.setShowIntegrationModal}
+        connectingIntegrationLoading={integrationHook.connectingIntegrationLoading}
+        integrationModalStep={integrationHook.integrationModalStep}
+        availableIntegrationTypes={Object.keys(INTEGRATION_METADATA).map(type => ({
+          id: type,
+          name: INTEGRATION_METADATA[type].name,
+          icon: INTEGRATION_METADATA[type].icon,
+          iconBg: INTEGRATION_METADATA[type].iconBg,
+        }))}
+        agentIntegrationTools={integrationHook.agentIntegrationTools}
+        selectIntegrationToAdd={integrationHook.selectIntegrationToAdd}
+        userIntegrations={userIntegrations}
+        connectingIntegrationType={integrationHook.connectingIntegrationType}
+        goBackToIntegrationSelect={integrationHook.goBackToIntegrationSelect}
+        integrationSchemas={integrationHook.integrationSchemas 
+          ? { [integrationHook.connectingIntegrationType || '']: integrationHook.integrationSchemas }
+          : {}}
+        integrationModalTab={integrationHook.integrationModalTab}
+        setIntegrationModalTab={integrationHook.setIntegrationModalTab}
+        editingIntegrationConfig={integrationHook.editingIntegrationConfig}
+        handleIntegrationConnect={async (config) => {
+          await integrationHook.handleIntegrationConnect(config);
+          // Refresh user integrations after connecting
+          const response = await integrationsApi.list();
+          if (response.data) {
+            setUserIntegrations(response.data);
+          }
+        }}
+        closeIntegrationConnectionModal={integrationHook.closeIntegrationConnectionModal}
+        selectedIntegrationToolsForModal={integrationHook.selectedIntegrationToolsForModal}
+        toggleModalToolSelection={integrationHook.toggleModalToolSelection}
+        setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
+        saveSelectedIntegrationTools={async () => {
+          // For wizard, we don't need to save tools to agent yet (agent not created)
+          // Just close the modal and refresh integrations
+          // We'll pass null for agent since it's not created yet
+          if (agentId) {
+            // If agent exists, save to it
+            await integrationHook.saveSelectedIntegrationTools(
+              { id: agentId, name: name } as Agent,
+              async () => {},
+              async () => {}
+            );
+          }
+          const response = await integrationsApi.list();
+          if (response.data) {
+            setUserIntegrations(response.data);
+          }
+        }}
+      />
+
+      {/* Widget Preview Modal */}
+      <Dialog open={showWidgetPreview} onOpenChange={setShowWidgetPreview}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0">
+          <CustomWidgetPreviewModal
+            config={widgetConfig}
+            agentName={agentData?.name}
+            onClose={() => setShowWidgetPreview(false)}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* Phone Number Modal */}
+      <PhoneNumberModal
+        open={showPhoneNumberModal}
+        onOpenChange={setShowPhoneNumberModal}
+        defaultAgentId={agentId || undefined}
+      />
     </div>
   );
 }
-
-const Steps = ({
-  numSteps,
-  currentStep,
-  steps,
-}: {
-  numSteps: number;
-  currentStep: number;
-  steps: StepType[];
-}) => {
-  return (
-    <div className="flex items-center justify-center gap-2 max-w-2xl mx-auto">
-      {steps.map((step, index) => {
-        const stepNum = index + 1;
-        const isCompleted = index < currentStep;
-        const isCurrent = index === currentStep;
-        const isActive = isCompleted || isCurrent;
-        const Icon = step.icon;
-
-        return (
-          <React.Fragment key={stepNum}>
-            <Step 
-              num={stepNum} 
-              isCompleted={isCompleted}
-              isCurrent={isCurrent}
-              icon={Icon} 
-              label={step.label} 
-            />
-            {stepNum !== numSteps && (
-              <div className={cn(
-                "flex-1 h-0.5 rounded-full relative transition-colors",
-                isCompleted ? "bg-primary" : "bg-muted"
-              )}>
-                {/* Thick line for completed connections */}
-                {isCompleted && (
-                  <div className="absolute top-0 bottom-0 left-0 right-0 bg-primary h-1 -top-0.5 rounded-full" />
-                )}
-              </div>
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
-
-const Step = ({ 
-  num, 
-  isCompleted,
-  isCurrent,
-  icon: Icon, 
-  label 
-}: { 
-  num: number; 
-  isCompleted: boolean;
-  isCurrent: boolean;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}) => {
-  const isActive = isCompleted || isCurrent;
-  
-  return (
-    <div className="relative flex flex-col items-center gap-2 min-w-[80px]">
-      <div className="relative">
-        {/* Glow effect for current step */}
-        {isCurrent && (
-          <motion.div
-            className="absolute inset-0 rounded-full bg-primary/20 blur-md"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1.2, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          />
-        )}
-        
-        {/* Step circle */}
-        <div
-          className={cn(
-            "w-10 h-10 flex items-center justify-center shrink-0 rounded-full font-semibold text-sm relative z-10 transition-all duration-300",
-            isCompleted
-              ? "bg-primary border-2 border-primary text-primary-foreground"
-              : isCurrent
-              ? "bg-primary border-2 border-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary/20"
-              : "border-2 border-muted-foreground/30 text-muted-foreground bg-background"
-          )}
-        >
-          <AnimatePresence mode="wait">
-            {isCompleted ? (
-              <motion.div
-                key="icon-check"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Check className="h-5 w-5" />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="icon-step"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Icon className={cn(
-                  "h-5 w-5",
-                  isCurrent ? "text-primary-foreground" : "text-muted-foreground"
-                )} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-      <span className={cn(
-        "text-xs font-medium text-center",
-        isActive ? "text-foreground font-semibold" : "text-muted-foreground"
-      )}>
-        {label}
-      </span>
-    </div>
-  );
-};

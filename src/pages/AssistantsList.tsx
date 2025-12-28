@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,8 @@ import {
   FileText,
   MessageCircle,
   Target,
-  ClipboardList
+  ClipboardList,
+  UserCheck
 } from "lucide-react";
 import { agentsApi, Agent, voicesApi, Voice, agentTemplatesApi, AgentTemplate } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -48,11 +49,60 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'message-circle': MessageCircle,
   'target': Target,
   'clipboard-list': ClipboardList,
+  'user-check': UserCheck,
+};
+
+// Template to integration tools mapping
+// Maps template titles to integration types and their enabled tools
+const getTemplateIntegrationTools = (templateTitle: string): Record<string, { enabled: boolean; enabled_tools: string[] }> => {
+  const mapping: Record<string, Record<string, string[]>> = {
+    "Appointment Scheduler": {
+      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
+      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
+    },
+    "Scheduler": {
+      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
+      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
+    },
+    "Receptionist": {
+      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
+      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
+    },
+    "Recruiters": {
+      hubspot: ["get_contact", "create_contact", "update_contact", "search_contacts", "get_company", "create_company", "search_companies"],
+      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
+    },
+    "Leads Reviver": {
+      hubspot: ["get_contact", "create_contact", "update_contact", "search_contacts", "get_deal", "update_deal", "search_deals"],
+      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
+    },
+    "Care Coordinator": {
+      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
+      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
+    },
+  };
+
+  const tools = mapping[templateTitle];
+  if (!tools) {
+    return {};
+  }
+
+  // Convert to the format expected by the API
+  const result: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+  Object.entries(tools).forEach(([integrationType, toolActions]) => {
+    result[integrationType] = {
+      enabled: true,
+      enabled_tools: toolActions,
+    };
+  });
+
+  return result;
 };
 
 
 export default function AssistantsList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [assistants, setAssistants] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,14 +199,25 @@ export default function AssistantsList() {
     fetchTemplates();
   }, [fetchAgents, fetchVoices, fetchTemplates]);
 
+  // Open modal automatically if create=true in query params (e.g., after sign up)
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      setShowCreateModal(true);
+      // Remove the query parameter from URL
+      searchParams.delete('create');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const filteredAssistants = assistants.filter((assistant) =>
     (assistant.name || 'Unnamed Agent').toLowerCase().includes(searchQuery.toLowerCase()) ||
     assistant.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     assistant.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleAssistantClick = (assistantId: string) => {
-    navigate(`/assistants/${assistantId}`);
+  const handleAssistantClick = (assistant: Agent) => {
+    const identifier = assistant.slug || assistant.id;
+    navigate(`/assistants/${identifier}`);
   };
 
   const handleCreateAssistant = () => {
@@ -222,6 +283,9 @@ export default function AssistantsList() {
       return;
     }
     
+    // Get integration tools for this template
+    const integrationTools = getTemplateIntegrationTools(template.title);
+    
     // Navigate to wizard with template data, skipping name step since we already have a name
     setShowCreateModal(false);
     navigate("/assistants/create", {
@@ -231,6 +295,7 @@ export default function AssistantsList() {
         systemPrompt: template.systemPrompt,
         firstMessage: template.firstMessage,
         skipNameStep: true, // Skip name step since we already have a name
+        integrationTools: integrationTools, // Pass integration tools to be created automatically
       }
     });
   };
@@ -243,7 +308,8 @@ export default function AssistantsList() {
     }
 
     try {
-      await agentsApi.delete(assistant.id);
+      const identifier = assistant.slug || assistant.id;
+      await agentsApi.delete(identifier);
       toast({
         title: 'Success',
         description: 'Agent deleted successfully.',
@@ -328,7 +394,7 @@ export default function AssistantsList() {
               <div
                 key={assistant.id}
                 className="bg-card border border-border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer group"
-                onClick={() => handleAssistantClick(assistant.id)}
+                onClick={() => handleAssistantClick(assistant)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -346,7 +412,7 @@ export default function AssistantsList() {
                       className="h-8 w-8"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleAssistantClick(assistant.id);
+                        handleAssistantClick(assistant);
                       }}
                       title="Edit"
                     >
@@ -474,79 +540,18 @@ export default function AssistantsList() {
               />
             </div>
 
-            {/* Blank Template */}
-            {templates.length > 0 && templates[0]?.title === "Blank Template" && (
-              <div>
-                <button
-                  onClick={() => handleTemplateSelect(templates[0].id)}
-                  className={cn(
-                    "w-full p-4 rounded-lg border-2 transition-all text-left",
-                    selectedTemplate === templates[0].id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50 bg-card"
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0",
-                      selectedTemplate === templates[0].id ? "bg-primary/10" : "bg-secondary/50"
-                    )}>
-                      {(() => {
-                        const blankTemplate = templates[0];
-                        if (typeof blankTemplate.icon === 'string') {
-                          return (
-                            <img 
-                              src={blankTemplate.icon} 
-                              alt={blankTemplate.title}
-                              className={cn(
-                                "h-6 w-6 object-contain",
-                                selectedTemplate === blankTemplate.id ? "opacity-100" : "opacity-70"
-                              )}
-                            />
-                          );
-                        } else if (blankTemplate.icon) {
-                          const IconComponent = blankTemplate.icon;
-                          return (
-                            <IconComponent className={cn(
-                              "h-6 w-6",
-                              selectedTemplate === blankTemplate.id ? "text-primary" : "text-muted-foreground"
-                            )} />
-                          );
-                        } else {
-                          return (
-                            <Plus className={cn(
-                              "h-6 w-6",
-                              selectedTemplate === blankTemplate.id ? "text-primary" : "text-muted-foreground"
-                            )} />
-                          );
-                        }
-                      })()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold mb-1 text-base">{templates[0].title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {templates[0].description}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            )}
-
-            {/* Quickstart Templates */}
+            {/* Templates List */}
             <div>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                QUICKSTART
-              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {templatesLoading ? (
                   <div className="col-span-2 flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  templates.slice(1).map((template) => {
+                  templates.map((template) => {
                     const Icon = typeof template.icon === 'string' ? null : template.icon;
                     const iconUrl = typeof template.icon === 'string' ? template.icon : null;
+                    const isBlank = template.title === "Blank Template";
                     
                     return (
                       <button
@@ -561,12 +566,13 @@ export default function AssistantsList() {
                       >
                         <div className="flex items-start gap-3">
                           <div className={cn(
-                            "w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0",
+                            isBlank ? "w-12 h-12 rounded-full" : "w-10 h-10 rounded-md",
+                            "flex items-center justify-center flex-shrink-0",
                             selectedTemplate === template.id ? "bg-primary/10" : "bg-secondary/50"
                           )}>
                             {Icon ? (
                               <Icon className={cn(
-                                "h-5 w-5",
+                                isBlank ? "h-6 w-6" : "h-5 w-5",
                                 selectedTemplate === template.id ? "text-primary" : "text-muted-foreground"
                               )} />
                             ) : iconUrl ? (
@@ -574,20 +580,27 @@ export default function AssistantsList() {
                                 src={iconUrl} 
                                 alt={template.title}
                                 className={cn(
-                                  "h-5 w-5 object-contain",
+                                  isBlank ? "h-6 w-6" : "h-5 w-5",
+                                  "object-contain",
                                   selectedTemplate === template.id ? "opacity-100" : "opacity-70"
                                 )}
                               />
                             ) : (
                               <Plus className={cn(
-                                "h-5 w-5",
+                                isBlank ? "h-6 w-6" : "h-5 w-5",
                                 selectedTemplate === template.id ? "text-primary" : "text-muted-foreground"
                               )} />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold mb-1 text-sm">{template.title}</h3>
-                            <p className="text-xs text-muted-foreground line-clamp-3">
+                            <h3 className={cn(
+                              "font-semibold mb-1",
+                              isBlank ? "text-base" : "text-sm"
+                            )}>{template.title}</h3>
+                            <p className={cn(
+                              "text-muted-foreground",
+                              isBlank ? "text-sm" : "text-xs line-clamp-3"
+                            )}>
                               {template.description}
                             </p>
                           </div>

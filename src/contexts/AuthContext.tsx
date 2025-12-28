@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: 'Your account has been created successfully.',
         });
         // Navigation will be handled by the component
-        return '/overview';
+        return '/assistants?create=true';
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign up';

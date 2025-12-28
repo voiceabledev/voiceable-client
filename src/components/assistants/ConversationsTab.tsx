@@ -377,10 +377,10 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
           <table className="w-full">
             <thead className="sticky top-0 bg-background">
               <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
+                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Outcome</th>
+                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Date & Time</th>
                 <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Duration</th>
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Messages</th>
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Cost</th>
               </tr>
             </thead>
             <tbody>
@@ -395,48 +395,69 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                 </tr>
               ) : filteredConversations.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center">
+                  <td colSpan={5} className="px-4 py-8 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <p className="text-sm">{searchQuery ? 'No conversations found matching your search.' : agentId ? 'No conversations found for this agent.' : 'Please select an agent to view conversations.'}</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredConversations.map((conv) => (
-                  <tr
-                    key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
-                    className={cn(
-                      "border-b border-border cursor-pointer transition-colors",
-                      selectedConversation?.id === conv.id
-                        ? "bg-sidebar-accent"
-                        : "hover:bg-secondary/30"
-                    )}
-                  >
-                    <td className="px-4 py-3 text-sm">{conv.date || 'N/A'}</td>
-                    <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
-                    <td className="px-4 py-3 text-sm">{conv.messages || 0}</td>
-                    <td className="px-4 py-3">
-                      {conversationOutcomes[conv.id] ? (
-                        <OutcomeBadge outcome={conversationOutcomes[conv.id].outcome} />
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            conv.status === "Successful" &&
-                              "bg-success/10 text-success border-success/20",
-                            conv.status === "Failed" &&
-                              "bg-destructive/10 text-destructive border-destructive/20",
-                            conv.status === "In Progress" &&
-                              "bg-warning/10 text-warning border-warning/20"
-                          )}
-                        >
-                          {conv.status || 'Unknown'}
-                        </Badge>
+                filteredConversations.map((conv) => {
+                  const outcome = conversationOutcomes[conv.id]?.outcome;
+                  const getOutcomeIcon = () => {
+                    if (outcome === 'success') return '✅';
+                    if (outcome === 'escalated') return '⚠️';
+                    if (outcome === 'failure') return '❌';
+                    if (conv.status === 'Successful') return '✅';
+                    if (conv.status === 'Failed') return '❌';
+                    return '⏸️';
+                  };
+                  const getOutcomeLabel = () => {
+                    if (outcome === 'success') return 'Success';
+                    if (outcome === 'escalated') return 'Escalated';
+                    if (outcome === 'failure') return 'Failed';
+                    return conv.status || 'Unknown';
+                  };
+                  // Estimate cost based on duration (rough calculation: ~$0.15/min)
+                  const durationMinutes = conv.duration ? parseFloat(conv.duration.split(':')[0]) + (parseFloat(conv.duration.split(':')[1] || '0') / 60) : 0;
+                  const estimatedCost = (durationMinutes * 0.15).toFixed(2);
+                  
+                  return (
+                    <tr
+                      key={conv.id}
+                      onClick={() => setSelectedConversation(conv)}
+                      className={cn(
+                        "border-b border-border cursor-pointer transition-colors",
+                        selectedConversation?.id === conv.id
+                          ? "bg-sidebar-accent"
+                          : "hover:bg-secondary/30"
                       )}
-                    </td>
-                  </tr>
-                ))
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{getOutcomeIcon()}</span>
+                          <span className="text-sm font-medium">{getOutcomeLabel()}</span>
+                        </div>
+                        {conv.summary && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{conv.summary}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div>{conv.date || 'N/A'}</div>
+                        {conv.userId && conv.userId !== 'Unknown User' && (
+                          <div className="text-xs text-muted-foreground mt-1">Caller: {conv.userId}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">💰</span>
+                          <span>${estimatedCost}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
