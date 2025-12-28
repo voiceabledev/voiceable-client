@@ -19,6 +19,7 @@ type PromptPreviewModalProps = {
   systemPromptTemplate: string;
   systemPromptTools: string;
   systemPromptBehaviours: string;
+  systemPromptOutcomeCriteria?: string;
   promptToolsSummary: string;
   onSaveTemplate?: (template: string) => Promise<void>;
   saving?: boolean;
@@ -30,6 +31,7 @@ export const PromptPreviewModal: React.FC<PromptPreviewModalProps> = ({
   systemPromptTemplate,
   systemPromptTools,
   systemPromptBehaviours,
+  systemPromptOutcomeCriteria,
   promptToolsSummary,
   onSaveTemplate,
   saving = false,
@@ -146,6 +148,29 @@ export const PromptPreviewModal: React.FC<PromptPreviewModalProps> = ({
                 <div className="bg-secondary/20 rounded-xl p-5 border border-border/50">
                   <pre className="text-sm font-mono whitespace-pre-wrap leading-relaxed text-foreground/80">
                     {systemPromptBehaviours}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Outcome Criteria Section - Read-only */}
+            {systemPromptOutcomeCriteria && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="outline" className="bg-secondary/50 text-foreground/70 border-border">
+                    Outcome Criteria (Edit in Outcomes section)
+                  </Badge>
+                </div>
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    To edit success criteria and outcome reporting instructions, please use the Outcomes section in the main interface.
+                  </AlertDescription>
+                </Alert>
+                <div className="bg-secondary/20 rounded-xl p-5 border border-border/50">
+                  <pre className="text-sm font-mono whitespace-pre-wrap leading-relaxed text-foreground/80">
+                    {systemPromptOutcomeCriteria}
                   </pre>
                 </div>
               </div>

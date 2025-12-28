@@ -11,8 +11,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { conversationsApi, Conversation } from "@/lib/api";
+import { conversationsApi, Conversation, conversationOutcomesApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { OutcomeBadge } from "@/components/ui/outcome-badge";
+import ConversationOutcomePanel from "@/components/assistants/ConversationOutcomePanel";
 
 interface ConversationDisplay extends Conversation {
   date: string;
@@ -34,7 +36,8 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
   const [conversationDetails, setConversationDetails] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription">("overview");
+  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription" | "outcome">("overview");
+  const [conversationOutcomes, setConversationOutcomes] = useState<Record<string, { outcome: 'success' | 'failure' | 'escalated' }>>({});
   const [isPlaying, setIsPlaying] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
@@ -107,6 +110,17 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   useEffect(() => {
     if (selectedConversation?.id) {
       fetchConversationDetails(selectedConversation.id);
+      // Fetch outcome if available
+      conversationOutcomesApi.get(selectedConversation.id).then((response) => {
+        if (response.data?.data) {
+          setConversationOutcomes(prev => ({
+            ...prev,
+            [selectedConversation.id]: response.data.data,
+          }));
+        }
+      }).catch(() => {
+        // Outcome may not exist, ignore
+      });
     }
   }, [selectedConversation?.id, fetchConversationDetails]);
 
@@ -403,19 +417,23 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                     <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
                     <td className="px-4 py-3 text-sm">{conv.messages || 0}</td>
                     <td className="px-4 py-3">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          conv.status === "Successful" &&
-                            "bg-success/10 text-success border-success/20",
-                          conv.status === "Failed" &&
-                            "bg-destructive/10 text-destructive border-destructive/20",
-                          conv.status === "In Progress" &&
-                            "bg-warning/10 text-warning border-warning/20"
-                        )}
-                      >
-                        {conv.status || 'Unknown'}
-                      </Badge>
+                      {conversationOutcomes[conv.id] ? (
+                        <OutcomeBadge outcome={conversationOutcomes[conv.id].outcome} />
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            conv.status === "Successful" &&
+                              "bg-success/10 text-success border-success/20",
+                            conv.status === "Failed" &&
+                              "bg-destructive/10 text-destructive border-destructive/20",
+                            conv.status === "In Progress" &&
+                              "bg-warning/10 text-warning border-warning/20"
+                          )}
+                        >
+                          {conv.status || 'Unknown'}
+                        </Badge>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -564,7 +582,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
           {/* Tabs */}
           <div className="px-4 pt-3">
             <div className="flex gap-4 border-b border-border">
-              {(["overview", "transcription"] as const).map((tab) => (
+              {(["overview", "transcription", "outcome"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveDetailTab(tab)}
@@ -648,6 +666,9 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                   <p className="text-sm text-muted-foreground">No transcript available</p>
                 )}
               </div>
+            )}
+            {activeDetailTab === "outcome" && selectedConversation && (
+              <ConversationOutcomePanel conversationId={selectedConversation.id} />
             )}
 
           </div>

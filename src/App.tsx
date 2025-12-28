@@ -25,6 +25,8 @@ import Integrations from "@/pages/settings/Integrations";
 import IntegrationSettings from "@/pages/settings/IntegrationSettings";
 import FinancialSimulation from "@/pages/settings/FinancialSimulation";
 import Conversations from "@/pages/Conversations";
+import Dashboards from "@/pages/Dashboards";
+import Escalations from "@/pages/Escalations";
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
 import Pricing from "@/pages/Pricing";
@@ -64,10 +66,10 @@ const queryClient = new QueryClient();
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -102,6 +104,8 @@ const App = () => (
                 <Route path="/outbound" element={<Outbound />} />
                 <Route path="/outbound/new" element={<NewCampaign />} />
                 <Route path="/conversations" element={<Conversations />} />
+                <Route path="/dashboards" element={<Dashboards />} />
+                <Route path="/escalations" element={<Escalations />} />
                 <Route path="/settings" element={<SettingsList />} />
                 <Route path="/settings/org" element={<OrgSettings />} />
                 <Route path="/settings/billing" element={<Billing />} />
@@ -132,8 +136,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   </HelmetProvider>
 );

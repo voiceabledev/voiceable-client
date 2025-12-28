@@ -74,9 +74,9 @@ export const ExternalToolsSection: React.FC<ExternalToolsSectionProps> = ({
         <div className="mt-4 md:mt-6">
           {((webhooks?.length || 0) > 0 || (clientTools?.length || 0) > 0) ? (
             <div className="space-y-2">
-              {webhooks?.map((tool) => (
+              {webhooks?.map((tool, index) => (
                 <div
-                  key={tool.id}
+                  key={tool.id || `webhook-${index}`}
                   className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border"
                 >
                   <div className="flex items-center gap-3">
@@ -107,9 +107,9 @@ export const ExternalToolsSection: React.FC<ExternalToolsSectionProps> = ({
                 </div>
               ))}
 
-              {clientTools?.map((tool) => (
+              {clientTools?.map((tool, index) => (
                 <div
-                  key={tool.id}
+                  key={tool.id || `client-tool-${index}`}
                   className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border"
                 >
                   <div className="flex items-center gap-3">

@@ -116,12 +116,13 @@ export function useAgentData(
       const webhookTools = (raw.webhook_tools || conversationConfig.webhook_tools || []) as WebhookTool[];
       const clientTools = (raw.client_tools || conversationConfig.client_tools || []) as ClientTool[];
 
-      if (webhookTools.length) setWebhookTools(webhookTools);
-      if (clientTools.length) setClientTools(clientTools);
+      // Always set webhook tools and client tools, even if empty, to ensure UI updates
+      setWebhookTools(webhookTools);
+      setClientTools(clientTools);
 
       // Map integration_tools hash into AgentIntegrationTool[]
+      const integrations: AgentIntegrationTool[] = [];
       if (raw.integration_tools) {
-        const integrations: AgentIntegrationTool[] = [];
         const integrationHash = raw.integration_tools as Record<
           string,
           { enabled: boolean; enabled_tools: string[] }
@@ -136,11 +137,9 @@ export function useAgentData(
             });
           });
         });
-
-        if (integrations.length) {
-          setAgentIntegrationTools(integrations);
-        }
       }
+      // Always set integration tools, even if empty, to ensure UI updates
+      setAgentIntegrationTools(integrations);
 
       if (raw.agent_files) {
         // Normalize file structure to ensure both name/file_name and size/file_size are available

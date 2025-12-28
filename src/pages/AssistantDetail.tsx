@@ -29,8 +29,10 @@ import { PromptLogicTab } from "@/components/assistants/PromptLogicTab";
 import { AdvancedTab } from "@/components/assistants/AdvancedTab";
 import { ToolsTab } from "@/components/assistants/ToolsTab";
 import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSettingsPanel";
+import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
+import OutcomeConfigTab from "@/components/assistants/OutcomeConfigTab";
 
 // Modals
 import { WebhookToolModal } from "@/components/assistants/modals/WebhookToolModal";
@@ -113,6 +115,14 @@ export default function AssistantDetail() {
   const [systemToolSettingsMap, setSystemToolSettingsMap] = useState<Record<string, SystemToolSetting>>({});
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [selectedSystemTool, setSelectedSystemTool] = useState<string | null>(null);
+  const [showEscalationPanel, setShowEscalationPanel] = useState(false);
+  const [escalationRuleSettings, setEscalationRuleSettings] = useState<EscalationRuleSettings>({
+    name: 'transfer_to_number',
+    description: '',
+    disableInterruptions: false,
+    humanTransferRules: [],
+    escalation_keywords: [],
+  });
   const [behaviourConfig, setBehaviourConfig] = useState<BehaviourConfig | undefined>(undefined);
   const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
   const [loadingBehaviours, setLoadingBehaviours] = useState(false);
@@ -164,7 +174,10 @@ export default function AssistantDetail() {
       // First, check if we have the config saved in conversation_config (faster, no API call needed)
       const savedConfig = agentData.conversationConfig.agent_behaviour_config as BehaviourConfig | undefined;
       
-      console.log("Loading behaviour - ID:", behaviourId, "Saved config:", savedConfig);
+      // Only log if we have a behaviour ID to avoid console noise
+      if (behaviourId) {
+        console.log("Loading behaviour - ID:", behaviourId, "Saved config:", savedConfig);
+      }
       
       if (behaviourId) {
         // If we have saved config with all sections, use it immediately for instant UI update
@@ -555,6 +568,10 @@ export default function AssistantDetail() {
     if (!systemTools[key]) {
       // Only set selected tool if it's one that has settings
       if (toolsWithSettings.includes(key)) {
+        // Close escalation panel if open
+        if (showEscalationPanel) {
+          setShowEscalationPanel(false);
+        }
         setSelectedSystemTool(key);
       }
     } else if (selectedSystemTool === key) {
@@ -563,6 +580,10 @@ export default function AssistantDetail() {
   };
 
   const handleOpenSystemToolSettings = (key: keyof SystemToolsState) => {
+    // Close escalation panel if open
+    if (showEscalationPanel) {
+      setShowEscalationPanel(false);
+    }
     setSelectedSystemTool(key);
   };
 
@@ -704,11 +725,13 @@ export default function AssistantDetail() {
     const template = (conversationConfig.system_prompt_template as string) || "";
     const tools = (conversationConfig.system_prompt_tools as string) || "";
     const behaviours = (conversationConfig.system_prompt_behaviours as string) || "";
+    const outcomeCriteria = (conversationConfig.system_prompt_outcome_criteria as string) || "";
 
     return {
       template,
       tools,
       behaviours,
+      outcomeCriteria,
     };
   }, [agentData.agent, agentData.conversationConfig]);
 
@@ -1014,60 +1037,83 @@ export default function AssistantDetail() {
                   setShowVoiceSelector={setShowVoiceSelector}
                 />
               ) : activeTab === "prompt-logic" ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold">Prompt Logic</h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure scenarios, phases, and voice tone for your agent
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="behaviour-select" className="text-sm font-medium">
-                        Behaviour Template:
-                      </Label>
-                      <Select
-                        value={selectedBehaviourId?.toString() || "none"}
-                        onValueChange={handleBehaviourChange}
-                        disabled={loadingBehaviours || !agentData.agent}
-                      >
-                        <SelectTrigger id="behaviour-select" className="w-[200px]">
-                          <SelectValue placeholder="Select behaviour" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Default (No Template)</SelectItem>
-                          {availableBehaviours.map((behaviour) => (
-                            <SelectItem key={behaviour.id} value={behaviour.id.toString()}>
-                              {behaviour.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <PromptLogicTab
-                    agent={agentData.agent}
-                    onUpdate={agentData.handleUpdate}
-                    scenarios={sectionHook.cenarios}
-                    phases={sectionHook.etapas}
-                    voiceTone={sectionHook.tomDeVoz}
-                    onAddSectionEntry={sectionHook.addSectionEntry}
-                    onEditSectionEntry={sectionHook.openSectionModal}
-                    onRemoveSectionEntry={sectionHook.removeSectionEntryById}
-                    attachedFiles={filesHook.attachedFiles}
-                    onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
-                    onFileDelete={filesHook.handleFileDelete}
-                    onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
-                    uploadingFiles={filesHook.uploadingFiles}
-                    isNew={isNew}
-                    agentFiles={filesHook.agentFiles}
-                    loadingAvailableFiles={filesHook.loadingAvailableFiles}
-                    assigningFile={filesHook.assigningFile}
-                    fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
-                    setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
-                    behaviourConfig={behaviourConfig}
-                  />
-                </div>
+                <PromptLogicTab
+                  agent={agentData.agent}
+                  onUpdate={agentData.handleUpdate}
+                  scenarios={sectionHook.cenarios}
+                  phases={sectionHook.etapas}
+                  voiceTone={sectionHook.tomDeVoz}
+                  onAddSectionEntry={sectionHook.addSectionEntry}
+                  onEditSectionEntry={sectionHook.openSectionModal}
+                  onRemoveSectionEntry={sectionHook.removeSectionEntryById}
+                  attachedFiles={filesHook.attachedFiles}
+                  onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
+                  onFileDelete={filesHook.handleFileDelete}
+                  onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
+                  uploadingFiles={filesHook.uploadingFiles}
+                  isNew={isNew}
+                  agentFiles={filesHook.agentFiles}
+                  loadingAvailableFiles={filesHook.loadingAvailableFiles}
+                  assigningFile={filesHook.assigningFile}
+                  fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
+                  setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
+                  behaviourConfig={behaviourConfig}
+                />
+              ) : activeTab === "outcomes" ? (
+                <OutcomeConfigTab 
+                  agentId={agentId} 
+                  onAgentDataChange={fetchAgentDetails}
+                  onOpenEscalationPanel={() => {
+                    // Close system tools panel if open
+                    if (selectedSystemTool) {
+                      setSelectedSystemTool(null);
+                    }
+                    setShowEscalationPanel(true);
+                  }}
+                  escalationRuleSettings={escalationRuleSettings}
+                  onEscalationRuleSettingsChange={setEscalationRuleSettings}
+                  onEnableTransferToNumber={async (settings: EscalationRuleSettings) => {
+                    // Enable transfer_to_number system tool
+                    setSystemTools(prev => ({
+                      ...prev,
+                      transfer_to_number: true,
+                    }));
+                    
+                    // Update system tool settings with escalation rule settings
+                    const updatedSettings: SystemToolSetting = {
+                      name: settings.name || 'transfer_to_number',
+                      description: settings.description || '',
+                      disableInterruptions: settings.disableInterruptions || false,
+                      humanTransferRules: settings.humanTransferRules || [],
+                    };
+                    
+                    setSystemToolSettings(updatedSettings);
+                    setSystemToolSettingsMap(prev => ({
+                      ...prev,
+                      transfer_to_number: updatedSettings,
+                    }));
+                    
+                    // Save the agent with updated system tools
+                    await agentData.handleSave(
+                      webhookHook.webhookTools,
+                      clientHook.clientTools,
+                      integrationHook.agentIntegrationTools,
+                      sectionHook.cenarios,
+                      sectionHook.etapas,
+                      sectionHook.tomDeVoz,
+                      {
+                        ...systemTools,
+                        transfer_to_number: true,
+                      },
+                      updatedSettings,
+                      filesHook.attachedFiles,
+                      {
+                        ...systemToolSettingsMap,
+                        transfer_to_number: updatedSettings,
+                      }
+                    );
+                  }}
+                />
               ) : activeTab === "advanced" ? (
                 <AdvancedTab
                   agent={agentData.agent}
@@ -1096,8 +1142,20 @@ export default function AssistantDetail() {
                   }));
                 }
               }}
-              onSave={() => {
-                agentData.handleSave(
+              onSave={async () => {
+                // If this is transfer_to_number, sync to escalation rules
+                if (selectedSystemTool === "transfer_to_number") {
+                  const updatedEscalationSettings: EscalationRuleSettings = {
+                    name: systemToolSettings.name || 'transfer_to_number',
+                    description: systemToolSettings.description || '',
+                    disableInterruptions: systemToolSettings.disableInterruptions || false,
+                    humanTransferRules: systemToolSettings.humanTransferRules || [],
+                    escalation_keywords: escalationRuleSettings.escalation_keywords || [],
+                  };
+                  setEscalationRuleSettings(updatedEscalationSettings);
+                }
+                
+                await agentData.handleSave(
                   webhookHook.webhookTools,
                   clientHook.clientTools,
                   integrationHook.agentIntegrationTools,
@@ -1135,6 +1193,94 @@ export default function AssistantDetail() {
                 }
                 setSelectedSystemTool(null);
               }}
+            />
+          </div>
+        )}
+
+        {/* Escalation Rules Right Panel */}
+        {showEscalationPanel && activeTab === "outcomes" && (
+          <div className="w-[400px]">
+            <EscalationRulesPanel
+              settings={escalationRuleSettings}
+              onUpdate={(updates) => {
+                setEscalationRuleSettings(prev => ({ ...prev, ...updates }));
+              }}
+              onClose={() => {
+                setShowEscalationPanel(false);
+              }}
+              onSave={async () => {
+                try {
+                  // Enable transfer_to_number system tool if we have human transfer rules
+                  const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
+                                              escalationRuleSettings.humanTransferRules.length > 0 &&
+                                              escalationRuleSettings.humanTransferRules.some(rule => 
+                                                rule.phoneNumber && rule.phoneNumber.trim() !== ''
+                                              );
+                  
+                  if (hasHumanTransferRules) {
+                    // Enable transfer_to_number system tool
+                    setSystemTools(prev => ({
+                      ...prev,
+                      transfer_to_number: true,
+                    }));
+                    
+                    // Update system tool settings with escalation rule settings
+                    const updatedSettings: SystemToolSetting = {
+                      name: escalationRuleSettings.name || 'transfer_to_number',
+                      description: escalationRuleSettings.description || '',
+                      disableInterruptions: escalationRuleSettings.disableInterruptions || false,
+                      humanTransferRules: escalationRuleSettings.humanTransferRules || [],
+                    };
+                    
+                    setSystemToolSettings(updatedSettings);
+                    setSystemToolSettingsMap(prev => ({
+                      ...prev,
+                      transfer_to_number: updatedSettings,
+                    }));
+                    
+                    // Save the agent with updated system tools (this will sync to ElevenLabs)
+                    await agentData.handleSave(
+                      webhookHook.webhookTools,
+                      clientHook.clientTools,
+                      integrationHook.agentIntegrationTools,
+                      sectionHook.cenarios,
+                      sectionHook.etapas,
+                      sectionHook.tomDeVoz,
+                      {
+                        ...systemTools,
+                        transfer_to_number: true,
+                      },
+                      updatedSettings,
+                      filesHook.attachedFiles,
+                      {
+                        ...systemToolSettingsMap,
+                        transfer_to_number: updatedSettings,
+                      }
+                    );
+                    
+                    toast({
+                      title: "Success",
+                      description: "Escalation rules saved and transfer_to_number system tool enabled and synced to ElevenLabs.",
+                    });
+                  } else {
+                    toast({
+                      title: "Info",
+                      description: "Escalation rules saved. Add human transfer rules with phone numbers to enable transfer_to_number system tool.",
+                    });
+                  }
+                  
+                  // Close panel
+                  setShowEscalationPanel(false);
+                } catch (error) {
+                  console.error("Failed to save escalation rules:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to save escalation rules. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              saving={agentData.saving}
             />
           </div>
         )}
@@ -1247,6 +1393,7 @@ export default function AssistantDetail() {
         systemPromptTemplate={promptComponents.template}
         systemPromptTools={promptComponents.tools}
         systemPromptBehaviours={promptComponents.behaviours}
+        systemPromptOutcomeCriteria={promptComponents.outcomeCriteria}
         promptToolsSummary={promptToolsSummary}
         onSaveTemplate={async (newTemplate: string) => {
           if (!agentData.agent) return;
@@ -1260,11 +1407,12 @@ export default function AssistantDetail() {
               system_prompt_template: newTemplate,
             };
             
-            // Rebuild the combined prompt from the three components
+            // Rebuild the combined prompt from all components
             const promptParts: string[] = [];
             if (newTemplate) promptParts.push(newTemplate.trim());
             if (promptComponents.tools) promptParts.push(promptComponents.tools.trim());
             if (promptComponents.behaviours) promptParts.push(promptComponents.behaviours.trim());
+            if (promptComponents.outcomeCriteria) promptParts.push(promptComponents.outcomeCriteria.trim());
             const combinedPrompt = promptParts.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
             
             // Update the model messages with the combined prompt

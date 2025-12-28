@@ -1,4 +1,14 @@
 import type { UserIntegration, IntegrationSchema, IntegrationConfig } from '@/types/integrations';
+import type {
+  OutcomeDefinition,
+  ConversationOutcome,
+  EscalationPolicy,
+  HumanHandoffEvent,
+  FailureReason,
+  SupportDashboardData,
+  SalesDashboardData,
+  FailureBreakdownData,
+} from '@/types/outcomes';
 
 /**
  * Determines the API base URL at runtime.
@@ -109,7 +119,13 @@ class ApiClient {
 
     let data;
     try {
-      data = await response.json();
+      // Handle 204 No Content responses (empty body)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        data = {};
+      } else {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      }
     } catch (error) {
       // If response is not JSON, throw a generic error
       throw new Error('An error occurred while processing the request');
@@ -148,6 +164,12 @@ class ApiClient {
       
       const errorMessage = data.status?.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'An error occurred');
       const error = new Error(errorMessage);
+      // Attach response status and data to error for better error handling
+      (error as any).response = {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      };
       // Attach additional error details if available
       if (data.details) {
         (error as any).details = data.details;
@@ -1434,12 +1456,44 @@ export const adminApi = {
   },
   behaviours: {
     list: async () => {
-      const response = await apiClient.get<AgentBehaviour[]>('/admin/agent_behaviours');
-      return response;
+      // Try user-level endpoint first, fallback to admin only for 404 (not 403 - permission denied)
+      try {
+        const response = await apiClient.get<AgentBehaviour[]>('/agent_behaviours');
+        return response;
+      } catch (error: any) {
+        // Only fallback to admin endpoint if user endpoint returns 404 (not found)
+        // Don't fallback on 403 (forbidden) - that means user doesn't have permission
+        if (error?.response?.status === 404) {
+          try {
+            const response = await apiClient.get<AgentBehaviour[]>('/admin/agent_behaviours');
+            return response;
+          } catch (adminError: any) {
+            // If admin endpoint also fails, throw the original error
+            throw error;
+          }
+        }
+        throw error;
+      }
     },
     show: async (id: number) => {
-      const response = await apiClient.get<AgentBehaviour>(`/admin/agent_behaviours/${id}`);
-      return response;
+      // Try user-level endpoint first, fallback to admin only for 404 (not 403 - permission denied)
+      try {
+        const response = await apiClient.get<AgentBehaviour>(`/agent_behaviours/${id}`);
+        return response;
+      } catch (error: any) {
+        // Only fallback to admin endpoint if user endpoint returns 404 (not found)
+        // Don't fallback on 403 (forbidden) - that means user doesn't have permission
+        if (error?.response?.status === 404) {
+          try {
+            const response = await apiClient.get<AgentBehaviour>(`/admin/agent_behaviours/${id}`);
+            return response;
+          } catch (adminError: any) {
+            // If admin endpoint also fails, throw the original error
+            throw error;
+          }
+        }
+        throw error;
+      }
     },
     create: async (data: Omit<AgentBehaviour, 'id' | 'created_at' | 'updated_at'> & { sections?: Omit<AgentBehaviourSection, 'id'>[] }) => {
       const response = await apiClient.post<{ data: AgentBehaviour }>('/admin/agent_behaviours', {
@@ -1457,5 +1511,123 @@ export const adminApi = {
       const response = await apiClient.delete(`/admin/agent_behaviours/${id}`);
       return response;
     },
+  },
+};
+
+// Outcome Definitions API
+export const outcomeDefinitionsApi = {
+  get: async (agentId: string | number) => {
+    const response = await apiClient.get<{ data: OutcomeDefinition }>(`/agents/${agentId}/outcome_definition`);
+    return response;
+  },
+  create: async (agentId: string | number, data: Omit<OutcomeDefinition, 'id' | 'agent_id' | 'created_at' | 'updated_at' | 'outcome_type'>) => {
+    const response = await apiClient.post<{ data: OutcomeDefinition }>(`/agents/${agentId}/outcome_definition`, {
+      outcome_definition: data,
+    });
+    return response;
+  },
+  update: async (agentId: string | number, data: Partial<Omit<OutcomeDefinition, 'id' | 'agent_id' | 'created_at' | 'updated_at' | 'outcome_type'>>) => {
+    const response = await apiClient.put<{ data: OutcomeDefinition }>(`/agents/${agentId}/outcome_definition`, {
+      outcome_definition: data,
+    });
+    return response;
+  },
+  delete: async (agentId: string | number) => {
+    const response = await apiClient.delete(`/agents/${agentId}/outcome_definition`);
+    return response;
+  },
+};
+
+// Conversation Outcomes API
+export const conversationOutcomesApi = {
+  get: async (conversationId: string) => {
+    const response = await apiClient.get<{ data: ConversationOutcome }>(`/conversations/${conversationId}/outcome`);
+    return response;
+  },
+  update: async (conversationId: string, data: Partial<Pick<ConversationOutcome, 'outcome' | 'reason_code' | 'expected_outcome' | 'actual_outcome' | 'notes'>>) => {
+    const response = await apiClient.patch<{ data: ConversationOutcome }>(`/conversations/${conversationId}/outcome`, {
+      conversation_outcome: data,
+    });
+    return response;
+  },
+};
+
+// Escalations API
+export const escalationsApi = {
+  list: async (filters?: { agent_id?: string | number; status?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
+    if (filters?.status) params.append('status', filters.status);
+    
+    const queryString = params.toString();
+    const endpoint = `/escalations${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: HumanHandoffEvent[] }>(endpoint);
+    return response;
+  },
+  show: async (id: number) => {
+    const response = await apiClient.get<{ data: HumanHandoffEvent }>(`/escalations/${id}`);
+    return response;
+  },
+  update: async (id: number, data: Partial<Pick<HumanHandoffEvent, 'handoff_status' | 'handled_by'>>) => {
+    const response = await apiClient.patch<{ data: HumanHandoffEvent }>(`/escalations/${id}`, {
+      handoff_event: data,
+    });
+    return response;
+  },
+  escalate: async (conversationId: string) => {
+    const response = await apiClient.post(`/conversations/${conversationId}/escalate`);
+    return response;
+  },
+};
+
+// Failure Reasons API
+export const failureReasonsApi = {
+  list: async (filters?: { agent_id?: string | number; category?: string; reason_code?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.reason_code) params.append('reason_code', filters.reason_code);
+    
+    const queryString = params.toString();
+    const endpoint = `/failure_reasons${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: FailureReason[] }>(endpoint);
+    return response;
+  },
+};
+
+// Dashboards API
+export const dashboardsApi = {
+  support: async (filters?: { agent_id?: string | number; start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/dashboards/support${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: SupportDashboardData }>(endpoint);
+    return response;
+  },
+  sales: async (filters?: { agent_id?: string | number; start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/dashboards/sales${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: SalesDashboardData }>(endpoint);
+    return response;
+  },
+  failureBreakdown: async (filters?: { agent_id?: string | number; start_date?: string; end_date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
+    if (filters?.start_date) params.append('start_date', filters.start_date);
+    if (filters?.end_date) params.append('end_date', filters.end_date);
+    
+    const queryString = params.toString();
+    const endpoint = `/dashboards/failure_breakdown${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ data: FailureBreakdownData[] }>(endpoint);
+    return response;
   },
 };

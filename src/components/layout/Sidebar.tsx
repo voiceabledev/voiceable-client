@@ -21,6 +21,8 @@ import {
   Shield,
   Users2,
   Plug,
+  BarChart3,
+  AlertCircle,
 } from "lucide-react";
 import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 import { Button } from "@/components/ui/button";
