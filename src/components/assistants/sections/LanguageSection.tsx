@@ -26,7 +26,6 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
       <div className="bg-card border border-border rounded-lg p-4 md:p-6">
         <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
           <div className="text-left flex-1">
-            <h3 className="text-base md:text-lg font-semibold">Language</h3>
             <p className="text-xs md:text-sm text-muted-foreground">
               Select the language your agent will use for conversations.
             </p>
@@ -41,9 +40,7 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
 
         {expanded && (
           <div className="mt-4 md:mt-6 space-y-4 md:space-y-6">
-            {/* Language */}
             <div>
-              <label className="text-sm text-muted-foreground mb-2 block">Language</label>
               <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
                 <SelectTrigger className="bg-white border-border">
                   <SelectValue />

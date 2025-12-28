@@ -1,15 +1,16 @@
 // Constants for Assistant Detail page
-import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target } from "lucide-react";
+import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3 } from "lucide-react";
 
-export const VALID_TABS = ["configuration", "prompt-logic", "tools", "conversations", "widget", "phone-numbers", "outcomes", "advanced"] as const;
+export const VALID_TABS = ["overview", "configuration", "prompt-logic", "tools", "conversations", "widget", "phone-numbers", "outcomes", "advanced"] as const;
 
 export const tabs = [
-  { id: "configuration", label: "Configuration", icon: Settings },
-  { id: "outcomes", label: "Success Criteria", icon: Target },
-  { id: "prompt-logic", label: "Prompt Logic", icon: FileText },
-  { id: "phone-numbers", label: "Phone Numbers", icon: Phone },
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "configuration", label: "Quick Settings", icon: Settings },
+  { id: "outcomes", label: "Call Outcomes", icon: Target },
+  { id: "prompt-logic", label: "Call Script", icon: FileText },
   { id: "tools", label: "Tools", icon: Wrench },
   { id: "widget", label: "Widget", icon: Layout },
+  { id: "phone-numbers", label: "Phone Numbers", icon: Phone },
   { id: "conversations", label: "Conversations", icon: MessageSquare },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];

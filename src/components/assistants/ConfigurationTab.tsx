@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ModelSection } from "./sections/ModelSection";
 import { VoiceSection } from "./sections/VoiceSection";
-import { TranscriberSection } from "./sections/TranscriberSection";
+import { LanguageSection } from "./sections/LanguageSection";
 import { providers, modelsByProvider } from "@/constants/assistant";
 import type { Agent } from "@/types/assistant";
 
@@ -26,7 +26,7 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
 }) => {
   const [modelExpanded, setModelExpanded] = useState(true);
   const [voiceExpanded, setVoiceExpanded] = useState(true);
-  const [transcriberExpanded, setTranscriberExpanded] = useState(true);
+  const [languageExpanded, setLanguageExpanded] = useState(true);
 
   if (!agent) {
     return null;
@@ -66,9 +66,9 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
         selectedVoiceName={selectedVoiceName}
         setShowVoiceSelector={setShowVoiceSelector}
       />
-      <TranscriberSection
-        expanded={transcriberExpanded}
-        onToggleExpanded={() => setTranscriberExpanded(!transcriberExpanded)}
+      <LanguageSection
+        expanded={languageExpanded}
+        onToggleExpanded={() => setLanguageExpanded(!languageExpanded)}
         selectedLanguage={agent.language || "english"}
         setSelectedLanguage={(language) => onUpdate({ language })}
       />

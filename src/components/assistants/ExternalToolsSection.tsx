@@ -45,9 +45,9 @@ export const ExternalToolsSection: React.FC<ExternalToolsSectionProps> = ({
         onClick={onToggleExpanded}
       >
         <div className="text-left flex-1">
-          <h3 className="text-base md:text-lg font-semibold">External integration tools</h3>
+          <h3 className="text-base md:text-lg font-semibold">Webhook tools</h3>
           <p className="text-xs md:text-sm text-muted-foreground">
-            Allow the agent to perform client-side and external integrations.
+            Allow the agent to perform external integrations.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             {totalCount} tool{totalCount !== 1 ? "s" : ""} configured

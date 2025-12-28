@@ -99,6 +99,50 @@ export const EscalationRulesPanel: React.FC<EscalationRulesPanelProps> = ({
     });
   };
 
+  const defaultDescription = `Transfer the conversation to a human agent when appropriate.
+Call this function when:
+- Direct requests: "I want to speak to a human", "Connect me with a representative", "Transfer me to an agent"
+- Technical limitations: The user needs something beyond your capabilities
+- Complex issues: Problems requiring human judgment or access to systems beyond your reach
+
+Before calling this function, try to assist the user first if the request is within your capabilities.
+
+Do not call this function when:
+- You can answer basic information requests yourself
+- You can complete simple tasks within your capabilities
+- The user hasn't explicitly requested human assistance for complex issues
+
+Human operators available for transfer:
+[transfer rules will be populated at runtime]
+
+EXAMPLE FLOWS:
+
+Example 1 (explicit request):
+User: "I want to talk to a real person instead of an AI. Please connect me to a human agent."
+Assistant: "I understand you'd prefer to speak with a human agent. I'm arranging that connection for you now, and a human representative will assist you shortly."
+[transfer_to_number function called]
+
+Example 2 (technical limitation):
+User: "I need to change my billing address and payment method for my order #12345."
+Assistant: "I understand you need to update your billing information. Since this requires accessing your account details, I'll connect you with a human representative who can help you with that change safely."
+[transfer_to_number function called]
+
+Example 3 (DO NOT call):
+User: "What's your refund policy?"
+Assistant: "Our standard refund policy allows returns within 30 days of purchase with a receipt. Would you like more specific information about a particular product or situation?"`;
+
+  const isDefaultDescription = settings.description === defaultDescription;
+  
+  const handleToggleDefault = () => {
+    if (isDefaultDescription) {
+      // Hide default - clear the description
+      onUpdate({ description: '' });
+    } else {
+      // Show default - set the description to default
+      onUpdate({ description: defaultDescription });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-card border-l border-border animate-in slide-in-from-right duration-300 shadow-2xl">
       <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/20">
@@ -143,8 +187,8 @@ export const EscalationRulesPanel: React.FC<EscalationRulesPanelProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium">Description (optional)</label>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs">
-                    Show Default
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={handleToggleDefault}>
+                    {isDefaultDescription ? 'Hide Default' : 'Show Default'}
                   </Button>
                 </div>
                 <Textarea

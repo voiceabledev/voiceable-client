@@ -75,7 +75,7 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
       notesLabel: "Optional guidance for this scenario",
     },
     phases: {
-      title: "Phases",
+      title: "Conversation Phases",
       description: "Break down the stages or flow steps the assistant should follow.",
       addLabel: "Add phase",
       titlePlaceholder: "Stage name",

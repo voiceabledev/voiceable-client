@@ -16,6 +16,9 @@ import {
   Loader2,
   Edit,
   FileText,
+  Phone,
+  CreditCard,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import WidgetTab from "@/components/assistants/WidgetTab";
 import ConversationsTab from "@/components/assistants/ConversationsTab";
 import PhoneNumbersTab from "@/components/assistants/PhoneNumbersTab";
+import { OverviewTab } from "@/components/assistants/OverviewTab";
 import { ConfigurationTab } from "@/components/assistants/ConfigurationTab";
 import { PromptLogicTab } from "@/components/assistants/PromptLogicTab";
 import { AdvancedTab } from "@/components/assistants/AdvancedTab";
@@ -41,6 +45,7 @@ import { IntegrationConnectionModal } from "@/components/assistants/modals/Integ
 import { SectionEntryModal } from "@/components/assistants/modals/SectionEntryModal";
 import { PromptPreviewModal } from "@/components/assistants/modals/PromptPreviewModal";
 import { ChooseFilesDialog } from "@/components/assistants/modals/ChooseFilesDialog";
+import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 
 // Hooks
 import { useWebhookTools } from "@/hooks/assistants/useWebhookTools";
@@ -57,7 +62,7 @@ import {
   getAvailableIntegrationTypes,
   displayNameToActionName,
 } from "@/constants/assistant";
-import { voicesApi, type Voice, adminApi, type AgentBehaviour } from "@/lib/api";
+import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi } from "@/lib/api";
 import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 
@@ -127,6 +132,49 @@ export default function AssistantDetail() {
   const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
   const [loadingBehaviours, setLoadingBehaviours] = useState(false);
   const [selectedBehaviourId, setSelectedBehaviourId] = useState<number | undefined>(undefined);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [loadingCredits, setLoadingCredits] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+
+  // Fetch credit balance when phone-numbers tab is active
+  useEffect(() => {
+    if (activeTab === "phone-numbers") {
+      const fetchCredits = async () => {
+        setLoadingCredits(true);
+        try {
+          const response = await paymentsApi.creditBalance();
+          if (response.data) {
+            setCreditBalance(response.data.balance || 0);
+          } else {
+            setCreditBalance(0);
+          }
+        } catch (error) {
+          console.error("Error fetching credit balance:", error);
+          setCreditBalance(0);
+        } finally {
+          setLoadingCredits(false);
+        }
+      };
+      fetchCredits();
+    }
+  }, [activeTab]);
+
+  // Refresh balance when payment modal closes (in case a payment was made)
+  useEffect(() => {
+    if (!showPaymentMethodModal && activeTab === "phone-numbers") {
+      const fetchCredits = async () => {
+        try {
+          const response = await paymentsApi.creditBalance();
+          if (response.data) {
+            setCreditBalance(response.data.balance || 0);
+          }
+        } catch (error) {
+          console.error("Error fetching credit balance:", error);
+        }
+      };
+      fetchCredits();
+    }
+  }, [showPaymentMethodModal, activeTab]);
 
   const agentData = useAgentData(
     id,
@@ -174,15 +222,9 @@ export default function AssistantDetail() {
       // First, check if we have the config saved in conversation_config (faster, no API call needed)
       const savedConfig = agentData.conversationConfig.agent_behaviour_config as BehaviourConfig | undefined;
       
-      // Only log if we have a behaviour ID to avoid console noise
-      if (behaviourId) {
-        console.log("Loading behaviour - ID:", behaviourId, "Saved config:", savedConfig);
-      }
-      
       if (behaviourId) {
         // If we have saved config with all sections, use it immediately for instant UI update
         if (savedConfig && savedConfig.scenarios && savedConfig.phases && savedConfig.voiceTone) {
-          console.log("Using saved config immediately:", savedConfig);
           setBehaviourConfig(savedConfig);
           // Still fetch from API in the background to ensure we have the latest, but don't wait
           adminApi.behaviours.show(behaviourId).then(response => {
@@ -235,7 +277,6 @@ export default function AssistantDetail() {
             const response = await adminApi.behaviours.show(behaviourId);
             if (response.data) {
               const behaviour = response.data;
-              console.log("Fetched behaviour from API:", behaviour);
               const config: BehaviourConfig = {};
               behaviour.sections?.forEach(section => {
                 if (section.section_type === "scenarios") {
@@ -270,7 +311,6 @@ export default function AssistantDetail() {
                   };
                 }
               });
-              console.log("Setting config from API:", config);
               setBehaviourConfig(config);
             }
           } catch (error) {
@@ -973,12 +1013,55 @@ export default function AssistantDetail() {
         <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
           {agentData.agent && (
             <>
-              {activeTab === "widget" ? (
+              {activeTab === "overview" ? (
+                <OverviewTab 
+                  agent={agentData.agent}
+                  onTestCall={() => {
+                    // TODO: Implement test call functionality
+                    toast({
+                      title: "Test Call",
+                      description: "Test call functionality coming soon. You can test your agent by making a real call to your phone number.",
+                    });
+                  }}
+                />
+              ) : activeTab === "widget" ? (
                 <WidgetTab agent={agentData.agent} agentId={agentId} />
               ) : activeTab === "conversations" ? (
                 <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
               ) : activeTab === "phone-numbers" ? (
-                <PhoneNumbersTab agent={agentData.agent} agentId={agentId} />
+                loadingCredits ? (
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Checking credits...</p>
+                    </div>
+                  </div>
+                ) : (creditBalance !== null && creditBalance > 0) ? (
+                  <PhoneNumbersTab agent={agentData.agent} agentId={agentId} />
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                    <div className="bg-card border border-border rounded-lg p-8 md:p-12 max-w-2xl mx-auto">
+                      <div className="flex flex-col items-center text-center space-y-4">
+                        <div className="p-4 bg-muted/50 rounded-full">
+                          <Lock className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="text-xl md:text-2xl font-semibold">Phone Numbers Available for Paid Customers</h3>
+                          <p className="text-sm md:text-base text-muted-foreground max-w-md">
+                            Phone numbers are currently available for paid customers only. Please add credits to gain access to add a phone number to your agent.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => setShowPaymentMethodModal(true)}
+                          className="mt-4"
+                        >
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Add Credits
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
               ) : activeTab === "tools" ? (
                 <ToolsTab
                   systemTools={systemTools}
@@ -1465,6 +1548,11 @@ export default function AssistantDetail() {
         allAvailableFiles={filesHook.allAvailableFiles}
         attachedFiles={filesHook.attachedFiles}
         onSelectExistingFile={(fileId) => filesHook.handleSelectExistingFile(fileId, agentId)}
+      />
+
+      <PaymentMethodModal
+        open={showPaymentMethodModal}
+        onOpenChange={setShowPaymentMethodModal}
       />
     </div>
   );

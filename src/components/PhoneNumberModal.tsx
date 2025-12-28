@@ -105,8 +105,12 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
       const response = await phoneNumbersApi.getAvailable(countryCode, areaCode || undefined);
       if (response.data) {
         setAvailableNumbers(response.data);
+      } else {
+        setAvailableNumbers([]);
       }
     } catch (err) {
+      console.error('Error fetching available numbers:', err);
+      setAvailableNumbers([]);
       toast({
         title: 'Error loading available numbers',
         description: err instanceof Error ? err.message : 'Failed to fetch available phone numbers',
@@ -355,7 +359,7 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
                     </button>
                   ))}
                 </div>
-              ) : availableNumbers.length === 0 && !loadingNumbers && accountNumbers.length === 0 ? (
+              ) : !loadingNumbers ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No available numbers found. Try adjusting your search criteria.</p>
                 </div>

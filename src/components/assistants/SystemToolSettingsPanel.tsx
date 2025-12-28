@@ -134,6 +134,125 @@ export const SystemToolSettingsPanel: React.FC<SystemToolSettingsPanelProps> = (
     });
   };
 
+  // Default description for end_call tool
+  const endCallDefaultDescription = `Gracefully conclude conversations when appropriate
+Call this function when:
+1. EXPLICIT ENDINGS
+- User says goodbye variants: "bye," "see you," "that's all," etc.
+- User directly declines help: "no thanks," "I'm good," etc.
+- User indicates completion: "that's what I needed," "all set," etc.
+
+2. IMPLICIT ENDINGS
+- User gives minimal/disengaged responses after their needs are met
+- User expresses intention to leave: "I need to go," "getting late," etc.
+- Natural conversation conclusion after all queries are resolved
+
+Before calling this function:
+1. Confirm all user queries are fully addressed
+2. Provide a contextually appropriate closing response:
+- For task completion: "Glad I could help with [specific task]! Have a great day!"
+- For general endings: "Thanks for chatting! Take care!"
+- For business contexts: "Thank you for your business! Don't hesitate to reach out again."
+
+DO NOT:
+- Call this function during active problem-solving
+- End conversation when user expresses new concerns
+- Use generic closings without acknowledging the specific interaction
+- Continue conversation after user has clearly indicated ending
+- Add "Let me know if you need anything else" after user says goodbye
+
+Example Flow:
+User: "That's all I needed, thanks!"
+Assistant: "Happy I could help with your password reset! Have a wonderful day!"
+[end_call function called]`;
+
+  // Default description for detect_language tool
+  const detectLanguageDefaultDescription = `Change the conversation language when the user expresses a language preference explicitly.
+Call this function when:
+- Direct requests: "Can we speak in Spanish?", "Switch to French", "Let's continue in German"
+- Questions about capability: "Do you speak Portuguese?", "¿Hablas español?", "Parlez-vous français?"
+- Stated preferences: "I would prefer Italian", "Chinese would be better for me"
+
+Before calling this function, identify the target language with high confidence.
+
+Do not call this function when user mentions a language but doesn't request to speak it.
+
+Following languages are allowed to be selected: [languages will be populated at runtime]
+If target language is not in the list, let user know that you can't speak the target language.
+Further responses after tool call should be in the target language.
+
+EXAMPLE FLOWS:
+
+Example 1 (explicit):
+Assistant: "Hi, I am Eric, helpful assistant. How can I help you today?"
+User: "I not speak English, speak Russian."
+Assistant: [language_detection function called with language="ru"] "Привет, я Эрик, полезный помощник. Чем я могу вам помочь сегодня?"
+
+Example 2 (DO NOT call):
+User: "Do people in Kazakhstan speak Russian?"
+Assistant: "Yes, many people in Kazakhstan speak Russian."`;
+
+  // Default description for voicemail_detection tool
+  const voicemailDetectionDefaultDescription = `Detect when a call has been answered by a voicemail system rather than a human.
+Call this function when you detect that the call recipient is not available and the call has been answered by an automated voicemail system.
+
+Common indicators of voicemail:
+- Automated greeting messages: "You have reached the voicemail of..."
+- Recording instructions: "Please leave a message after the beep/tone"
+- Voicemail system prompts: "Please leave your name and number"
+- Generic unavailable messages: "The number you have dialed is not available"
+
+Before calling this function:
+- Provide a specific reason referencing the actual voicemail content heard
+
+After calling this function:
+- If a voicemail message is configured, it will be played automatically
+- The call will end immediately after the message (or immediately if no message)
+- No further conversation will take place
+
+You must provide a specific reason for detecting voicemail that references the exact wording that indicated voicemail.
+
+EXAMPLE FLOWS:
+
+Example 1 (clear voicemail greeting):
+System plays: "Hi, you've reached Sarah. I'm not available right now. Please leave a message after the beep."
+Assistant: [voicemail_detection function called with reason="automated greeting detected: 'Hi, you've reached Sarah. I'm not available right now. Please leave a message after the beep.'"]
+
+Example 2 (generic voicemail):
+System plays: "The number you have dialed is not available. At the tone, please leave a message."
+Assistant: [voicemail_detection function called with reason="voicemail instruction detected: 'The number you have dialed is not available. At the tone, please leave a message.'"]
+
+Example 3 (DO NOT call - human response):
+Human: "Hello? Who is this?"
+Assistant: [follows system prompt and conversation objectives rather than calling voicemail_detection]
+
+You must provide a specific reason for detecting voicemail. Never call this tool without a valid reason.
+The reason must include a specific reference to the wording in the user message that indicates voicemail.`;
+
+  const getDefaultDescription = () => {
+    if (toolKey === "end_call") return endCallDefaultDescription;
+    if (toolKey === "detect_language") return detectLanguageDefaultDescription;
+    if (toolKey === "voicemail_detection") return voicemailDetectionDefaultDescription;
+    return "";
+  };
+
+  const isDefaultDescription = (toolKey === "end_call" && settings.description === endCallDefaultDescription) ||
+                               (toolKey === "detect_language" && settings.description === detectLanguageDefaultDescription) ||
+                               (toolKey === "voicemail_detection" && settings.description === voicemailDetectionDefaultDescription);
+  
+  const handleToggleDefault = () => {
+    const defaultDescription = getDefaultDescription();
+    if (defaultDescription) {
+      if (isDefaultDescription) {
+        // Hide default - clear the description
+        onUpdate({ description: '' });
+      } else {
+        // Show default - set the description to default
+        onUpdate({ description: defaultDescription });
+      }
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-card border-l border-border animate-in slide-in-from-right duration-300 shadow-2xl">
       <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/20">
@@ -180,9 +299,11 @@ export const SystemToolSettingsPanel: React.FC<SystemToolSettingsPanelProps> = (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium">Description (optional)</label>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs">
-                    Show Default
-                  </Button>
+                  {(toolKey === "end_call" || toolKey === "detect_language" || toolKey === "voicemail_detection") && (
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={handleToggleDefault}>
+                      {isDefaultDescription ? 'Hide Default' : 'Show Default'}
+                    </Button>
+                  )}
                 </div>
                 <Textarea
                   value={settings.description || ""}

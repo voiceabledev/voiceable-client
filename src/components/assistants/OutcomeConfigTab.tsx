@@ -262,9 +262,9 @@ export default function OutcomeConfigTab({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Success Criteria</h2>
+          <h2 className="text-2xl font-bold mb-2">Call Outcomes</h2>
           <p className="text-muted-foreground">
-            Define what success and failure mean for this agent's conversations
+            Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes.
           </p>
         </div>
         <div className="flex gap-2">
@@ -296,9 +296,9 @@ export default function OutcomeConfigTab({
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="mb-2">Primary Outcome</CardTitle>
+                  <CardTitle className="mb-2">Primary Goal</CardTitle>
                   <CardDescription>
-                    The main goal for this agent's conversations
+                    What is the main thing you want your agent to accomplish in each call?
                   </CardDescription>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isPrimaryOpen ? 'transform rotate-180' : ''}`} />
@@ -346,9 +346,9 @@ export default function OutcomeConfigTab({
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="mb-2">Success Conditions</CardTitle>
+                  <CardTitle className="mb-2">Success Indicators (Optional)</CardTitle>
                   <CardDescription>
-                    Keywords and patterns that indicate a successful conversation
+                    Optional: Add keywords that help identify successful calls. Our AI will automatically analyze conversations, but you can add specific words to look for.
                   </CardDescription>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isSuccessOpen ? 'transform rotate-180' : ''}`} />
@@ -399,9 +399,9 @@ export default function OutcomeConfigTab({
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="mb-2">Failure Conditions</CardTitle>
+                  <CardTitle className="mb-2">Failure Indicators (Optional)</CardTitle>
                   <CardDescription>
-                    Keywords and patterns that indicate a failed conversation
+                    Optional: Add keywords that help identify unsuccessful calls. Our AI will automatically analyze conversations, but you can add specific words to look for.
                   </CardDescription>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isFailureOpen ? 'transform rotate-180' : ''}`} />
