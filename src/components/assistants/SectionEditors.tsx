@@ -67,7 +67,7 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
   const defaultConfigs = {
     scenarios: {
       title: "Scenarios",
-      description: "List the main scenarios the assistant should cover (e.g., Catálogo, Serviço).",
+      description: "List the main scenarios the assistant should cover (e.g., Catolog, Service).",
       addLabel: "Add scenario",
       titlePlaceholder: "Scenario name",
       descriptionPlaceholder: "Describe what should happen in this scenario",
@@ -210,7 +210,6 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
 
       {expanded && (
         <div className="mt-4 md:mt-6 space-y-5">
-          <p className="text-xs text-muted-foreground">Prompt generated automatically based on the sections below.</p>
           <div className="space-y-5">
             {(() => {
               const config = getSectionConfig("scenarios");

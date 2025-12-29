@@ -7,7 +7,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi } from "@/lib/api";
+import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi, outcomeDefinitionsApi } from "@/lib/api";
 import { SectionEntry, SectionPayload, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 import {
@@ -34,10 +34,11 @@ import { useVoicePreview } from "./wizard/hooks/useVoicePreview";
 import { useTemplateDefaults } from "./wizard/hooks/useTemplateDefaults";
 import { NameStep } from "./wizard/steps/NameStep";
 import { ModelStep } from "./wizard/steps/ModelStep";
+import { CallOutcomesStep } from "./wizard/steps/CallOutcomesStep";
 import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
-import { VoiceStep } from "./wizard/steps/VoiceStep";
-import { LanguageStep } from "./wizard/steps/LanguageStep";
+import { VoiceLanguageStep } from "./wizard/steps/VoiceLanguageStep";
 import { IntegrationsStep } from "./wizard/steps/IntegrationsStep";
+import type { EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 
 // Helper functions are now imported from ./wizard/helpers
 // Constants are now imported from ./wizard/constants
@@ -69,7 +70,27 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
 
-  // Step 3: Agent Behaviour (Scenarios, Phases, Voice & Tone)
+  // Step 3: Voice & Language
+  const [primaryOutcome, setPrimaryOutcome] = useState<string>("");
+  const [escalationRuleSettings, setEscalationRuleSettings] = useState<EscalationRuleSettings>({
+    name: 'transfer_to_number',
+    description: '',
+    disableInterruptions: false,
+    humanTransferRules: [],
+    escalation_keywords: [],
+  });
+  const [successKeywords, setSuccessKeywords] = useState<string[]>([]);
+  const [failureKeywords, setFailureKeywords] = useState<string[]>([]);
+  const [showCallOutcomesValidation, setShowCallOutcomesValidation] = useState(false);
+
+  // Reset validation errors when step changes
+  useEffect(() => {
+    if (currentStep !== 3) {
+      setShowCallOutcomesValidation(false);
+    }
+  }, [currentStep]);
+
+  // Step 4: Agent Behaviour (Scenarios, Phases, Voice & Tone)
   const [scenarios, setScenarios] = useState<SectionEntry[]>([]);
   const [phases, setPhases] = useState<SectionEntry[]>([]);
   const [voiceTone, setVoiceTone] = useState<SectionEntry[]>([]);
@@ -249,7 +270,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // Use voice preview hook
   const { playingVoiceId, handlePlayPreview } = useVoicePreview();
 
-  // Step 5: Language
+  // Step 2: Voice & Language (merged, moved before Call Outcomes)
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
 
   // Handle behaviour change
@@ -938,7 +959,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   const handleSetStep = (direction: -1 | 1) => {
     const minStep = shouldSkipNameStep ? 1 : 0;
-    const maxStep = 5; // Integrations step is the last step
+    const maxStep = 5; // Integrations step is the last step (after merging Voice & Language)
     
     if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
@@ -949,6 +970,14 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   };
 
   const handleSaveStep = async () => {
+    // Show validation errors for Call Outcomes step if on that step
+    if (currentStep === 3) {
+      setShowCallOutcomesValidation(true);
+      if (!isStepValid()) {
+        setSaving(false);
+        return;
+      }
+    }
     setSaving(true);
     try {
       // Serialize section entries using imported helper
@@ -1102,9 +1131,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         }
       }
 
-      // Only sync with ElevenLabs on Voice (step 3, index 3) and Language (step 4, index 4) steps
-      // Steps array: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Integrations]
-      const shouldSyncWithElevenLabs = currentStep === 3 || currentStep === 4;
+      // Only sync with ElevenLabs on Voice & Language step (step 3, index 2)
+      // Steps array: [0: Name, 1: Model, 2: Voice & Language, 3: Call Outcomes, 4: Agent Behaviour, 5: Integrations]
+      const shouldSyncWithElevenLabs = currentStep === 2;
       
       // Ensure voice_id is set before syncing (required for ElevenLabs)
       const hasRequiredFields = shouldSyncWithElevenLabs ? selectedVoiceId && selectedVoiceId.trim() !== "" : true;
@@ -1148,6 +1177,97 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           description: `${steps[currentStep].label} saved to database, but cannot sync with ElevenLabs: Voice ID is required.`,
           variant: 'destructive',
         });
+      } else if (currentStep === 3) {
+        // Call Outcomes step - save outcome definition and escalation rules
+        console.log(`[CreateAgentWizard] Saving Call Outcomes data for step ${currentStep}, agent ID: ${savedAgentId}`);
+        
+        try {
+          // Save outcome definition if primary outcome is set
+          if (primaryOutcome) {
+            const outcomeData = {
+              primary_outcome: primaryOutcome,
+              secondary_outcomes: [],
+              success_conditions: {
+                keywords: successKeywords.filter(k => k.trim()),
+              },
+              failure_conditions: {
+                failure_keywords: failureKeywords.filter(k => k.trim()),
+              },
+              escalation_rules: {
+                escalation_keywords: escalationRuleSettings.escalation_keywords?.filter(k => k.trim()) || [],
+                name: escalationRuleSettings.name,
+                description: escalationRuleSettings.description,
+                disableInterruptions: escalationRuleSettings.disableInterruptions,
+                humanTransferRules: escalationRuleSettings.humanTransferRules || [],
+              },
+            };
+
+            try {
+              await outcomeDefinitionsApi.create(savedAgentId, outcomeData);
+              console.log('[CreateAgentWizard] Outcome definition created successfully');
+            } catch (outcomeErr: unknown) {
+              // If it already exists, try to update it
+              const errorWithStatus = outcomeErr as { response?: { status?: number }; status?: number };
+              const status = errorWithStatus?.response?.status || errorWithStatus?.status;
+              if (status === 422 || status === 409) {
+                // Try to update existing outcome definition
+                try {
+                  await outcomeDefinitionsApi.update(savedAgentId, outcomeData);
+                  console.log('[CreateAgentWizard] Outcome definition updated successfully');
+                } catch (updateErr) {
+                  console.error('[CreateAgentWizard] Failed to update outcome definition:', updateErr);
+                }
+              } else {
+                console.error('[CreateAgentWizard] Failed to create outcome definition:', outcomeErr);
+              }
+            }
+          }
+
+          // Save escalation rules to system_tools if human transfer rules exist
+          const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
+                                      escalationRuleSettings.humanTransferRules.length > 0 &&
+                                      escalationRuleSettings.humanTransferRules.some(rule => 
+                                        rule.phoneNumber && rule.phoneNumber.trim() !== ''
+                                      );
+
+          if (hasHumanTransferRules) {
+            // Enable transfer_to_number system tool and save settings in the correct format
+            const systemToolsPayload = {
+              transfer_to_number: {
+                active: true,
+                description: escalationRuleSettings.description || '',
+                disable_interruptions: escalationRuleSettings.disableInterruptions || false,
+                human_transfer_rules: escalationRuleSettings.humanTransferRules || [],
+              },
+            };
+
+            // Update agent with system tools (cast as unknown since UpdateAgentParams doesn't include system_tools)
+            await agentsApi.update(savedAgentId, {
+              system_tools: systemToolsPayload,
+            } as unknown as Parameters<typeof agentsApi.update>[1]);
+
+            // Sync with ElevenLabs after saving escalation rules
+            await new Promise(resolve => setTimeout(resolve, 100));
+            try {
+              const publishResponse = await agentsApi.publish(savedAgentId);
+              console.log('[CreateAgentWizard] Published with escalation rules:', publishResponse);
+            } catch (publishErr) {
+              console.error('[CreateAgentWizard] Failed to sync escalation rules with ElevenLabs:', publishErr);
+            }
+          }
+
+          toast({
+            title: 'Success',
+            description: `${steps[currentStep].label} saved successfully.`,
+          });
+        } catch (err) {
+          console.error('[CreateAgentWizard] Error saving call outcomes data:', err);
+          toast({
+            title: 'Warning',
+            description: `${steps[currentStep].label} saved, but some data may not have been saved correctly.`,
+            variant: 'destructive',
+          });
+        }
       } else {
         // For Name and Model steps, just show success for database save
         console.log(`[CreateAgentWizard] Skipping ElevenLabs sync for step ${currentStep} (${steps[currentStep].label})`);
@@ -1157,7 +1277,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         });
       }
 
-      // Steps: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Integrations]
+      // Steps: [0: Name, 1: Model, 2: Voice & Language, 3: Call Outcomes, 4: Agent Behaviour, 5: Integrations]
       // Integrations step is at index 5 (step 6 when counting from 1)
       const integrationsStep = 5;
       
@@ -1245,6 +1365,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         const nextStep = currentStep + 1;
         console.log('[CreateAgentWizard] Moving to next step:', nextStep);
         setCurrentStep(nextStep);
+        // Reset validation errors when changing steps
+        setShowCallOutcomesValidation(false);
       }
     } catch (err) {
       toast({
@@ -1258,18 +1380,30 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   };
 
   const isStepValid = () => {
-    // If name step is skipped, currentStep 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Language, 5 = Integrations
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Language, 5 = Integrations
+    // If name step is skipped, currentStep 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
     if (shouldSkipNameStep) {
       switch (currentStep) {
         case 1: // Model step
           return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
-        case 2: // Agent Behaviour step (optional - can skip)
+        case 2: // Voice & Language step
+          return selectedVoiceId.trim() !== "" && selectedLanguage.trim() !== "";
+        case 3: { // Call Outcomes step
+          // Primary outcome is required
+          if (!primaryOutcome || primaryOutcome.trim() === "") {
+            return false;
+          }
+          // Validate escalation rules if any exist
+          const hasEscalationRules = escalationRuleSettings.humanTransferRules && escalationRuleSettings.humanTransferRules.length > 0;
+          if (hasEscalationRules) {
+            return escalationRuleSettings.humanTransferRules.every(rule => 
+              rule.phoneNumber.trim() !== "" && rule.condition.trim() !== ""
+            );
+          }
+          return true;
+        }
+        case 4: // Agent Behaviour step (optional - can skip)
           return true; // Agent behaviour is optional
-        case 3: // Voice step
-          return selectedVoiceId.trim() !== "";
-        case 4: // Language step
-          return selectedLanguage.trim() !== "";
         case 5: // Integrations step
           return true; // Integrations step is always valid (optional to connect)
         default:
@@ -1281,12 +1415,24 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return name.trim() !== "" && name.trim() !== "Enter a name for your assistant.";
         case 1:
           return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
-        case 2: // Agent Behaviour step (optional - can skip)
+        case 2: // Voice & Language step
+          return selectedVoiceId.trim() !== "" && selectedLanguage.trim() !== "";
+        case 3: { // Call Outcomes step
+          // Primary outcome is required
+          if (!primaryOutcome || primaryOutcome.trim() === "") {
+            return false;
+          }
+          // Validate escalation rules if any exist
+          const hasEscalationRulesNormal = escalationRuleSettings.humanTransferRules && escalationRuleSettings.humanTransferRules.length > 0;
+          if (hasEscalationRulesNormal) {
+            return escalationRuleSettings.humanTransferRules.every(rule => 
+              rule.phoneNumber.trim() !== "" && rule.condition.trim() !== ""
+            );
+          }
+          return true;
+        }
+        case 4: // Agent Behaviour step (optional - can skip)
           return true; // Agent behaviour is optional
-        case 3:
-          return selectedVoiceId.trim() !== "";
-        case 4:
-          return selectedLanguage.trim() !== "";
         case 5: // Integrations step
           return true; // Integrations step is always valid (optional to connect)
         default:
@@ -1301,8 +1447,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const selectedVoice = voices.find(v => v.id === selectedVoiceId);
 
   const renderStepContent = () => {
-    // If name step is skipped, currentStep 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Transcriber, 5 = Phone Number
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Transcriber, 5 = Phone Number
+    // If name step is skipped, currentStep 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
     if (shouldSkipNameStep) {
       switch (currentStep) {
         case 1: // Model step
@@ -1314,20 +1460,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               onModelChange={setSelectedModel}
             />
           );
-        case 2: // Agent Behaviour step
+        case 2: // Voice & Language step
           return (
-            <AgentBehaviourStep
-              scenarios={scenarios}
-              phases={phases}
-              voiceTone={voiceTone}
-              behaviourConfig={behaviourConfig}
-              onOpenSectionModal={openSectionModal}
-              onDeleteSectionEntry={deleteSectionEntry}
-            />
-          );
-        case 3: // Voice step
-          return (
-            <VoiceStep
+            <VoiceLanguageStep
               selectedVoiceId={selectedVoiceId}
               voices={voices}
               loadingVoices={loadingVoices}
@@ -1341,10 +1476,35 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               onPlayPreview={handlePlayPreview}
               voiceSearchQuery={voiceSearchQuery}
               onVoiceSearchChange={setVoiceSearchQuery}
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
             />
           );
-        case 4: // Language step
-          return <LanguageStep selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} />;
+        case 3: // Call Outcomes step
+          return (
+            <CallOutcomesStep
+              primaryOutcome={primaryOutcome}
+              onPrimaryOutcomeChange={setPrimaryOutcome}
+              escalationRuleSettings={escalationRuleSettings}
+              onEscalationRuleSettingsChange={setEscalationRuleSettings}
+              successKeywords={successKeywords}
+              onSuccessKeywordsChange={setSuccessKeywords}
+              failureKeywords={failureKeywords}
+              onFailureKeywordsChange={setFailureKeywords}
+              showValidationErrors={showCallOutcomesValidation}
+            />
+          );
+        case 4: // Agent Behaviour step
+          return (
+            <AgentBehaviourStep
+              scenarios={scenarios}
+              phases={phases}
+              voiceTone={voiceTone}
+              behaviourConfig={behaviourConfig}
+              onOpenSectionModal={openSectionModal}
+              onDeleteSectionEntry={deleteSectionEntry}
+            />
+          );
         case 5: // Integrations step
           return (
             <IntegrationsStep
@@ -1435,20 +1595,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               onModelChange={setSelectedModel}
             />
           );
-        case 2: // Agent Behaviour step
+        case 2: // Voice & Language step
           return (
-            <AgentBehaviourStep
-              scenarios={scenarios}
-              phases={phases}
-              voiceTone={voiceTone}
-              behaviourConfig={behaviourConfig}
-              onOpenSectionModal={openSectionModal}
-              onDeleteSectionEntry={deleteSectionEntry}
-            />
-          );
-        case 3: // Voice step
-          return (
-            <VoiceStep
+            <VoiceLanguageStep
               selectedVoiceId={selectedVoiceId}
               voices={voices}
               loadingVoices={loadingVoices}
@@ -1462,10 +1611,35 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               onPlayPreview={handlePlayPreview}
               voiceSearchQuery={voiceSearchQuery}
               onVoiceSearchChange={setVoiceSearchQuery}
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
             />
           );
-        case 4: // Language step
-          return <LanguageStep selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} />;
+        case 3: // Call Outcomes step
+          return (
+            <CallOutcomesStep
+              primaryOutcome={primaryOutcome}
+              onPrimaryOutcomeChange={setPrimaryOutcome}
+              escalationRuleSettings={escalationRuleSettings}
+              onEscalationRuleSettingsChange={setEscalationRuleSettings}
+              successKeywords={successKeywords}
+              onSuccessKeywordsChange={setSuccessKeywords}
+              failureKeywords={failureKeywords}
+              onFailureKeywordsChange={setFailureKeywords}
+              showValidationErrors={showCallOutcomesValidation}
+            />
+          );
+        case 4: // Agent Behaviour step
+          return (
+            <AgentBehaviourStep
+              scenarios={scenarios}
+              phases={phases}
+              voiceTone={voiceTone}
+              behaviourConfig={behaviourConfig}
+              onOpenSectionModal={openSectionModal}
+              onDeleteSectionEntry={deleteSectionEntry}
+            />
+          );
         case 5: // Integrations step
           return (
             <IntegrationsStep
@@ -1548,9 +1722,11 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // Show loading state when restoring agent data
   if (loadingAgent) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading your assistant...</p>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 h-full w-full">
+        <div className="flex flex-col items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground mt-4">Loading your assistant...</p>
+        </div>
       </div>
     );
   }
@@ -1578,17 +1754,17 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               {(() => {
                 if (shouldSkipNameStep) {
                   if (currentStep === 1) return "Configure the AI model for your assistant.";
-                  if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
-                  if (currentStep === 3) return "Select a voice for your assistant to use.";
-                  if (currentStep === 4) return "Choose the language for your agent.";
+                  if (currentStep === 2) return "Select a voice and language for your assistant.";
+                  if (currentStep === 3) return "Define what success means for your agent's calls.";
+                  if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
                   if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
                   return "";
                 } else {
                   if (currentStep === 0) return "Give your assistant a name to identify it.";
                   if (currentStep === 1) return "Configure the AI model for your assistant.";
-                  if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
-                  if (currentStep === 3) return "Select a voice for your assistant to use.";
-                  if (currentStep === 4) return "Choose the language for your agent.";
+                  if (currentStep === 2) return "Select a voice and language for your assistant.";
+                  if (currentStep === 3) return "Define what success means for your agent's calls.";
+                  if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
                   if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
                   return "";
                 }

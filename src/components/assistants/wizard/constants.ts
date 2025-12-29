@@ -6,6 +6,7 @@ import {
   Eye,
   Sparkles,
   Plug,
+  Target,
 } from "lucide-react";
 import { SectionEntry } from "@/types/assistant";
 import type { StepType } from "./types";
@@ -102,9 +103,9 @@ export const WIDGET_SIZES = {
 export const steps: StepType[] = [
   { id: 1, label: "Name", icon: User },
   { id: 2, label: "Model", icon: Code },
-  { id: 3, label: "Agent Behaviour", icon: Sparkles },
-  { id: 4, label: "Voice", icon: AudioLines },
-  { id: 5, label: "Language", icon: Mic },
+  { id: 3, label: "Voice & Language", icon: AudioLines },
+  { id: 4, label: "Call Outcomes", icon: Target },
+  { id: 5, label: "Agent Behaviour", icon: Sparkles },
   { id: 6, label: "Integrations", icon: Plug },
 ];
 

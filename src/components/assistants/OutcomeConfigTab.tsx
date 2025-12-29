@@ -348,7 +348,7 @@ export default function OutcomeConfigTab({
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="mb-2">Success Indicators (Optional)</CardTitle>
+                  <CardTitle className="mb-2">Success Indicators</CardTitle>
                   <CardDescription>
                     Optional: Add keywords that help identify successful calls. Our AI will automatically analyze conversations, but you can add specific words to look for.
                   </CardDescription>
@@ -401,7 +401,7 @@ export default function OutcomeConfigTab({
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="mb-2">Failure Indicators (Optional)</CardTitle>
+                  <CardTitle className="mb-2">Failure Indicators</CardTitle>
                   <CardDescription>
                     Optional: Add keywords that help identify unsuccessful calls. Our AI will automatically analyze conversations, but you can add specific words to look for.
                   </CardDescription>

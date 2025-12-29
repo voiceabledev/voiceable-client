@@ -158,7 +158,7 @@ export default function ApiKeys() {
                   className="w-full sm:w-auto"
                 >
                   <Building2 className="h-5 w-5 mr-2" />
-                  Contact Sales
+                  Contact Support
                 </Button>
               </div>
             </div>

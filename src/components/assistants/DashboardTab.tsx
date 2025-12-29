@@ -20,7 +20,7 @@ import {
   Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { agentMetricsApi, phoneNumbersApi, type AgentROI, type PhoneNumber } from "@/lib/api";
+import { agentMetricsApi, phoneNumbersApi, conversationsApi, type AgentROI, type PhoneNumber } from "@/lib/api";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
 import type { Agent } from "@/types/assistant";
 
@@ -38,6 +38,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [loadingPhoneNumbers, setLoadingPhoneNumbers] = useState(false);
   const [showPhoneNumberModal, setShowPhoneNumberModal] = useState(false);
+  const [hasConversations, setHasConversations] = useState<boolean | null>(null);
 
   const fetchMetrics = useCallback(async () => {
     if (!agentId) {
@@ -50,14 +51,23 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
       const response = await agentMetricsApi.getROI(agentId, dateRange);
       if (response.data?.data) {
         setRoiData(response.data.data);
+      } else {
+        // API returned successfully but no data - check if we have conversations
+        setRoiData(null);
       }
     } catch (error) {
       console.error("Error fetching metrics:", error);
-      toast({
-        title: "Error loading metrics",
-        description: "Failed to load dashboard data.",
-        variant: "destructive",
-      });
+      // Don't show error toast if we have conversations - metrics might just not be ready yet
+      const errorWithStatus = error as { response?: { status?: number }; status?: number };
+      const status = errorWithStatus?.response?.status || errorWithStatus?.status;
+      if (status !== 404 && status !== 200) {
+        toast({
+          title: "Error loading metrics",
+          description: "Failed to load dashboard data.",
+          variant: "destructive",
+        });
+      }
+      setRoiData(null);
     } finally {
       setLoading(false);
     }
@@ -83,10 +93,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
     }
   }, [agentId]);
 
+  const checkConversations = useCallback(async () => {
+    if (!agentId) {
+      setHasConversations(false);
+      return;
+    }
+
+    try {
+      const response = await conversationsApi.list({ 
+        agent_id: agentId,
+        page_size: 1 // Just check if any exist
+      });
+      setHasConversations(response.data && response.data.length > 0);
+    } catch (error) {
+      console.error("Error checking conversations:", error);
+      setHasConversations(false);
+    }
+  }, [agentId]);
+
   useEffect(() => {
     fetchMetrics();
     fetchPhoneNumbers();
-  }, [fetchMetrics, fetchPhoneNumbers]);
+    checkConversations();
+  }, [fetchMetrics, fetchPhoneNumbers, checkConversations]);
 
   if (loading) {
     return (
@@ -99,6 +128,28 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
   if (!roiData) {
     const hasPhoneNumber = phoneNumbers.length > 0;
     const hasWidget = !!(agent?.elevenlabs_agent_id);
+
+    // If we have conversations but no ROI data, show a message that metrics are being calculated
+    if (hasConversations === true) {
+      return (
+        <div className="flex flex-col items-center py-16 px-4">
+          <div className="text-center space-y-4 mb-10 max-w-xl">
+            <div className="relative mx-auto mb-6">
+              <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-50"></div>
+              <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 shadow-lg">
+                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold tracking-tight">Calculating Metrics</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                We're processing your call data to generate performance metrics, ROI analysis, and detailed insights. This may take a few moments.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col items-center py-16 px-4">
