@@ -53,7 +53,7 @@ export type WebhookQueryParam = {
   dataType: "string" | "number" | "boolean" | "array" | "object";
   identifier: string;
   required: boolean;
-  valueType: "llm_prompt" | "static";
+  valueType: "llm_prompt" | "static" | "dynamic_variable";
   description: string;
   enumValues: string[];
   // For object type: nested properties
@@ -63,6 +63,10 @@ export type WebhookQueryParam = {
   itemDescription?: string;
   itemEnumValues?: string[];
   itemProperties?: WebhookQueryParam[]; // For array of objects
+  // For static value type: constant value
+  constantValue?: unknown;
+  // For dynamic_variable value type: variable name
+  dynamicVariable?: string;
 };
 
 export type WebhookPathParam = {

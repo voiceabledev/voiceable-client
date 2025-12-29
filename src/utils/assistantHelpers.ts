@@ -324,15 +324,57 @@ export const parseWebhookToolFromOurFormat = (tool: Record<string, unknown>): We
       }))
     : [],
   bodyParams: Array.isArray(tool.body_params)
-    ? (tool.body_params as Array<Record<string, unknown>>).map((p) => ({
-        id: crypto.randomUUID(),
-        dataType: (p.data_type as "string" | "number" | "boolean" | "array" | "object") || "string",
-        identifier: typeof p.identifier === "string" ? p.identifier : "",
-        required: p.required === true,
-        valueType: (p.value_type as "llm_prompt" | "static") || "llm_prompt",
-        description: typeof p.description === "string" ? p.description : "",
-        enumValues: Array.isArray(p.enum_values) ? (p.enum_values as string[]) : [],
-      }))
+    ? (tool.body_params as Array<Record<string, unknown>>).map((p) => {
+        const dataType = (p.data_type as "string" | "number" | "boolean" | "array" | "object") || "string";
+        const baseParam = {
+          id: crypto.randomUUID(),
+          dataType,
+          identifier: typeof p.identifier === "string" ? p.identifier : "",
+          required: p.required === true,
+          valueType: (p.value_type as "llm_prompt" | "static") || "llm_prompt",
+          description: typeof p.description === "string" ? p.description : "",
+          enumValues: Array.isArray(p.enum_values) ? (p.enum_values as string[]) : [],
+        };
+        
+        // Handle nested properties for object types
+        if (dataType === "object" && Array.isArray(p.properties)) {
+          return {
+            ...baseParam,
+            properties: (p.properties as Array<Record<string, unknown>>).map((prop) => ({
+              id: crypto.randomUUID(),
+              dataType: (prop.data_type as "string" | "number" | "boolean" | "array" | "object") || "string",
+              identifier: typeof prop.identifier === "string" ? prop.identifier : "",
+              required: prop.required === true,
+              valueType: (prop.value_type as "llm_prompt" | "static" | "dynamic_variable") || "llm_prompt",
+              description: typeof prop.description === "string" ? prop.description : "",
+              enumValues: Array.isArray(prop.enum_values) ? (prop.enum_values as string[]) : [],
+              // Handle dynamic_variable type
+              dynamicVariable: typeof prop.dynamic_variable === "string" ? prop.dynamic_variable : undefined,
+              // Handle constant_value for static types
+              constantValue: prop.constant_value !== undefined ? prop.constant_value : undefined,
+            })),
+          };
+        }
+        
+        // Handle constant_value for static types
+        if (baseParam.valueType === "static" && p.constant_value !== undefined) {
+          return {
+            ...baseParam,
+            constantValue: p.constant_value,
+          };
+        }
+        
+        // Handle dynamic_variable type
+        if (p.value_type === "dynamic_variable" && typeof p.dynamic_variable === "string") {
+          return {
+            ...baseParam,
+            valueType: "dynamic_variable" as const,
+            dynamicVariable: p.dynamic_variable,
+          };
+        }
+        
+        return baseParam;
+      })
     : [],
   dynamicVariableAssignments: Array.isArray(tool.dynamic_variable_assignments)
     ? (tool.dynamic_variable_assignments as Array<Record<string, unknown>>).map((a) => ({

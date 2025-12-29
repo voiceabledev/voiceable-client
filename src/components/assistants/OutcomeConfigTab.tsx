@@ -185,10 +185,11 @@ export default function OutcomeConfigTab({
       }
       
       // Refetch agent data to update webhook tools
-      // Add a small delay to allow backend to sync webhook tools
+      // Add a delay to allow backend to sync webhook tools (after_commit callback)
       if (onAgentDataChange) {
         // Use Promise-based delay to allow backend to finish syncing
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Increased to 1000ms to ensure after_commit callback completes
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await onAgentDataChange();
       }
     } catch (error: unknown) {
@@ -219,10 +220,11 @@ export default function OutcomeConfigTab({
       setFailureKeywords(['']);
       
       // Refetch agent data to update webhook tools
-      // Add a small delay to allow backend to sync webhook tools
+      // Add a delay to allow backend to sync webhook tools (after_commit callback)
       if (onAgentDataChange) {
         // Use Promise-based delay to allow backend to finish syncing
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Increased to 1000ms to ensure after_commit callback completes
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await onAgentDataChange();
       }
       // Also refetch outcome definition to ensure UI is in sync

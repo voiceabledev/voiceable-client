@@ -1220,7 +1220,7 @@ export const WebhookToolModal: React.FC<WebhookToolModalProps> = ({
                               <Label>Value Type</Label>
                               <Select
                                 value={param.valueType}
-                                onValueChange={(val: "llm_prompt" | "static") => updateBodyParam(index, { valueType: val })}
+                                onValueChange={(val: "llm_prompt" | "static" | "dynamic_variable") => updateBodyParam(index, { valueType: val })}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
@@ -1228,10 +1228,35 @@ export const WebhookToolModal: React.FC<WebhookToolModalProps> = ({
                                 <SelectContent>
                                   <SelectItem value="llm_prompt">LLM Prompt</SelectItem>
                                   <SelectItem value="static">Static</SelectItem>
+                                  <SelectItem value="dynamic_variable">Dynamic Variable</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
+
+                          {/* Static Value Input */}
+                          {param.valueType === "static" && (
+                            <div className="space-y-2">
+                              <Label>Constant Value</Label>
+                              <Input
+                                value={typeof param.constantValue === "string" ? param.constantValue : String(param.constantValue || "")}
+                                onChange={(e) => updateBodyParam(index, { constantValue: e.target.value })}
+                                placeholder="Enter constant value"
+                              />
+                            </div>
+                          )}
+
+                          {/* Dynamic Variable Input */}
+                          {param.valueType === "dynamic_variable" && (
+                            <div className="space-y-2">
+                              <Label>Dynamic Variable</Label>
+                              <Input
+                                value={param.dynamicVariable || ""}
+                                onChange={(e) => updateBodyParam(index, { dynamicVariable: e.target.value })}
+                                placeholder="e.g., conversation_id"
+                              />
+                            </div>
+                          )}
 
                           <div className="space-y-2">
                             <Label>Description</Label>

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { agentsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { generateSectionEntryId } from "@/utils/assistantHelpers";
+import { generateSectionEntryId, parseWebhookToolFromOurFormat } from "@/utils/assistantHelpers";
 import type { 
   Agent, 
   WebhookTool, 
@@ -102,7 +102,9 @@ export function useAgentData(
         // Preserve optional fields for tools and sections (populated below)
         elevenlabs_agent_id: (raw.elevenlabs_agent_id as string) || undefined,
         widget_config: (raw.widget_config as Record<string, unknown>) || undefined,
-        webhook_tools: (raw.webhook_tools || conversationConfig.webhook_tools || []) as WebhookTool[],
+        webhook_tools: Array.isArray(raw.webhook_tools || conversationConfig.webhook_tools) 
+          ? (raw.webhook_tools || conversationConfig.webhook_tools || []).map((tool: Record<string, unknown>) => parseWebhookToolFromOurFormat(tool))
+          : [],
         client_tools: (raw.client_tools || conversationConfig.client_tools || []) as ClientTool[],
         agent_integrations: undefined,
         agent_files: raw.agent_files as AgentFile[] | undefined,
@@ -113,7 +115,9 @@ export function useAgentData(
       setAgent(agentData);
 
       // Extract tools and settings
-      const webhookTools = (raw.webhook_tools || conversationConfig.webhook_tools || []) as WebhookTool[];
+      // Parse webhook tools to handle nested properties and special value types
+      const rawWebhookTools = (raw.webhook_tools || conversationConfig.webhook_tools || []) as Array<Record<string, unknown>>;
+      const webhookTools = rawWebhookTools.map(tool => parseWebhookToolFromOurFormat(tool));
       const clientTools = (raw.client_tools || conversationConfig.client_tools || []) as ClientTool[];
 
       // Always set webhook tools and client tools, even if empty, to ensure UI updates
@@ -387,13 +391,26 @@ export function useAgentData(
       }
       
       // Build conversation_config with all the nested fields
+      // Merge webhook tools: preserve outcome tools from backend, merge with user-created tools
+      // Outcome tools have IDs: 'outcome-report-success', 'outcome-report-failure', 'outcome-report-escalation'
+      const outcomeToolIds = ['outcome-report-success', 'outcome-report-failure', 'outcome-report-escalation'];
+      const existingWebhookTools = (currentConfig.webhook_tools as WebhookTool[]) || [];
+      const existingOutcomeTools = existingWebhookTools.filter(tool => 
+        outcomeToolIds.includes(tool.id || '')
+      );
+      const userWebhookTools = webhookTools.filter(tool => 
+        !outcomeToolIds.includes(tool.id || '')
+      );
+      // Merge: outcome tools from backend + user tools from state
+      const mergedWebhookTools = [...existingOutcomeTools, ...userWebhookTools];
+
       // Start by preserving existing config structure to avoid losing data
       const updatedConversationConfig: Record<string, unknown> = {
         ...currentConfig, // Preserve all existing config first (including agent_behaviour_id and agent_behaviour_config)
         voice_id: agent.voice_id || undefined,
         first_message: agent.first_message || undefined,
         first_message_mode: agent.first_message_mode || undefined,
-        webhook_tools: webhookTools,
+        webhook_tools: mergedWebhookTools,
         client_tools: clientTools,
         system_tools: systemToolsForConfig,
         // Preserve structured prompt sections for UI
@@ -593,7 +610,7 @@ export function useAgentData(
         name: agent.name,
         conversation_config: updatedConversationConfig,
         system_tools: systemToolsPayload,
-        webhook_tools: webhookTools,
+        webhook_tools: mergedWebhookTools,
         client_tools: clientTools,
       };
 
