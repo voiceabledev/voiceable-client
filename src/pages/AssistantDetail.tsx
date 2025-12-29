@@ -36,7 +36,7 @@ import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSetti
 import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
-import OutcomeConfigTab from "@/components/assistants/OutcomeConfigTab";
+import OutcomeConfigTab, { type OutcomeConfigTabRef } from "@/components/assistants/OutcomeConfigTab";
 import { DashboardTab } from "@/components/assistants/DashboardTab";
 import { AssistantDetailTour, type TourStep } from "@/components/assistants/AssistantDetailTour";
 
@@ -93,6 +93,7 @@ export default function AssistantDetail() {
     mappedTab && VALID_TABS.includes(mappedTab as (typeof VALID_TABS)[number]) ? mappedTab : "dashboard";
   const [activeTab, setActiveTab] = useState(initialTab);
   const lastSetTabRef = useRef<string | null>(null);
+  const outcomeConfigTabRef = useRef<OutcomeConfigTabRef>(null);
 
   // Sync activeTab with URL
   useEffect(() => {
@@ -1168,6 +1169,7 @@ export default function AssistantDetail() {
                 <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
               ) : activeTab === "performance" || activeTab === "outcomes" ? (
                 <OutcomeConfigTab 
+                  ref={outcomeConfigTabRef}
                   agentId={agentId} 
                   onAgentDataChange={fetchAgentDetails}
                   onOpenEscalationPanel={() => {
@@ -1429,6 +1431,11 @@ export default function AssistantDetail() {
               }}
               onSave={async () => {
                 try {
+                  // Save escalation rules to outcome definition first
+                  if (outcomeConfigTabRef.current) {
+                    await outcomeConfigTabRef.current.saveEscalationRules(escalationRuleSettings);
+                  }
+                  
                   // Enable transfer_to_number system tool if we have human transfer rules
                   const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
                                               escalationRuleSettings.humanTransferRules.length > 0 &&
@@ -1483,8 +1490,8 @@ export default function AssistantDetail() {
                     });
                   } else {
                     toast({
-                      title: "Info",
-                      description: "Escalation rules saved. Add human transfer rules with phone numbers to enable transfer_to_number system tool.",
+                      title: "Success",
+                      description: "Escalation rules saved successfully.",
                     });
                   }
                   

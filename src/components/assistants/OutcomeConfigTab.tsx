@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,13 +20,17 @@ import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
 import { EscalationRulesPanel, type EscalationRuleSettings } from './EscalationRulesPanel';
 
+export interface OutcomeConfigTabRef {
+  saveEscalationRules: (settings: EscalationRuleSettings) => Promise<void>;
+}
+
 interface OutcomeConfigTabProps {
   agentId: string;
   onAgentDataChange?: () => void | Promise<void>;
   onOpenEscalationPanel?: () => void;
   escalationRuleSettings?: EscalationRuleSettings;
   onEscalationRuleSettingsChange?: (settings: EscalationRuleSettings) => void;
-  onSaveEscalationRules?: () => Promise<void>;
+  onSaveEscalationRules?: (settings: EscalationRuleSettings) => Promise<void>;
   onEnableTransferToNumber?: (settings: EscalationRuleSettings) => void;
 }
 
@@ -40,7 +44,7 @@ const PRIMARY_OUTCOMES = [
   { value: 'complaint_resolved', label: 'Complaint Resolved', type: 'support' },
 ];
 
-export default function OutcomeConfigTab({ 
+const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({ 
   agentId, 
   onAgentDataChange, 
   onOpenEscalationPanel,
@@ -48,7 +52,7 @@ export default function OutcomeConfigTab({
   onEscalationRuleSettingsChange,
   onSaveEscalationRules,
   onEnableTransferToNumber,
-}: OutcomeConfigTabProps) {
+}, ref) => {
   const { toast } = useToast();
   const {
     outcomeDefinition,
@@ -86,6 +90,81 @@ export default function OutcomeConfigTab({
       fetchOutcomeDefinition();
     }
   }, [agentId, fetchOutcomeDefinition]);
+
+  // Function to save escalation rules to outcome definition
+  const saveEscalationRulesToOutcomeDefinition = useCallback(async (settings: EscalationRuleSettings) => {
+    if (!primaryOutcome) {
+      toast({
+        title: 'Error',
+        description: 'Please select a primary outcome before saving escalation rules.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const data = {
+      primary_outcome: primaryOutcome,
+      secondary_outcomes: secondaryOutcomes,
+      success_conditions: {
+        keywords: successKeywords.filter(k => k.trim()),
+      },
+      failure_conditions: {
+        failure_keywords: failureKeywords.filter(k => k.trim()),
+      },
+      escalation_rules: {
+        escalation_keywords: settings.escalation_keywords?.filter(k => k.trim()) || [],
+        name: settings.name,
+        description: settings.description,
+        disableInterruptions: settings.disableInterruptions,
+        humanTransferRules: settings.humanTransferRules,
+      },
+    };
+
+    try {
+      if (outcomeDefinition) {
+        await updateOutcomeDefinition(data);
+      } else {
+        await createOutcomeDefinition(data);
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Escalation rules saved successfully.',
+      });
+      
+      // Refetch agent data to update webhook tools
+      if (onAgentDataChange) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await onAgentDataChange();
+      }
+    } catch (error: unknown) {
+      console.error('Error saving escalation rules:', error);
+      const errorMessage = (error as { response?: { data?: { errors?: string | string[] } }; message?: string })?.response?.data?.errors || 
+                          (error as { message?: string })?.message || 
+                          'Failed to save escalation rules';
+      toast({
+        title: 'Error',
+        description: Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage,
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  }, [
+    primaryOutcome,
+    secondaryOutcomes,
+    successKeywords,
+    failureKeywords,
+    outcomeDefinition,
+    updateOutcomeDefinition,
+    createOutcomeDefinition,
+    onAgentDataChange,
+    toast,
+  ]);
+
+  // Expose save function to parent via ref
+  useImperativeHandle(ref, () => ({
+    saveEscalationRules: saveEscalationRulesToOutcomeDefinition,
+  }), [saveEscalationRulesToOutcomeDefinition]);
 
   useEffect(() => {
     if (outcomeDefinition) {
@@ -130,12 +209,12 @@ export default function OutcomeConfigTab({
       setEscalationRuleSettings(newEscalationRuleSettings);
 
       // Update the ref to match the loaded data so auto-save doesn't trigger
+      // Note: escalation_rules are excluded from auto-save comparison
       previousDataRef.current = JSON.stringify({
         primary_outcome: newPrimaryOutcome,
         secondary_outcomes: newSecondaryOutcomes,
         success_keywords: newSuccessKeywords,
         failure_keywords: newFailureKeywords,
-        escalation_rules: newEscalationRuleSettings,
       });
     } else {
       // Reset to defaults
@@ -144,19 +223,12 @@ export default function OutcomeConfigTab({
       setSuccessKeywords(['']);
       setFailureKeywords(['']);
       
-      // Update the ref for empty state
+      // Update the ref for empty state (excluding escalation_rules from auto-save)
       previousDataRef.current = JSON.stringify({
         primary_outcome: '',
         secondary_outcomes: [],
         success_keywords: [''],
         failure_keywords: [''],
-        escalation_rules: {
-          name: 'transfer_to_number',
-          description: '',
-          disableInterruptions: false,
-          humanTransferRules: [],
-          escalation_keywords: [],
-        },
       });
     }
   }, [outcomeDefinition, setEscalationRuleSettings]);
@@ -167,16 +239,16 @@ export default function OutcomeConfigTab({
   const previousDataRef = useRef<string>('');
 
   // Auto-save when values change (but not on initial load)
+  // Note: escalation_rules are excluded from auto-save - they are only saved when the save button is clicked
   useEffect(() => {
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
-      // Store initial data to compare against
+      // Store initial data to compare against (excluding escalation_rules for auto-save comparison)
       const initialData = JSON.stringify({
         primary_outcome: primaryOutcome,
         secondary_outcomes: secondaryOutcomes,
         success_keywords: successKeywords,
         failure_keywords: failureKeywords,
-        escalation_rules: escalationRuleSettings,
       });
       previousDataRef.current = initialData;
       return;
@@ -187,13 +259,12 @@ export default function OutcomeConfigTab({
       return;
     }
 
-    // Create current data snapshot for comparison
+    // Create current data snapshot for comparison (excluding escalation_rules)
     const currentData = JSON.stringify({
       primary_outcome: primaryOutcome,
       secondary_outcomes: secondaryOutcomes,
       success_keywords: successKeywords,
       failure_keywords: failureKeywords,
-      escalation_rules: escalationRuleSettings,
     });
 
     // Only save if data actually changed
@@ -220,13 +291,8 @@ export default function OutcomeConfigTab({
         failure_conditions: {
           failure_keywords: failureKeywords.filter(k => k.trim()),
         },
-        escalation_rules: {
-          escalation_keywords: escalationRuleSettings.escalation_keywords?.filter(k => k.trim()) || [],
-          name: escalationRuleSettings.name,
-          description: escalationRuleSettings.description,
-          disableInterruptions: escalationRuleSettings.disableInterruptions,
-          humanTransferRules: escalationRuleSettings.humanTransferRules,
-        },
+        // Note: escalation_rules are NOT included in auto-save
+        // They are only saved when the save button is clicked in the escalation rules panel
       };
 
       try {
@@ -242,19 +308,7 @@ export default function OutcomeConfigTab({
           secondary_outcomes: secondaryOutcomes,
           success_keywords: successKeywords,
           failure_keywords: failureKeywords,
-          escalation_rules: escalationRuleSettings,
         });
-        
-        // Enable transfer_to_number system tool if escalation rules have human transfer rules
-        const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
-                                      escalationRuleSettings.humanTransferRules.length > 0 &&
-                                      escalationRuleSettings.humanTransferRules.some(rule => 
-                                        rule.phoneNumber && rule.phoneNumber.trim() !== ''
-                                      );
-        
-        if (hasHumanTransferRules && onEnableTransferToNumber) {
-          await onEnableTransferToNumber(escalationRuleSettings);
-        }
         
         // Refetch agent data to update webhook tools
         if (onAgentDataChange) {
@@ -277,7 +331,6 @@ export default function OutcomeConfigTab({
           secondary_outcomes: secondaryOutcomes,
           success_keywords: successKeywords,
           failure_keywords: failureKeywords,
-          escalation_rules: escalationRuleSettings,
         });
       }
     }, 500);
@@ -293,11 +346,10 @@ export default function OutcomeConfigTab({
     secondaryOutcomes,
     successKeywords,
     failureKeywords,
-    escalationRuleSettings,
+    // escalationRuleSettings is intentionally excluded from dependencies
     outcomeDefinition,
     updateOutcomeDefinition,
     createOutcomeDefinition,
-    onEnableTransferToNumber,
     onAgentDataChange,
     toast,
   ]);
@@ -531,5 +583,9 @@ export default function OutcomeConfigTab({
       {/* Escalation Rules Panel - will be rendered in parent's right panel area */}
     </div>
   );
-}
+});
+
+OutcomeConfigTab.displayName = 'OutcomeConfigTab';
+
+export default OutcomeConfigTab;
 
