@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Save, Trash2, Plus, X, ChevronDown, Settings } from 'lucide-react';
+import { Loader2, Plus, X, ChevronDown, Settings } from 'lucide-react';
 import { useOutcomeDefinition } from '@/hooks/assistants/useOutcomeDefinition';
 import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
@@ -57,7 +57,6 @@ export default function OutcomeConfigTab({
     fetchOutcomeDefinition,
     createOutcomeDefinition,
     updateOutcomeDefinition,
-    deleteOutcomeDefinition,
   } = useOutcomeDefinition(agentId);
 
   const [primaryOutcome, setPrimaryOutcome] = useState<string>('');
@@ -131,108 +130,103 @@ export default function OutcomeConfigTab({
     }
   }, [outcomeDefinition, setEscalationRuleSettings]);
 
-  const handleSave = async () => {
-    if (!primaryOutcome) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select a primary outcome.',
-        variant: 'destructive',
-      });
+  // Track if this is the initial load to prevent auto-save on mount
+  const isInitialLoad = useRef(true);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save when values change (but not on initial load)
+  useEffect(() => {
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
       return;
     }
 
-    const data = {
-      primary_outcome: primaryOutcome,
-      secondary_outcomes: secondaryOutcomes,
-      success_conditions: {
-        keywords: successKeywords.filter(k => k.trim()),
-      },
-      failure_conditions: {
-        failure_keywords: failureKeywords.filter(k => k.trim()),
-      },
-      escalation_rules: {
-        escalation_keywords: escalationRuleSettings.escalation_keywords?.filter(k => k.trim()) || [],
-        name: escalationRuleSettings.name,
-        description: escalationRuleSettings.description,
-        disableInterruptions: escalationRuleSettings.disableInterruptions,
-        humanTransferRules: escalationRuleSettings.humanTransferRules,
-      },
+    // Don't save if no primary outcome is selected
+    if (!primaryOutcome) {
+      return;
+    }
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce the save by 500ms
+    saveTimeoutRef.current = setTimeout(async () => {
+      const data = {
+        primary_outcome: primaryOutcome,
+        secondary_outcomes: secondaryOutcomes,
+        success_conditions: {
+          keywords: successKeywords.filter(k => k.trim()),
+        },
+        failure_conditions: {
+          failure_keywords: failureKeywords.filter(k => k.trim()),
+        },
+        escalation_rules: {
+          escalation_keywords: escalationRuleSettings.escalation_keywords?.filter(k => k.trim()) || [],
+          name: escalationRuleSettings.name,
+          description: escalationRuleSettings.description,
+          disableInterruptions: escalationRuleSettings.disableInterruptions,
+          humanTransferRules: escalationRuleSettings.humanTransferRules,
+        },
+      };
+
+      try {
+        if (outcomeDefinition) {
+          await updateOutcomeDefinition(data);
+        } else {
+          await createOutcomeDefinition(data);
+        }
+        
+        // Enable transfer_to_number system tool if escalation rules have human transfer rules
+        const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
+                                      escalationRuleSettings.humanTransferRules.length > 0 &&
+                                      escalationRuleSettings.humanTransferRules.some(rule => 
+                                        rule.phoneNumber && rule.phoneNumber.trim() !== ''
+                                      );
+        
+        if (hasHumanTransferRules && onEnableTransferToNumber) {
+          await onEnableTransferToNumber(escalationRuleSettings);
+        }
+        
+        // Refetch agent data to update webhook tools
+        if (onAgentDataChange) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await onAgentDataChange();
+        }
+      } catch (error: unknown) {
+        console.error('Error auto-saving outcome definition:', error);
+        const errorMessage = (error as { response?: { data?: { errors?: string | string[] } }; message?: string })?.response?.data?.errors || 
+                            (error as { message?: string })?.message || 
+                            'Failed to save success criteria';
+        toast({
+          title: 'Error',
+          description: Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage,
+          variant: 'destructive',
+        });
+      }
+    }, 500);
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
+  }, [
+    primaryOutcome,
+    secondaryOutcomes,
+    successKeywords,
+    failureKeywords,
+    escalationRuleSettings,
+    outcomeDefinition,
+    updateOutcomeDefinition,
+    createOutcomeDefinition,
+    onEnableTransferToNumber,
+    onAgentDataChange,
+    toast,
+  ]);
 
-    console.log('Saving outcome definition:', { agentId, outcomeDefinition: outcomeDefinition?.id, data });
-
-    try {
-      if (outcomeDefinition) {
-        console.log('Updating existing outcome definition');
-        const result = await updateOutcomeDefinition(data);
-        console.log('Update result:', result);
-      } else {
-        console.log('Creating new outcome definition');
-        const result = await createOutcomeDefinition(data);
-        console.log('Create result:', result);
-      }
-      
-      // Enable transfer_to_number system tool if escalation rules have human transfer rules
-      // Check if we have any human transfer rules configured with phone numbers
-      const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
-                                    escalationRuleSettings.humanTransferRules.length > 0 &&
-                                    escalationRuleSettings.humanTransferRules.some(rule => 
-                                      rule.phoneNumber && rule.phoneNumber.trim() !== ''
-                                    );
-      
-      if (hasHumanTransferRules && onEnableTransferToNumber) {
-        await onEnableTransferToNumber(escalationRuleSettings);
-      }
-      
-      // Refetch agent data to update webhook tools
-      // Add a delay to allow backend to sync webhook tools (after_commit callback)
-      if (onAgentDataChange) {
-        // Use Promise-based delay to allow backend to finish syncing
-        // Increased to 1000ms to ensure after_commit callback completes
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await onAgentDataChange();
-      }
-    } catch (error: unknown) {
-      // Error handled in hook, but log for debugging
-      console.error('Error saving outcome definition:', error);
-      const errorMessage = (error as { response?: { data?: { errors?: string | string[] } }; message?: string })?.response?.data?.errors || 
-                          (error as { message?: string })?.message || 
-                          'Failed to save success criteria';
-      toast({
-        title: 'Error',
-        description: Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!outcomeDefinition) return;
-    if (!confirm('Are you sure you want to delete the success criteria for this agent?')) return;
-
-    try {
-      await deleteOutcomeDefinition();
-      
-      // Explicitly reset form fields immediately
-      setPrimaryOutcome('');
-      setSecondaryOutcomes([]);
-      setSuccessKeywords(['']);
-      setFailureKeywords(['']);
-      
-      // Refetch agent data to update webhook tools
-      // Add a delay to allow backend to sync webhook tools (after_commit callback)
-      if (onAgentDataChange) {
-        // Use Promise-based delay to allow backend to finish syncing
-        // Increased to 1000ms to ensure after_commit callback completes
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await onAgentDataChange();
-      }
-      // Also refetch outcome definition to ensure UI is in sync
-      await fetchOutcomeDefinition();
-    } catch (error) {
-      // Error handled in hook
-    }
-  };
 
   const addKeyword = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     setter(prev => [...prev, '']);
@@ -266,30 +260,15 @@ export default function OutcomeConfigTab({
         <div>
           <h2 className="text-2xl font-bold mb-2">Call Outcomes</h2>
           <p className="text-muted-foreground">
-            Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes.
+            Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes. Changes are saved automatically.
           </p>
         </div>
-        <div className="flex gap-2">
-          {outcomeDefinition && (
-            <Button variant="outline" onClick={handleDelete} disabled={saving}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          )}
-          <Button onClick={handleSave} disabled={saving || !primaryOutcome}>
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </>
-            )}
-          </Button>
-        </div>
+        {saving && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Saving...
+          </div>
+        )}
       </div>
 
       <Collapsible open={isPrimaryOpen} onOpenChange={setIsPrimaryOpen}>
