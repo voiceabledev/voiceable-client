@@ -18,6 +18,7 @@ import Outbound from "@/pages/Outbound";
 import NewCampaign from "@/pages/NewCampaign";
 import Files from "@/pages/Files";
 import SettingsList from "@/pages/SettingsList";
+import Settings from "@/pages/Settings";
 import Billing from "@/pages/settings/Billing";
 import Members from "@/pages/settings/Members";
 import Profile from "@/pages/settings/Profile";
@@ -111,15 +112,18 @@ const App = () => (
                 <Route path="/conversations" element={<Conversations />} />
                 <Route path="/dashboards" element={<Dashboards />} />
                 <Route path="/escalations" element={<Escalations />} />
-                <Route path="/settings" element={<SettingsList />} />
-                <Route path="/settings/org" element={<OrgSettings />} />
-                <Route path="/settings/billing" element={<Billing />} />
-                <Route path="/settings/members" element={<Members />} />
-                <Route path="/settings/integrations" element={<Integrations />} />
-                <Route path="/settings/integrations/:type" element={<IntegrationSettings />} />
-                <Route path="/settings/voice-library" element={<VoiceLibrary />} />
-                <Route path="/settings/profile" element={<Profile />} />
-                <Route path="/settings/financial-simulation" element={<FinancialSimulation />} />
+                <Route path="/settings" element={<Settings />}>
+                  <Route index element={<SettingsList />} />
+                  <Route path="org" element={<OrgSettings />} />
+                  <Route path="billing" element={<Billing />} />
+                  <Route path="members" element={<Members />} />
+                  <Route path="integrations" element={<Integrations />} />
+                  <Route path="integrations/:type" element={<IntegrationSettings />} />
+                  <Route path="voice-library" element={<VoiceLibrary />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="financial-simulation" element={<FinancialSimulation />} />
+                  <Route path="api-keys" element={<ApiKeys />} />
+                </Route>
               </Route>
               
               {/* Admin Routes */}

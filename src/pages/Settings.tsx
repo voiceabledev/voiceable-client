@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 import { 
   Settings as SettingsIcon,
   Building2,
@@ -10,16 +11,21 @@ import {
   AudioLines,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const orgSettings = [
-  { icon: Building2, label: "Org Settings", path: "/settings/org" },
+  // { icon: Building2, label: "Org Settings", path: "/settings/org" },
   { icon: CreditCard, label: "Billing & Add-Ons", path: "/settings/billing" },
-  { icon: Users, label: "Members", path: "/settings/members" },
-  { icon: Link2, label: "Integrations", path: "/settings/integrations" },
+  // { icon: Users, label: "Members", path: "/settings/members" },
+  // { icon: Link2, label: "Integrations", path: "/settings/integrations" },
+];
+
+const developerSettings = [
+  { icon: Key, label: "API Keys", path: "/settings/api-keys" },
 ];
 
 const communitySettings = [
@@ -43,8 +49,11 @@ export default function Settings() {
   }, [location.pathname, isMobile]);
 
   const showFullContent = !isMobile || isExpanded;
+  
+  // Hide sidebar for integrations routes
+  const isIntegrationsRoute = location.pathname.startsWith('/settings/integrations');
 
-  const renderNavItem = (item: { icon: any; label: string; path: string }) => {
+  const renderNavItem = (item: { icon: LucideIcon; label: string; path: string }) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.path;
 
@@ -82,66 +91,75 @@ export default function Settings() {
         </div>
 
         <div>
-          {showFullContent && <p className="section-label mb-2">Community</p>}
-          <div className="space-y-1">
-            {communitySettings.map(renderNavItem)}
-          </div>
-        </div>
-
-        <div>
           {showFullContent && <p className="section-label mb-2">Account Settings</p>}
           <div className="space-y-1">
             {accountSettings.map(renderNavItem)}
           </div>
         </div>
+
+        <div>
+          {showFullContent && <p className="section-label mb-2">Developer</p>}
+          <div className="space-y-1">
+            {developerSettings.map(renderNavItem)}
+          </div>
+        </div>
+
+        {/* <div>
+          {showFullContent && <p className="section-label mb-2">Community</p>}
+          <div className="space-y-1">
+            {communitySettings.map(renderNavItem)}
+          </div>
+        </div> */}
       </nav>
     </>
   );
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Settings Sidebar - Always visible, collapsible on mobile */}
-      <div className={cn(
-        "border-r border-border flex flex-col transition-all duration-300 overflow-hidden flex-shrink-0",
-        isMobile 
-          ? (isExpanded ? "w-64" : "w-16")
-          : "w-64"
-      )}>
-        <div className="p-3 md:p-4 flex flex-col h-full overflow-hidden">
-          <SettingsMenuContent />
-          
-          {/* Expand/Collapse Button - Fixed at Bottom */}
-          {isMobile && (
-            <div className="mt-auto pt-3 md:pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "w-full h-9 md:h-8 flex items-center justify-center",
-                  !showFullContent ? "px-0" : "px-3 md:px-4"
-                )}
-                onClick={() => setIsExpanded(!isExpanded)}
-                title={isExpanded ? "Collapse menu" : "Expand menu"}
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronLeft className="h-4 w-4 flex-shrink-0" />
-                    {showFullContent && <span className="ml-2 text-sm">Collapse</span>}
-                  </>
-                ) : (
-                  <>
-                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                    {showFullContent && <span className="ml-2 text-sm">Expand</span>}
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+      {/* Settings Sidebar - Hidden */}
+      {!isIntegrationsRoute && (
+        <div className={cn(
+          "hidden border-r border-border transition-all duration-300 overflow-hidden flex-shrink-0",
+          isMobile 
+            ? (isExpanded ? "w-64" : "w-16")
+            : "w-64"
+        )}>
+          <div className="p-3 md:p-4 flex flex-col h-full overflow-hidden">
+            <SettingsMenuContent />
+            
+            {/* Expand/Collapse Button - Fixed at Bottom */}
+            {isMobile && (
+              <div className="mt-auto pt-3 md:pt-4 pb-3 md:pb-4 border-t border-border flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "w-full h-9 md:h-8 flex items-center justify-center",
+                    !showFullContent ? "px-0" : "px-3 md:px-4"
+                  )}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  title={isExpanded ? "Collapse menu" : "Expand menu"}
+                >
+                  {isExpanded ? (
+                    <>
+                      <ChevronLeft className="h-4 w-4 flex-shrink-0" />
+                      {showFullContent && <span className="ml-2 text-sm">Collapse</span>}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                      {showFullContent && <span className="ml-2 text-sm">Expand</span>}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Settings Content - Scrollable */}
-      <div className="flex-1 p-4 pr-4 md:p-6 md:pr-6 relative min-w-0 overflow-y-auto">
+      <div className="flex-1 relative min-w-0 overflow-y-auto">
         <Outlet />
       </div>
     </div>

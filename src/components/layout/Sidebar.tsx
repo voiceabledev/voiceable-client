@@ -37,14 +37,18 @@ const buildItems = [
   // { icon: FileText, label: "Knowledge Base", path: "/files" },
   // { icon: AudioLines, label: "Voice Library", path: "/voice-library" },
   { icon: Key, label: "Integrations", path: "/settings/integrations" },
-  { icon: Key, label: "API Keys", path: "/api-keys" },
 ];
 
 const evaluateItems = [
   { icon: MessageSquare, label: "Conversations", path: "/conversations" },
 ];
+
 const outboundItems = [
   { icon: PhoneOutgoing, label: "Campaigns", path: "/outbound" },
+];
+
+const settingsItems = [
+  { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 const adminItems = [
@@ -225,24 +229,6 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           {showFullContent && <span>Overview</span>}
         </NavLink>
 
-        <NavLink
-          to="/workflows"
-          onClick={() => {
-            if (isMobile && onMobileMenuChange) {
-              onMobileMenuChange(false);
-            }
-          }}
-          className={cn(
-            "sidebar-item",
-            location.pathname === "/" && "sidebar-item-active",
-            !showFullContent && "justify-center"
-          )}
-          title={!showFullContent ? "Workflows" : undefined}
-        >
-          <GitBranch className="h-4 w-4 flex-shrink-0" />
-          {showFullContent && <span>Workflows</span>}
-        </NavLink>
-
         {/* Build Section */}
         <div>
           {showFullContent && <p className="section-label">Build</p>}
@@ -252,12 +238,12 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
         </div>
 
         {/* Evaluate Section */}
-        <div>
+        {/* <div>
           {showFullContent && <p className="section-label">Evaluate</p>}
           <div className="space-y-0.5">
             {evaluateItems.map(renderNavItem)}
           </div>
-        </div>
+        </div> */}
 
         {/* Outbound Section */}
         <div>
@@ -271,7 +257,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
         <div>
           {showFullContent && <p className="section-label">Settings</p>}
           <div className="space-y-0.5">
-            {renderNavItem({ icon: Settings, label: "Settings", path: "/settings" })}
+            {settingsItems.map(renderNavItem)}
           </div>
         </div>
 

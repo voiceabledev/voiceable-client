@@ -211,8 +211,8 @@ export default function Billing() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border flex-shrink-0 bg-card/50 backdrop-blur-sm">
-        <div className="flex items-center gap-3 md:gap-4">
+      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -221,14 +221,8 @@ export default function Billing() {
           >
             <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
           </Button>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              Billing & Plans
-            </h2>
-            {/* <p className="hidden md:block text-sm md:text-base text-muted-foreground leading-relaxed max-w-3xl">
-              Select a plan for your organization. <span className="font-semibold text-foreground">Bundled minutes</span> include the cost of every provider used during a call (LLM, TTS, STT, etc.). <span className="font-semibold text-foreground">Overage cost</span> applies when you exceed your bundled minutes.
-            </p> */}
-          </div>
+          <CreditCard className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          <h1 className="text-lg md:text-xl font-semibold">Billing & Add-Ons</h1>
         </div>
       </div>
 

@@ -7,7 +7,8 @@ import {
   Link2,
   AudioLines,
   User,
-  TrendingUp
+  TrendingUp,
+  Key
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,10 @@ const orgSettings = [
   // { icon: TrendingUp, label: "Financial Simulation", path: "/settings/financial-simulation", description: "Project revenue, costs, and profitability based on user growth" },
   // { icon: Users, label: "Members", path: "/settings/members", description: "Invite and manage team members" },
   // { icon: Link2, label: "Integrations", path: "/settings/integrations", description: "Connect and configure third-party services" },
+];
+
+const developerSettings = [
+  { icon: Key, label: "API Keys", path: "/settings/api-keys", description: "Manage your API keys and authentication" },
 ];
 
 const communitySettings = [
@@ -61,9 +66,9 @@ export default function SettingsList() {
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-          <SettingsIcon className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground flex-shrink-0" />
-          <h1 className="text-xl md:text-2xl font-semibold">Settings</h1>
+        <div className="flex items-center gap-2 md:gap-3">
+          <SettingsIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+          <h1 className="text-lg md:text-xl font-semibold">Settings</h1>
         </div>
       </div>
 
@@ -77,6 +82,16 @@ export default function SettingsList() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {orgSettings.map(renderSettingCard)}
+            </div>
+          </div>
+
+          {/* Developer */}
+          <div>
+            <h2 className="text-xs md:text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3 md:mb-4">
+              Developer
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {developerSettings.map(renderSettingCard)}
             </div>
           </div>
 

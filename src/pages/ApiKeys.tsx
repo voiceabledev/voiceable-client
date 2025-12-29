@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +20,11 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Key, Lock, Plus, Eye, EyeOff, Copy, Trash2, Search, Loader2, Building2 } from "lucide-react";
+import { Key, Lock, Plus, Eye, EyeOff, Copy, Trash2, Search, Loader2, Building2, ArrowLeft } from "lucide-react";
 import { apiKeysApi, ApiKey, agentsApi, Agent } from "@/lib/api";
 
 export default function ApiKeys() {
+  const navigate = useNavigate();
   const [privateKeyVisible, setPrivateKeyVisible] = useState<Record<number, boolean>>({});
   const [publicKeyVisible, setPublicKeyVisible] = useState<Record<number, boolean>>({});
   const [showPrivateModal, setShowPrivateModal] = useState(false);
@@ -121,6 +123,14 @@ export default function ApiKeys() {
         {/* Header */}
         <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2 md:gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/settings")}
+              className="flex-shrink-0 hover:bg-secondary"
+            >
+              <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
+            </Button>
             <Key className="h-5 w-5 text-muted-foreground flex-shrink-0" />
             <h1 className="text-lg md:text-xl font-semibold">API Keys</h1>
           </div>
@@ -180,6 +190,14 @@ export default function ApiKeys() {
       {/* Header */}
       <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2 md:gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings")}
+            className="flex-shrink-0 hover:bg-secondary"
+          >
+            <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
+          </Button>
           <Key className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           <h1 className="text-lg md:text-xl font-semibold">API Keys</h1>
         </div>
