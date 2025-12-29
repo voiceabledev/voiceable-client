@@ -1483,11 +1483,6 @@ export default function AssistantDetail() {
                         transfer_to_number: updatedSettings,
                       }
                     );
-                    
-                    toast({
-                      title: "Success",
-                      description: "Escalation rules saved and transfer_to_number system tool enabled and synced to ElevenLabs.",
-                    });
                   } else {
                     toast({
                       title: "Success",
