@@ -35,6 +35,7 @@ export default function ConversationOutcomePanel({ conversationId }: Conversatio
 
   useEffect(() => {
     fetchOutcome();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
   useEffect(() => {
@@ -49,9 +50,14 @@ export default function ConversationOutcomePanel({ conversationId }: Conversatio
     setLoading(true);
     try {
       const response = await conversationOutcomesApi.get(conversationId);
-      if (response.data?.data) {
-        console.log(response.data);
-        setOutcome(response.data.data);
+      // Handle ActiveModel::Serializer response structure which may wrap in 'conversation_outcome' key
+      let outcomeData = response.data;
+      if (outcomeData && 'conversation_outcome' in outcomeData) {
+        outcomeData = (outcomeData as any).conversation_outcome;
+      }
+      if (outcomeData) {
+        console.log('Outcome data:', outcomeData);
+        setOutcome(outcomeData as ConversationOutcome);
       } else {
         setOutcome(null);
       }
@@ -79,8 +85,13 @@ export default function ConversationOutcomePanel({ conversationId }: Conversatio
         actual_outcome: actualOutcome || null,
         notes: notes || null,
       });
-      if (response.data?.data) {
-        setOutcome(response.data.data);
+      // Handle ActiveModel::Serializer response structure which may wrap in 'conversation_outcome' key
+      let outcomeData = response.data;
+      if (outcomeData && 'conversation_outcome' in outcomeData) {
+        outcomeData = (outcomeData as any).conversation_outcome;
+      }
+      if (outcomeData) {
+        setOutcome(outcomeData as ConversationOutcome);
         toast({
           title: 'Success',
           description: 'Outcome annotation saved successfully.',

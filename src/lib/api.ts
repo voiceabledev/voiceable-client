@@ -1566,11 +1566,11 @@ export const outcomeDefinitionsApi = {
 // Conversation Outcomes API
 export const conversationOutcomesApi = {
   get: async (conversationId: string) => {
-    const response = await apiClient.get<{ data: ConversationOutcome }>(`/conversations/${conversationId}/outcome`);
+    const response = await apiClient.get<ConversationOutcome>(`/conversations/${conversationId}/outcome`);
     return response;
   },
   update: async (conversationId: string, data: Partial<Pick<ConversationOutcome, 'outcome' | 'reason_code' | 'expected_outcome' | 'actual_outcome' | 'notes'>>) => {
-    const response = await apiClient.patch<{ data: ConversationOutcome }>(`/conversations/${conversationId}/outcome`, {
+    const response = await apiClient.patch<ConversationOutcome>(`/conversations/${conversationId}/outcome`, {
       conversation_outcome: data,
     });
     return response;
