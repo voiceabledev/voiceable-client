@@ -1745,7 +1745,7 @@ export const agentMetricsApi = {
     
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/roi${queryString ? `?${queryString}` : ''}`;
-    const response = await apiClient.get<{ data: AgentROI }>(endpoint);
+    const response = await apiClient.get<AgentROI>(endpoint);
     return response;
   },
   getPerformance: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {

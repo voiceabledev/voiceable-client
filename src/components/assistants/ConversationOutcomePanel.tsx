@@ -50,6 +50,7 @@ export default function ConversationOutcomePanel({ conversationId }: Conversatio
     try {
       const response = await conversationOutcomesApi.get(conversationId);
       if (response.data?.data) {
+        console.log(response.data);
         setOutcome(response.data.data);
       } else {
         setOutcome(null);

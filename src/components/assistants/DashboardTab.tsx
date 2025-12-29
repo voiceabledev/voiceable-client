@@ -49,8 +49,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
     setLoading(true);
     try {
       const response = await agentMetricsApi.getROI(agentId, dateRange);
-      if (response.data?.data) {
-        setRoiData(response.data.data);
+      if (response.data) {
+        setRoiData(response.data);
       } else {
         // API returned successfully but no data - check if we have conversations
         setRoiData(null);
