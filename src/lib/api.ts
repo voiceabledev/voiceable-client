@@ -730,6 +730,7 @@ export interface Conversation {
     time_in_call_secs?: number;
   }>;
   metadata?: Record<string, unknown>;
+  outcome?: import('./types/outcomes').ConversationOutcome | null;
 }
 
 export const conversationsApi = {

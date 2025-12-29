@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { conversationsApi, Conversation, conversationOutcomesApi } from "@/lib/api";
+import { conversationsApi, Conversation } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { OutcomeBadge } from "@/components/ui/outcome-badge";
 import ConversationOutcomePanel from "@/components/assistants/ConversationOutcomePanel";
@@ -91,6 +91,13 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
       const response = await conversationsApi.get(conversationId);
       if (response.data) {
         setConversationDetails(response.data);
+        // Update conversation outcomes state with outcome from conversation details
+        if (response.data.outcome) {
+          setConversationOutcomes(prev => ({
+            ...prev,
+            [conversationId]: { outcome: response.data.outcome.outcome },
+          }));
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversation details';
@@ -110,17 +117,6 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   useEffect(() => {
     if (selectedConversation?.id) {
       fetchConversationDetails(selectedConversation.id);
-      // Fetch outcome if available
-      conversationOutcomesApi.get(selectedConversation.id).then((response) => {
-        if (response.data?.data) {
-          setConversationOutcomes(prev => ({
-            ...prev,
-            [selectedConversation.id]: response.data.data,
-          }));
-        }
-      }).catch(() => {
-        // Outcome may not exist, ignore
-      });
     }
   }, [selectedConversation?.id, fetchConversationDetails]);
 
