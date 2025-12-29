@@ -666,12 +666,34 @@ export function useIntegrationTools(
   const openEditIntegrationModal = useCallback(async (integration: UserIntegration | string): Promise<void> => {
     const integrationType = typeof integration === 'string' ? integration : integration.integration_type;
     
-    // Find integration data in the list
+    // Always fetch the latest integration data from the API to ensure we have the most up-to-date config
     let integrationData: UserIntegration | null = null;
-    if (typeof integration === 'string') {
-      integrationData = userIntegrations.find(i => i.integration_type === integration) || null;
-    } else {
-      integrationData = integration;
+    
+    try {
+      const response = await integrationsApi.get(integrationType);
+      if (response.data) {
+        integrationData = response.data;
+        // Update userIntegrations with the latest data
+        setUserIntegrations(prev => {
+          const existingIndex = prev.findIndex(i => i.id === integrationData!.id);
+          if (existingIndex >= 0) {
+            // Update existing integration
+            const updated = [...prev];
+            updated[existingIndex] = integrationData!;
+            return updated;
+          } else {
+            // Add new integration
+            return [...prev, integrationData!] as UserIntegration[];
+          }
+        });
+      }
+    } catch (error) {
+      // If API call fails, try to use existing data from userIntegrations
+      if (typeof integration === 'string') {
+        integrationData = userIntegrations.find(i => i.integration_type === integration) || null;
+      } else {
+        integrationData = integration;
+      }
     }
 
     // Find currently enabled tools for this integration type
@@ -693,26 +715,6 @@ export function useIntegrationTools(
     setEditingIntegrationConfig(integrationData);
     setSelectedIntegrationToolsForModal(enabledToolsForIntegration);
     setShowIntegrationModal(true);
-    
-    // If integration not found, try to fetch it from the API
-    if (!integrationData && typeof integration === 'string') {
-      try {
-        const response = await integrationsApi.get(integrationType);
-        if (response.data) {
-          const fetchedIntegration = response.data;
-          setEditingIntegrationConfig(fetchedIntegration);
-          setUserIntegrations(prev => {
-            const existing = prev.find(i => i.id === fetchedIntegration.id);
-            if (!existing) {
-              return [...prev, fetchedIntegration] as UserIntegration[];
-            }
-            return prev;
-          });
-        }
-      } catch (error) {
-        // Integration not found - modal is already open in connect mode
-      }
-    }
   }, [userIntegrations, agentIntegrationTools, setShowIntegrationModal]);
 
   const closeIntegrationConnectionModal = useCallback(() => {

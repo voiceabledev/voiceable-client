@@ -403,6 +403,22 @@ export const INTEGRATION_METADATA: Record<string, { name: string; icon: string; 
     iconBg: "bg-sky-500",
     url: "https://www.salesforce.com",
   },
+  calcom: {
+    name: "Cal.com",
+    icon: "Cal",
+    iconBg: "bg-purple-600",
+    url: "https://cal.com",
+  },
+  google_calendar: {
+    name: "Google Calendar",
+    icon: "📅",
+    iconBg: "bg-blue-500",
+  },
+  outlook_calendar: {
+    name: "Outlook Calendar",
+    icon: "🗓️",
+    iconBg: "bg-sky-700",
+  },
 };
 
 export const getAvailableIntegrationTypes = () => {

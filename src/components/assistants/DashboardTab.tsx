@@ -15,22 +15,29 @@ import {
   XCircle,
   Loader2,
   Download,
-  Calendar
+  Calendar,
+  Phone,
+  Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { agentMetricsApi, type AgentROI } from "@/lib/api";
+import { agentMetricsApi, phoneNumbersApi, type AgentROI, type PhoneNumber } from "@/lib/api";
+import { PhoneNumberModal } from "@/components/PhoneNumberModal";
 import type { Agent } from "@/types/assistant";
 
 type DashboardTabProps = {
   agent: Agent | null;
   agentId: string;
+  onNavigateToWidget?: () => void;
 };
 
-export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId }) => {
+export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNavigateToWidget }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [roiData, setRoiData] = useState<AgentROI | null>(null);
   const [dateRange, setDateRange] = useState<{ start_date?: string; end_date?: string }>({});
+  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
+  const [loadingPhoneNumbers, setLoadingPhoneNumbers] = useState(false);
+  const [showPhoneNumberModal, setShowPhoneNumberModal] = useState(false);
 
   const fetchMetrics = useCallback(async () => {
     if (!agentId) {
@@ -56,9 +63,30 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId }) =>
     }
   }, [agentId, dateRange, toast]);
 
+  const fetchPhoneNumbers = useCallback(async () => {
+    if (!agentId) return;
+    
+    setLoadingPhoneNumbers(true);
+    try {
+      const response = await phoneNumbersApi.list();
+      if (response.data) {
+        // Filter phone numbers assigned to this agent
+        const agentPhoneNumbers = response.data.filter(
+          (pn) => pn.agent_id?.toString() === agentId
+        );
+        setPhoneNumbers(agentPhoneNumbers);
+      }
+    } catch (error) {
+      console.error("Error fetching phone numbers:", error);
+    } finally {
+      setLoadingPhoneNumbers(false);
+    }
+  }, [agentId]);
+
   useEffect(() => {
     fetchMetrics();
-  }, [fetchMetrics]);
+    fetchPhoneNumbers();
+  }, [fetchMetrics, fetchPhoneNumbers]);
 
   if (loading) {
     return (
@@ -69,12 +97,203 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId }) =>
   }
 
   if (!roiData) {
+    const hasPhoneNumber = phoneNumbers.length > 0;
+    const hasWidget = !!(agent?.elevenlabs_agent_id);
+
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
-        <p className="text-muted-foreground">No metrics data available yet.</p>
-        <p className="text-sm text-muted-foreground">
-          Metrics will appear here once your agent starts receiving calls.
-        </p>
+      <div className="flex flex-col items-center py-16 px-4">
+        {/* Main Empty State */}
+        <div className="text-center space-y-4 mb-10 max-w-xl">
+          <div className="relative mx-auto mb-6">
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-50"></div>
+            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 shadow-lg">
+              <Calendar className="h-10 w-10 text-primary" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-2xl font-bold tracking-tight">No metrics data available yet</h3>
+            <p className="text-base text-muted-foreground leading-relaxed">
+              Start receiving calls or widget interactions to see performance metrics, ROI analysis, and detailed insights here.
+            </p>
+          </div>
+        </div>
+
+        {/* Action Cards */}
+        <div className="w-full max-w-3xl space-y-4">
+          {!hasPhoneNumber && (
+            <Card className="group border-2 border-dashed border-primary/30 hover:border-primary/60 hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-card to-primary/5">
+              <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row items-start gap-6">
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-2xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                    <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/30 shadow-md group-hover:scale-105 transition-transform">
+                      <Phone className="h-8 w-8 text-primary" />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-lg">Add a Phone Number</h4>
+                        <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Connect a phone number to enable voice calls. Track call volume, success rates, revenue, and ROI metrics in real-time.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setShowPhoneNumberModal(true)}
+                      size="lg"
+                      className="w-full sm:w-auto shadow-md hover:shadow-lg transition-shadow"
+                    >
+                      <Phone className="h-4 w-4 mr-2" />
+                      Add Phone Number
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasWidget && (
+            <Card className="group border hover:border-blue-500/30 hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-card to-blue-500/5">
+              <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row items-start gap-6">
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-2xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                    <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center border border-blue-500/30 shadow-md group-hover:scale-105 transition-transform">
+                      <Globe className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-lg">Web Widget Active</h4>
+                        <Badge variant="outline" className="text-xs border-green-500/50 text-green-600 dark:text-green-400">
+                          Live
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Your agent is published and ready to receive conversations through the web widget. All interaction metrics will be tracked and displayed here.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (onNavigateToWidget) {
+                          onNavigateToWidget();
+                        }
+                      }}
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto shadow-md hover:shadow-lg transition-shadow border-blue-500/50 hover:border-blue-500 hover:bg-blue-500/10"
+                    >
+                      <Globe className="h-4 w-4 mr-2" />
+                      View Widget Settings
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasPhoneNumber && !hasWidget && (
+            <Card className="group border hover:border-green-500/30 hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-card to-green-500/5">
+              <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row items-start gap-6">
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-2xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                    <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center border border-green-500/30 shadow-md group-hover:scale-105 transition-transform">
+                      <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h4 className="font-bold text-lg">Phone Number Connected</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Your agent is ready to receive calls. Metrics including call volume, success rates, costs, and revenue will appear here once calls start coming in.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!hasWidget && (
+            <Card className="group border-2 border-dashed border-blue-500/30 hover:border-blue-500/60 hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-card to-blue-500/5">
+              <CardContent className="p-8">
+                <div className="flex flex-col sm:flex-row items-start gap-6">
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-2xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                    <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-500/10 flex items-center justify-center border border-blue-500/30 shadow-md group-hover:scale-105 transition-transform">
+                      <Globe className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-lg">Set Up Web Widget</h4>
+                        <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Add a web widget to your website to enable chat conversations. Track interaction metrics, engagement rates, and conversion data in real-time.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (onNavigateToWidget) {
+                          onNavigateToWidget();
+                        }
+                      }}
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto shadow-md hover:shadow-lg transition-shadow border-blue-500/50 hover:border-blue-500 hover:bg-blue-500/10"
+                    >
+                      <Globe className="h-4 w-4 mr-2" />
+                      Set Up Widget
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Info Section */}
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center mx-auto">
+                  <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs font-medium">Performance Metrics</p>
+                <p className="text-xs text-muted-foreground">Track success rates and escalations</p>
+              </div>
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center mx-auto">
+                  <DollarSign className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs font-medium">Revenue & ROI</p>
+                <p className="text-xs text-muted-foreground">Monitor financial impact</p>
+              </div>
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs font-medium">Call Analytics</p>
+                <p className="text-xs text-muted-foreground">Detailed call breakdown</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <PhoneNumberModal
+          open={showPhoneNumberModal}
+          onOpenChange={(open) => {
+            setShowPhoneNumberModal(open);
+            if (!open) {
+              // Refetch phone numbers when modal closes
+              fetchPhoneNumbers();
+            }
+          }}
+          defaultAgentId={agentId}
+        />
       </div>
     );
   }

@@ -1029,7 +1029,15 @@ export default function AssistantDetail() {
           {agentData.agent && (
             <>
               {activeTab === "dashboard" || activeTab === "overview" ? (
-                <DashboardTab agent={agentData.agent} agentId={agentId} />
+                <DashboardTab 
+                  agent={agentData.agent} 
+                  agentId={agentId}
+                  onNavigateToWidget={() => {
+                    setActiveTab("widget");
+                    lastSetTabRef.current = "widget";
+                    setSearchParams({ tab: "widget" });
+                  }}
+                />
               ) : activeTab === "calls" || activeTab === "conversations" ? (
                 <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
               ) : activeTab === "performance" || activeTab === "outcomes" ? (

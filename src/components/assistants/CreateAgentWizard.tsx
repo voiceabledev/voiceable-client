@@ -509,6 +509,31 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           if (agent.conversation_config?.first_message) {
             setFirstMessage(agent.conversation_config.first_message as string);
           }
+
+          // Restore webhook tools
+          if (agent.conversation_config?.webhook_tools) {
+            const webhookToolsData = agent.conversation_config.webhook_tools as WebhookTool[];
+            setWebhookTools(webhookToolsData);
+          }
+
+          // Restore integration tools
+          if (agent.integration_tools) {
+            const integrationTools: AgentIntegrationTool[] = [];
+            const integrationHash = agent.integration_tools as Record<
+              string,
+              { enabled: boolean; enabled_tools: string[] }
+            >;
+            Object.entries(integrationHash).forEach(([integration_type, cfg]) => {
+              (cfg.enabled_tools || []).forEach((tool_name) => {
+                integrationTools.push({
+                  integration_type,
+                  tool_name,
+                  enabled: !!cfg.enabled,
+                });
+              });
+            });
+            integrationHook.setAgentIntegrationTools(integrationTools);
+          }
         }
       } catch (error) {
         console.error('Failed to load agent data:', error);
@@ -530,6 +555,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     };
     
     loadAgentData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlAgentSlug, setSearchParams, toast]);
 
   // Update URL when step or agentSlug changes
@@ -913,24 +939,13 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   const handleSetStep = (direction: -1 | 1) => {
     const minStep = shouldSkipNameStep ? 1 : 0;
-    const previewStep = hasRequiredIntegrations ? 6 : 5;
-    const maxStep = previewStep;
+    const maxStep = 6; // Preview step is always at 6
     
     if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
     }
-    
-    let nextStep = currentStep + direction;
-    
-    // Skip integrations step if not needed when going forward
-    if (direction === 1 && nextStep === 5 && !hasRequiredIntegrations) {
-      nextStep = 6; // Skip to preview
-    }
-    // Skip integrations step if not needed when going backward
-    if (direction === -1 && nextStep === 5 && !hasRequiredIntegrations) {
-      nextStep = 4; // Skip to language
-    }
-    
+
+    const nextStep = currentStep + direction;
     setCurrentStep(nextStep);
   };
 
@@ -941,6 +956,17 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       const serializedScenarios = serializeSectionEntries(scenarios);
       const serializedPhases = serializeSectionEntries(phases);
       const serializedTone = serializeSectionEntries(voiceTone);
+
+      // Format integration tools for API
+      const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+      integrationHook.agentIntegrationTools.forEach(tool => {
+        if (tool.enabled) {
+          if (!integrationToolsPayload[tool.integration_type]) {
+            integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
+          }
+          integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
+        }
+      });
 
       const config: Record<string, unknown> = {
         conversation_config: {
@@ -986,12 +1012,18 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           ...(firstMessage && firstMessage.trim() ? {
             first_message: firstMessage.trim(),
             first_message_mode: "assistant-speaks-first"
-          } : {})
+          } : {}),
+          // Include webhook tools and integration tools in conversation_config
+          ...(webhookTools.length > 0 ? { webhook_tools: webhookTools } : {}),
+          ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
         },
         platform_settings: {
           ...(selectedVoiceId && { voice_id: selectedVoiceId }),
           language: selectedLanguage || "english"
-        }
+        },
+        // Also include at top level for backward compatibility
+        ...(webhookTools.length > 0 ? { webhook_tools: webhookTools } : {}),
+        ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
       };
 
       let savedAgentId = agentId;
@@ -1174,16 +1206,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       } else {
         // Move to next step
         const nextStep = currentStep + 1;
-        
-        // Skip integrations step (5) if not needed when coming from Language (4)
-        // Use the hasRequiredIntegrations from useMemo which is already calculated correctly
-        if (nextStep === 5 && !hasRequiredIntegrations) {
-          console.log('[CreateAgentWizard] Skipping integrations step, going to preview');
-          setCurrentStep(6); // Skip to preview
-        } else {
-          console.log('[CreateAgentWizard] Moving to next step:', nextStep, 'hasRequiredIntegrations:', hasRequiredIntegrations);
-          setCurrentStep(nextStep);
-        }
+        console.log('[CreateAgentWizard] Moving to next step:', nextStep);
+        setCurrentStep(nextStep);
       }
     } catch (err) {
       toast({
@@ -1434,7 +1458,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
                   if (currentStep === 3) return "Select a voice for your assistant to use.";
                   if (currentStep === 4) return "Choose the language for your agent.";
-                  if (currentStep === 5) return hasRequiredIntegrations ? "Connect your integrations to enable the required tools." : "Review your agent configuration before completing.";
+                  if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
                   if (currentStep === 6) return "Review your agent configuration before completing.";
                   return "";
                 } else {
@@ -1443,7 +1467,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   if (currentStep === 2) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
                   if (currentStep === 3) return "Select a voice for your assistant to use.";
                   if (currentStep === 4) return "Choose the language for your agent.";
-                  if (currentStep === 5) return hasRequiredIntegrations ? "Connect your integrations to enable the required tools." : "Review your agent configuration before completing.";
+                  if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
                   if (currentStep === 6) return "Review your agent configuration before completing.";
                   return "";
                 }
@@ -1533,20 +1557,95 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         toggleModalToolSelection={integrationHook.toggleModalToolSelection}
         setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
         saveSelectedIntegrationTools={async () => {
-          // For wizard, we don't need to save tools to agent yet (agent not created)
-          // Just close the modal and refresh integrations
-          // We'll pass null for agent since it's not created yet
-          if (agentId) {
-            // If agent exists, save to it
-            await integrationHook.saveSelectedIntegrationTools(
-              { id: agentId, name: name } as Agent,
-              async () => {},
-              async () => {}
-            );
+          if (!agentId) {
+            toast({
+              title: "Error",
+              description: "Please save the agent first before adding integrations.",
+              variant: "destructive",
+            });
+            return;
           }
-          const response = await integrationsApi.list();
-          if (response.data) {
-            setUserIntegrations(response.data);
+
+          // Save integration tools to agent and sync with ElevenLabs
+          await integrationHook.saveSelectedIntegrationTools(
+            { id: agentId, name: name } as Agent,
+            async (updatedIntegrationTools, updatedWebhookTools) => {
+              // Format integration tools for API
+              const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+              updatedIntegrationTools.forEach(tool => {
+                if (tool.enabled) {
+                  if (!integrationToolsPayload[tool.integration_type]) {
+                    integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
+                  }
+                  integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
+                }
+              });
+
+              // Get current agent data to merge with existing conversation_config
+              let currentConversationConfig: Record<string, unknown> = {};
+              if (agentData?.conversation_config) {
+                currentConversationConfig = { ...agentData.conversation_config } as Record<string, unknown>;
+              }
+
+              // Update agent with integration tools and webhook tools in both conversation_config and top level
+              const updateParams: Record<string, unknown> = {
+                conversation_config: {
+                  ...currentConversationConfig,
+                  webhook_tools: updatedWebhookTools,
+                  ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
+                },
+                integration_tools: integrationToolsPayload,
+                webhook_tools: updatedWebhookTools,
+              };
+
+              await agentsApi.update(agentId, updateParams);
+              
+              // Refresh agent data
+              try {
+                const agentResponse = await agentsApi.get(agentId);
+                if (agentResponse.data) {
+                  setAgentData(agentResponse.data);
+                  if (agentResponse.data.slug) {
+                    setAgentSlug(agentResponse.data.slug);
+                  }
+                }
+              } catch (err) {
+                console.error('Failed to fetch agent data after saving integration tools:', err);
+              }
+            },
+            async () => {
+              // Publish to sync with ElevenLabs
+              if (agentId) {
+                try {
+                  await agentsApi.publish(agentId);
+                  // Refresh agent data after publish
+                  const agentResponse = await agentsApi.get(agentId);
+                  if (agentResponse.data) {
+                    setAgentData(agentResponse.data);
+                    if (agentResponse.data.slug) {
+                      setAgentSlug(agentResponse.data.slug);
+                    }
+                  }
+                } catch (err) {
+                  console.error('Failed to publish agent after adding integration tools:', err);
+                  toast({
+                    title: "Warning",
+                    description: "Integration tools saved, but failed to sync with ElevenLabs. Please try publishing manually.",
+                    variant: "destructive",
+                  });
+                }
+              }
+            }
+          );
+
+          // Refresh user integrations to ensure we have the latest data including API keys
+          try {
+            const response = await integrationsApi.list();
+            if (response.data) {
+              setUserIntegrations(response.data);
+            }
+          } catch (err) {
+            console.error('Failed to refresh user integrations:', err);
           }
         }}
       />
