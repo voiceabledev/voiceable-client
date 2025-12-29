@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { Loader2, Users, CalendarDays, ChevronDown, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { UserIntegration as IntegrationUserIntegration } from "@/types/integrations";
@@ -107,8 +107,10 @@ const schedulingProviders: IntegrationProvider[] = [
 interface IntegrationsStepProps {
   requiredIntegrations: string[];
   userIntegrations: IntegrationUserIntegration[];
+  agentIntegrationTools?: Array<{ integration_type: string; tool_name: string; enabled: boolean }>;
   loadingIntegrations: boolean;
   onConnectIntegration: (integrationType: string, userIntegration?: IntegrationUserIntegration) => Promise<void>;
+  onRemoveIntegration?: (integrationType: string) => Promise<void>;
 }
 
 // Helper function to sort providers: available first (by order), then upcoming (by order), required ones prioritized
@@ -133,8 +135,10 @@ const sortProviders = (providers: IntegrationProvider[], requiredIntegrations: s
 export function IntegrationsStep({
   requiredIntegrations,
   userIntegrations,
+  agentIntegrationTools = [],
   loadingIntegrations,
   onConnectIntegration,
+  onRemoveIntegration,
 }: IntegrationsStepProps) {
   const [isCrmOpen, setIsCrmOpen] = useState(false);
   const [isSchedulingOpen, setIsSchedulingOpen] = useState(false);
@@ -144,7 +148,12 @@ export function IntegrationsStep({
 
   const renderIntegrationCard = (provider: IntegrationProvider) => {
     const userIntegration = userIntegrations.find(i => i.integration_type === provider.id);
-    const isConnected = !!userIntegration;
+    // Check if agent has this integration (has at least one enabled tool for this integration type)
+    const agentHasIntegration = agentIntegrationTools.some(
+      tool => tool.integration_type === provider.id && tool.enabled
+    );
+    // Integration is "connected" only if the agent has it, not just if the user has it
+    const isConnected = agentHasIntegration;
     const isRequired = requiredIntegrations.includes(provider.id);
     const isAvailable = provider.status === 'available';
 
@@ -182,20 +191,38 @@ export function IntegrationsStep({
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant={isConnected ? "outline" : "default"}
-            size="sm"
-            disabled={!isAvailable}
-            onClick={async () => {
-              if (isAvailable) {
-                await onConnectIntegration(provider.id, userIntegration);
-              }
-            }}
-            className="flex-shrink-0 ml-2"
-          >
-            {isConnected ? "Update" : "Connect"}
-          </Button>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            {isConnected && onRemoveIntegration && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`Are you sure you want to remove ${provider.name} from this agent? This will disable all tools for this integration.`)) {
+                    await onRemoveIntegration(provider.id);
+                  }
+                }}
+                title="Remove integration from agent"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant={isConnected ? "outline" : "default"}
+              size="sm"
+              disabled={!isAvailable}
+              onClick={async () => {
+                if (isAvailable) {
+                  await onConnectIntegration(provider.id, userIntegration);
+                }
+              }}
+            >
+              {isConnected ? "Update" : "Connect"}
+            </Button>
+          </div>
         </div>
       </div>
     );

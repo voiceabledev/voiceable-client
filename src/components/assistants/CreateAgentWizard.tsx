@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useIntegrationTools } from "@/hooks/assistants/useIntegrationTools";
 import { IntegrationConnectionModal } from "@/components/assistants/modals/IntegrationConnectionModal";
-import { INTEGRATION_METADATA } from "@/constants/assistant";
+import { INTEGRATION_METADATA, INTEGRATION_TOOLS_DISPLAY } from "@/constants/assistant";
 import type { AgentIntegrationTool, WebhookTool } from "@/types/assistant";
 import type { UserIntegration as IntegrationUserIntegration } from "@/types/integrations";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
@@ -38,7 +38,6 @@ import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
 import { VoiceStep } from "./wizard/steps/VoiceStep";
 import { LanguageStep } from "./wizard/steps/LanguageStep";
 import { IntegrationsStep } from "./wizard/steps/IntegrationsStep";
-import { PreviewStep } from "./wizard/steps/PreviewStep";
 
 // Helper functions are now imported from ./wizard/helpers
 // Constants are now imported from ./wizard/constants
@@ -67,7 +66,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   // Step 2: Model
   const [selectedProvider, setSelectedProvider] = useState("openai");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-cluster");
+  const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
 
   // Step 3: Agent Behaviour (Scenarios, Phases, Voice & Tone)
@@ -939,7 +938,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   const handleSetStep = (direction: -1 | 1) => {
     const minStep = shouldSkipNameStep ? 1 : 0;
-    const maxStep = 6; // Preview step is always at 6
+    const maxStep = 5; // Integrations step is the last step
     
     if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
@@ -1061,12 +1060,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         }
       } else {
         // Create new agent
+        // Note: We don't add integration_tools here even if initialData.integrationTools exists
+        // because those are just "required" integrations for the template, not actually connected yet
+        // The user needs to connect them manually in the integrations step
         const createParams = {
           name: name.trim(),
           ...config,
-          ...(initialData?.integrationTools && Object.keys(initialData.integrationTools).length > 0
-            ? { integration_tools: initialData.integrationTools }
-            : {})
         };
         
         const response = await agentsApi.create(createParams);
@@ -1104,7 +1103,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       }
 
       // Only sync with ElevenLabs on Voice (step 3, index 3) and Language (step 4, index 4) steps
-      // Steps array: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Preview]
+      // Steps array: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Integrations]
       const shouldSyncWithElevenLabs = currentStep === 3 || currentStep === 4;
       
       // Ensure voice_id is set before syncing (required for ElevenLabs)
@@ -1125,13 +1124,13 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           if (publishResponse.data) {
             toast({
               title: 'Success',
-              description: `${steps[currentStep].label} saved and synced with ElevenLabs successfully.`,
+              description: `${steps[currentStep].label} saved successfully.`,
             });
           } else {
             throw new Error('Publish response did not return agent data');
           }
         } catch (publishErr) {
-          console.error('[CreateAgentWizard] Failed to sync with ElevenLabs:', publishErr);
+          console.error('[CreateAgentWizard] Failed to save data:', publishErr);
           const errorMessage = publishErr instanceof Error ? publishErr.message : 'Unknown error';
           // If publish fails, still show success for database save but warn about ElevenLabs
           toast({
@@ -1158,38 +1157,76 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         });
       }
 
-      // Steps: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Integrations, 6: Preview]
-      // Preview step is always at index 6 (step 7 when counting from 1)
-      const previewStep = 6;
+      // Steps: [0: Name, 1: Model, 2: Agent Behaviour, 3: Voice, 4: Language, 5: Integrations]
+      // Integrations step is at index 5 (step 6 when counting from 1)
+      const integrationsStep = 5;
       
       console.log('[CreateAgentWizard] Step navigation:', {
         currentStep,
-        previewStep,
+        integrationsStep,
         hasRequiredIntegrations,
         requiredIntegrations,
         templateTitle: template?.title,
         initialDataIntegrationTools: initialData?.integrationTools
       });
       
-      if (currentStep === previewStep) {
-        // On preview step, save the final configuration and then redirect
-        // The agent should already be saved, but ensure we have the latest slug
+      if (currentStep === integrationsStep) {
+        // On integrations step, save the final configuration, publish, and then redirect to assistant details
+        // The agent should already be saved, but ensure we publish with latest config
         if (savedAgentId) {
-          // Fetch the latest agent data to get the slug
+          // Publish the agent with the latest configuration (including integrations)
           try {
-            const agentResponse = await agentsApi.get(savedAgentId);
-            if (agentResponse.data) {
-              const finalSlug = agentResponse.data.slug || savedAgentId;
-              setAgentSlug(finalSlug);
-              // Redirect to assistant detail page
-              onComplete(finalSlug);
-              return; // Exit early after redirect
+            console.log(`[CreateAgentWizard] Publishing agent on integrations step completion, agent ID: ${savedAgentId}`);
+            const publishResponse = await agentsApi.publish(savedAgentId);
+            console.log('[CreateAgentWizard] Publish response:', publishResponse);
+            
+            if (publishResponse.data) {
+              // Fetch the latest agent data to get the slug
+              const agentResponse = await agentsApi.get(savedAgentId);
+              if (agentResponse.data) {
+                const finalSlug = agentResponse.data.slug || savedAgentId;
+                setAgentSlug(finalSlug);
+                toast({
+                  title: 'Success',
+                  description: 'Agent saved and published successfully.',
+                });
+                // Redirect to assistant detail page
+                onComplete(finalSlug);
+                return; // Exit early after redirect
+              }
+            } else {
+              throw new Error('Publish response did not return agent data');
             }
-          } catch (err) {
-            console.error('Failed to fetch agent for redirect:', err);
+          } catch (publishErr) {
+            console.error('[CreateAgentWizard] Failed to publish agent:', publishErr);
+            const errorMessage = publishErr instanceof Error ? publishErr.message : 'Unknown error';
+            
+            // Still try to redirect even if publish fails
+            try {
+              const agentResponse = await agentsApi.get(savedAgentId);
+              if (agentResponse.data) {
+                const finalSlug = agentResponse.data.slug || savedAgentId;
+                setAgentSlug(finalSlug);
+                toast({
+                  title: 'Partially saved',
+                  description: `Agent saved to database, but failed to publish: ${errorMessage}. You can publish manually from the assistant details page.`,
+                  variant: 'destructive',
+                });
+                onComplete(finalSlug);
+                return;
+              }
+            } catch (err) {
+              console.error('Failed to fetch agent for redirect:', err);
+            }
+            
             // Fall back to using what we have
             const agentIdentifier = agentSlug || savedAgentId;
             if (agentIdentifier) {
+              toast({
+                title: 'Partially saved',
+                description: `Agent saved to database, but failed to publish: ${errorMessage}. You can publish manually from the assistant details page.`,
+                variant: 'destructive',
+              });
               onComplete(agentIdentifier);
               return;
             }
@@ -1221,8 +1258,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   };
 
   const isStepValid = () => {
-    // If name step is skipped, currentStep 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Language, 5 = Preview
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Language, 5 = Preview
+    // If name step is skipped, currentStep 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Language, 5 = Integrations
+    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Agent Behaviour, 3 = Voice, 4 = Language, 5 = Integrations
     if (shouldSkipNameStep) {
       switch (currentStep) {
         case 1: // Model step
@@ -1235,8 +1272,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return selectedLanguage.trim() !== "";
         case 5: // Integrations step
           return true; // Integrations step is always valid (optional to connect)
-        case 6: // Preview step
-          return true; // Preview is always valid
         default:
           return false;
       }
@@ -1254,8 +1289,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return selectedLanguage.trim() !== "";
         case 5: // Integrations step
           return true; // Integrations step is always valid (optional to connect)
-        case 6: // Preview step
-          return true; // Preview is always valid
         default:
           return false;
       }
@@ -1317,6 +1350,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             <IntegrationsStep
               requiredIntegrations={requiredIntegrations}
               userIntegrations={userIntegrations}
+              agentIntegrationTools={integrationHook.agentIntegrationTools}
               loadingIntegrations={loadingIntegrations}
               onConnectIntegration={async (integrationType, userIntegration) => {
                 if (userIntegration) {
@@ -1325,21 +1359,65 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   await integrationHook.selectIntegrationToAdd(integrationType);
                 }
               }}
+              onRemoveIntegration={async (integrationType) => {
+                // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
+                if (agentId && agentId !== "new") {
+                  try {
+                    // Delete from backend if agent exists
+                    await integrationsApi.deleteFromAgent(agentId, integrationType);
+                    
+                    // Remove from local state
+                    const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                      tool => tool.integration_type !== integrationType
+                    );
+                    integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+                    
+                    // Get the display names for tools of this integration type
+                    const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+                    
+                    // Remove all webhook tools associated with this integration
+                    const updatedWebhookTools = webhookTools.filter(
+                      wt => !toolDisplayNames.includes(wt.name)
+                    );
+                    setWebhookTools(updatedWebhookTools);
+                    
+                    toast({ 
+                      title: "Success", 
+                      description: "Integration removed from agent. Credentials kept." 
+                    });
+                  } catch (error) {
+                    console.error("Failed to remove integration:", error);
+                    toast({ 
+                      title: "Error", 
+                      description: "Failed to remove integration.", 
+                      variant: "destructive" 
+                    });
+                  }
+                } else {
+                  // For new agents, just remove from local state
+                  const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                    tool => tool.integration_type !== integrationType
+                  );
+                  integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+                  
+                  // Get the display names for tools of this integration type
+                  const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+                  
+                  // Remove all webhook tools associated with this integration
+                  const updatedWebhookTools = webhookTools.filter(
+                    wt => !toolDisplayNames.includes(wt.name)
+                  );
+                  setWebhookTools(updatedWebhookTools);
+                  
+                  toast({ 
+                    title: "Success", 
+                    description: "Integration removed from agent." 
+                  });
+                }
+              }}
             />
           );
-        case 6: // Preview step
-          return (
-            <PreviewStep
-              name={name}
-              selectedProvider={selectedProvider}
-              selectedModel={selectedModel}
-              selectedVoice={selectedVoice}
-              selectedVoiceId={selectedVoiceId}
-              selectedLanguage={selectedLanguage}
-              onLiveWidgetPreview={handleLiveWidgetPreview}
-              onShowPhoneNumberModal={() => setShowPhoneNumberModal(true)}
-            />
-          );
+        // Preview step removed - redirect to assistant details after integrations
         default:
           return null;
       }
@@ -1393,6 +1471,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             <IntegrationsStep
               requiredIntegrations={requiredIntegrations}
               userIntegrations={userIntegrations}
+              agentIntegrationTools={integrationHook.agentIntegrationTools}
               loadingIntegrations={loadingIntegrations}
               onConnectIntegration={async (integrationType, userIntegration) => {
                 if (userIntegration) {
@@ -1401,21 +1480,65 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   await integrationHook.selectIntegrationToAdd(integrationType);
                 }
               }}
+              onRemoveIntegration={async (integrationType) => {
+                // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
+                if (agentId && agentId !== "new") {
+                  try {
+                    // Delete from backend if agent exists
+                    await integrationsApi.deleteFromAgent(agentId, integrationType);
+                    
+                    // Remove from local state
+                    const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                      tool => tool.integration_type !== integrationType
+                    );
+                    integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+                    
+                    // Get the display names for tools of this integration type
+                    const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+                    
+                    // Remove all webhook tools associated with this integration
+                    const updatedWebhookTools = webhookTools.filter(
+                      wt => !toolDisplayNames.includes(wt.name)
+                    );
+                    setWebhookTools(updatedWebhookTools);
+                    
+                    toast({ 
+                      title: "Success", 
+                      description: "Integration removed from agent. Credentials kept." 
+                    });
+                  } catch (error) {
+                    console.error("Failed to remove integration:", error);
+                    toast({ 
+                      title: "Error", 
+                      description: "Failed to remove integration.", 
+                      variant: "destructive" 
+                    });
+                  }
+                } else {
+                  // For new agents, just remove from local state
+                  const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                    tool => tool.integration_type !== integrationType
+                  );
+                  integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+                  
+                  // Get the display names for tools of this integration type
+                  const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+                  
+                  // Remove all webhook tools associated with this integration
+                  const updatedWebhookTools = webhookTools.filter(
+                    wt => !toolDisplayNames.includes(wt.name)
+                  );
+                  setWebhookTools(updatedWebhookTools);
+                  
+                  toast({ 
+                    title: "Success", 
+                    description: "Integration removed from agent." 
+                  });
+                }
+              }}
             />
           );
-        case 6: // Preview step
-          return (
-            <PreviewStep
-              name={name}
-              selectedProvider={selectedProvider}
-              selectedModel={selectedModel}
-              selectedVoice={selectedVoice}
-              selectedVoiceId={selectedVoiceId}
-              selectedLanguage={selectedLanguage}
-              onLiveWidgetPreview={handleLiveWidgetPreview}
-              onShowPhoneNumberModal={() => setShowPhoneNumberModal(true)}
-            />
-          );
+        // Preview step removed - redirect to assistant details after integrations
         default:
           return null;
       }
@@ -1459,7 +1582,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   if (currentStep === 3) return "Select a voice for your assistant to use.";
                   if (currentStep === 4) return "Choose the language for your agent.";
                   if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
-                  if (currentStep === 6) return "Review your agent configuration before completing.";
                   return "";
                 } else {
                   if (currentStep === 0) return "Give your assistant a name to identify it.";
@@ -1468,7 +1590,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   if (currentStep === 3) return "Select a voice for your assistant to use.";
                   if (currentStep === 4) return "Choose the language for your agent.";
                   if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
-                  if (currentStep === 6) return "Review your agent configuration before completing.";
                   return "";
                 }
               })()}
@@ -1501,7 +1622,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               </>
             ) : (
               <>
-                {(shouldSkipNameStep ? currentStep === steps.length - 2 : currentStep === steps.length - 1) ? "Complete" : "Save & Continue"}
+                {(shouldSkipNameStep ? currentStep === steps.length - 1 : currentStep === steps.length - 1) ? "Complete" : "Save & Continue"}
                 <ChevronRight className="h-4 w-4 ml-2" />
               </>
             )}
@@ -1556,6 +1677,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         selectedIntegrationToolsForModal={integrationHook.selectedIntegrationToolsForModal}
         toggleModalToolSelection={integrationHook.toggleModalToolSelection}
         setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
+        isWizardMode={true}
         saveSelectedIntegrationTools={async () => {
           if (!agentId) {
             toast({

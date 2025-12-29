@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { NotificationContainer } from "@/components/ui/notifications";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
@@ -67,8 +68,12 @@ const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
+        <NotificationContainer />
+        {/* Old toasters hidden - using new notification system */}
+        <div style={{ display: 'none' }}>
+          <Toaster />
+          <Sonner />
+        </div>
         <AuthProvider>
           <BrowserRouter>
             <Routes>

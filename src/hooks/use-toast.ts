@@ -144,6 +144,18 @@ function toast({ ...props }: Toast) {
     });
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
+  // Dispatch to new notification system
+  const notificationEvent = new CustomEvent("show-notification", {
+    detail: {
+      id,
+      title: props.title,
+      description: props.description,
+      variant: props.variant || "default",
+    },
+  });
+  window.dispatchEvent(notificationEvent);
+
+  // Also keep the old system for backwards compatibility
   dispatch({
     type: "ADD_TOAST",
     toast: {

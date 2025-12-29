@@ -1,4 +1,6 @@
 import type { UserIntegration, IntegrationSchema, IntegrationConfig } from '@/types/integrations';
+import type { WorkflowNode } from '@/pages/WorkflowEditor';
+import type { WorkflowConnection } from '@/components/workflows/WorkflowCanvas';
 import type {
   OutcomeDefinition,
   ConversationOutcome,
@@ -264,6 +266,11 @@ export const authApi = {
 
   getCurrentUser: async () => {
     const response = await apiClient.get('/user/current');
+    return response;
+  },
+
+  updateTourCompletion: async () => {
+    const response = await apiClient.patch('/user/tour_completion');
     return response;
   },
 
@@ -887,8 +894,9 @@ export interface AvailablePhoneNumber {
 export interface CreatePhoneNumberParams {
   phone_number: string;
   label: string;
-  provider: 'twilio';
+  provider: 'twilio' | 'manual';
   agent_id?: string;
+  language?: string;
 }
 
 export interface UpdatePhoneNumberParams {
@@ -928,12 +936,18 @@ export const phoneNumbersApi = {
   // Purchase and assign a phone number
   create: async (params: CreatePhoneNumberParams) => {
     // Send params at top level to match backend expectations
-    const response = await apiClient.post<PhoneNumber>('/phone_numbers', {
+    const requestBody: any = {
       phone_number: params.phone_number,
       label: params.label,
       provider: params.provider,
-      agent_id: params.agent_id,
-    });
+    };
+    if (params.agent_id) {
+      requestBody.agent_id = params.agent_id;
+    }
+    if (params.language) {
+      requestBody.language = params.language;
+    }
+    const response = await apiClient.post<PhoneNumber>('/phone_numbers', requestBody);
     return response;
   },
 
@@ -971,9 +985,13 @@ export interface Campaign {
 
 export interface CreateCampaignParams {
   name: string;
-  phone_number_id: string;
+  phone_number_ids: string[];
+  manual_phone_numbers?: Array<{
+    name: string;
+    phone_number: string;
+    language: string;
+  }>;
   agent_id: string;
-  recipients_file: File;
   send_immediately: boolean;
   schedule_date?: string;
   schedule_time?: string;
@@ -993,9 +1011,13 @@ export const campaignsApi = {
   create: async (params: CreateCampaignParams) => {
     const formData = new FormData();
     formData.append('name', params.name);
-    formData.append('phone_number_id', params.phone_number_id);
+    params.phone_number_ids.forEach(id => {
+      formData.append('phone_number_ids[]', id);
+    });
+    if (params.manual_phone_numbers && params.manual_phone_numbers.length > 0) {
+      formData.append('manual_phone_numbers', JSON.stringify(params.manual_phone_numbers));
+    }
     formData.append('agent_id', params.agent_id);
-    formData.append('recipients_file', params.recipients_file);
     formData.append('send_immediately', params.send_immediately.toString());
     if (!params.send_immediately && params.schedule_date && params.schedule_time) {
       formData.append('schedule_date', params.schedule_date);

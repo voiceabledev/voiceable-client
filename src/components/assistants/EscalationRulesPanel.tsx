@@ -223,7 +223,8 @@ Assistant: "Our standard refund policy allows returns within 30 days of purchase
 
           {/* Human Transfer Rules Section */}
           <section className="space-y-4">
-            <div className="flex items-center justify-between bg-secondary/30 p-3 rounded-lg border border-border/50">
+            <div className="bg-secondary/30 p-3 rounded-lg border border-border/50 space-y-3">
+              {/* Header Row */}
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-white border border-border">
                   <PhoneForwarded className="h-4 w-4 text-orange-500" />
@@ -245,6 +246,7 @@ Assistant: "Our standard refund policy allows returns within 30 days of purchase
                   <p className="text-xs text-muted-foreground mt-0.5">Define the conditions for transferring to human operators.</p>
                 </div>
               </div>
+              {/* Buttons Row */}
               <div className="flex items-center gap-2">
                 {(settings.humanTransferRules || []).length > 0 && (
                   <Button 

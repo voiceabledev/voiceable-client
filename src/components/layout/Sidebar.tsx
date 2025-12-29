@@ -225,6 +225,24 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           {showFullContent && <span>Overview</span>}
         </NavLink>
 
+        <NavLink
+          to="/workflows"
+          onClick={() => {
+            if (isMobile && onMobileMenuChange) {
+              onMobileMenuChange(false);
+            }
+          }}
+          className={cn(
+            "sidebar-item",
+            location.pathname === "/" && "sidebar-item-active",
+            !showFullContent && "justify-center"
+          )}
+          title={!showFullContent ? "Workflows" : undefined}
+        >
+          <GitBranch className="h-4 w-4 flex-shrink-0" />
+          {showFullContent && <span>Workflows</span>}
+        </NavLink>
+
         {/* Build Section */}
         <div>
           {showFullContent && <p className="section-label">Build</p>}

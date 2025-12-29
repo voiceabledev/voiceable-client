@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,17 +15,28 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft,
-  Download,
-  Upload,
   Clock,
   Calendar as CalendarIcon,
   Info,
   Phone,
   User,
-  Loader2
+  Loader2,
+  TrendingUp,
+  Shield,
+  Users,
+  MessageSquare,
+  BarChart3,
+  AlertCircle
 } from "lucide-react";
 import { phoneNumbersApi, PhoneNumber, agentsApi, Agent, campaignsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -42,14 +53,13 @@ export default function NewCampaign() {
   const [creating, setCreating] = useState(false);
   
   const [campaignName, setCampaignName] = useState("");
-  const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>("");
+  const [selectedPhoneNumberIds, setSelectedPhoneNumberIds] = useState<string[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
-  const [recipientFile, setRecipientFile] = useState<File | null>(null);
   const [sendOption, setSendOption] = useState<"now" | "later">("now");
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [scheduleTime, setScheduleTime] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isSpamPracticesOpen, setIsSpamPracticesOpen] = useState(false);
 
   const fetchPhoneNumbers = useCallback(async () => {
     setLoadingPhoneNumbers(true);
@@ -103,90 +113,20 @@ export default function NewCampaign() {
     }
   }, [sendOption, scheduleDate]);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const handlePhoneNumberToggle = (phoneId: string) => {
+    setSelectedPhoneNumberIds(prev => 
+      prev.includes(phoneId)
+        ? prev.filter(id => id !== phoneId)
+        : [...prev, phoneId]
+    );
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-      if (file.type === "text/csv" || file.name.endsWith(".csv") || file.name.endsWith(".xls") || file.name.endsWith(".xlsx")) {
-        if (file.size > 25 * 1024 * 1024) {
-          toast({
-            title: 'File too large',
-            description: 'File size must be less than 25MB.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        setRecipientFile(file);
-      } else {
-        toast({
-          title: 'Invalid file type',
-          description: 'Please upload a CSV or Excel file.',
-          variant: 'destructive',
-        });
-      }
-    }
-  };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      // Check file size (25MB limit)
-      if (file.size > 25 * 1024 * 1024) {
-        toast({
-          title: 'File too large',
-          description: 'File size must be less than 25MB.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (file.type === "text/csv" || file.name.endsWith(".csv") || file.name.endsWith(".xls") || file.name.endsWith(".xlsx")) {
-        setRecipientFile(file);
-      } else {
-        toast({
-          title: 'Invalid file type',
-          description: 'Please upload a CSV or Excel file.',
-          variant: 'destructive',
-        });
-      }
-    }
-  };
 
-  const handleDownloadTemplate = () => {
-    // Create CSV template
-    const csvContent = "name,phone_number,language\nNev,+3838310429,en\n";
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "recipients_template.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
+
 
   const handleCreate = async () => {
-    if (!selectedPhoneNumberId) {
-      toast({
-        title: 'Phone number required',
-        description: 'Please select a phone number for the campaign.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (!selectedAgentId) {
       toast({
         title: 'Agent required',
@@ -196,19 +136,28 @@ export default function NewCampaign() {
       return;
     }
 
-    if (!campaignName.trim()) {
+    if (!hasTwilioNumbers) {
       toast({
-        title: 'Campaign name required',
-        description: 'Please enter a name for the campaign.',
+        title: 'No Twilio numbers available',
+        description: 'The selected agent has no Twilio phone numbers associated. Please assign Twilio phone numbers to this agent before creating a batch call.',
         variant: 'destructive',
       });
       return;
     }
 
-    if (!recipientFile) {
+    if (validSelectedPhoneNumberIds.length === 0) {
       toast({
-        title: 'Recipients file required',
-        description: 'Please upload a CSV or Excel file with recipients.',
+        title: 'Phone number required',
+        description: 'Please select at least one Twilio phone number for the campaign.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!campaignName.trim()) {
+      toast({
+        title: 'Campaign name required',
+        description: 'Please enter a name for the campaign.',
         variant: 'destructive',
       });
       return;
@@ -225,17 +174,13 @@ export default function NewCampaign() {
 
     setCreating(true);
     try {
-      if (!recipientFile) {
-        throw new Error('Recipients file is required');
-      }
-
       const scheduleDateStr = scheduleDate ? scheduleDate.toISOString().split('T')[0] : undefined;
 
+      // Only use valid Twilio phone number IDs (no manual numbers allowed for batch calls)
       const response = await campaignsApi.create({
         name: campaignName,
-        phone_number_id: selectedPhoneNumberId,
+        phone_number_ids: validSelectedPhoneNumberIds,
         agent_id: selectedAgentId,
-        recipients_file: recipientFile,
         send_immediately: sendOption === "now",
         schedule_date: scheduleDateStr,
         schedule_time: scheduleTime,
@@ -259,8 +204,56 @@ export default function NewCampaign() {
     }
   };
 
-  const selectedPhoneNumber = phoneNumbers.find(p => p.id.toString() === selectedPhoneNumberId);
   const selectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
+
+  // Categorize agents by whether they have Twilio phone numbers
+  const agentsWithTwilioNumbers = agents.filter(agent => {
+    return phoneNumbers.some(phone => 
+      phone.agent_id?.toString() === agent.id.toString() && phone.provider === 'twilio'
+    );
+  });
+
+  const agentsWithoutTwilioNumbers = agents.filter(agent => {
+    return !phoneNumbers.some(phone => 
+      phone.agent_id?.toString() === agent.id.toString() && phone.provider === 'twilio'
+    );
+  });
+
+  // Filter phone numbers to only show Twilio numbers associated with the selected agent
+  const availablePhoneNumbers = selectedAgentId
+    ? phoneNumbers.filter(phone => 
+        phone.agent_id?.toString() === selectedAgentId && 
+        phone.provider === 'twilio'
+      )
+    : [];
+
+  // Check if selected agent has Twilio numbers
+  const hasTwilioNumbers = selectedAgentId 
+    ? availablePhoneNumbers.length > 0
+    : false;
+
+  // Filter selected phone numbers to only include valid ones for the selected agent
+  const validSelectedPhoneNumberIds = selectedPhoneNumberIds.filter(id => {
+    if (!selectedAgentId) return false;
+    const phone = phoneNumbers.find(p => p.id.toString() === id);
+    return phone && phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio';
+  });
+
+  // Clear invalid selections when agent changes
+  useEffect(() => {
+    if (selectedAgentId) {
+      const validIds = selectedPhoneNumberIds.filter(id => {
+        const phone = phoneNumbers.find(p => p.id.toString() === id);
+        return phone && phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio';
+      });
+      if (validIds.length !== selectedPhoneNumberIds.length) {
+        setSelectedPhoneNumberIds(validIds);
+      }
+    } else {
+      // Clear all selections if no agent is selected
+      setSelectedPhoneNumberIds([]);
+    }
+  }, [selectedAgentId, phoneNumbers, selectedPhoneNumberIds]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -280,10 +273,10 @@ export default function NewCampaign() {
               onClick={handleCreate}
               disabled={
                 creating ||
-                !selectedPhoneNumberId ||
                 !selectedAgentId ||
+                !hasTwilioNumbers ||
+                validSelectedPhoneNumberIds.length === 0 ||
                 !campaignName.trim() ||
-                !recipientFile ||
                 (sendOption === "later" && (!scheduleDate || !scheduleTime.trim()))
               }
               className="text-xs md:text-sm md:px-4 md:py-2"
@@ -319,198 +312,6 @@ export default function NewCampaign() {
             />
           </div>
 
-          {/* Phone Number Selection */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label>Select a phone number</Label>
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </div>
-            {loadingPhoneNumbers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : phoneNumbers.length === 0 ? (
-              <div className="p-4 bg-white rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground text-center">
-                  No phone numbers available. Please add a phone number first.
-                </p>
-              </div>
-            ) : (
-              <Select
-                value={selectedPhoneNumberId}
-                onValueChange={setSelectedPhoneNumberId}
-                disabled={creating}
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select a phone number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {phoneNumbers.map((phone) => (
-                    <SelectItem key={phone.id} value={phone.id.toString()}>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{phone.phone_number}</span>
-                        {phone.label && (
-                          <span className="text-xs text-muted-foreground">({phone.label})</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {selectedPhoneNumber && (
-              <p className="text-xs text-muted-foreground">
-                {selectedPhoneNumber.phone_number}
-                {selectedPhoneNumber.agent_name && (
-                  <span className="ml-2">• Currently assigned to {selectedPhoneNumber.agent_name}</span>
-                )}
-              </p>
-            )}
-          </div>
-
-          {/* Best Practices Alert */}
-          <div className="flex items-start gap-2 md:gap-3 p-3 md:p-4 rounded-lg bg-secondary/50 border border-border">
-            <Info className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs md:text-sm font-medium mb-1">Best Practices</p>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Learn how to avoid spam flagging and optimize your calling strategy for better success rates.{" "}
-                <a href="#" className="text-accent hover:underline">
-                  Spam flagging best practices
-                </a>
-              </p>
-            </div>
-          </div>
-
-          {/* Recipients Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Recipients</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleDownloadTemplate}
-                className="text-xs h-7"
-              >
-                <Download className="h-3 w-3 mr-1" />
-                Template
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground mb-2">
-              Maximum file size: 25.0 MB
-            </div>
-            <div className="flex gap-2 mb-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = '.csv,.xls,.xlsx';
-                  input.onchange = (e) => {
-                    const target = e.target as HTMLInputElement;
-                    if (target.files && target.files[0]) {
-                      handleFileSelect({ target } as React.ChangeEvent<HTMLInputElement>);
-                    }
-                  };
-                  input.click();
-                }}
-              >
-                CSV
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = '.xls,.xlsx';
-                  input.onchange = (e) => {
-                    const target = e.target as HTMLInputElement;
-                    if (target.files && target.files[0]) {
-                      handleFileSelect({ target } as React.ChangeEvent<HTMLInputElement>);
-                    }
-                  };
-                  input.click();
-                }}
-              >
-                XLS
-              </Button>
-            </div>
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 md:p-8 transition-colors cursor-pointer ${
-                isDragging
-                  ? "border-accent bg-accent/5"
-                  : "border-border hover:border-muted-foreground"
-              }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg border-2 border-muted flex items-center justify-center mb-3 md:mb-4">
-                  {recipientFile ? (
-                    <Upload className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
-                  ) : (
-                    <Upload className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
-                  )}
-                </div>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  {recipientFile ? recipientFile.name : "Drag and drop a CSV or Excel file here or click to select file locally"}
-                </p>
-                {recipientFile && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {(recipientFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                )}
-              </div>
-            </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".csv,.xls,.xlsx"
-              onChange={handleFileSelect}
-            />
-            <div className="p-3 bg-secondary/50 rounded-lg border border-border">
-              <div className="flex items-start gap-2 mb-2">
-                <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground">
-                  <strong>Formatting:</strong> The <strong>phone_number</strong> column is required. 
-                  You can also pass certain <strong>overrides</strong>. Any other columns will be passed as dynamic variables.
-                </p>
-              </div>
-              <div className="mt-2 text-xs">
-                <p className="text-muted-foreground mb-1 font-medium">Example:</p>
-                <div className="bg-background rounded p-2 font-mono text-xs overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-1">name</th>
-                        <th className="text-left p-1">phone_number</th>
-                        <th className="text-left p-1">language</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="p-1">Nev</td>
-                        <td className="p-1">+3838310429</td>
-                        <td className="p-1">en</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Agent Selection */}
           <div className="space-y-2">
             <Label>Select Agent</Label>
@@ -527,29 +328,183 @@ export default function NewCampaign() {
             ) : (
               <Select
                 value={selectedAgentId}
-                onValueChange={setSelectedAgentId}
+                onValueChange={(value) => {
+                  setSelectedAgentId(value);
+                  // Clear phone number selections when agent changes
+                  setSelectedPhoneNumberIds([]);
+                }}
                 disabled={creating}
               >
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Select an agent" />
                 </SelectTrigger>
                 <SelectContent>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id.toString()}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{agent.name || `Agent ${agent.id}`}</span>
+                  {/* Agents with Twilio numbers */}
+                  {agentsWithTwilioNumbers.length > 0 && (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
+                        Agents with Twilio Numbers
                       </div>
-                    </SelectItem>
-                  ))}
+                      {agentsWithTwilioNumbers.map((agent) => {
+                        const twilioCount = phoneNumbers.filter(
+                          p => p.agent_id?.toString() === agent.id.toString() && p.provider === 'twilio'
+                        ).length;
+                        return (
+                          <SelectItem key={agent.id} value={agent.id.toString()}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span>{agent.name || `Agent ${agent.id}`}</span>
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                ({twilioCount} number{twilioCount !== 1 ? 's' : ''})
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </>
+                  )}
+                  
+                  {/* Agents without Twilio numbers */}
+                  {agentsWithoutTwilioNumbers.length > 0 && (
+                    <>
+                      {agentsWithTwilioNumbers.length > 0 && (
+                        <div className="border-t border-border my-1" />
+                      )}
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
+                        Agents without Twilio Numbers
+                      </div>
+                      {agentsWithoutTwilioNumbers.map((agent) => (
+                        <SelectItem 
+                          key={agent.id} 
+                          value={agent.id.toString()}
+                          disabled={true}
+                        >
+                          <div className="flex items-center gap-2 opacity-60">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span>{agent.name || `Agent ${agent.id}`}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              (No numbers)
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             )}
             {selectedAgent && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Selected: {selectedAgent.name || `Agent ${selectedAgent.id}`}
+                </p>
+                {!hasTwilioNumbers && selectedAgentId && (
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                      This agent has no Twilio phone numbers associated. Please assign Twilio phone numbers to this agent before creating a batch call.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Phone Number Selection - Multi-select */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Label>Select phone numbers</Label>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </div>
+              {selectedAgentId && availablePhoneNumbers.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (validSelectedPhoneNumberIds.length === availablePhoneNumbers.length) {
+                      setSelectedPhoneNumberIds([]);
+                    } else {
+                      setSelectedPhoneNumberIds(availablePhoneNumbers.map(p => p.id.toString()));
+                    }
+                  }}
+                  className="text-xs h-7"
+                >
+                  {validSelectedPhoneNumberIds.length === availablePhoneNumbers.length ? "Deselect All" : "Select All"}
+                </Button>
+              )}
+            </div>
+            {!selectedAgentId ? (
+              <div className="p-4 bg-secondary/50 rounded-lg border border-border">
+                <p className="text-sm text-muted-foreground text-center">
+                  Please select an agent first to see available phone numbers.
+                </p>
+              </div>
+            ) : loadingPhoneNumbers ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : availablePhoneNumbers.length === 0 ? (
+              <div className="p-4 bg-white rounded-lg border border-border">
+                <p className="text-sm text-muted-foreground text-center">
+                  This agent has no Twilio phone numbers associated. Please assign Twilio phone numbers to this agent in the Phone Numbers section.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-border max-h-[300px] overflow-y-auto">
+                {/* Only show Twilio phone numbers associated with the selected agent */}
+                {availablePhoneNumbers.map((phone) => (
+                  <div
+                    key={phone.id}
+                    className="flex items-center space-x-3 p-3 hover:bg-secondary/50 border-b border-border last:border-b-0"
+                  >
+                    <Checkbox
+                      id={`phone-${phone.id}`}
+                      checked={validSelectedPhoneNumberIds.includes(phone.id.toString())}
+                      onCheckedChange={() => handlePhoneNumberToggle(phone.id.toString())}
+                      disabled={creating}
+                    />
+                    <label
+                      htmlFor={`phone-${phone.id}`}
+                      className="flex-1 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{phone.phone_number}</span>
+                      {phone.label && (
+                        <span className="text-xs text-muted-foreground">({phone.label})</span>
+                      )}
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        • Twilio
+                      </span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+            {validSelectedPhoneNumberIds.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Selected: {selectedAgent.name || `Agent ${selectedAgent.id}`}
+                {validSelectedPhoneNumberIds.length} phone number{validSelectedPhoneNumberIds.length !== 1 ? 's' : ''} selected
               </p>
             )}
+          </div>
+
+          {/* Best Practices Alert */}
+          <div className="flex items-start gap-2 md:gap-3 p-3 md:p-4 rounded-lg bg-secondary/50 border border-border">
+            <Info className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs md:text-sm font-medium mb-1">Best Practices</p>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Learn how to avoid spam flagging and optimize your calling strategy for better success rates.{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsSpamPracticesOpen(true)}
+                  className="text-accent hover:underline cursor-pointer"
+                >
+                  Spam flagging best practices
+                </button>
+              </p>
+            </div>
           </div>
 
           {/* Timing Section */}
@@ -650,6 +605,200 @@ export default function NewCampaign() {
           </div>
         </div>
       </div>
+
+      {/* Spam Flagging Best Practices Modal */}
+      <Dialog open={isSpamPracticesOpen} onOpenChange={setIsSpamPracticesOpen}>
+        <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Spam Flagging Best Practices</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Follow these guidelines to avoid spam flagging and optimize your calling strategy for better success rates.
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-6 mt-6">
+            {/* Call Volume Management */}
+            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-base text-foreground">Call Volume Management</h3>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                      <span>Start with low call volumes and gradually increase over time</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                      <span>Avoid sending large batches of calls all at once</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                      <span>Spread calls throughout the day rather than in concentrated bursts</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                      <span>Monitor call completion rates and adjust volume accordingly</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Call Timing */}
+            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 flex-shrink-0">
+                  <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-base text-foreground">Call Timing</h3>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
+                      <span>Respect local time zones and calling hours (typically 8 AM - 9 PM)</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
+                      <span>Avoid calling during holidays and weekends unless necessary</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
+                      <span>Space out calls to the same recipient over multiple days</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
+                      <span>Consider time-of-day patterns for your target audience</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Recipient Management */}
+            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 flex-shrink-0">
+                  <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-base text-foreground">Recipient Management</h3>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
+                      <span>Only call recipients who have opted in or have an existing relationship</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
+                      <span>Maintain a "Do Not Call" list and respect opt-outs immediately</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
+                      <span>Verify phone numbers before calling to reduce invalid number attempts</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
+                      <span>Remove duplicate entries and invalid numbers from your list</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Call Quality & Content */}
+            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20 flex-shrink-0">
+                  <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-base text-foreground">Call Quality & Content</h3>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
+                      <span>Ensure your agent provides clear, valuable information</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
+                      <span>Allow recipients to easily opt-out or end the call</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
+                      <span>Avoid aggressive or misleading messaging</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
+                      <span>Personalize calls when possible using recipient data</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Compliance */}
+            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 flex-shrink-0">
+                  <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-base text-foreground">Compliance</h3>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
+                      <span>Comply with TCPA (Telephone Consumer Protection Act) regulations</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
+                      <span>Obtain proper consent before making calls</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
+                      <span>Identify your business clearly at the start of calls</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
+                      <span>Maintain records of consent and call logs for compliance</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Monitoring & Optimization */}
+            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex-shrink-0">
+                  <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-base text-foreground">Monitoring & Optimization</h3>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
+                      <span>Track call success rates, answer rates, and completion rates</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
+                      <span>Monitor for patterns that might trigger spam flags</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
+                      <span>Adjust your strategy based on performance metrics</span>
+                    </li>
+                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
+                      <span>Test different approaches and measure results</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

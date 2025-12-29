@@ -569,7 +569,6 @@ export function useIntegrationTools(
   const selectIntegrationToAdd = useCallback(async (type: string) => {
     setConnectingIntegrationType(type);
     setIntegrationModalStep("connect");
-    setIntegrationModalTab("credentials");
     setConnectingIntegrationLoading(true);
     setShowIntegrationModal(true); // Open the modal
     
@@ -585,13 +584,28 @@ export function useIntegrationTools(
         setIntegrationSchemas(null);
       }
       
-      // Check if integration already exists
-      const existingIntegration = userIntegrations.find(i => i.integration_type === type);
+      // Check if integration already exists - fetch latest from API
+      let existingIntegration: UserIntegration | null = null;
+      try {
+        const response = await integrationsApi.get(type);
+        if (response.data) {
+          existingIntegration = response.data;
+        }
+      } catch (error) {
+        // Integration doesn't exist yet, check userIntegrations as fallback
+        existingIntegration = userIntegrations.find(i => i.integration_type === type) || null;
+      }
+      
       if (existingIntegration) {
         setEditingIntegrationConfig(existingIntegration);
-        // For existing integrations, don't pre-select all tools - let the useEffect handle it
+        // Always go to credentials tab first (even if API key exists, user might want to update it)
+        setIntegrationModalTab("credentials");
+        // For existing integrations, pre-select all available tools (will be used when saving)
+        const availableTools = INTEGRATION_TOOLS_DISPLAY[type as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+        setSelectedIntegrationToolsForModal(availableTools);
       } else {
         setEditingIntegrationConfig(null);
+        setIntegrationModalTab("credentials");
         // For new integrations, pre-select all available tools
         const availableTools = INTEGRATION_TOOLS_DISPLAY[type as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
         setSelectedIntegrationToolsForModal(availableTools);
@@ -711,9 +725,12 @@ export function useIntegrationTools(
     // Open the modal with available data
     setConnectingIntegrationType(integrationType);
     setIntegrationModalStep("connect");
+    // Always go to credentials tab first (user might want to update API key)
     setIntegrationModalTab("credentials");
     setEditingIntegrationConfig(integrationData);
-    setSelectedIntegrationToolsForModal(enabledToolsForIntegration);
+    // Pre-select all available tools (will be used when saving in wizard mode)
+    const availableTools = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+    setSelectedIntegrationToolsForModal(availableTools.length > 0 ? availableTools : enabledToolsForIntegration);
     setShowIntegrationModal(true);
   }, [userIntegrations, agentIntegrationTools, setShowIntegrationModal]);
 

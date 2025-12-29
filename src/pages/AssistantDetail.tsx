@@ -38,6 +38,7 @@ import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab from "@/components/assistants/OutcomeConfigTab";
 import { DashboardTab } from "@/components/assistants/DashboardTab";
+import { AssistantDetailTour, type TourStep } from "@/components/assistants/AssistantDetailTour";
 
 // Modals
 import { WebhookToolModal } from "@/components/assistants/modals/WebhookToolModal";
@@ -63,7 +64,7 @@ import {
   getAvailableIntegrationTypes,
   displayNameToActionName,
 } from "@/constants/assistant";
-import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi } from "@/lib/api";
+import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi, agentsApi, authApi } from "@/lib/api";
 import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 
@@ -477,6 +478,130 @@ export default function AssistantDetail() {
   useEffect(() => {
     fetchAgentDetails();
   }, [id, fetchAgentDetails]);
+
+  // Tour state
+  const [showTour, setShowTour] = useState(false);
+  const [tourCompleted, setTourCompleted] = useState(false);
+  const [checkingTour, setCheckingTour] = useState(true);
+
+  // Check if tour should be shown (tour not completed)
+  useEffect(() => {
+    const checkTourEligibility = async () => {
+      if (isNew || !agentData.agent) {
+        setCheckingTour(false);
+        return;
+      }
+
+      // Check local storage first as a quick check
+      const localTourCompleted = localStorage.getItem('assistant_detail_tour_completed') === 'true';
+      if (localTourCompleted) {
+        setTourCompleted(true);
+        setCheckingTour(false);
+        return;
+      }
+
+      try {
+        // Fetch user data to check tour completion status
+        const userResponse = await authApi.getCurrentUser();
+        const userData = userResponse.data as { assistant_detail_tour_completed?: boolean } | undefined;
+        
+        if (userData?.assistant_detail_tour_completed) {
+          // Update local storage to match server state
+          localStorage.setItem('assistant_detail_tour_completed', 'true');
+          setTourCompleted(true);
+          setCheckingTour(false);
+          return;
+        }
+
+        // Show tour if tour not completed (regardless of agent count)
+        // The tour should appear once after creating the first agent, but can be viewed on any agent detail page
+        if (!userData?.assistant_detail_tour_completed) {
+          console.log("Tour eligibility met: showing tour", { tourCompleted: userData?.assistant_detail_tour_completed });
+          setShowTour(true);
+        } else {
+          console.log("Tour eligibility not met - tour already completed", { tourCompleted: userData?.assistant_detail_tour_completed });
+        }
+      } catch (error) {
+        console.error("Error checking tour eligibility:", error);
+        // If API fails, check local storage as fallback
+        if (localTourCompleted) {
+          setTourCompleted(true);
+        }
+      } finally {
+        setCheckingTour(false);
+      }
+    };
+
+    checkTourEligibility();
+  }, [isNew, agentData.agent]);
+
+  // Tour steps configuration
+  const tourSteps: TourStep[] = [
+    {
+      id: "dashboard",
+      target: "tab-dashboard",
+      title: "Dashboard",
+      description: "Get an overview of your agent's performance, metrics, and key insights. Monitor call volume, success rates, and track your agent's effectiveness at a glance.",
+    },
+    {
+      id: "calls",
+      target: "tab-calls",
+      title: "Calls",
+      description: "View and manage all your agent's conversations and call history. Review transcripts, listen to recordings, and analyze call outcomes.",
+    },
+    {
+      id: "performance",
+      target: "tab-performance",
+      title: "Performance",
+      description: "Track success rates, ROI, and detailed performance metrics. Monitor escalations, analyze outcomes, and optimize your agent's effectiveness.",
+    },
+    {
+      id: "settings",
+      target: "tab-settings",
+      title: "Settings",
+      description: "Configure voice, language, and other agent settings. Customize your agent's voice, model, and platform preferences.",
+    },
+    {
+      id: "call-script",
+      target: "tab-call-script",
+      title: "Call Script",
+      description: "Customize your agent's behavior, scenarios, and voice tone. Define how your agent should respond in different situations and maintain consistent communication style.",
+    },
+    {
+      id: "tools",
+      target: "tab-tools",
+      title: "Tools",
+      description: "Add integrations, webhooks, and custom tools to extend functionality. Connect CRM systems, scheduling tools, and custom APIs to enhance your agent's capabilities.",
+    },
+    {
+      id: "widget",
+      target: "tab-widget",
+      title: "Widget",
+      description: "Configure and embed the web widget for chat conversations. Customize the appearance and behavior of your chat widget to match your brand.",
+    },
+    {
+      id: "phone-numbers",
+      target: "tab-phone-numbers",
+      title: "Phone Numbers",
+      description: "Add and manage phone numbers for voice calls. Connect phone numbers to enable voice conversations with your agent.",
+    },
+  ];
+
+  const handleTourComplete = async () => {
+    try {
+      await authApi.updateTourCompletion();
+      // Save to local storage as backup
+      localStorage.setItem('assistant_detail_tour_completed', 'true');
+      setTourCompleted(true);
+      setShowTour(false);
+    } catch (error) {
+      console.error("Error updating tour completion:", error);
+      // Still mark as completed locally even if API call fails
+      localStorage.setItem('assistant_detail_tour_completed', 'true');
+      setTourCompleted(true);
+      setShowTour(false);
+    }
+  };
 
   // Derived Values
   const agentId = agentData.agent?.id || (isNew ? "new" : "");
@@ -940,7 +1065,7 @@ export default function AssistantDetail() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
+            {/* <Button
               variant="outline"
               size="sm"
               onClick={() => sectionHook.setShowPromptPreviewModal(true)}
@@ -948,7 +1073,7 @@ export default function AssistantDetail() {
             >
               <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
               Preview Prompt
-            </Button>
+            </Button> */}
             <Button
               variant="outline"
               size="sm"
@@ -1002,6 +1127,7 @@ export default function AssistantDetail() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                data-tour-target={`tab-${tab.id}`}
                 onClick={() => {
                   setActiveTab(tab.id);
                   lastSetTabRef.current = tab.id;
@@ -1291,7 +1417,7 @@ export default function AssistantDetail() {
         )}
 
         {/* Escalation Rules Right Panel */}
-        {showEscalationPanel && activeTab === "outcomes" && (
+        {showEscalationPanel && (activeTab === "performance" || activeTab === "outcomes") && (
           <div className="w-[400px]">
             <EscalationRulesPanel
               settings={escalationRuleSettings}
@@ -1564,6 +1690,16 @@ export default function AssistantDetail() {
         open={showPaymentMethodModal}
         onOpenChange={setShowPaymentMethodModal}
       />
+
+      {/* Guided Tour */}
+      {!checkingTour && (
+        <AssistantDetailTour
+          open={showTour && !tourCompleted}
+          onClose={handleTourComplete}
+          onComplete={handleTourComplete}
+          steps={tourSteps}
+        />
+      )}
     </div>
   );
 }

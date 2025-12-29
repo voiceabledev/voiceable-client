@@ -30,7 +30,7 @@ export function useWizardState(initialData?: CreateAgentWizardProps["initialData
 
   // Step 2: Model
   const [selectedProvider, setSelectedProvider] = useState("openai");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-cluster");
+  const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
 
   // Step 3: Agent Behaviour (Scenarios, Phases, Voice & Tone)
