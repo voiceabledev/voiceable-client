@@ -89,55 +89,96 @@ export default function OutcomeConfigTab({
 
   useEffect(() => {
     if (outcomeDefinition) {
-      setPrimaryOutcome(outcomeDefinition.primary_outcome || '');
-      setSecondaryOutcomes(outcomeDefinition.secondary_outcomes || []);
+      const newPrimaryOutcome = outcomeDefinition.primary_outcome || '';
+      const newSecondaryOutcomes = outcomeDefinition.secondary_outcomes || [];
       
       // Handle keywords - ensure we have at least one empty string if array is empty
       // This is needed because empty arrays [] are truthy, so we need to check length
       const successKws = outcomeDefinition.success_conditions?.keywords;
-      setSuccessKeywords(Array.isArray(successKws) && successKws.length > 0 ? successKws : ['']);
+      const newSuccessKeywords = Array.isArray(successKws) && successKws.length > 0 ? successKws : [''];
       
       const failureKws = outcomeDefinition.failure_conditions?.failure_keywords;
-      setFailureKeywords(Array.isArray(failureKws) && failureKws.length > 0 ? failureKws : ['']);
+      const newFailureKeywords = Array.isArray(failureKws) && failureKws.length > 0 ? failureKws : [''];
       
       // Load escalation rule settings if they exist
+      let newEscalationRuleSettings: EscalationRuleSettings;
       if (outcomeDefinition.escalation_rules) {
         const escalationKws = outcomeDefinition.escalation_rules?.escalation_keywords;
-        const settings: EscalationRuleSettings = {
+        newEscalationRuleSettings = {
           name: outcomeDefinition.escalation_rules.name || 'transfer_to_number',
           description: outcomeDefinition.escalation_rules.description || '',
           disableInterruptions: outcomeDefinition.escalation_rules.disableInterruptions || false,
           humanTransferRules: outcomeDefinition.escalation_rules.humanTransferRules || [],
           escalation_keywords: Array.isArray(escalationKws) && escalationKws.length > 0 ? escalationKws : [],
         };
-        setEscalationRuleSettings(settings);
       } else {
         // Reset to defaults if no escalation rules
-        setEscalationRuleSettings({
+        newEscalationRuleSettings = {
           name: 'transfer_to_number',
           description: '',
           disableInterruptions: false,
           humanTransferRules: [],
           escalation_keywords: [],
-        });
+        };
       }
+
+      // Update state
+      setPrimaryOutcome(newPrimaryOutcome);
+      setSecondaryOutcomes(newSecondaryOutcomes);
+      setSuccessKeywords(newSuccessKeywords);
+      setFailureKeywords(newFailureKeywords);
+      setEscalationRuleSettings(newEscalationRuleSettings);
+
+      // Update the ref to match the loaded data so auto-save doesn't trigger
+      previousDataRef.current = JSON.stringify({
+        primary_outcome: newPrimaryOutcome,
+        secondary_outcomes: newSecondaryOutcomes,
+        success_keywords: newSuccessKeywords,
+        failure_keywords: newFailureKeywords,
+        escalation_rules: newEscalationRuleSettings,
+      });
     } else {
       // Reset to defaults
       setPrimaryOutcome('');
       setSecondaryOutcomes([]);
       setSuccessKeywords(['']);
       setFailureKeywords(['']);
+      
+      // Update the ref for empty state
+      previousDataRef.current = JSON.stringify({
+        primary_outcome: '',
+        secondary_outcomes: [],
+        success_keywords: [''],
+        failure_keywords: [''],
+        escalation_rules: {
+          name: 'transfer_to_number',
+          description: '',
+          disableInterruptions: false,
+          humanTransferRules: [],
+          escalation_keywords: [],
+        },
+      });
     }
   }, [outcomeDefinition, setEscalationRuleSettings]);
 
   // Track if this is the initial load to prevent auto-save on mount
   const isInitialLoad = useRef(true);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousDataRef = useRef<string>('');
 
   // Auto-save when values change (but not on initial load)
   useEffect(() => {
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
+      // Store initial data to compare against
+      const initialData = JSON.stringify({
+        primary_outcome: primaryOutcome,
+        secondary_outcomes: secondaryOutcomes,
+        success_keywords: successKeywords,
+        failure_keywords: failureKeywords,
+        escalation_rules: escalationRuleSettings,
+      });
+      previousDataRef.current = initialData;
       return;
     }
 
@@ -145,6 +186,23 @@ export default function OutcomeConfigTab({
     if (!primaryOutcome) {
       return;
     }
+
+    // Create current data snapshot for comparison
+    const currentData = JSON.stringify({
+      primary_outcome: primaryOutcome,
+      secondary_outcomes: secondaryOutcomes,
+      success_keywords: successKeywords,
+      failure_keywords: failureKeywords,
+      escalation_rules: escalationRuleSettings,
+    });
+
+    // Only save if data actually changed
+    if (currentData === previousDataRef.current) {
+      return;
+    }
+
+    // Update the ref with current data
+    previousDataRef.current = currentData;
 
     // Clear any pending save
     if (saveTimeoutRef.current) {
@@ -178,6 +236,15 @@ export default function OutcomeConfigTab({
           await createOutcomeDefinition(data);
         }
         
+        // Update the ref after successful save to prevent re-saving the same data
+        previousDataRef.current = JSON.stringify({
+          primary_outcome: primaryOutcome,
+          secondary_outcomes: secondaryOutcomes,
+          success_keywords: successKeywords,
+          failure_keywords: failureKeywords,
+          escalation_rules: escalationRuleSettings,
+        });
+        
         // Enable transfer_to_number system tool if escalation rules have human transfer rules
         const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
                                       escalationRuleSettings.humanTransferRules.length > 0 &&
@@ -203,6 +270,14 @@ export default function OutcomeConfigTab({
           title: 'Error',
           description: Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage,
           variant: 'destructive',
+        });
+        // Revert the ref on error so it can retry
+        previousDataRef.current = JSON.stringify({
+          primary_outcome: primaryOutcome,
+          secondary_outcomes: secondaryOutcomes,
+          success_keywords: successKeywords,
+          failure_keywords: failureKeywords,
+          escalation_rules: escalationRuleSettings,
         });
       }
     }, 500);
