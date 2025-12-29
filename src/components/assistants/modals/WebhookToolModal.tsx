@@ -1393,6 +1393,56 @@ export const WebhookToolModal: React.FC<WebhookToolModalProps> = ({
                                         />
                                         <Label className="text-sm font-normal cursor-pointer">Required</Label>
                                       </div>
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                          <Label>Value Type</Label>
+                                          <Select
+                                            value={prop.valueType || "llm_prompt"}
+                                            onValueChange={(val: "llm_prompt" | "static" | "dynamic_variable") => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, valueType: val };
+                                              updateBodyParam(index, { properties: updatedProperties });
+                                            }}
+                                          >
+                                            <SelectTrigger>
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="llm_prompt">LLM Prompt</SelectItem>
+                                              <SelectItem value="static">Static</SelectItem>
+                                              <SelectItem value="dynamic_variable">Dynamic Variable</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      </div>
+                                      {prop.valueType === "static" && (
+                                        <div className="space-y-2">
+                                          <Label>Constant Value</Label>
+                                          <Input
+                                            value={typeof prop.constantValue === "string" ? prop.constantValue : String(prop.constantValue || "")}
+                                            onChange={(e) => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, constantValue: e.target.value };
+                                              updateBodyParam(index, { properties: updatedProperties });
+                                            }}
+                                            placeholder="Enter constant value"
+                                          />
+                                        </div>
+                                      )}
+                                      {prop.valueType === "dynamic_variable" && (
+                                        <div className="space-y-2">
+                                          <Label>Dynamic Variable</Label>
+                                          <Input
+                                            value={prop.dynamicVariable || ""}
+                                            onChange={(e) => {
+                                              const updatedProperties = [...(param.properties || [])];
+                                              updatedProperties[propIndex] = { ...prop, dynamicVariable: e.target.value };
+                                              updateBodyParam(index, { properties: updatedProperties });
+                                            }}
+                                            placeholder="e.g., conversation_id"
+                                          />
+                                        </div>
+                                      )}
                                       <div className="space-y-2">
                                         <Label>Description</Label>
                                         <Textarea
