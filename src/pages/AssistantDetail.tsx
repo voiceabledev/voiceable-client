@@ -675,6 +675,12 @@ export default function AssistantDetail() {
   const getPrimaryVoiceId = (): string | undefined => {
     if (!agentData.agent) return undefined;
     
+    // First try to get from top-level primary_voice_id (most reliable)
+    if (agentData.agent.primary_voice_id) {
+      return agentData.agent.primary_voice_id;
+    }
+    
+    // Try to get from conversation_config
     const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
     const primaryVoiceId = conversationConfig?.primary_voice_id as string | undefined;
     if (primaryVoiceId) return primaryVoiceId;
@@ -735,19 +741,66 @@ export default function AssistantDetail() {
 
   const selectedLanguages = getLanguages();
 
+  // Get default language from conversation_config or fallback to first language or 'en'
+  const getDefaultLanguage = (): string => {
+    if (!agentData.agent) return 'en';
+    
+    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+    if (conversationConfig?.default_language) {
+      const defaultLang = conversationConfig.default_language as string;
+      // Normalize old language names to codes
+      const langMap: Record<string, string> = {
+        'english': 'en',
+        'spanish': 'es',
+        'french': 'fr',
+        'german': 'de',
+        'italian': 'it',
+        'portuguese': 'pt',
+        'polish': 'pl',
+        'turkish': 'tr',
+        'russian': 'ru',
+        'dutch': 'nl',
+        'czech': 'cs',
+        'arabic': 'ar',
+        'chinese': 'zh',
+        'japanese': 'ja',
+        'hungarian': 'hu',
+        'korean': 'ko',
+      };
+      return langMap[defaultLang.toLowerCase()] || defaultLang;
+    }
+    
+    // Fallback to agent.default_language or first language or 'en'
+    if (agentData.agent.default_language) {
+      return agentData.agent.default_language;
+    }
+    
+    const languages = getLanguages();
+    return languages.length > 0 ? languages[0] : 'en';
+  };
+
+  const defaultLanguage = getDefaultLanguage();
+
   const handleSetPrimaryVoice = async (voiceId: string) => {
     if (!selectedVoiceIds.includes(voiceId)) return;
     
     const currentConfig = (agentData.agent as any)?.conversation_config || {};
+    
+    // Preserve voice_ids array
+    const currentVoiceIds = Array.isArray(currentConfig.voice_ids) 
+      ? currentConfig.voice_ids 
+      : (selectedVoiceIds.length > 0 ? selectedVoiceIds : []);
     
     // Update local state immediately - update both conversation_config AND top-level properties
     agentData.handleUpdate({
       // Update top-level primary_voice_id and voice_id so handleSave can read them
       primary_voice_id: voiceId,
       voice_id: voiceId, // Keep for backward compatibility
+      voice_ids: currentVoiceIds, // Preserve all voice IDs
       conversation_config: {
         ...currentConfig,
         primary_voice_id: voiceId,
+        voice_ids: currentVoiceIds, // Preserve all voice IDs
         // Keep voice_id for backward compatibility
         voice_id: voiceId,
       }
@@ -767,10 +820,87 @@ export default function AssistantDetail() {
         filesHook.attachedFiles,
         systemToolSettingsMap
       );
+      
+      // Refresh agent data from backend to ensure we have the latest saved data
+      await agentData.fetchAgentDetails();
     } catch (error) {
       console.error("Failed to save primary voice selection:", error);
       // Don't show error toast here as it might be annoying, but log it
     }
+  };
+
+  const handleSetDefaultLanguage = async (languageCode: string) => {
+    // Ensure the language is in the selected languages
+    const normalized = normalizeLanguageForDefault(languageCode);
+    if (!selectedLanguages.some(lang => normalizeLanguageForDefault(lang) === normalized)) {
+      return;
+    }
+    
+    const currentConfig = (agentData.agent as any)?.conversation_config || {};
+    
+    // Update local state immediately - update both conversation_config AND top-level properties
+    agentData.handleUpdate({
+      // Update top-level default_language so handleSave can read it
+      default_language: normalized,
+      language: normalized, // Keep for backward compatibility
+      conversation_config: {
+        ...currentConfig,
+        default_language: normalized,
+        // Keep language for backward compatibility
+        language: normalized,
+        // Preserve languages array
+        languages: currentConfig.languages || selectedLanguages,
+      }
+    } as any);
+    
+    // Save to backend immediately to ensure data persists
+    try {
+      await agentData.handleSave(
+        webhookHook.webhookTools,
+        clientHook.clientTools,
+        integrationHook.agentIntegrationTools,
+        sectionHook.cenarios,
+        sectionHook.etapas,
+        sectionHook.tomDeVoz,
+        systemTools,
+        systemToolSettings,
+        filesHook.attachedFiles,
+        systemToolSettingsMap
+      );
+    } catch (error) {
+      console.error("Failed to save default language selection:", error);
+      // Don't show error toast here as it might be annoying, but log it
+    }
+  };
+
+  // Helper to normalize language (convert old names to codes)
+  // This matches the logic in LanguageSection
+  const normalizeLanguageForDefault = (lang: string): string => {
+    const langMap: Record<string, string> = {
+      'english': 'en',
+      'spanish': 'es',
+      'french': 'fr',
+      'german': 'de',
+      'italian': 'it',
+      'portuguese': 'pt',
+      'polish': 'pl',
+      'turkish': 'tr',
+      'russian': 'ru',
+      'dutch': 'nl',
+      'czech': 'cs',
+      'arabic': 'ar',
+      'chinese': 'zh',
+      'japanese': 'ja',
+      'hungarian': 'hu',
+      'korean': 'ko',
+    };
+    
+    // If it's already a code (short and no spaces), return as-is
+    if (lang.length <= 5 && !lang.includes(' ')) {
+      return lang.toLowerCase();
+    }
+    // Convert old language names to codes
+    return langMap[lang.toLowerCase()] || lang.toLowerCase();
   };
 
   // Fetch voice details if voice_id is set but voice is not in the list
@@ -1338,10 +1468,12 @@ export default function AssistantDetail() {
                   setShowVoiceSelector={setShowVoiceSelector}
                   onSetPrimaryVoice={handleSetPrimaryVoice}
                   selectedLanguages={selectedLanguages}
+                  defaultLanguage={defaultLanguage}
                   showLanguageSelector={showLanguageSelector}
                   setShowLanguageSelector={setShowLanguageSelector}
                   languageSearchQuery={languageSearchQuery}
                   setLanguageSearchQuery={setLanguageSearchQuery}
+                  onSetDefaultLanguage={handleSetDefaultLanguage}
                 />
               ) : activeTab === "call-script" || activeTab === "prompt-logic" ? (
                 <PromptLogicTab
@@ -1708,20 +1840,21 @@ export default function AssistantDetail() {
           }
         }}
         selectedLanguages={selectedLanguages}
-        onSelectLanguages={async (languages) => {
+        defaultLanguage={defaultLanguage}
+        onSelectLanguages={async (languages, defaultLang) => {
           // Languages coming from dialog are already normalized codes (e.g., 'en', 'es', 'fr')
           // Just ensure 'en' is always in the list
           const finalLanguages = languages.includes('en') 
             ? languages 
             : ['en', ...languages];
           
-          const currentConfig = (agentData.agent as any)?.conversation_config || {};
-          const currentDefault = currentConfig.default_language as string | undefined;
-          
-          // Default language is the first one (or keep current if it's still in the list)
-          const newDefault = currentDefault && finalLanguages.includes(currentDefault)
-            ? currentDefault
+          // Use the default language from the dialog
+          // Ensure it's in the selected languages
+          const newDefault = finalLanguages.includes(defaultLang) 
+            ? defaultLang 
             : (finalLanguages.length > 0 ? finalLanguages[0] : 'en');
+          
+          const currentConfig = (agentData.agent as any)?.conversation_config || {};
           
           // Build updated conversation_config
           const updatedConfig = {

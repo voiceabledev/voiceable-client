@@ -17,10 +17,12 @@ type ConfigurationTabProps = {
   setShowVoiceSelector: (show: boolean) => void;
   onSetPrimaryVoice?: (voiceId: string) => void;
   selectedLanguages: string[];
+  defaultLanguage?: string;
   showLanguageSelector: boolean;
   setShowLanguageSelector: (show: boolean) => void;
   languageSearchQuery: string;
   setLanguageSearchQuery: (query: string) => void;
+  onSetDefaultLanguage?: (language: string) => void;
 };
 
 export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
@@ -34,10 +36,12 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
   setShowVoiceSelector,
   onSetPrimaryVoice,
   selectedLanguages,
+  defaultLanguage,
   showLanguageSelector,
   setShowLanguageSelector,
   languageSearchQuery,
   setLanguageSearchQuery,
+  onSetDefaultLanguage,
 }) => {
   const [modelExpanded, setModelExpanded] = useState(true);
   const [voiceExpanded, setVoiceExpanded] = useState(true);
@@ -87,21 +91,29 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
         expanded={languageExpanded}
         onToggleExpanded={() => setLanguageExpanded(!languageExpanded)}
         selectedLanguages={selectedLanguages}
+        defaultLanguage={defaultLanguage}
         showLanguageSelector={showLanguageSelector}
         onShowLanguageSelectorChange={setShowLanguageSelector}
-        onSelectLanguages={async (languages) => {
+        onSetDefaultLanguage={onSetDefaultLanguage}
+        onSelectLanguages={async (languages, defaultLang) => {
           // Languages coming from dialog are already normalized codes (e.g., 'en', 'es', 'fr')
           // Just ensure 'en' is always in the list
           const finalLanguages = languages.includes('en') 
             ? languages 
             : ['en', ...languages];
           
+          // Use the default language from the dialog
+          // Ensure it's in the selected languages
+          const newDefault = finalLanguages.includes(defaultLang) 
+            ? defaultLang 
+            : (finalLanguages.length > 0 ? finalLanguages[0] : 'en');
+          
           // Update agent with languages array
           // Note: This will trigger a save in AssistantDetail if handleSave is called
           onUpdate({
             languages: finalLanguages,
-            default_language: finalLanguages[0] || 'en',
-            language: finalLanguages[0] || 'en', // Keep for backward compatibility
+            default_language: newDefault,
+            language: newDefault, // Keep for backward compatibility
           } as any);
         }}
         languageSearchQuery={languageSearchQuery}

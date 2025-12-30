@@ -39,6 +39,7 @@ import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
 import { VoiceLanguageStep } from "./wizard/steps/VoiceLanguageStep";
 import { IntegrationsStep } from "./wizard/steps/IntegrationsStep";
 import type { EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
+import { normalizeLanguage } from "@/constants/languages";
 
 // Helper functions are now imported from ./wizard/helpers
 // Constants are now imported from ./wizard/constants
@@ -262,6 +263,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   // Step 4: Voice
   const [selectedVoiceIds, setSelectedVoiceIds] = useState<string[]>([]);
+  const [primaryVoiceId, setPrimaryVoiceId] = useState<string | undefined>(undefined);
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(propLoadingVoices || false);
@@ -271,7 +273,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const { playingVoiceId, handlePlayPreview } = useVoicePreview();
 
   // Step 2: Voice & Language (merged, moved before Call Outcomes)
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["english"]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["en"]);
+  const [defaultLanguage, setDefaultLanguage] = useState<string>("en");
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [languageSearchQuery, setLanguageSearchQuery] = useState("");
 
@@ -495,17 +498,29 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             if (platformSettings.language) {
               // Support both single language (backward compatibility) and languages array
               if (Array.isArray(platformSettings.language)) {
-                setSelectedLanguages(platformSettings.language.filter((l): l is string => typeof l === 'string'));
+                const languages = platformSettings.language.filter((l): l is string => typeof l === 'string');
+                // Normalize languages to codes
+                setSelectedLanguages(languages.map(normalizeLanguage));
               } else {
-                setSelectedLanguages([platformSettings.language as string]);
+                // Normalize single language to code
+                setSelectedLanguages([normalizeLanguage(platformSettings.language as string)]);
               }
             }
             
-            // Also check conversation_config for languages array
+            // Also check conversation_config for languages array and default_language
             if (agent.conversation_config) {
               const conversationConfig = agent.conversation_config as Record<string, unknown>;
               if (conversationConfig.languages && Array.isArray(conversationConfig.languages)) {
-                setSelectedLanguages(conversationConfig.languages.filter((l): l is string => typeof l === 'string'));
+                const languages = conversationConfig.languages.filter((l): l is string => typeof l === 'string');
+                // Normalize languages to codes
+                const normalizedLanguages = languages.map(normalizeLanguage);
+                setSelectedLanguages(normalizedLanguages);
+                // Set default language from config or use first language
+                if (conversationConfig.default_language) {
+                  setDefaultLanguage(normalizeLanguage(conversationConfig.default_language as string));
+                } else if (normalizedLanguages.length > 0) {
+                  setDefaultLanguage(normalizedLanguages[0]);
+                }
               }
             }
           }
@@ -514,11 +529,34 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           if (agent.conversation_config) {
             const conversationConfig = agent.conversation_config as Record<string, unknown>;
             if (conversationConfig.voice_ids && Array.isArray(conversationConfig.voice_ids)) {
-              setSelectedVoiceIds(conversationConfig.voice_ids.filter((id): id is string => typeof id === 'string'));
+              const voiceIds = conversationConfig.voice_ids.filter((id): id is string => typeof id === 'string');
+              setSelectedVoiceIds(voiceIds);
+              // Set primary voice from config or use first voice
+              if (conversationConfig.primary_voice_id) {
+                const primaryId = conversationConfig.primary_voice_id as string;
+                // Only set if it's in the voice_ids array
+                if (voiceIds.includes(primaryId)) {
+                  setPrimaryVoiceId(primaryId);
+                } else if (voiceIds.length > 0) {
+                  setPrimaryVoiceId(voiceIds[0]);
+                }
+              } else if (voiceIds.length > 0) {
+                setPrimaryVoiceId(voiceIds[0]);
+              }
             } else if (conversationConfig.voice_id && typeof conversationConfig.voice_id === 'string') {
-              setSelectedVoiceIds([conversationConfig.voice_id]);
+              const voiceId = conversationConfig.voice_id;
+              setSelectedVoiceIds([voiceId]);
+              setPrimaryVoiceId(voiceId);
             }
-            // Note: primary_voice_id is handled automatically when saving - it uses first voice if not set
+          }
+          
+          // Also check top-level primary_voice_id (if it exists in the agent object)
+          const agentWithPrimary = agent as unknown as Record<string, unknown>;
+          if (agentWithPrimary.primary_voice_id && typeof agentWithPrimary.primary_voice_id === 'string') {
+            // Only set if it's in the selected voice IDs
+            if (selectedVoiceIds.length > 0 && selectedVoiceIds.includes(agentWithPrimary.primary_voice_id)) {
+              setPrimaryVoiceId(agentWithPrimary.primary_voice_id);
+            }
           }
           
           // Restore section entries from prompt_sections
@@ -1061,21 +1099,28 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           },
           transcriber: {
             provider: "elevenlabs",
-            languages: selectedLanguages.length > 0 ? selectedLanguages : ["english"],
-            default_language: selectedLanguages.length > 0 ? selectedLanguages[0] : "english",
+            languages: selectedLanguages.length > 0 ? selectedLanguages.map(normalizeLanguage) : ["en"],
+            default_language: defaultLanguage ? normalizeLanguage(defaultLanguage) : (selectedLanguages.length > 0 ? normalizeLanguage(selectedLanguages[0]) : "en"),
             // Keep language for backward compatibility
-            language: selectedLanguages.length > 0 ? selectedLanguages[0] : "english",
+            language: defaultLanguage ? normalizeLanguage(defaultLanguage) : (selectedLanguages.length > 0 ? normalizeLanguage(selectedLanguages[0]) : "en"),
             model: "flux-general",
           },
+          // Always include languages array at top level (required for Voice and Language steps)
+          ...(selectedLanguages.length > 0 ? {
+            languages: selectedLanguages.map(normalizeLanguage),
+            default_language: defaultLanguage ? normalizeLanguage(defaultLanguage) : normalizeLanguage(selectedLanguages[0]),
+            // Keep language for backward compatibility
+            language: defaultLanguage ? normalizeLanguage(defaultLanguage) : normalizeLanguage(selectedLanguages[0]),
+          } : {}),
           // Always include voice_ids array if selected (required for Voice and Language steps)
           ...(selectedVoiceIds.length > 0 ? {
             voice_ids: selectedVoiceIds,
-            // Use first voice as primary if not explicitly set
-            primary_voice_id: selectedVoiceIds[0],
+            // Use primary voice if set, otherwise use first voice
+            primary_voice_id: primaryVoiceId || selectedVoiceIds[0],
             // Keep voice_id for backward compatibility (use primary voice)
-            voice_id: selectedVoiceIds[0],
+            voice_id: primaryVoiceId || selectedVoiceIds[0],
             voice: {
-              voice_id: selectedVoiceIds[0],
+              voice_id: primaryVoiceId || selectedVoiceIds[0],
             }
           } : {}),
           // Include first message if provided
@@ -1088,8 +1133,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
         },
         platform_settings: {
-          ...(selectedVoiceIds.length > 0 && { voice_id: selectedVoiceIds[0] }),
-          language: selectedLanguage || "english"
+          ...(selectedVoiceIds.length > 0 && { voice_id: primaryVoiceId || selectedVoiceIds[0] }),
+          language: defaultLanguage ? normalizeLanguage(defaultLanguage) : (selectedLanguages.length > 0 ? normalizeLanguage(selectedLanguages[0]) : "en")
         },
         // Also include at top level for backward compatibility
         ...(webhookTools.length > 0 ? { webhook_tools: webhookTools } : {}),
@@ -1483,9 +1528,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     }
   };
 
-  // handlePlayPreview is now provided by useVoicePreview hook
-
-
   const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
 
   const renderStepContent = () => {
@@ -1506,22 +1548,42 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return (
             <VoiceLanguageStep
               selectedVoiceIds={selectedVoiceIds}
+              primaryVoiceId={primaryVoiceId}
               voices={voices}
               loadingVoices={loadingVoices}
               showVoiceSelector={showVoiceSelector}
               onShowVoiceSelectorChange={setShowVoiceSelector}
               onSelectVoices={(voiceIds) => {
                 setSelectedVoiceIds(voiceIds);
+                // If current primary voice is still in the list, keep it; otherwise use first voice
+                const newPrimary = primaryVoiceId && voiceIds.includes(primaryVoiceId)
+                  ? primaryVoiceId
+                  : (voiceIds.length > 0 ? voiceIds[0] : undefined);
+                setPrimaryVoiceId(newPrimary);
                 setShowVoiceSelector(false);
+              }}
+              onSetPrimaryVoice={(voiceId) => {
+                if (selectedVoiceIds.includes(voiceId)) {
+                  setPrimaryVoiceId(voiceId);
+                }
               }}
               playingVoiceId={playingVoiceId}
               onPlayPreview={handlePlayPreview}
               voiceSearchQuery={voiceSearchQuery}
               onVoiceSearchChange={setVoiceSearchQuery}
               selectedLanguages={selectedLanguages}
+              defaultLanguage={defaultLanguage}
               showLanguageSelector={showLanguageSelector}
               onShowLanguageSelectorChange={setShowLanguageSelector}
-              onSelectLanguages={setSelectedLanguages}
+              onSelectLanguages={(languages, defaultLang) => {
+                setSelectedLanguages(languages);
+                setDefaultLanguage(defaultLang);
+              }}
+              onSetDefaultLanguage={(lang) => {
+                if (selectedLanguages.some(l => normalizeLanguage(l) === lang)) {
+                  setDefaultLanguage(lang);
+                }
+              }}
               languageSearchQuery={languageSearchQuery}
               onLanguageSearchChange={setLanguageSearchQuery}
             />
@@ -1645,22 +1707,42 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           return (
             <VoiceLanguageStep
               selectedVoiceIds={selectedVoiceIds}
+              primaryVoiceId={primaryVoiceId}
               voices={voices}
               loadingVoices={loadingVoices}
               showVoiceSelector={showVoiceSelector}
               onShowVoiceSelectorChange={setShowVoiceSelector}
               onSelectVoices={(voiceIds) => {
                 setSelectedVoiceIds(voiceIds);
+                // If current primary voice is still in the list, keep it; otherwise use first voice
+                const newPrimary = primaryVoiceId && voiceIds.includes(primaryVoiceId)
+                  ? primaryVoiceId
+                  : (voiceIds.length > 0 ? voiceIds[0] : undefined);
+                setPrimaryVoiceId(newPrimary);
                 setShowVoiceSelector(false);
+              }}
+              onSetPrimaryVoice={(voiceId) => {
+                if (selectedVoiceIds.includes(voiceId)) {
+                  setPrimaryVoiceId(voiceId);
+                }
               }}
               playingVoiceId={playingVoiceId}
               onPlayPreview={handlePlayPreview}
               voiceSearchQuery={voiceSearchQuery}
               onVoiceSearchChange={setVoiceSearchQuery}
               selectedLanguages={selectedLanguages}
+              defaultLanguage={defaultLanguage}
               showLanguageSelector={showLanguageSelector}
               onShowLanguageSelectorChange={setShowLanguageSelector}
-              onSelectLanguages={setSelectedLanguages}
+              onSelectLanguages={(languages, defaultLang) => {
+                setSelectedLanguages(languages);
+                setDefaultLanguage(defaultLang);
+              }}
+              onSetDefaultLanguage={(lang) => {
+                if (selectedLanguages.some(l => normalizeLanguage(l) === lang)) {
+                  setDefaultLanguage(lang);
+                }
+              }}
               languageSearchQuery={languageSearchQuery}
               onLanguageSearchChange={setLanguageSearchQuery}
             />

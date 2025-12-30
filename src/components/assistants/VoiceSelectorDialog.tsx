@@ -37,10 +37,21 @@ export const VoiceSelectorDialog = ({
 }: VoiceSelectorDialogProps) => {
   const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedVoiceIds);
 
-  // Sync local state when prop changes or dialog opens
+  // Sync local state when prop changes (only when dialog is closed or when props actually change)
+  // This ensures that when dialog opens, it shows the last confirmed selections
+  // But when dialog is open, we preserve local changes even if props haven't changed yet
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      // When dialog closes, sync to props (which should be the confirmed selections)
       setLocalSelectedIds(selectedVoiceIds);
+    } else {
+      // When dialog opens, sync to props to show the last confirmed selections
+      // But only if the props have actually changed (to avoid resetting user's in-progress selections)
+      setLocalSelectedIds(prev => {
+        // Only update if props are different from current local state
+        const propsChanged = JSON.stringify(selectedVoiceIds.sort()) !== JSON.stringify(prev.sort());
+        return propsChanged ? selectedVoiceIds : prev;
+      });
     }
   }, [open, selectedVoiceIds]);
 
@@ -74,7 +85,8 @@ export const VoiceSelectorDialog = ({
   };
 
   const handleCancel = () => {
-    setLocalSelectedIds(selectedVoiceIds);
+    // Don't reset local state on cancel - preserve user's selections
+    // They will be synced when dialog closes via the useEffect
     onOpenChange(false);
   };
 

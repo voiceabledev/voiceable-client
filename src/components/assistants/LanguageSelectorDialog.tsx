@@ -8,131 +8,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Search, Check } from "lucide-react";
+import { Search, Check, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Language code to flag country code mapping (for ElevenLabs flag images)
-const languageFlagMap: Record<string, string> = {
-  'ar': 'ae',   // Arabic
-  'bg': 'bg',   // Bulgarian
-  'zh': 'cn',   // Chinese
-  'hr': 'hr',   // Croatian
-  'cs': 'cz',   // Czech
-  'da': 'dk',   // Danish
-  'nl': 'nl',   // Dutch
-  'en': 'us',   // English
-  'fil': 'ph',  // Filipino
-  'fi': 'fi',   // Finnish
-  'fr': 'fr',   // French
-  'de': 'de',   // German
-  'el': 'gr',   // Greek
-  'hi': 'in',   // Hindi
-  'hu': 'hu',   // Hungarian
-  'id': 'id',   // Indonesian
-  'it': 'it',   // Italian
-  'ja': 'jp',   // Japanese
-  'ko': 'kr',   // Korean
-  'ms': 'my',   // Malay
-  'no': 'no',   // Norwegian
-  'pl': 'pl',   // Polish
-  'pt-br': 'br', // Portuguese (Brazil)
-  'pt': 'pt',   // Portuguese
-  'ro': 'ro',   // Romanian
-  'ru': 'ru',   // Russian
-  'sk': 'sk',   // Slovak
-  'es': 'es',   // Spanish
-  'sv': 'se',   // Swedish
-  'ta': 'in',   // Tamil
-  'tr': 'tr',   // Turkish
-  'uk': 'ua',   // Ukrainian
-  'vi': 'vn',   // Vietnamese
-};
-
-// Language code to display name mapping
-const languageLabels: Record<string, string> = {
-  'ar': 'Arabic',
-  'bg': 'Bulgarian',
-  'zh': 'Chinese',
-  'hr': 'Croatian',
-  'cs': 'Czech',
-  'da': 'Danish',
-  'nl': 'Dutch',
-  'en': 'English',
-  'fil': 'Filipino',
-  'fi': 'Finnish',
-  'fr': 'French',
-  'de': 'German',
-  'el': 'Greek',
-  'hi': 'Hindi',
-  'hu': 'Hungarian',
-  'id': 'Indonesian',
-  'it': 'Italian',
-  'ja': 'Japanese',
-  'ko': 'Korean',
-  'ms': 'Malay',
-  'no': 'Norwegian',
-  'pl': 'Polish',
-  'pt-br': 'Portuguese (Brazil)',
-  'pt': 'Portuguese',
-  'ro': 'Romanian',
-  'ru': 'Russian',
-  'sk': 'Slovak',
-  'es': 'Spanish',
-  'sv': 'Swedish',
-  'ta': 'Tamil',
-  'tr': 'Turkish',
-  'uk': 'Ukrainian',
-  'vi': 'Vietnamese',
-};
-
-// Map from our internal language names to language codes
-const languageNameToCode: Record<string, string> = {
-  'english': 'en',
-  'spanish': 'es',
-  'french': 'fr',
-  'german': 'de',
-  'italian': 'it',
-  'portuguese': 'pt',
-  'polish': 'pl',
-  'turkish': 'tr',
-  'russian': 'ru',
-  'dutch': 'nl',
-  'czech': 'cs',
-  'arabic': 'ar',
-  'chinese': 'zh',
-  'japanese': 'ja',
-  'hungarian': 'hu',
-  'korean': 'ko',
-};
-
-// Available languages (using language codes)
-const availableLanguages = [
-  'ar', 'bg', 'zh', 'hr', 'cs', 'da', 'nl', 'en', 'fil', 'fi', 'fr', 'de',
-  'el', 'hi', 'hu', 'id', 'it', 'ja', 'ko', 'ms', 'no', 'pl', 'pt-br', 'pt',
-  'ro', 'ru', 'sk', 'es', 'sv', 'ta', 'tr', 'uk', 'vi'
-];
-
-// Helper to get flag URL
-const getFlagUrl = (langCode: string): string => {
-  const countryCode = languageFlagMap[langCode] || 'us';
-  return `https://storage.googleapis.com/eleven-public-cdn/images/flags/circle-flags/${countryCode}.svg`;
-};
-
-// Helper to normalize language (convert old names to codes)
-const normalizeLanguage = (lang: string): string => {
-  // If it's already a code, return as-is
-  if (availableLanguages.includes(lang)) {
-    return lang;
-  }
-  // Convert old language names to codes
-  return languageNameToCode[lang.toLowerCase()] || lang;
-};
+import { languageLabels, getFlagUrl, normalizeLanguage, availableLanguages } from "@/constants/languages";
 
 interface LanguageSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedLanguages: string[];
-  onSelectLanguages: (languages: string[]) => void;
+  defaultLanguage?: string;
+  onSelectLanguages: (languages: string[], defaultLanguage: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
 }
@@ -141,6 +26,7 @@ export const LanguageSelectorDialog = ({
   open,
   onOpenChange,
   selectedLanguages,
+  defaultLanguage: propDefaultLanguage,
   onSelectLanguages,
   searchQuery,
   onSearchChange,
@@ -151,16 +37,36 @@ export const LanguageSelectorDialog = ({
   }, [selectedLanguages]);
   
   const [localSelectedLanguages, setLocalSelectedLanguages] = useState<string[]>(normalizedSelected);
+  const [localDefaultLanguage, setLocalDefaultLanguage] = useState<string>(
+    propDefaultLanguage ? normalizeLanguage(propDefaultLanguage) : 'en'
+  );
 
-  // Sync local state when prop changes or dialog opens
+  // Sync local state when prop changes (only when dialog is closed or when props actually change)
+  // This ensures that when dialog opens, it shows the last confirmed selections
+  // But when dialog is open, we preserve local changes even if props haven't changed yet
   useEffect(() => {
-    if (open) {
-      const normalized = selectedLanguages.map(normalizeLanguage);
-      // Ensure English is always included
-      const withEnglish = normalized.includes('en') ? normalized : ['en', ...normalized];
+    const normalized = selectedLanguages.map(normalizeLanguage);
+    // Ensure English is always included
+    const withEnglish = normalized.includes('en') ? normalized : ['en', ...normalized];
+    const normalizedDefault = propDefaultLanguage ? normalizeLanguage(propDefaultLanguage) : 'en';
+    const finalDefault = withEnglish.includes(normalizedDefault) ? normalizedDefault : 'en';
+    
+    if (!open) {
+      // When dialog closes, sync to props (which should be the confirmed selections)
       setLocalSelectedLanguages(withEnglish);
+      setLocalDefaultLanguage(finalDefault);
+    } else {
+      // When dialog opens, sync to props to show the last confirmed selections
+      // But only if the props have actually changed (to avoid resetting user's in-progress selections)
+      setLocalSelectedLanguages(prev => {
+        const propsChanged = JSON.stringify(withEnglish.sort()) !== JSON.stringify(prev.sort());
+        return propsChanged ? withEnglish : prev;
+      });
+      setLocalDefaultLanguage(prev => {
+        return prev !== finalDefault ? finalDefault : prev;
+      });
     }
-  }, [open, selectedLanguages]);
+  }, [open, selectedLanguages, propDefaultLanguage]);
 
   const toggleLanguageSelection = (language: string) => {
     // Prevent deselecting English
@@ -180,19 +86,31 @@ export const LanguageSelectorDialog = ({
     });
   };
 
+  const handleSetDefaultLanguage = (language: string) => {
+    // Only allow setting default if the language is selected
+    if (localSelectedLanguages.includes(language)) {
+      setLocalDefaultLanguage(language);
+    }
+  };
+
   const handleConfirm = () => {
     // Ensure English is always included before confirming
     const withEnglish = localSelectedLanguages.includes('en') 
       ? localSelectedLanguages 
       : ['en', ...localSelectedLanguages];
-    onSelectLanguages(withEnglish);
+    
+    // Ensure default language is in the selected languages
+    const finalDefault = withEnglish.includes(localDefaultLanguage) 
+      ? localDefaultLanguage 
+      : 'en';
+    
+    onSelectLanguages(withEnglish, finalDefault);
     onOpenChange(false);
   };
 
   const handleCancel = () => {
-    // Reset to normalized selected languages
-    const normalized = selectedLanguages.map(normalizeLanguage);
-    setLocalSelectedLanguages(normalized);
+    // Don't reset local state on cancel - preserve user's selections
+    // They will be synced when dialog closes via the useEffect
     onOpenChange(false);
   };
 
@@ -267,9 +185,10 @@ export const LanguageSelectorDialog = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {filteredLanguages.map((language) => {
                   const isSelected = localSelectedLanguages.includes(language);
+                  const isDefaultLang = localDefaultLanguage === language;
                   const label = languageLabels[language] || language;
                   const flagUrl = getFlagUrl(language);
-                  const isDefault = language === 'en';
+                  const isEnglish = language === 'en';
 
                   return (
                     <div
@@ -278,8 +197,7 @@ export const LanguageSelectorDialog = ({
                         "relative p-4 rounded-lg border-2 transition-all",
                         isSelected
                           ? "border-primary bg-primary/5 hover:bg-primary/10"
-                          : "border-border hover:border-primary/30 hover:bg-secondary/50",
-                        isDefault && "opacity-100" // English is always available but can be selected
+                          : "border-border hover:border-primary/30 hover:bg-secondary/50"
                       )}
                     >
                       <div className="flex items-start gap-3">
@@ -287,12 +205,12 @@ export const LanguageSelectorDialog = ({
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={(checked) => {
-                            if (!isDefault) {
+                            if (!isEnglish) {
                               toggleLanguageSelection(language);
                             }
                           }}
                           className="mt-1"
-                          disabled={isDefault}
+                          disabled={isEnglish}
                         />
 
                         {/* Language Info */}
@@ -317,13 +235,35 @@ export const LanguageSelectorDialog = ({
                             <h3 className="font-semibold text-sm truncate">
                               {label}
                             </h3>
-                            {isDefault && (
-                              <span className="inline-flex items-center text-xs rounded-full font-medium transition-colors whitespace-nowrap bg-gray-alpha-100 text-foreground h-5 px-2">
-                                Default
-                              </span>
-                            )}
-                            {isSelected && !isDefault && (
-                              <Check className="h-4 w-4 text-primary shrink-0" />
+                            {isSelected && (
+                              <>
+                                {isDefaultLang ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetDefaultLanguage(language);
+                                    }}
+                                    className="shrink-0 p-0.5 rounded hover:bg-primary/20 transition-colors"
+                                    title="Default language (click to change)"
+                                  >
+                                    <Star className="h-4 w-4 text-primary fill-primary" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetDefaultLanguage(language);
+                                    }}
+                                    className="shrink-0 p-0.5 rounded hover:bg-primary/20 transition-colors opacity-50 hover:opacity-100"
+                                    title="Set as default language"
+                                  >
+                                    <Star className="h-4 w-4 text-muted-foreground" />
+                                  </button>
+                                )}
+                                <Check className="h-4 w-4 text-primary shrink-0" />
+                              </>
                             )}
                           </div>
                         </div>
