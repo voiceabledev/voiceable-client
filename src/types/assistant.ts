@@ -182,7 +182,9 @@ export type Agent = {
   language: string;
   first_message_mode: "text" | "audio";
   first_message: string;
-  voice_id: string;
+  voice_id?: string; // Deprecated: use voice_ids instead, kept for backward compatibility
+  voice_ids?: string[]; // Array of voice IDs
+  primary_voice_id?: string; // Primary voice ID to use for ElevenLabs (must be in voice_ids array)
   hipaa_compliance: boolean;
   audio_recording: boolean;
   logging: boolean;

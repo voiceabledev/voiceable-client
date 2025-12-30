@@ -53,12 +53,12 @@ const languageLabels: Record<string, string> = {
 };
 
 interface VoiceLanguageStepProps {
-  selectedVoiceId: string;
+  selectedVoiceIds: string[];
   voices: Voice[];
   loadingVoices: boolean;
   showVoiceSelector: boolean;
   onShowVoiceSelectorChange: (show: boolean) => void;
-  onSelectVoice: (voiceId: string) => void;
+  onSelectVoices: (voiceIds: string[]) => void;
   playingVoiceId: string | null;
   onPlayPreview: (voice: Voice) => void;
   voiceSearchQuery: string;
@@ -68,12 +68,12 @@ interface VoiceLanguageStepProps {
 }
 
 export function VoiceLanguageStep({
-  selectedVoiceId,
+  selectedVoiceIds,
   voices,
   loadingVoices,
   showVoiceSelector,
   onShowVoiceSelectorChange,
-  onSelectVoice,
+  onSelectVoices,
   playingVoiceId,
   onPlayPreview,
   voiceSearchQuery,
@@ -81,12 +81,12 @@ export function VoiceLanguageStep({
   selectedLanguage,
   onLanguageChange,
 }: VoiceLanguageStepProps) {
-  const selectedVoice = voices.find(v => v.id === selectedVoiceId);
+  const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
 
   return (
     <div className="space-y-6">
       <div>
-        <label className="text-sm font-medium mb-2 block">Voice</label>
+        <label className="text-sm font-medium mb-2 block">Voice{selectedVoiceIds.length !== 1 ? 's' : ''}</label>
         {loadingVoices ? (
           <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-md border border-border">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -100,24 +100,23 @@ export function VoiceLanguageStep({
               className="w-full justify-start bg-white"
               onClick={() => onShowVoiceSelectorChange(true)}
             >
-              {selectedVoice ? (
+              {selectedVoiceIds.length === 0 ? (
+                <span className="text-muted-foreground">Select voices</span>
+              ) : selectedVoiceIds.length === 1 && selectedVoices[0] ? (
                 <span className="flex items-center gap-2">
                   <AudioLines className="h-4 w-4" />
-                  {selectedVoice.name || selectedVoice.id}
+                  {selectedVoices[0].name || selectedVoices[0].id}
                 </span>
               ) : (
-                <span className="text-muted-foreground">Select a voice</span>
+                <span>{selectedVoiceIds.length} voices selected</span>
               )}
             </Button>
             <VoiceSelectorDialog
               open={showVoiceSelector}
               onOpenChange={onShowVoiceSelectorChange}
               voices={voices}
-              selectedVoiceId={selectedVoiceId}
-              onSelectVoice={(voiceId) => {
-                onSelectVoice(voiceId);
-                onShowVoiceSelectorChange(false);
-              }}
+              selectedVoiceIds={selectedVoiceIds}
+              onSelectVoices={onSelectVoices}
               playingVoiceId={playingVoiceId}
               onPlayPreview={onPlayPreview}
               searchQuery={voiceSearchQuery}

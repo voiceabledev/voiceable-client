@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { User, Code, AudioLines, Mic, Eye, Phone, ExternalLink } from "lucide-react";
 import { providers, modelsByProvider } from "../constants";
 import { Voice } from "@/lib/api";
@@ -8,8 +9,8 @@ interface PreviewStepProps {
   name: string;
   selectedProvider: string;
   selectedModel: string;
-  selectedVoice: Voice | undefined;
-  selectedVoiceId: string;
+  selectedVoices: Voice[];
+  selectedVoiceIds: string[];
   selectedLanguage: string;
   onLiveWidgetPreview: () => void;
   onShowPhoneNumberModal: () => void;
@@ -19,8 +20,8 @@ export function PreviewStep({
   name,
   selectedProvider,
   selectedModel,
-  selectedVoice,
-  selectedVoiceId,
+  selectedVoices,
+  selectedVoiceIds,
   selectedLanguage,
   onLiveWidgetPreview,
   onShowPhoneNumberModal,
@@ -56,9 +57,29 @@ export function PreviewStep({
         <div className="border rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <AudioLines className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold">Voice</h3>
+            <h3 className="text-sm font-semibold">Voice{selectedVoiceIds.length !== 1 ? 's' : ''}</h3>
           </div>
-          <p className="text-sm">{selectedVoice?.name || selectedVoiceId || "Not selected"}</p>
+          {selectedVoiceIds.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Not selected</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {selectedVoiceIds.map((voiceId) => {
+                const voice = selectedVoices.find(v => v.id === voiceId);
+                return (
+                  <Badge
+                    key={voiceId}
+                    variant="secondary"
+                    className="flex items-center gap-1 px-2 py-1"
+                  >
+                    <AudioLines className="h-3 w-3" />
+                    <span className="text-xs">
+                      {voice?.name || voiceId}
+                    </span>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Language */}

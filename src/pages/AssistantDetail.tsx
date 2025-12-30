@@ -624,6 +624,7 @@ export default function AssistantDetail() {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [selectedVoiceNameState, setSelectedVoiceNameState] = useState<string>("");
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fetchedVoiceRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchVoices = async () => {
@@ -640,31 +641,76 @@ export default function AssistantDetail() {
     fetchVoices();
   }, []);
 
-  // Track if we've attempted to fetch the voice to avoid multiple requests
-  const fetchedVoiceRef = useRef<string | null>(null);
-
-  // Reset fetched voice ref when voice_id changes
-  useEffect(() => {
-    if (agentData.agent?.voice_id !== fetchedVoiceRef.current) {
-      fetchedVoiceRef.current = null;
-      // Reset voice name when voice_id changes
-      setSelectedVoiceNameState("");
-    }
-  }, [agentData.agent?.voice_id]);
-
-  // Update selected voice name when voice is found in the list
-  useEffect(() => {
-    const voiceId = agentData.agent?.voice_id;
-    if (!voiceId) {
-      setSelectedVoiceNameState("");
-      return;
+  // Get voice_ids and primary_voice_id from conversation_config or fallback to voice_id (backward compatibility)
+  const getVoiceIds = (): string[] => {
+    if (!agentData.agent) return [];
+    
+    // Try to get voice_ids from conversation_config
+    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+    if (conversationConfig?.voice_ids) {
+      const voiceIds = conversationConfig.voice_ids;
+      if (Array.isArray(voiceIds)) {
+        return voiceIds.filter((id): id is string => typeof id === 'string');
+      }
     }
     
-    const voice = voices.find(v => v.id === voiceId);
-    if (voice?.name) {
-      setSelectedVoiceNameState(voice.name);
+    // Fallback to voice_id for backward compatibility
+    if (agentData.agent.voice_id) {
+      return [agentData.agent.voice_id];
     }
-  }, [agentData.agent?.voice_id, voices]);
+    
+    return [];
+  };
+
+  const getPrimaryVoiceId = (): string | undefined => {
+    if (!agentData.agent) return undefined;
+    
+    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+    const primaryVoiceId = conversationConfig?.primary_voice_id as string | undefined;
+    if (primaryVoiceId) return primaryVoiceId;
+    
+    // Fallback: use first voice_id if available
+    const voiceIds = getVoiceIds();
+    return voiceIds.length > 0 ? voiceIds[0] : undefined;
+  };
+
+  const selectedVoiceIds = getVoiceIds();
+  const primaryVoiceId = getPrimaryVoiceId();
+
+  const handleSetPrimaryVoice = async (voiceId: string) => {
+    if (!selectedVoiceIds.includes(voiceId)) return;
+    
+    const currentConfig = (agentData.agent as any)?.conversation_config || {};
+    
+    // Update local state immediately
+    agentData.handleUpdate({
+      conversation_config: {
+        ...currentConfig,
+        primary_voice_id: voiceId,
+        // Keep voice_id for backward compatibility
+        voice_id: voiceId,
+      }
+    } as any);
+    
+    // Save to backend immediately to ensure data persists
+    try {
+      await agentData.handleSave(
+        webhookHook.webhookTools,
+        clientHook.clientTools,
+        integrationHook.agentIntegrationTools,
+        sectionHook.cenarios,
+        sectionHook.etapas,
+        sectionHook.tomDeVoz,
+        systemTools,
+        systemToolSettings,
+        filesHook.attachedFiles,
+        systemToolSettingsMap
+      );
+    } catch (error) {
+      console.error("Failed to save primary voice selection:", error);
+      // Don't show error toast here as it might be annoying, but log it
+    }
+  };
 
   // Fetch voice details if voice_id is set but voice is not in the list
   useEffect(() => {
@@ -1225,9 +1271,11 @@ export default function AssistantDetail() {
                   onUpdate={agentData.handleUpdate}
                   onPlayPreview={handlePlayPreview}
                   loadingVoices={loadingVoices}
-                  selectedVoiceId={agentData.agent?.voice_id || null}
-                  selectedVoiceName={selectedVoiceName}
+                  selectedVoiceIds={selectedVoiceIds}
+                  primaryVoiceId={primaryVoiceId}
+                  voices={voices}
                   setShowVoiceSelector={setShowVoiceSelector}
+                  onSetPrimaryVoice={handleSetPrimaryVoice}
                 />
               ) : activeTab === "call-script" || activeTab === "prompt-logic" ? (
                 <PromptLogicTab
@@ -1522,9 +1570,47 @@ export default function AssistantDetail() {
           }
         }}
         voices={voices}
-        selectedVoiceId={agentData.agent?.voice_id || ""}
-        onSelectVoice={(voiceId) => {
-          agentData.handleUpdate({ voice_id: voiceId });
+        selectedVoiceIds={selectedVoiceIds}
+        onSelectVoices={async (voiceIds) => {
+          // Update conversation_config with voice_ids array
+          const currentConfig = (agentData.agent as any)?.conversation_config || {};
+          const currentPrimary = currentConfig.primary_voice_id as string | undefined;
+          
+          // If current primary is still in the new list, keep it; otherwise use first voice
+          const newPrimary = currentPrimary && voiceIds.includes(currentPrimary) 
+            ? currentPrimary 
+            : (voiceIds.length > 0 ? voiceIds[0] : undefined);
+          
+          // Update local state immediately
+          agentData.handleUpdate({
+            conversation_config: {
+              ...currentConfig,
+              voice_ids: voiceIds,
+              primary_voice_id: newPrimary,
+              // Keep voice_id for backward compatibility (use primary voice)
+              voice_id: newPrimary,
+            }
+          } as any);
+          
+          // Save to backend immediately to ensure data persists
+          try {
+            await agentData.handleSave(
+              webhookHook.webhookTools,
+              clientHook.clientTools,
+              integrationHook.agentIntegrationTools,
+              sectionHook.cenarios,
+              sectionHook.etapas,
+              sectionHook.tomDeVoz,
+              systemTools,
+              systemToolSettings,
+              filesHook.attachedFiles,
+              systemToolSettingsMap
+            );
+          } catch (error) {
+            console.error("Failed to save voice selection:", error);
+            // Don't show error toast here as it might be annoying, but log it
+          }
+          
           setShowVoiceSelector(false);
         }}
         playingVoiceId={playingVoiceId}

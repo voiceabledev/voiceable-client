@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,6 +6,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { Search, Play, Square, AudioLines, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Voice } from "@/lib/api";
@@ -14,8 +16,8 @@ interface VoiceSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   voices: Voice[];
-  selectedVoiceId: string;
-  onSelectVoice: (voiceId: string) => void;
+  selectedVoiceIds: string[];
+  onSelectVoices: (voiceIds: string[]) => void;
   playingVoiceId: string | null;
   onPlayPreview: (voice: Voice) => void;
   searchQuery: string;
@@ -26,13 +28,22 @@ export const VoiceSelectorDialog = ({
   open,
   onOpenChange,
   voices,
-  selectedVoiceId,
-  onSelectVoice,
+  selectedVoiceIds,
+  onSelectVoices,
   playingVoiceId,
   onPlayPreview,
   searchQuery,
   onSearchChange,
 }: VoiceSelectorDialogProps) => {
+  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedVoiceIds);
+
+  // Sync local state when prop changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setLocalSelectedIds(selectedVoiceIds);
+    }
+  }, [open, selectedVoiceIds]);
+
   const getVoiceLabels = (voice: Voice): string[] => {
     const labels: string[] = [];
     if (voice.labels?.gender) {
@@ -47,51 +58,100 @@ export const VoiceSelectorDialog = ({
     return labels;
   };
 
+  const toggleVoiceSelection = (voiceId: string) => {
+    setLocalSelectedIds(prev => {
+      if (prev.includes(voiceId)) {
+        return prev.filter(id => id !== voiceId);
+      } else {
+        return [...prev, voiceId];
+      }
+    });
+  };
+
+  const handleConfirm = () => {
+    onSelectVoices(localSelectedIds);
+    onOpenChange(false);
+  };
+
+  const handleCancel = () => {
+    setLocalSelectedIds(selectedVoiceIds);
+    onOpenChange(false);
+  };
+
+  const filteredVoices = voices.filter(voice => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      voice.name?.toLowerCase().includes(query) ||
+      voice.description?.toLowerCase().includes(query) ||
+      voice.id.toLowerCase().includes(query)
+    );
+  });
+
+  const allSelected = filteredVoices.length > 0 && filteredVoices.every(v => localSelectedIds.includes(v.id));
+  const someSelected = filteredVoices.some(v => localSelectedIds.includes(v.id));
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      // Deselect all filtered voices
+      setLocalSelectedIds(prev => prev.filter(id => !filteredVoices.some(v => v.id === id)));
+    } else {
+      // Select all filtered voices
+      const filteredIds = filteredVoices.map(v => v.id);
+      setLocalSelectedIds(prev => {
+        const newIds = [...prev];
+        filteredIds.forEach(id => {
+          if (!newIds.includes(id)) {
+            newIds.push(id);
+          }
+        });
+        return newIds;
+      });
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleCancel}>
       <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Select a Voice</DialogTitle>
+          <DialogTitle>Select Voices</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search for a voice..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 bg-background"
-            />
+          {/* Search Bar and Select All */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search for a voice..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-10 bg-background"
+              />
+            </div>
+            {filteredVoices.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                className="whitespace-nowrap"
+              >
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </Button>
+            )}
           </div>
 
           {/* Voices List */}
           <div className="flex-1 overflow-y-auto">
-            {(() => {
-              // Filter voices based on search query
-              const filteredVoices = voices.filter(voice => {
-                if (!searchQuery) return true;
-                const query = searchQuery.toLowerCase();
-                return (
-                  voice.name?.toLowerCase().includes(query) ||
-                  voice.description?.toLowerCase().includes(query) ||
-                  voice.id.toLowerCase().includes(query)
-                );
-              });
-
-              if (filteredVoices.length === 0) {
-                return (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? 'No voices found matching your search.' : 'No voices available.'}
-                  </div>
-                );
-              }
-
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {filteredVoices.map((voice) => {
-                  const isSelected = voice.id === selectedVoiceId;
+            {filteredVoices.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? 'No voices found matching your search.' : 'No voices available.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredVoices.map((voice) => {
+                  const isSelected = localSelectedIds.includes(voice.id);
                   const isPlaying = playingVoiceId === voice.id;
                   const labels = getVoiceLabels(voice);
 
@@ -99,15 +159,21 @@ export const VoiceSelectorDialog = ({
                     <div
                       key={voice.id}
                       className={cn(
-                        "relative p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        "relative p-4 rounded-lg border-2 transition-all cursor-pointer",
                         isSelected
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50 hover:bg-accent/50"
+                          ? "border-primary bg-primary/5 hover:bg-primary/10"
+                          : "border-border hover:border-primary/30 hover:bg-secondary/50"
                       )}
-                      onClick={() => onSelectVoice(voice.id)}
                     >
                       <div className="flex items-start gap-3">
-                        {/* Play Button - Always show, but disable if no preview_url */}
+                        {/* Checkbox */}
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleVoiceSelection(voice.id)}
+                          className="mt-1"
+                        />
+
+                        {/* Play Button */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -120,8 +186,8 @@ export const VoiceSelectorDialog = ({
                             !voice.preview_url
                               ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                               : isPlaying
-                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                              : "bg-secondary hover:bg-secondary/80 text-foreground"
+                              ? "bg-primary text-primary-foreground hover:bg-primary/80"
+                              : "bg-secondary hover:bg-secondary/70 text-foreground"
                           )}
                           title={
                             !voice.preview_url
@@ -179,10 +245,31 @@ export const VoiceSelectorDialog = ({
                       </div>
                     </div>
                   );
-                  })}
-                </div>
-              );
-            })()}
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer with selection count and buttons */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              {localSelectedIds.length} voice{localSelectedIds.length !== 1 ? 's' : ''} selected
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirm}
+              >
+                Confirm
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

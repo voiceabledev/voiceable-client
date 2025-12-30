@@ -94,6 +94,16 @@ export function useAgentData(
           (voiceConfig.voice_id as string) ||
           (platformSettings.voice_id as string) ||
           "",
+        voice_ids:
+          (conversationConfig.voice_ids as string[]) ||
+          (Array.isArray(conversationConfig.voice_id) ? conversationConfig.voice_id : undefined) ||
+          (conversationConfig.voice_id ? [conversationConfig.voice_id as string] : undefined) ||
+          (voiceConfig.voice_id ? [voiceConfig.voice_id as string] : undefined) ||
+          (platformSettings.voice_id ? (Array.isArray(platformSettings.voice_id) ? platformSettings.voice_id : [platformSettings.voice_id as string]) : undefined) ||
+          [],
+        primary_voice_id:
+          (conversationConfig.primary_voice_id as string) ||
+          undefined,
         hipaa_compliance: false,
         audio_recording: false,
         logging: false,
@@ -433,7 +443,9 @@ export function useAgentData(
       // Start by preserving existing config structure to avoid losing data
       const updatedConversationConfig: Record<string, unknown> = {
         ...currentConfig, // Preserve all existing config first (including agent_behaviour_id and agent_behaviour_config)
-        voice_id: agent.voice_id || undefined,
+        voice_id: agent.primary_voice_id || agent.voice_id || (agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids[0] : undefined),
+        voice_ids: agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids : undefined,
+        primary_voice_id: agent.primary_voice_id || (agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids[0] : undefined),
         first_message: agent.first_message || undefined,
         first_message_mode: agent.first_message_mode || undefined,
         webhook_tools: mergedWebhookTools,

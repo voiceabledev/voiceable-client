@@ -4,15 +4,18 @@ import { VoiceSection } from "./sections/VoiceSection";
 import { LanguageSection } from "./sections/LanguageSection";
 import { providers, modelsByProvider } from "@/constants/assistant";
 import type { Agent } from "@/types/assistant";
+import { Voice } from "@/lib/api";
 
 type ConfigurationTabProps = {
   agent: Agent | null;
   onUpdate: (updates: Partial<Agent>) => void;
   onPlayPreview: (voiceId: string) => Promise<void>;
   loadingVoices: boolean;
-  selectedVoiceId: string | null;
-  selectedVoiceName: string;
+  selectedVoiceIds: string[];
+  primaryVoiceId?: string;
+  voices: Voice[];
   setShowVoiceSelector: (show: boolean) => void;
+  onSetPrimaryVoice?: (voiceId: string) => void;
 };
 
 export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
@@ -20,9 +23,11 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
   onUpdate,
   onPlayPreview,
   loadingVoices,
-  selectedVoiceId,
-  selectedVoiceName,
+  selectedVoiceIds,
+  primaryVoiceId,
+  voices,
   setShowVoiceSelector,
+  onSetPrimaryVoice,
 }) => {
   const [modelExpanded, setModelExpanded] = useState(true);
   const [voiceExpanded, setVoiceExpanded] = useState(true);
@@ -62,9 +67,11 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
         expanded={voiceExpanded}
         onToggleExpanded={() => setVoiceExpanded(!voiceExpanded)}
         loadingVoices={loadingVoices}
-        selectedVoiceId={selectedVoiceId}
-        selectedVoiceName={selectedVoiceName}
+        selectedVoiceIds={selectedVoiceIds}
+        primaryVoiceId={primaryVoiceId}
+        voices={voices}
         setShowVoiceSelector={setShowVoiceSelector}
+        onSetPrimaryVoice={onSetPrimaryVoice}
       />
       <LanguageSection
         expanded={languageExpanded}

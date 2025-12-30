@@ -261,7 +261,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // getSectionConfig and renderSectionEditor are now handled by AgentBehaviourStep component
 
   // Step 4: Voice
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
+  const [selectedVoiceIds, setSelectedVoiceIds] = useState<string[]>([]);
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(propLoadingVoices || false);
@@ -482,8 +482,26 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           // Restore platform settings (voice, language)
           if (agent.platform_settings) {
             const platformSettings = agent.platform_settings as { voice_id?: string; language?: string };
-            if (platformSettings.voice_id) setSelectedVoiceId(platformSettings.voice_id);
+            if (platformSettings.voice_id) {
+              // Support both single voice_id (backward compatibility) and voice_ids array
+              if (Array.isArray(platformSettings.voice_id)) {
+                setSelectedVoiceIds(platformSettings.voice_id);
+              } else {
+                setSelectedVoiceIds([platformSettings.voice_id]);
+              }
+            }
             if (platformSettings.language) setSelectedLanguage(platformSettings.language);
+          }
+          
+          // Also check conversation_config for voice_ids and primary_voice_id
+          if (agent.conversation_config) {
+            const conversationConfig = agent.conversation_config as Record<string, unknown>;
+            if (conversationConfig.voice_ids && Array.isArray(conversationConfig.voice_ids)) {
+              setSelectedVoiceIds(conversationConfig.voice_ids.filter((id): id is string => typeof id === 'string'));
+            } else if (conversationConfig.voice_id && typeof conversationConfig.voice_id === 'string') {
+              setSelectedVoiceIds([conversationConfig.voice_id]);
+            }
+            // Note: primary_voice_id is handled automatically when saving - it uses first voice if not set
           }
           
           // Restore section entries from prompt_sections
@@ -828,13 +846,13 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   // Pre-populate voice when template and voices are both loaded
   useEffect(() => {
-    if (template && voices.length > 0 && !selectedVoiceId) {
+    if (template && voices.length > 0 && selectedVoiceIds.length === 0) {
       const templateDefault = templateDefaults[template.title];
       if (templateDefault && templateDefault.recommendedVoiceIds && templateDefault.recommendedVoiceIds.length > 0) {
-        // Try to find a recommended voice
-        const recommendedVoice = voices.find(v => templateDefault.recommendedVoiceIds!.includes(v.id));
-        if (recommendedVoice) {
-          setSelectedVoiceId(recommendedVoice.id);
+        // Find recommended voices that exist in the voices list
+        const recommendedVoices = voices.filter(v => templateDefault.recommendedVoiceIds!.includes(v.id));
+        if (recommendedVoices.length > 0) {
+          setSelectedVoiceIds(recommendedVoices.map(v => v.id));
         }
       } else {
         // Default: Select first professional-sounding voice (prioritize voices with names containing professional keywords)
@@ -844,11 +862,11 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         ) || voices[0];
         
         if (professionalVoice) {
-          setSelectedVoiceId(professionalVoice.id);
+          setSelectedVoiceIds([professionalVoice.id]);
         }
       }
     }
-  }, [template, voices, selectedVoiceId]);
+  }, [template, voices, selectedVoiceIds.length]);
 
   // Fetch user integrations
   useEffect(() => {
@@ -1029,11 +1047,15 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             language: selectedLanguage || "english",
             model: "flux-general",
           },
-          // Always include voice_id if selected (required for Voice and Language steps)
-          ...(selectedVoiceId ? {
-            voice_id: selectedVoiceId,
+          // Always include voice_ids array if selected (required for Voice and Language steps)
+          ...(selectedVoiceIds.length > 0 ? {
+            voice_ids: selectedVoiceIds,
+            // Use first voice as primary if not explicitly set
+            primary_voice_id: selectedVoiceIds[0],
+            // Keep voice_id for backward compatibility (use primary voice)
+            voice_id: selectedVoiceIds[0],
             voice: {
-              voice_id: selectedVoiceId,
+              voice_id: selectedVoiceIds[0],
             }
           } : {}),
           // Include first message if provided
@@ -1046,7 +1068,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
         },
         platform_settings: {
-          ...(selectedVoiceId && { voice_id: selectedVoiceId }),
+          ...(selectedVoiceIds.length > 0 && { voice_id: selectedVoiceIds[0] }),
           language: selectedLanguage || "english"
         },
         // Also include at top level for backward compatibility
@@ -1135,8 +1157,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       // Steps array: [0: Name, 1: Model, 2: Voice & Language, 3: Call Outcomes, 4: Agent Behaviour, 5: Integrations]
       const shouldSyncWithElevenLabs = currentStep === 2;
       
-      // Ensure voice_id is set before syncing (required for ElevenLabs)
-      const hasRequiredFields = shouldSyncWithElevenLabs ? selectedVoiceId && selectedVoiceId.trim() !== "" : true;
+      // Ensure voice_ids are set before syncing (required for ElevenLabs)
+      const hasRequiredFields = shouldSyncWithElevenLabs ? selectedVoiceIds.length > 0 : true;
 
       if (shouldSyncWithElevenLabs && savedAgentId && hasRequiredFields) {
         // Small delay to ensure database transaction is committed
@@ -1144,7 +1166,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         
         try {
           console.log(`[CreateAgentWizard] Syncing with ElevenLabs for step ${currentStep} (${steps[currentStep].label}), agent ID: ${savedAgentId}`);
-          console.log(`[CreateAgentWizard] Current config - Voice ID: ${selectedVoiceId}, Language: ${selectedLanguage}`);
+          console.log(`[CreateAgentWizard] Current config - Voice IDs: ${selectedVoiceIds.join(', ')}, Language: ${selectedLanguage}`);
           console.log(`[CreateAgentWizard] Full config being sent:`, JSON.stringify(config, null, 2));
           
           const publishResponse = await agentsApi.publish(savedAgentId);
@@ -1387,7 +1409,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 1: // Model step
           return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
         case 2: // Voice & Language step
-          return selectedVoiceId.trim() !== "" && selectedLanguage.trim() !== "";
+          return selectedVoiceIds.length > 0 && selectedLanguage.trim() !== "";
         case 3: { // Call Outcomes step
           // Primary outcome is required
           if (!primaryOutcome || primaryOutcome.trim() === "") {
@@ -1416,7 +1438,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 1:
           return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
         case 2: // Voice & Language step
-          return selectedVoiceId.trim() !== "" && selectedLanguage.trim() !== "";
+          return selectedVoiceIds.length > 0 && selectedLanguage.trim() !== "";
         case 3: { // Call Outcomes step
           // Primary outcome is required
           if (!primaryOutcome || primaryOutcome.trim() === "") {
@@ -1444,7 +1466,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // handlePlayPreview is now provided by useVoicePreview hook
 
 
-  const selectedVoice = voices.find(v => v.id === selectedVoiceId);
+  const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
 
   const renderStepContent = () => {
     // If name step is skipped, currentStep 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
@@ -1463,13 +1485,13 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 2: // Voice & Language step
           return (
             <VoiceLanguageStep
-              selectedVoiceId={selectedVoiceId}
+              selectedVoiceIds={selectedVoiceIds}
               voices={voices}
               loadingVoices={loadingVoices}
               showVoiceSelector={showVoiceSelector}
               onShowVoiceSelectorChange={setShowVoiceSelector}
-              onSelectVoice={(voiceId) => {
-                setSelectedVoiceId(voiceId);
+              onSelectVoices={(voiceIds) => {
+                setSelectedVoiceIds(voiceIds);
                 setShowVoiceSelector(false);
               }}
               playingVoiceId={playingVoiceId}
@@ -1598,13 +1620,13 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 2: // Voice & Language step
           return (
             <VoiceLanguageStep
-              selectedVoiceId={selectedVoiceId}
+              selectedVoiceIds={selectedVoiceIds}
               voices={voices}
               loadingVoices={loadingVoices}
               showVoiceSelector={showVoiceSelector}
               onShowVoiceSelectorChange={setShowVoiceSelector}
-              onSelectVoice={(voiceId) => {
-                setSelectedVoiceId(voiceId);
+              onSelectVoices={(voiceIds) => {
+                setSelectedVoiceIds(voiceIds);
                 setShowVoiceSelector(false);
               }}
               playingVoiceId={playingVoiceId}
