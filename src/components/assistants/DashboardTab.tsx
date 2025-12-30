@@ -3,6 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -17,11 +23,13 @@ import {
   Download,
   Calendar,
   Phone,
-  Globe
+  Globe,
+  ChevronDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { agentMetricsApi, phoneNumbersApi, conversationsApi, type AgentROI, type PhoneNumber } from "@/lib/api";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
+import { useOutcomeDefinition } from "@/hooks/assistants/useOutcomeDefinition";
 import type { Agent } from "@/types/assistant";
 
 type DashboardTabProps = {
@@ -30,15 +38,106 @@ type DashboardTabProps = {
   onNavigateToWidget?: () => void;
 };
 
+// Map primary outcome values to human-readable labels
+const getPrimaryOutcomeLabel = (primaryOutcome: string | undefined): string => {
+  const outcomeMap: Record<string, string> = {
+    'appointment_scheduled': 'Appointments Booked',
+    'meeting_booked': 'Meetings Booked',
+    'lead_qualified': 'Leads Qualified',
+    'issue_resolved': 'Issues Resolved',
+    'complaint_resolved': 'Complaints Resolved',
+    'order_placed': 'Orders Placed',
+    'information_provided': 'Information Provided',
+  };
+  
+  return primaryOutcome ? (outcomeMap[primaryOutcome] || 'Successful Outcomes') : 'Successful Outcomes';
+};
+
+// Map primary outcome values to cost per outcome labels
+const getCostPerOutcomeLabel = (primaryOutcome: string | undefined): string => {
+  const costMap: Record<string, string> = {
+    'appointment_scheduled': 'Cost per Booking',
+    'meeting_booked': 'Cost per Booking',
+    'lead_qualified': 'Cost per Deal',
+    'order_placed': 'Cost per Deal',
+    'issue_resolved': 'Cost per Resolution',
+    'complaint_resolved': 'Cost per Resolution',
+    'information_provided': 'Cost per Action',
+  };
+  
+  return primaryOutcome ? (costMap[primaryOutcome] || 'Cost per Success') : 'Cost per Success';
+};
+
+type DateRangeOption = 'today' | 'yesterday' | '7days' | '15days' | '30days';
+
+const getDateRangeLabel = (option: DateRangeOption): string => {
+  switch (option) {
+    case 'today':
+      return 'Today';
+    case 'yesterday':
+      return 'Yesterday';
+    case '7days':
+      return 'Last 7 Days';
+    case '15days':
+      return 'Last 15 Days';
+    case '30days':
+      return 'Last 30 Days';
+    default:
+      return 'Last 30 Days';
+  }
+};
+
+const calculateDateRange = (option: DateRangeOption): { start_date: string; end_date: string } => {
+  const now = new Date();
+  const endDate = new Date(now);
+  endDate.setUTCHours(23, 59, 59, 999); // End of today in UTC
+  
+  const startDate = new Date(now);
+  
+  switch (option) {
+    case 'today':
+      startDate.setUTCHours(0, 0, 0, 0);
+      break;
+    case 'yesterday':
+      startDate.setUTCDate(startDate.getUTCDate() - 1);
+      startDate.setUTCHours(0, 0, 0, 0);
+      endDate.setUTCDate(endDate.getUTCDate() - 1);
+      endDate.setUTCHours(23, 59, 59, 999);
+      break;
+    case '7days':
+      startDate.setUTCDate(startDate.getUTCDate() - 7);
+      startDate.setUTCHours(0, 0, 0, 0);
+      break;
+    case '15days':
+      startDate.setUTCDate(startDate.getUTCDate() - 15);
+      startDate.setUTCHours(0, 0, 0, 0);
+      break;
+    case '30days':
+      startDate.setUTCDate(startDate.getUTCDate() - 30);
+      startDate.setUTCHours(0, 0, 0, 0);
+      break;
+  }
+  
+  // Return full ISO 8601 datetime strings (backend expects Time.parse format)
+  return {
+    start_date: startDate.toISOString(),
+    end_date: endDate.toISOString(),
+  };
+};
+
 export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNavigateToWidget }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [roiData, setRoiData] = useState<AgentROI | null>(null);
-  const [dateRange, setDateRange] = useState<{ start_date?: string; end_date?: string }>({});
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRangeOption>('30days');
+  const [dateRange, setDateRange] = useState<{ start_date?: string; end_date?: string }>(() => 
+    calculateDateRange('30days')
+  );
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [loadingPhoneNumbers, setLoadingPhoneNumbers] = useState(false);
   const [showPhoneNumberModal, setShowPhoneNumberModal] = useState(false);
   const [hasConversations, setHasConversations] = useState<boolean | null>(null);
+  const { outcomeDefinition } = useOutcomeDefinition(agentId);
 
   const fetchMetrics = useCallback(async () => {
     if (!agentId) {
@@ -362,14 +461,62 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Calendar className="h-4 w-4 mr-2" />
-            Last 30 Days
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                {getDateRangeLabel(selectedDateRange)}
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => {
+                  const option: DateRangeOption = 'today';
+                  setSelectedDateRange(option);
+                  setDateRange(calculateDateRange(option));
+                }}
+              >
+                Today
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const option: DateRangeOption = 'yesterday';
+                  setSelectedDateRange(option);
+                  setDateRange(calculateDateRange(option));
+                }}
+              >
+                Yesterday
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const option: DateRangeOption = '7days';
+                  setSelectedDateRange(option);
+                  setDateRange(calculateDateRange(option));
+                }}
+              >
+                Last 7 Days
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const option: DateRangeOption = '15days';
+                  setSelectedDateRange(option);
+                  setDateRange(calculateDateRange(option));
+                }}
+              >
+                Last 15 Days
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const option: DateRangeOption = '30days';
+                  setSelectedDateRange(option);
+                  setDateRange(calculateDateRange(option));
+                }}
+              >
+                Last 30 Days
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -390,7 +537,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Appointments Booked</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {getPrimaryOutcomeLabel(outcomeDefinition?.primary_outcome)}
+            </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -432,7 +581,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cost per Booking</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {getCostPerOutcomeLabel(outcomeDefinition?.primary_outcome)}
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

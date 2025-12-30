@@ -1649,33 +1649,6 @@ export const dashboardsApi = {
   },
 };
 
-// Business Goals API
-export interface BusinessGoal {
-  id: number;
-  name: string;
-  description: string;
-  success_criteria: Record<string, any>;
-  avg_cost_per_success: number;
-  typical_roi: number;
-  default_config: Record<string, any>;
-  required_integrations: string[];
-  active: boolean;
-  position: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export const businessGoalsApi = {
-  list: async () => {
-    const response = await apiClient.get<{ data: BusinessGoal[] }>('/business_goals');
-    return response;
-  },
-  get: async (id: number) => {
-    const response = await apiClient.get<{ data: BusinessGoal }>(`/business_goals/${id}`);
-    return response;
-  },
-};
-
 // Enhanced Metrics API for Agents
 export interface AgentMetrics {
   roi: {

@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           description: 'Welcome back!',
         });
         // Navigation will be handled by the component
-        return '/overview';
+        return '/assistants';
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid email or password';

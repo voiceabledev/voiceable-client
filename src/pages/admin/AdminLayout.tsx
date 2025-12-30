@@ -104,7 +104,7 @@ export default function AdminLayout() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/overview")}
+            onClick={() => navigate("/assistants")}
             className="flex-shrink-0 hover:bg-secondary"
           >
             <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />

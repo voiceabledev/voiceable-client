@@ -319,7 +319,7 @@ const CustomAgents = () => {
             <a href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
           </div>
           
-          <Link to="/overview">
+          <Link to="/assistants">
             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
               Open Dashboard
             </Button>

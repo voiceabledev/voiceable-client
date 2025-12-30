@@ -86,7 +86,7 @@ export function Navigation() {
           </a> */}
         </div>
         
-        <Link to="/overview">
+        <Link to="/assistants">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
             Open Dashboard
           </Button>

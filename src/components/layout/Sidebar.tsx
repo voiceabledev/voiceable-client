@@ -211,7 +211,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-6">
         {/* Overview */}
-        <NavLink
+        {/* <NavLink
           to="/overview"
           onClick={() => {
             if (isMobile && onMobileMenuChange) {
@@ -227,7 +227,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
         >
           <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
           {showFullContent && <span>Overview</span>}
-        </NavLink>
+        </NavLink> */}
 
         {/* Build Section */}
         <div>
