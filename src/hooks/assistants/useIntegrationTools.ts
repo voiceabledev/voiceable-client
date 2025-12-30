@@ -607,9 +607,8 @@ export function useIntegrationTools(
       } else {
         setEditingIntegrationConfig(null);
         setIntegrationModalTab("credentials");
-        // For new integrations, pre-select all available tools
-        const availableTools = INTEGRATION_TOOLS_DISPLAY[type as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-        setSelectedIntegrationToolsForModal(availableTools);
+        // For new integrations, don't pre-select tools - they'll be added automatically when saving
+        setSelectedIntegrationToolsForModal([]);
       }
     } catch (error) {
       console.error("Failed to fetch integration schema:", error);

@@ -15,7 +15,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Puzzle, 
   ChevronRight, 
-  ArrowLeft, 
   ShieldCheck, 
   Wrench,
   Info,
@@ -46,7 +45,6 @@ type IntegrationConnectionModalProps = {
   selectIntegrationToAdd: (type: string) => void;
   userIntegrations: UserIntegration[];
   connectingIntegrationType: string | null;
-  goBackToIntegrationSelect: () => void;
   integrationSchemas: Record<string, IntegrationSchema>;
   integrationModalTab: "about" | "credentials" | "tools";
   setIntegrationModalTab: (tab: "about" | "credentials" | "tools") => void;
@@ -70,7 +68,6 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   selectIntegrationToAdd,
   userIntegrations,
   connectingIntegrationType,
-  goBackToIntegrationSelect,
   integrationSchemas,
   integrationModalTab,
   setIntegrationModalTab,
@@ -127,16 +124,17 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
     }
   }, [editingIntegrationConfig]);
 
-  // Populate selected tools when switching to tools tab if not already populated
+  // Populate selected tools when switching to tools tab for existing integrations only
   useEffect(() => {
-    if (integrationModalTab === "tools" && connectingIntegrationType && selectedIntegrationToolsForModal.length === 0) {
+    if (connectingIntegrationType && integrationModalTab === "tools") {
       // Check if this integration is already connected to the agent
       const hasIntegrationInAgent = agentIntegrationTools.some(
         tool => tool.integration_type === connectingIntegrationType
       );
       
-      // If the integration is already connected to the agent, pre-select only enabled tools
-      if (hasIntegrationInAgent) {
+      // Only pre-select tools for existing integrations (not new ones)
+      if (hasIntegrationInAgent && selectedIntegrationToolsForModal.length === 0) {
+        // If the integration is already connected to the agent, pre-select only enabled tools
         const enabledToolsForIntegration = agentIntegrationTools
           .filter(tool => tool.integration_type === connectingIntegrationType && tool.enabled)
           .map(tool => {
@@ -152,12 +150,6 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
         
         if (enabledToolsForIntegration.length > 0) {
           setSelectedIntegrationToolsForModal(enabledToolsForIntegration);
-        }
-      } else {
-        // For new integrations (not yet connected to this agent), pre-select all available tools
-        const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-        if (availableTools.length > 0) {
-          setSelectedIntegrationToolsForModal(availableTools);
         }
       }
     }
@@ -192,6 +184,14 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
     
     // If adding for the first time (even if integration exists in userIntegrations), show all available tools
     return allAvailableTools;
+  }, [connectingIntegrationType, agentIntegrationTools]);
+
+  // Determine if this is a new integration (not yet connected to agent)
+  const isNewIntegration = useMemo(() => {
+    if (!connectingIntegrationType) return false;
+    return !agentIntegrationTools.some(
+      tool => tool.integration_type === connectingIntegrationType
+    );
   }, [connectingIntegrationType, agentIntegrationTools]);
 
   // Wrap onOpenChange to prevent double close and accidental closes
@@ -362,7 +362,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                 {availableIntegrationTypes.map((type, idx) => {
                   const isConnected = userIntegrations.some(i => i.integration_type === type.id);
                   const isUpcoming = type.status === "upcoming";
-                  const isAvailable = type.status === "available";
+                  // Default to available if status is not set
+                  const isAvailable = type.status !== "upcoming";
                   
                   return (
                     <button
@@ -414,27 +415,15 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
             </ScrollArea>
           ) : (
             <Tabs value={integrationModalTab} onValueChange={(val) => setIntegrationModalTab(val as "about" | "credentials" | "tools")} className="flex flex-col flex-1 min-h-0">
-              <div className="px-6 border-b bg-secondary/20 flex items-center justify-between flex-shrink-0">
+              <div className="px-6 border-b bg-secondary/20 flex items-center justify-center flex-shrink-0">
                 <TabsList className="h-12 bg-transparent gap-6">
                   <TabsTrigger value="credentials" className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-full px-1">
                     Credentials
                   </TabsTrigger>
-                  {!isWizardMode && (
-                    <TabsTrigger value="tools" className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-full px-1">
-                      Tools
-                    </TabsTrigger>
-                  )}
+                  <TabsTrigger value="tools" className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-full px-1">
+                    Tools
+                  </TabsTrigger>
                 </TabsList>
-                <Button 
-                  type="button"
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={goBackToIntegrationSelect}
-                  className="h-8"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5 mr-2" />
-                  Back
-                </Button>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto">
@@ -512,8 +501,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     </div>
                   </TabsContent>
 
-                  {!isWizardMode && (
-                    <TabsContent value="tools" className="mt-0 space-y-5">
+                  <TabsContent value="tools" className="mt-0 space-y-5">
                       <div className="space-y-5">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -522,46 +510,80 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                             Available Tools
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Select the tools you want to enable for your assistant
+                            {(isNewIntegration || isWizardMode)
+                              ? "All tools will be added to your assistant" 
+                              : "Select the tools you want to enable for your assistant"}
                           </p>
                         </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {selectedIntegrationToolsForModal.length} selected
-                        </Badge>
+                        {!(isNewIntegration || isWizardMode) && (
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedIntegrationToolsForModal.length} selected
+                          </Badge>
+                        )}
+                        {(isNewIntegration || isWizardMode) && (
+                          <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                            {toolsToDisplay.length} tools
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
+                      <div className={cn(
+                        "max-h-[400px] overflow-y-auto grid gap-2",
+                        (isNewIntegration || isWizardMode) 
+                          ? "grid-cols-2 md:grid-cols-3" 
+                          : "grid-cols-3"
+                      )}>
                         {toolsToDisplay.map((toolName) => {
+                          // For new integrations or wizard mode, show as simple list (no selection)
+                          const showAsList = isNewIntegration || isWizardMode;
+                          
+                          if (showAsList) {
+                            // Simple list view - no interaction, no selection state
+                            return (
+                              <div
+                                key={toolName}
+                                className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border"
+                              >
+                                <div className={cn(
+                                  "w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
+                                  integrationMeta.iconBg
+                                )}>
+                                  {integrationMeta.icon}
+                                </div>
+                                <span className="font-medium text-sm">
+                                  {toolName}
+                                </span>
+                              </div>
+                            );
+                          }
+                          
+                          // Selection view for existing integrations
                           const isSelected = selectedIntegrationToolsForModal.includes(toolName);
                           return (
                             <div
                               key={toolName}
                               className={cn(
-                                "flex items-start space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all group",
-                                isSelected 
-                                  ? "border-primary bg-primary/5 shadow-sm" 
+                                "flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer",
+                                isSelected
+                                  ? "border-primary bg-primary/5 shadow-sm"
                                   : "border-border hover:border-primary/30 hover:bg-accent/30"
                               )}
                               onClick={() => toggleModalToolSelection(toolName)}
                             >
+                              <div className={cn(
+                                "w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
+                                integrationMeta.iconBg
+                              )}>
+                                {integrationMeta.icon}
+                              </div>
+                              <span className="font-medium text-sm">
+                                {toolName}
+                              </span>
                               <Checkbox
                                 checked={isSelected}
                                 onCheckedChange={() => toggleModalToolSelection(toolName)}
-                                className="mt-1"
+                                className="ml-auto"
                               />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2.5">
-                                  <div className={cn(
-                                    "w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
-                                    integrationMeta.iconBg
-                                  )}>
-                                    {integrationMeta.icon}
-                                  </div>
-                                  <span className="font-medium text-sm group-hover:text-primary transition-colors">
-                                    {toolName}
-                                  </span>
-                                </div>
-                              </div>
                             </div>
                           );
                         })}
@@ -574,7 +596,6 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         </div>
                       </div>
                     </TabsContent>
-                  )}
                 </div>
               </div>
             </Tabs>
@@ -583,9 +604,6 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 
         <div className="px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-end items-center flex-shrink-0">
           <div className="flex gap-3">
-            <Button type="button" variant="outline" onClick={handleClose} className="min-w-24">
-              Cancel
-            </Button>
             {integrationModalStep !== "select" && (
               <>
                 {integrationModalTab === "tools" ? (
@@ -594,6 +612,11 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      // For new integrations/wizard mode, ensure all tools are selected before saving
+                      if (isNewIntegration || isWizardMode) {
+                        const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                        setSelectedIntegrationToolsForModal(availableTools);
+                      }
                       await handleSaveSelectedIntegrationTools();
                     }}
                     disabled={isSaving}
@@ -607,7 +630,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     ) : (
                       <>
                         <ShieldCheck className="h-4 w-4 mr-2" />
-                        Add Tools
+                        Add Integration
                       </>
                     )}
                   </Button>
@@ -617,26 +640,32 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     onClick={async () => {
                       // Save/update the API key first
                       await handleIntegrationConnect({ api_key: apiKey });
-                      // In wizard mode, automatically add all tools and close
-                      if (isWizardMode) {
+                      // In wizard mode or for new integrations, automatically add all tools and save
+                      if (isWizardMode || isNewIntegration) {
                         // Automatically add all available tools
                         const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
                         setSelectedIntegrationToolsForModal(availableTools);
-                        // Save and close - the handleSaveSelectedIntegrationTools will close the modal
+                        // Save and close
                         await handleSaveSelectedIntegrationTools();
-                        // Ensure modal is closed
-                        closeIntegrationConnectionModal();
                       } else {
-                        // Then move to tools tab (stay in connect step)
+                        // For existing integrations, move to tools tab to select tools
                         setIntegrationModalTab("tools");
                       }
                     }}
                     disabled={connectingIntegrationLoading || (!apiKey && !editingIntegrationConfig)}
                     className="min-w-32"
                   >
-                    {connectingIntegrationLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {isWizardMode ? "Add Integration" : "Next"}
-                    {!isWizardMode && <ChevronRight className="h-4 w-4 ml-2" />}
+                    {connectingIntegrationLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-4 w-4 mr-2" />
+                        Add Integration
+                      </>
+                    )}
                   </Button>
                 )}
               </>
