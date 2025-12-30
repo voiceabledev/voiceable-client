@@ -82,6 +82,13 @@ const UserIcon = () => (
   </svg>
 );
 
+const SendIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"/>
+    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+  </svg>
+);
+
 interface EmbeddableWidgetProps {
   config: Partial<EmbeddableWidgetConfig> & { agentId: string; apiKey: string };
   apiBaseUrl?: string;
@@ -104,10 +111,12 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [textInput, setTextInput] = useState('');
   
   const conversationRef = useRef<Conversation | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const size = WIDGET_SIZES[fullConfig.widgetSize];
   const position = WIDGET_POSITIONS[fullConfig.position];
@@ -154,7 +163,7 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
     };
   }, []);
 
-  const getSignedUrl = async (): Promise<string> => {
+  const getSignedUrl = useCallback(async (): Promise<string> => {
     const response = await fetch(
       `${apiBaseUrl}/api/v1/widget/${fullConfig.apiKey}/${fullConfig.agentId}/signed_url`
     );
@@ -164,7 +173,7 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
     }
     const data = await response.json();
     return data.data?.signed_url;
-  };
+  }, [apiBaseUrl, fullConfig.apiKey, fullConfig.agentId]);
 
   const startConversation = useCallback(async () => {
     try {
@@ -230,7 +239,7 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
       setError(err instanceof Error ? err.message : 'Failed to start conversation');
       setStatus('idle');
     }
-  }, [fullConfig, messages.length, apiBaseUrl]);
+  }, [fullConfig, messages.length, getSignedUrl]);
 
   const endConversation = useCallback(async () => {
     if (conversationRef.current) {
@@ -254,6 +263,46 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
       }
     }
   }, [isMuted]);
+
+  const sendTextMessage = useCallback(async () => {
+    const trimmedText = textInput.trim();
+    const active = status !== 'idle';
+    if (!trimmedText || !conversationRef.current || !active) {
+      return;
+    }
+
+    // Add user message to chat immediately for instant feedback
+    const userMessage: WidgetMessage = {
+      id: `${Date.now()}-${Math.random()}`,
+      role: 'user',
+      text: trimmedText,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+    setTextInput('');
+
+    try {
+      // Send text to agent using interrupt method
+      // The interrupt method sends text that interrupts the agent's current speech
+      const conversation = conversationRef.current;
+      if ('interrupt' in conversation && typeof conversation.interrupt === 'function') {
+        await conversation.interrupt({ text: trimmedText });
+      } else if ('sendText' in conversation && typeof conversation.sendText === 'function') {
+        await conversation.sendText(trimmedText);
+      } else if ('send' in conversation && typeof conversation.send === 'function') {
+        await conversation.send({ text: trimmedText });
+      } else {
+        // Fallback: try to call interrupt directly (using type assertion for unknown method)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (conversation as any).interrupt?.({ text: trimmedText });
+      }
+    } catch (err) {
+      console.error('Error sending text message:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send message');
+      // Remove the message if sending failed
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+    }
+  }, [textInput, status]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -415,12 +464,15 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
       color: fullConfig.colors.text,
       opacity: 0.5,
     },
-    message: (role: 'user' | 'agent') => ({
-      display: 'flex',
-      flexDirection: (role === 'user' ? 'row-reverse' : 'row') as const,
-      gap: '8px',
-      marginBottom: '12px',
-    }),
+    message: (role: 'user' | 'agent') => {
+      const flexDir = role === 'user' ? 'row-reverse' : 'row';
+      return {
+        display: 'flex',
+        flexDirection: flexDir as 'row' | 'row-reverse',
+        gap: '8px',
+        marginBottom: '12px',
+      };
+    },
     messageAvatar: (role: 'user' | 'agent') => ({
       width: 28,
       height: 28,
@@ -455,6 +507,48 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
       color: '#dc2626',
       fontSize: '12px',
       borderBottom: `1px solid ${fullConfig.colors.border}`,
+    },
+    textInputContainer: {
+      padding: '12px 16px',
+      borderTop: `1px solid ${fullConfig.colors.border}`,
+      display: 'flex',
+      gap: '8px',
+      alignItems: 'center',
+      backgroundColor: fullConfig.colors.background,
+    },
+    textInput: {
+      flex: 1,
+      padding: '10px 14px',
+      borderRadius: '8px',
+      border: `1px solid ${fullConfig.colors.border}`,
+      backgroundColor: fullConfig.colors.background,
+      color: fullConfig.colors.text,
+      fontSize: '14px',
+      fontFamily: 'inherit',
+      outline: 'none',
+      resize: 'none' as const,
+    },
+    textInputDisabled: {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+    },
+    sendButton: {
+      width: 36,
+      height: 36,
+      borderRadius: '50%',
+      border: 'none',
+      backgroundColor: fullConfig.colors.primary,
+      color: fullConfig.colors.primaryText,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      transition: 'opacity 0.2s, transform 0.2s',
+    },
+    sendButtonDisabled: {
+      opacity: 0.5,
+      cursor: 'not-allowed',
     },
   };
 
@@ -553,7 +647,7 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
                   <ChatIcon />
                   <p style={{ margin: '12px 0 0 0', fontSize: '14px' }}>
                     {isActive 
-                      ? 'Speak to start the conversation'
+                      ? 'Speak or type to start the conversation'
                       : 'Click the phone button to start'
                     }
                   </p>
@@ -574,6 +668,45 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
                 ))
               )}
               <div ref={messagesEndRef} />
+            </div>
+
+            {/* Text Input */}
+            <div style={styles.textInputContainer}>
+              <input
+                ref={textInputRef}
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && isActive) {
+                    e.preventDefault();
+                    sendTextMessage();
+                  }
+                }}
+                placeholder={
+                  !isActive 
+                    ? "Start a call to type or speak..." 
+                    : isMuted 
+                    ? "Microphone is muted. Type your message..." 
+                    : "Type your message..."
+                }
+                disabled={!isActive}
+                style={{
+                  ...styles.textInput,
+                  ...(!isActive ? styles.textInputDisabled : {}),
+                }}
+              />
+              <button
+                onClick={sendTextMessage}
+                disabled={!isActive || !textInput.trim()}
+                style={{
+                  ...styles.sendButton,
+                  ...(!isActive || !textInput.trim() ? styles.sendButtonDisabled : {}),
+                }}
+                aria-label="Send message"
+              >
+                <SendIcon />
+              </button>
             </div>
           </motion.div>
         )}
