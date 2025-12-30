@@ -74,11 +74,11 @@ export default function WorkflowsList() {
   );
 
   const handleWorkflowClick = (workflowId: string) => {
-    navigate(`/workflows/${workflowId}`);
+    navigate(`/workflows-v1/new`);
   };
 
   const handleCreateWorkflow = () => {
-    navigate("/workflows/new");
+    navigate("/workflows-v1/new");
   };
 
   const handleDeleteWorkflow = async (workflow: Workflow, e: React.MouseEvent) => {

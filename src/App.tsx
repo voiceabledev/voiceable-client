@@ -35,6 +35,7 @@ import Pricing from "@/pages/Pricing";
 import CustomAgents from "@/pages/CustomAgents";
 import WorkflowEditor from "@/pages/WorkflowEditor";
 import WorkflowsList from "@/pages/WorkflowsList";
+import WorkflowEditorV1 from "@/pages/WorkflowEditorV1";
 import SignUp from "@/pages/auth/SignUp";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import ResetPasswordConfirm from "@/pages/auth/ResetPasswordConfirm";
@@ -103,6 +104,8 @@ const App = () => (
                 <Route path="/workflows" element={<WorkflowsList />} />
                 <Route path="/workflows/new" element={<WorkflowEditor />} />
                 <Route path="/workflows/:id" element={<WorkflowEditor />} />
+                <Route path="/workflows-v1/new" element={<WorkflowEditorV1 />} />
+                <Route path="/workflows-v1/:id" element={<WorkflowEditorV1 />} />
                 <Route path="/phone-numbers" element={<PhoneNumbers />} />
                 <Route path="/voice-library" element={<VoiceLibrary />} />
                 <Route path="/api-keys" element={<ApiKeys />} />

@@ -46,7 +46,7 @@ export function CreateWorkflowModal({ isOpen, onClose }: CreateWorkflowModalProp
 
   const handleCreate = () => {
     onClose();
-    navigate("/workflows/new");
+    navigate("/workflows-v1/new");
   };
 
   return (

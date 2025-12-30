@@ -116,7 +116,7 @@ export default function Workflows() {
               <TableRow
                 key={workflow.id}
                 className="hover:bg-secondary/50 cursor-pointer"
-                onClick={() => navigate(`/workflows/${workflow.id}`)}
+                onClick={() => navigate(`/workflows-v1/${workflow.id}`)}
               >
                 <TableCell className="font-medium">{workflow.name}</TableCell>
                 <TableCell className="text-muted-foreground">{workflow.stepCount}</TableCell>
