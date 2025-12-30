@@ -682,8 +682,11 @@ export default function AssistantDetail() {
     
     const currentConfig = (agentData.agent as any)?.conversation_config || {};
     
-    // Update local state immediately
+    // Update local state immediately - update both conversation_config AND top-level properties
     agentData.handleUpdate({
+      // Update top-level primary_voice_id and voice_id so handleSave can read them
+      primary_voice_id: voiceId,
+      voice_id: voiceId, // Keep for backward compatibility
       conversation_config: {
         ...currentConfig,
         primary_voice_id: voiceId,
@@ -1581,8 +1584,12 @@ export default function AssistantDetail() {
             ? currentPrimary 
             : (voiceIds.length > 0 ? voiceIds[0] : undefined);
           
-          // Update local state immediately
+          // Update local state immediately - update both conversation_config AND top-level properties
           agentData.handleUpdate({
+            // Update top-level voice_ids and primary_voice_id so handleSave can read them
+            voice_ids: voiceIds,
+            primary_voice_id: newPrimary,
+            voice_id: newPrimary, // Keep for backward compatibility
             conversation_config: {
               ...currentConfig,
               voice_ids: voiceIds,
