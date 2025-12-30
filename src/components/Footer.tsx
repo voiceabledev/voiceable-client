@@ -4,7 +4,7 @@ const footerLinks = {
   product: [
     { name: "Home", href: "/" },
     { name: "Receptionist", href: "/receptionist" },
-    { name: "Recruiters", href: "/recruiters" },
+    // { name: "Recruiters", href: "/recruiters" },
     { name: "Lead Qualifier", href: "/scheduler" },
     { name: "Leads Reviver", href: "/leads-reviver" },
     { name: "Appointment Confirmation", href: "/confirmation" },

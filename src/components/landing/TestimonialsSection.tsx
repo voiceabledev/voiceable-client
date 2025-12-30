@@ -4,6 +4,7 @@ interface Testimonial {
   quote: string;
   author: string;
   company: string;
+  metric?: string;
 }
 
 interface TestimonialsSectionProps {
@@ -31,7 +32,7 @@ export function TestimonialsSection({ title = "What our customers say", testimon
                 "{testimonial.quote}"
               </p>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold">
                   {testimonial.author[0]}
                 </div>
@@ -40,6 +41,11 @@ export function TestimonialsSection({ title = "What our customers say", testimon
                   <p className="text-sm text-muted-foreground">{testimonial.company}</p>
                 </div>
               </div>
+              {testimonial.metric && (
+                <div className="pt-4 border-t border-border">
+                  <p className="text-sm font-semibold text-primary">{testimonial.metric}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>

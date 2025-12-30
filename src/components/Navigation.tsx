@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 const AGENTS = [
   { name: "Receptionist", href: "/receptionist" },
-  { name: "Recruiters", href: "/recruiters" },
+  // { name: "Recruiters", href: "/recruiters" },
   { name: "Lead Qualifier", href: "/scheduler" },
   { name: "Leads Reviver", href: "/leads-reviver" },
   { name: "Appointment Confirmation", href: "/confirmation" },

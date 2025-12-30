@@ -1,6 +1,17 @@
 export { HeroSection } from './HeroSection';
 export { ValueProposition } from './ValueProposition';
 export { TryItSection } from './TryItSection';
+export { RevenueCaptureDashboard } from './RevenueCaptureDashboard';
+export { ROICalculator } from './ROICalculator';
+export { ComparisonTable } from './ComparisonTable';
+export { ObjectionHandlingSection } from './ObjectionHandlingSection';
+export { PipelineImpactDashboard } from './PipelineImpactDashboard';
+export { SpeedImpactCalculator } from './SpeedImpactCalculator';
+export { RevenueRecoveryDashboard } from './RevenueRecoveryDashboard';
+export { HiddenRevenueCalculator } from './HiddenRevenueCalculator';
+export { NoShowPreventionDashboard } from './NoShowPreventionDashboard';
+export { NoShowCostCalculator } from './NoShowCostCalculator';
+export { RecruiterDashboard } from './RecruiterDashboard';
 export { UseCasesSection } from './UseCasesSection';
 export { StepsSection } from './StepsSection';
 export { FeaturesGrid } from './FeaturesGrid';
