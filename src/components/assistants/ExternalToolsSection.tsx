@@ -6,7 +6,12 @@ import { cn } from "@/lib/utils";
 type WebhookToolSummary = {
   id: string;
   name: string;
+  webhook_tool_type?: 'user' | 'system';
 };
+
+// Outcome webhook tool IDs and names (system-created tools)
+const OUTCOME_TOOL_IDS = ['outcome-report-success', 'outcome-report-failure', 'outcome-report-escalation'];
+const OUTCOME_TOOL_NAMES = ['Report Success', 'Report Failure', 'Report Escalation'];
 
 type ClientToolSummary = {
   id: string;
@@ -36,7 +41,26 @@ export const ExternalToolsSection: React.FC<ExternalToolsSectionProps> = ({
   onEditClientTool,
   onDeleteClientTool,
 }) => {
-  const totalCount = (webhooks?.length || 0) + (clientTools?.length || 0);
+  // Filter to only show user-created webhook tools (system tools are hidden)
+  // System tools have webhook_tool_type === 'system' and are created by the system
+  // Also filter by ID/name for backward compatibility with existing tools that might not have the type set
+  const userWebhooks = webhooks.filter((tool) => {
+    // Hide if explicitly marked as system
+    if (tool.webhook_tool_type === 'system') {
+      return false;
+    }
+    // Hide outcome tools by ID (for backward compatibility)
+    if (tool.id && OUTCOME_TOOL_IDS.includes(tool.id)) {
+      return false;
+    }
+    // Hide outcome tools by name (for backward compatibility)
+    if (tool.name && OUTCOME_TOOL_NAMES.includes(tool.name)) {
+      return false;
+    }
+    // Show all other tools
+    return true;
+  });
+  const totalCount = (userWebhooks?.length || 0) + (clientTools?.length || 0);
 
   return (
     <div className="bg-card border border-border rounded-lg p-4 md:p-6">
@@ -72,9 +96,9 @@ export const ExternalToolsSection: React.FC<ExternalToolsSectionProps> = ({
 
       {expanded && (
         <div className="mt-4 md:mt-6">
-          {((webhooks?.length || 0) > 0 || (clientTools?.length || 0) > 0) ? (
+          {((userWebhooks?.length || 0) > 0 || (clientTools?.length || 0) > 0) ? (
             <div className="space-y-2">
-              {webhooks?.map((tool, index) => (
+              {userWebhooks?.map((tool, index) => (
                 <div
                   key={tool.id || `webhook-${index}`}
                   className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border"

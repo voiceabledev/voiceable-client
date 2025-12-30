@@ -26,12 +26,15 @@ export function useWebhookTools() {
   }, []);
 
   const saveWebhookTool = useCallback(() => {
+    // Ensure user-created tools have webhook_tool_type: 'user'
+    const toolToSave = { ...webhookForm, webhook_tool_type: 'user' as const };
+    
     if (editingWebhookTool) {
       setWebhookTools((prev) =>
-        prev.map((t) => (t.id === editingWebhookTool.id ? webhookForm : t))
+        prev.map((t) => (t.id === editingWebhookTool.id ? toolToSave : t))
       );
     } else {
-      setWebhookTools((prev) => [...prev, { ...webhookForm, id: crypto.randomUUID() }]);
+      setWebhookTools((prev) => [...prev, { ...toolToSave, id: crypto.randomUUID() }]);
     }
     closeWebhookModal();
   }, [editingWebhookTool, webhookForm, closeWebhookModal]);

@@ -470,6 +470,7 @@ const createIntegrationWebhookTool = (
     disableInterruptions: false,
     preToolSpeech: "auto",
     responseTimeout: 20,
+    webhook_tool_type: 'system', // Integration tools are system-created
   };
 };
 

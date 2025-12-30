@@ -110,6 +110,7 @@ export type WebhookTool = {
   pathParams: WebhookPathParam[];
   bodyParams?: WebhookQueryParam[]; // Body parameters have same structure as query params
   dynamicVariableAssignments: DynamicVariableAssignment[];
+  webhook_tool_type?: 'user' | 'system';
 };
 
 // Client Tool Types

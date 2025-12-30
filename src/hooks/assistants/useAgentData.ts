@@ -103,7 +103,7 @@ export function useAgentData(
         elevenlabs_agent_id: (raw.elevenlabs_agent_id as string) || undefined,
         widget_config: (raw.widget_config as Record<string, unknown>) || undefined,
         webhook_tools: Array.isArray(raw.webhook_tools || conversationConfig.webhook_tools) 
-          ? (raw.webhook_tools || conversationConfig.webhook_tools || []).map((tool: Record<string, unknown>) => parseWebhookToolFromOurFormat(tool))
+          ? ((raw.webhook_tools || conversationConfig.webhook_tools) as Array<Record<string, unknown>>).map((tool: Record<string, unknown>) => parseWebhookToolFromOurFormat(tool))
           : [],
         client_tools: (raw.client_tools || conversationConfig.client_tools || []) as ClientTool[],
         agent_integrations: undefined,
@@ -117,11 +117,34 @@ export function useAgentData(
       // Extract tools and settings
       // Parse webhook tools to handle nested properties and special value types
       const rawWebhookTools = (raw.webhook_tools || conversationConfig.webhook_tools || []) as Array<Record<string, unknown>>;
-      const webhookTools = rawWebhookTools.map(tool => parseWebhookToolFromOurFormat(tool));
+      const allWebhookTools = rawWebhookTools.map(tool => parseWebhookToolFromOurFormat(tool));
+      // Filter to only show user-created tools in the UI (system tools are hidden)
+      // System tools have webhook_tool_type === 'system' and are created by the system
+      // Also filter by ID/name for backward compatibility with existing tools that might not have the type set
+      const outcomeToolIds = ['outcome-report-success', 'outcome-report-failure', 'outcome-report-escalation'];
+      const outcomeToolNames = ['Report Success', 'Report Failure', 'Report Escalation'];
+      
+      const userWebhookTools = allWebhookTools.filter((tool) => {
+        // Hide if explicitly marked as system
+        if (tool.webhook_tool_type === 'system') {
+          return false;
+        }
+        // Hide outcome tools by ID (for backward compatibility)
+        if (tool.id && outcomeToolIds.includes(tool.id)) {
+          return false;
+        }
+        // Hide outcome tools by name (for backward compatibility)
+        if (tool.name && outcomeToolNames.includes(tool.name)) {
+          return false;
+        }
+        // Show all other tools
+        return true;
+      });
       const clientTools = (raw.client_tools || conversationConfig.client_tools || []) as ClientTool[];
 
       // Always set webhook tools and client tools, even if empty, to ensure UI updates
-      setWebhookTools(webhookTools);
+      // Only set user-created tools for display, but keep all tools in the agent data for syncing
+      setWebhookTools(userWebhookTools);
       setClientTools(clientTools);
 
       // Map integration_tools hash into AgentIntegrationTool[]
@@ -391,18 +414,21 @@ export function useAgentData(
       }
       
       // Build conversation_config with all the nested fields
-      // Merge webhook tools: preserve outcome tools from backend, merge with user-created tools
-      // Outcome tools have IDs: 'outcome-report-success', 'outcome-report-failure', 'outcome-report-escalation'
-      const outcomeToolIds = ['outcome-report-success', 'outcome-report-failure', 'outcome-report-escalation'];
+      // Merge webhook tools: preserve system tools from backend, merge with user-created tools
+      // System tools have webhook_tool_type === 'system' and should be preserved
       const existingWebhookTools = (currentConfig.webhook_tools as WebhookTool[]) || [];
-      const existingOutcomeTools = existingWebhookTools.filter(tool => 
-        outcomeToolIds.includes(tool.id || '')
+      const existingSystemTools = existingWebhookTools.filter(tool => 
+        tool.webhook_tool_type === 'system'
       );
-      const userWebhookTools = webhookTools.filter(tool => 
-        !outcomeToolIds.includes(tool.id || '')
-      );
-      // Merge: outcome tools from backend + user tools from state
-      const mergedWebhookTools = [...existingOutcomeTools, ...userWebhookTools];
+      // Get system tools from the webhookTools parameter (newly created integration/outcome tools)
+      const newSystemTools = webhookTools.filter(tool => tool.webhook_tool_type === 'system');
+      // Get user tools from the webhookTools parameter
+      const userTools = webhookTools.filter(tool => !tool.webhook_tool_type || tool.webhook_tool_type === 'user');
+      // Merge: existing system tools + new system tools + user tools
+      // Deduplicate system tools by ID (in case they exist in both existing and new)
+      const systemToolIds = new Set(existingSystemTools.map(t => t.id));
+      const uniqueNewSystemTools = newSystemTools.filter(tool => !systemToolIds.has(tool.id));
+      const mergedWebhookTools = [...existingSystemTools, ...uniqueNewSystemTools, ...userTools];
 
       // Start by preserving existing config structure to avoid losing data
       const updatedConversationConfig: Record<string, unknown> = {

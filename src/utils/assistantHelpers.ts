@@ -35,6 +35,7 @@ export const getEmptyWebhookTool = (): WebhookTool => ({
   pathParams: [],
   bodyParams: [],
   dynamicVariableAssignments: [],
+  webhook_tool_type: 'user',
 });
 
 export const getEmptyWebhookHeader = (): WebhookHeader => ({
@@ -384,6 +385,9 @@ export const parseWebhookToolFromOurFormat = (tool: Record<string, unknown>): We
         jsonPath: typeof a.json_path === "string" ? a.json_path : "",
       }))
     : [],
+  webhook_tool_type: (tool.webhook_tool_type === 'user' || tool.webhook_tool_type === 'system') 
+    ? tool.webhook_tool_type 
+    : undefined, // Preserve webhook_tool_type if present, undefined for backward compatibility
 });
 
 export const parseWebhookToolFromElevenLabs = (tool: Record<string, unknown>): WebhookTool => {
