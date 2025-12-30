@@ -122,8 +122,8 @@ const llmOptions = {
 
 // Transport options
 const transportOptions = [
-  { id: "twilio-inbound", name: "Twilio Inbound", cost: 0.008 },
-  { id: "twilio-outbound", name: "Twilio Outbound", cost: 0.014 },
+  { id: "twilio-inbound", name: "Inbound", cost: 0.008 },
+  { id: "twilio-outbound", name: "Outbound", cost: 0.014 },
 ];
 
 // Constants
