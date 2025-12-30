@@ -18,10 +18,16 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Phone } from "lucide-react";
 
+interface ManualPhoneNumber {
+  name: string;
+  phone_number: string;
+  language: string;
+}
+
 interface AddPhoneNumberModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (name: string, phoneNumber: string, language: string) => void;
+  onAdd: (phoneNumber: ManualPhoneNumber) => void;
 }
 
 const LANGUAGES = [
@@ -44,7 +50,7 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [language, setLanguage] = useState("en");
-  const [creating, setCreating] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,20 +78,24 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
     if (!phoneRegex.test(phoneNumber.trim())) {
       toast({
         title: 'Invalid phone number',
-        description: 'Please enter a valid phone number in E.164 format (e.g., +1234567890).',
+        description: 'Please enter a valid phone number in E.164 format (e.g., +16047102121).',
         variant: 'destructive',
       });
       return;
     }
 
-    setCreating(true);
+    setAdding(true);
     try {
-      // Call the onAdd callback to add to local state
-      onAdd(name.trim(), phoneNumber.trim(), language);
+      // Add to local list via callback
+      onAdd({
+        name: name.trim(),
+        phone_number: phoneNumber.trim(),
+        language: language,
+      });
       
       toast({
         title: 'Phone number added',
-        description: `Phone number "${name}" has been added to the campaign.`,
+        description: `Phone number "${name}" has been added to the list.`,
       });
       
       // Reset form
@@ -102,12 +112,12 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
         variant: 'destructive',
       });
     } finally {
-      setCreating(false);
+      setAdding(false);
     }
   };
 
   const handleClose = () => {
-    if (!creating) {
+    if (!adding) {
       setName("");
       setPhoneNumber("");
       setLanguage("en");
@@ -131,7 +141,7 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Main Support Line"
               className="bg-secondary/50"
-              disabled={creating}
+              disabled={adding}
             />
             <p className="text-xs text-muted-foreground">
               A descriptive name to identify this phone number
@@ -146,13 +156,13 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
                 id="phone-number"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1234567890"
+                placeholder="+16047102121"
                 className="bg-secondary/50 pl-9"
-                disabled={creating}
+                disabled={adding}
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Enter phone number in E.164 format (e.g., +1234567890)
+              Enter phone number in E.164 format (e.g., +16047102121)
             </p>
           </div>
 
@@ -161,7 +171,7 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
             <Select
               value={language}
               onValueChange={setLanguage}
-              disabled={creating}
+              disabled={adding}
             >
               <SelectTrigger id="language" className="bg-secondary/50">
                 <SelectValue placeholder="Select language" />
@@ -184,16 +194,16 @@ export function AddPhoneNumberModal({ open, onOpenChange, onAdd }: AddPhoneNumbe
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={creating}
+              disabled={adding}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               variant="accent"
-              disabled={creating || !name.trim() || !phoneNumber.trim()}
+              disabled={adding || !name.trim() || !phoneNumber.trim()}
             >
-              {creating ? (
+              {adding ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Adding...

@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft,
   Clock,
@@ -36,12 +35,30 @@ import {
   Users,
   MessageSquare,
   BarChart3,
-  AlertCircle
+  Plus,
+  X,
+  Globe
 } from "lucide-react";
 import { phoneNumbersApi, PhoneNumber, agentsApi, Agent, campaignsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AddPhoneNumberModal } from "@/components/AddPhoneNumberModal";
+
+const LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "it", label: "Italian" },
+  { value: "pt", label: "Portuguese" },
+  { value: "zh", label: "Chinese" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "ar", label: "Arabic" },
+  { value: "hi", label: "Hindi" },
+  { value: "ru", label: "Russian" },
+];
 
 export default function NewCampaign() {
   const navigate = useNavigate();
@@ -53,13 +70,21 @@ export default function NewCampaign() {
   const [creating, setCreating] = useState(false);
   
   const [campaignName, setCampaignName] = useState("");
-  const [selectedPhoneNumberIds, setSelectedPhoneNumberIds] = useState<string[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [sendOption, setSendOption] = useState<"now" | "later">("now");
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [scheduleTime, setScheduleTime] = useState("");
   
   const [isSpamPracticesOpen, setIsSpamPracticesOpen] = useState(false);
+  const [isPhoneNumberModalOpen, setIsPhoneNumberModalOpen] = useState(false);
+  
+  // Manual phone numbers for batch calls
+  interface ManualPhoneNumber {
+    name: string;
+    phone_number: string;
+    language: string;
+  }
+  const [manualPhoneNumbers, setManualPhoneNumbers] = useState<ManualPhoneNumber[]>([]);
 
   const fetchPhoneNumbers = useCallback(async () => {
     setLoadingPhoneNumbers(true);
@@ -113,12 +138,12 @@ export default function NewCampaign() {
     }
   }, [sendOption, scheduleDate]);
 
-  const handlePhoneNumberToggle = (phoneId: string) => {
-    setSelectedPhoneNumberIds(prev => 
-      prev.includes(phoneId)
-        ? prev.filter(id => id !== phoneId)
-        : [...prev, phoneId]
-    );
+  const handleAddManualPhoneNumber = (phoneNumber: ManualPhoneNumber) => {
+    setManualPhoneNumbers(prev => [...prev, phoneNumber]);
+  };
+
+  const handleRemoveManualPhoneNumber = (index: number) => {
+    setManualPhoneNumbers(prev => prev.filter((_, i) => i !== index));
   };
 
 
@@ -136,19 +161,24 @@ export default function NewCampaign() {
       return;
     }
 
-    if (!hasTwilioNumbers) {
+    if (manualPhoneNumbers.length === 0) {
       toast({
-        title: 'No Twilio numbers available',
-        description: 'The selected agent has no Twilio phone numbers associated. Please assign Twilio phone numbers to this agent before creating a batch call.',
+        title: 'Recipient phone numbers required',
+        description: 'Please add at least one recipient phone number for the batch call.',
         variant: 'destructive',
       });
       return;
     }
 
-    if (validSelectedPhoneNumberIds.length === 0) {
+    // Get phone numbers associated with the selected agent
+    const agentPhoneNumbers = phoneNumbers.filter(phone => 
+      phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio'
+    );
+
+    if (agentPhoneNumbers.length === 0) {
       toast({
-        title: 'Phone number required',
-        description: 'Please select at least one Twilio phone number for the campaign.',
+        title: 'Agent phone number required',
+        description: 'The selected agent has no Twilio phone numbers associated. Please assign a phone number to this agent first.',
         variant: 'destructive',
       });
       return;
@@ -176,10 +206,16 @@ export default function NewCampaign() {
     try {
       const scheduleDateStr = scheduleDate ? scheduleDate.toISOString().split('T')[0] : undefined;
 
-      // Only use valid Twilio phone number IDs (no manual numbers allowed for batch calls)
+      // Get phone number IDs from the agent's associated phone numbers
+      const agentPhoneNumberIds = phoneNumbers
+        .filter(phone => phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio')
+        .map(phone => phone.id.toString());
+
+      // Create campaign with agent's phone numbers as caller IDs and manual numbers as recipients
       const response = await campaignsApi.create({
         name: campaignName,
-        phone_number_ids: validSelectedPhoneNumberIds,
+        phone_number_ids: agentPhoneNumberIds,
+        manual_phone_numbers: manualPhoneNumbers,
         agent_id: selectedAgentId,
         send_immediately: sendOption === "now",
         schedule_date: scheduleDateStr,
@@ -206,54 +242,12 @@ export default function NewCampaign() {
 
   const selectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
 
-  // Categorize agents by whether they have Twilio phone numbers
-  const agentsWithTwilioNumbers = agents.filter(agent => {
-    return phoneNumbers.some(phone => 
-      phone.agent_id?.toString() === agent.id.toString() && phone.provider === 'twilio'
-    );
-  });
-
-  const agentsWithoutTwilioNumbers = agents.filter(agent => {
-    return !phoneNumbers.some(phone => 
-      phone.agent_id?.toString() === agent.id.toString() && phone.provider === 'twilio'
-    );
-  });
-
-  // Filter phone numbers to only show Twilio numbers associated with the selected agent
-  const availablePhoneNumbers = selectedAgentId
+  // Get phone numbers associated with the selected agent (these will be used as caller IDs)
+  const agentPhoneNumbers = selectedAgentId
     ? phoneNumbers.filter(phone => 
-        phone.agent_id?.toString() === selectedAgentId && 
-        phone.provider === 'twilio'
+        phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio'
       )
     : [];
-
-  // Check if selected agent has Twilio numbers
-  const hasTwilioNumbers = selectedAgentId 
-    ? availablePhoneNumbers.length > 0
-    : false;
-
-  // Filter selected phone numbers to only include valid ones for the selected agent
-  const validSelectedPhoneNumberIds = selectedPhoneNumberIds.filter(id => {
-    if (!selectedAgentId) return false;
-    const phone = phoneNumbers.find(p => p.id.toString() === id);
-    return phone && phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio';
-  });
-
-  // Clear invalid selections when agent changes
-  useEffect(() => {
-    if (selectedAgentId) {
-      const validIds = selectedPhoneNumberIds.filter(id => {
-        const phone = phoneNumbers.find(p => p.id.toString() === id);
-        return phone && phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio';
-      });
-      if (validIds.length !== selectedPhoneNumberIds.length) {
-        setSelectedPhoneNumberIds(validIds);
-      }
-    } else {
-      // Clear all selections if no agent is selected
-      setSelectedPhoneNumberIds([]);
-    }
-  }, [selectedAgentId, phoneNumbers, selectedPhoneNumberIds]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -274,8 +268,7 @@ export default function NewCampaign() {
               disabled={
                 creating ||
                 !selectedAgentId ||
-                !hasTwilioNumbers ||
-                validSelectedPhoneNumberIds.length === 0 ||
+                manualPhoneNumbers.length === 0 ||
                 !campaignName.trim() ||
                 (sendOption === "later" && (!scheduleDate || !scheduleTime.trim()))
               }
@@ -330,8 +323,6 @@ export default function NewCampaign() {
                 value={selectedAgentId}
                 onValueChange={(value) => {
                   setSelectedAgentId(value);
-                  // Clear phone number selections when agent changes
-                  setSelectedPhoneNumberIds([]);
                 }}
                 disabled={creating}
               >
@@ -339,57 +330,14 @@ export default function NewCampaign() {
                   <SelectValue placeholder="Select an agent" />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Agents with Twilio numbers */}
-                  {agentsWithTwilioNumbers.length > 0 && (
-                    <>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                        Agents with Twilio Numbers
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span>{agent.name || `Agent ${agent.id}`}</span>
                       </div>
-                      {agentsWithTwilioNumbers.map((agent) => {
-                        const twilioCount = phoneNumbers.filter(
-                          p => p.agent_id?.toString() === agent.id.toString() && p.provider === 'twilio'
-                        ).length;
-                        return (
-                          <SelectItem key={agent.id} value={agent.id.toString()}>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span>{agent.name || `Agent ${agent.id}`}</span>
-                              <span className="text-xs text-muted-foreground ml-auto">
-                                ({twilioCount} number{twilioCount !== 1 ? 's' : ''})
-                              </span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </>
-                  )}
-                  
-                  {/* Agents without Twilio numbers */}
-                  {agentsWithoutTwilioNumbers.length > 0 && (
-                    <>
-                      {agentsWithTwilioNumbers.length > 0 && (
-                        <div className="border-t border-border my-1" />
-                      )}
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                        Agents without Twilio Numbers
-                      </div>
-                      {agentsWithoutTwilioNumbers.map((agent) => (
-                        <SelectItem 
-                          key={agent.id} 
-                          value={agent.id.toString()}
-                          disabled={true}
-                        >
-                          <div className="flex items-center gap-2 opacity-60">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span>{agent.name || `Agent ${agent.id}`}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">
-                              (No numbers)
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -398,11 +346,23 @@ export default function NewCampaign() {
                 <p className="text-xs text-muted-foreground">
                   Selected: {selectedAgent.name || `Agent ${selectedAgent.id}`}
                 </p>
-                {!hasTwilioNumbers && selectedAgentId && (
-                  <div className="flex items-start gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                    <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                {agentPhoneNumbers.length > 0 ? (
+                  <div className="mt-2 p-2 bg-secondary/50 rounded-lg border border-border">
+                    <p className="text-xs font-medium mb-1">Caller ID Phone Numbers:</p>
+                    <div className="space-y-1">
+                      {agentPhoneNumbers.map((phone) => (
+                        <div key={phone.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          <span>{phone.phone_number}</span>
+                          {phone.label && <span>({phone.label})</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
                     <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                      This agent has no Twilio phone numbers associated. Please assign Twilio phone numbers to this agent before creating a batch call.
+                      This agent has no phone numbers associated. Please assign a phone number to this agent first.
                     </p>
                   </div>
                 )}
@@ -410,82 +370,71 @@ export default function NewCampaign() {
             )}
           </div>
 
-          {/* Phone Number Selection - Multi-select */}
+          {/* Manual Phone Numbers Grid */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Label>Select phone numbers</Label>
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </div>
-              {selectedAgentId && availablePhoneNumbers.length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (validSelectedPhoneNumberIds.length === availablePhoneNumbers.length) {
-                      setSelectedPhoneNumberIds([]);
-                    } else {
-                      setSelectedPhoneNumberIds(availablePhoneNumbers.map(p => p.id.toString()));
-                    }
-                  }}
-                  className="text-xs h-7"
-                >
-                  {validSelectedPhoneNumberIds.length === availablePhoneNumbers.length ? "Deselect All" : "Select All"}
-                </Button>
-              )}
+              <Label>Recipient phone numbers {manualPhoneNumbers.length > 0 && `(${manualPhoneNumbers.length})`}</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsPhoneNumberModalOpen(true)}
+                className="text-xs h-7"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Recipient
+              </Button>
             </div>
-            {!selectedAgentId ? (
-              <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground text-center">
-                  Please select an agent first to see available phone numbers.
-                </p>
-              </div>
-            ) : loadingPhoneNumbers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : availablePhoneNumbers.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Phone numbers that will receive the batch calls.
+            </p>
+            {manualPhoneNumbers.length === 0 ? (
               <div className="p-4 bg-white rounded-lg border border-border">
                 <p className="text-sm text-muted-foreground text-center">
-                  This agent has no Twilio phone numbers associated. Please assign Twilio phone numbers to this agent in the Phone Numbers section.
+                  No recipient phone numbers added yet.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsPhoneNumberModalOpen(true)}
+                    className="text-accent hover:underline font-medium"
+                  >
+                    Add a recipient phone number
+                  </button>{" "}
+                  to get started.
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-lg border border-border max-h-[300px] overflow-y-auto">
-                {/* Only show Twilio phone numbers associated with the selected agent */}
-                {availablePhoneNumbers.map((phone) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {manualPhoneNumbers.map((phone, index) => (
                   <div
-                    key={phone.id}
-                    className="flex items-center space-x-3 p-3 hover:bg-secondary/50 border-b border-border last:border-b-0"
+                    key={index}
+                    className="p-3 bg-white rounded-lg border border-border hover:bg-secondary/50 transition-colors relative"
                   >
-                    <Checkbox
-                      id={`phone-${phone.id}`}
-                      checked={validSelectedPhoneNumberIds.includes(phone.id.toString())}
-                      onCheckedChange={() => handlePhoneNumberToggle(phone.id.toString())}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveManualPhoneNumber(index)}
+                      className="absolute top-2 right-2 p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                       disabled={creating}
-                    />
-                    <label
-                      htmlFor={`phone-${phone.id}`}
-                      className="flex-1 flex items-center gap-2 cursor-pointer"
                     >
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{phone.phone_number}</span>
-                      {phone.label && (
-                        <span className="text-xs text-muted-foreground">({phone.label})</span>
-                      )}
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        • Twilio
-                      </span>
-                    </label>
+                      <X className="h-3 w-3" />
+                    </button>
+                    <div className="pr-6">
+                      <div className="flex items-start gap-2 mb-1">
+                        <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{phone.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{phone.phone_number}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 mt-2">
+                        <Globe className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {LANGUAGES.find(l => l.value === phone.language)?.label || phone.language}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-            {validSelectedPhoneNumberIds.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {validSelectedPhoneNumberIds.length} phone number{validSelectedPhoneNumberIds.length !== 1 ? 's' : ''} selected
-              </p>
             )}
           </div>
 
@@ -799,6 +748,15 @@ export default function NewCampaign() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Phone Number Modal */}
+      <AddPhoneNumberModal
+        open={isPhoneNumberModalOpen}
+        onOpenChange={(open) => {
+          setIsPhoneNumberModalOpen(open);
+        }}
+        onAdd={handleAddManualPhoneNumber}
+      />
     </div>
   );
 }
