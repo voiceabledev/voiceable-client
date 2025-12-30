@@ -444,7 +444,7 @@ export function useAgentData(
       const updatedConversationConfig: Record<string, unknown> = {
         ...currentConfig, // Preserve all existing config first (including agent_behaviour_id and agent_behaviour_config)
         voice_id: agent.primary_voice_id || agent.voice_id || (agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids[0] : undefined),
-        voice_ids: agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids : undefined,
+        voice_ids: Array.isArray(agent.voice_ids) ? agent.voice_ids : (agent.voice_ids ? [agent.voice_ids] : []),
         primary_voice_id: agent.primary_voice_id || (agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids[0] : undefined),
         first_message: agent.first_message || undefined,
         first_message_mode: agent.first_message_mode || undefined,

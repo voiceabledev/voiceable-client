@@ -1584,20 +1584,28 @@ export default function AssistantDetail() {
             ? currentPrimary 
             : (voiceIds.length > 0 ? voiceIds[0] : undefined);
           
+          // Build updated conversation_config
+          const updatedConfig = {
+            ...currentConfig,
+            voice_ids: voiceIds, // Always set as array, even if empty
+            primary_voice_id: newPrimary,
+            // Keep voice_id for backward compatibility (use primary voice)
+            voice_id: newPrimary,
+          };
+          
           // Update local state immediately - update both conversation_config AND top-level properties
           agentData.handleUpdate({
             // Update top-level voice_ids and primary_voice_id so handleSave can read them
-            voice_ids: voiceIds,
+            voice_ids: voiceIds, // Always set as array
             primary_voice_id: newPrimary,
             voice_id: newPrimary, // Keep for backward compatibility
-            conversation_config: {
-              ...currentConfig,
-              voice_ids: voiceIds,
-              primary_voice_id: newPrimary,
-              // Keep voice_id for backward compatibility (use primary voice)
-              voice_id: newPrimary,
-            }
+            conversation_config: updatedConfig,
           } as any);
+          
+          // Also update conversationConfigRef to ensure handleSave uses latest config
+          if (agentData.setConversationConfig) {
+            agentData.setConversationConfig(updatedConfig);
+          }
           
           // Save to backend immediately to ensure data persists
           try {
