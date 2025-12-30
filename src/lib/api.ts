@@ -960,6 +960,31 @@ export const phoneNumbersApi = {
 };
 
 // Campaigns API
+export interface BatchCallSummary {
+  total: number;
+  answered: number;
+  no_answer: number;
+  failed: number;
+  in_progress: number;
+  pending: number;
+  cancelled: number;
+}
+
+export interface BatchCallRecipient {
+  phone_number: string;
+  status: string;
+  conversation_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  id?: string;
+}
+
+export interface BatchCallDetails {
+  summary: BatchCallSummary;
+  recipients: BatchCallRecipient[];
+  batch_status: string;
+}
+
 export interface Campaign {
   id: number;
   name: string;
@@ -974,6 +999,10 @@ export interface Campaign {
   send_immediately: boolean;
   created_at: string;
   updated_at: string;
+  batch_call_summary?: BatchCallSummary;
+  batch_call_details?: BatchCallDetails;
+  has_details?: boolean;
+  details_error?: string;
 }
 
 export interface CreateCampaignParams {
@@ -991,8 +1020,9 @@ export interface CreateCampaignParams {
 }
 
 export const campaignsApi = {
-  list: async () => {
-    const response = await apiClient.get<Campaign[]>('/campaigns');
+  list: async (includeDetails?: boolean) => {
+    const url = includeDetails ? '/campaigns?include_details=true' : '/campaigns';
+    const response = await apiClient.get<Campaign[]>(url);
     return response;
   },
 

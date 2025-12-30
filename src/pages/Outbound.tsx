@@ -13,7 +13,12 @@ import {
   Loader2,
   User,
   Clock,
-  Users
+  Users,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  XCircle,
+  AlertCircle
 } from "lucide-react";
 import { integrationsApi, campaignsApi, Campaign } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -25,13 +30,17 @@ export default function Outbound() {
   const [isElevenLabsConnected, setIsElevenLabsConnected] = useState(false);
   const [isCheckingIntegration, setIsCheckingIntegration] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedCampaigns, setExpandedCampaigns] = useState<Set<number>>(new Set());
+  const [loadingDetails, setLoadingDetails] = useState<Set<number>>(new Set());
+  const [campaignDetails, setCampaignDetails] = useState<Record<number, Campaign>>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const fetchCampaigns = useCallback(async () => {
     setLoadingCampaigns(true);
     try {
-      const response = await campaignsApi.list();
+      // Fetch with summary details included
+      const response = await campaignsApi.list(true);
       if (response.data && Array.isArray(response.data)) {
         setCampaigns(response.data);
       } else {
@@ -49,6 +58,110 @@ export default function Outbound() {
       setLoadingCampaigns(false);
     }
   }, [toast]);
+
+  const fetchCampaignDetails = async (campaignId: number) => {
+    setLoadingDetails(prev => new Set(prev).add(campaignId));
+    try {
+      const response = await campaignsApi.get(campaignId);
+      if (response.data) {
+        setCampaignDetails(prev => ({
+          ...prev,
+          [campaignId]: response.data
+        }));
+      }
+    } catch (err) {
+      toast({
+        title: 'Error loading campaign details',
+        description: err instanceof Error ? err.message : 'Failed to fetch campaign details',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDetails(prev => {
+        const next = new Set(prev);
+        next.delete(campaignId);
+        return next;
+      });
+    }
+  };
+
+  const toggleCampaignExpansion = (campaignId: number) => {
+    setExpandedCampaigns(prev => {
+      const next = new Set(prev);
+      if (next.has(campaignId)) {
+        // Collapse
+        next.delete(campaignId);
+      } else {
+        // Expand
+        next.add(campaignId);
+        // Fetch details if not already loaded
+        if (!campaignDetails[campaignId]) {
+          fetchCampaignDetails(campaignId);
+        }
+      }
+      return next;
+    });
+  };
+
+  const getRecipientStatusBadgeVariant = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'answered':
+      case 'completed':
+        return 'default';
+      case 'no_answer':
+      case 'no_response':
+        return 'secondary';
+      case 'failed':
+        return 'destructive';
+      case 'in_progress':
+      case 'calling':
+        return 'default';
+      case 'pending':
+      case 'queued':
+        return 'outline';
+      case 'cancelled':
+        return 'outline';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getRecipientStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'answered':
+      case 'completed':
+        return <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />;
+      case 'no_answer':
+      case 'no_response':
+        return <AlertCircle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />;
+      case 'failed':
+        return <XCircle className="h-3 w-3 text-red-600 dark:text-red-400" />;
+      default:
+        return null;
+    }
+  };
+
+  const formatRecipientStatus = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'answered':
+      case 'completed':
+        return 'Answered';
+      case 'no_answer':
+      case 'no_response':
+        return 'No Answer';
+      case 'failed':
+        return 'Failed';
+      case 'in_progress':
+      case 'calling':
+        return 'In Progress';
+      case 'pending':
+      case 'queued':
+        return 'Pending';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status || 'Unknown';
+    }
+  };
 
   const checkElevenLabsIntegration = async () => {
     setIsCheckingIntegration(true);
@@ -236,71 +349,187 @@ export default function Outbound() {
               </div>
 
               <div className="space-y-3">
-                {filteredCampaigns.map((campaign) => (
-                  <div
-                    key={campaign.id}
-                    className="flex items-start gap-3 p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors"
-                  >
-                    <PhoneOutgoing className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm font-medium">{campaign.name}</span>
-                        <Badge variant={getStatusBadgeVariant(campaign.status)} className="text-xs">
-                          {getStatusLabel(campaign.status)}
-                        </Badge>
-                        {campaign.elevenlabs_batch_call_id && (
-                          <Badge variant="outline" className="text-xs">
-                            Synced
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                        {campaign.agent_name && (
-                          <>
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span className="truncate">{campaign.agent_name}</span>
-                            </div>
-                            <span>•</span>
-                          </>
-                        )}
-                        {campaign.phone_number && (
-                          <>
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{campaign.phone_number}</span>
-                            </div>
-                            <span>•</span>
-                          </>
-                        )}
-                        {campaign.recipients_count > 0 && (
-                          <>
-                            <div className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              <span>{campaign.recipients_count} recipients</span>
-                            </div>
-                            <span>•</span>
-                          </>
-                        )}
-                        {campaign.send_immediately ? (
-                          <span>Send immediately</span>
-                        ) : campaign.scheduled_at ? (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              Scheduled: {format(new Date(campaign.scheduled_at), "MMM d, yyyy 'at' h:mm a")}
-                            </span>
+                {filteredCampaigns.map((campaign) => {
+                  const isExpanded = expandedCampaigns.has(campaign.id);
+                  const details = campaignDetails[campaign.id] || campaign;
+                  const summary = details.batch_call_summary || details.batch_call_details?.summary;
+                  const recipients = details.batch_call_details?.recipients || [];
+                  const isLoadingDetails = loadingDetails.has(campaign.id);
+                  
+                  return (
+                    <div
+                      key={campaign.id}
+                      className="bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3 p-4">
+                        <PhoneOutgoing className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-sm font-medium">{campaign.name}</span>
+                            <Badge variant={getStatusBadgeVariant(campaign.status)} className="text-xs">
+                              {getStatusLabel(campaign.status)}
+                            </Badge>
+                            {campaign.elevenlabs_batch_call_id && (
+                              <Badge variant="outline" className="text-xs">
+                                Synced
+                              </Badge>
+                            )}
                           </div>
-                        ) : null}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                            {campaign.agent_name && (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  <span className="truncate">{campaign.agent_name}</span>
+                                </div>
+                                <span>•</span>
+                              </>
+                            )}
+                            {campaign.phone_number && (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{campaign.phone_number}</span>
+                                </div>
+                                <span>•</span>
+                              </>
+                            )}
+                            {campaign.recipients_count > 0 && (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  <span>{campaign.recipients_count} recipients</span>
+                                </div>
+                                <span>•</span>
+                              </>
+                            )}
+                            {campaign.send_immediately ? (
+                              <span>Send immediately</span>
+                            ) : campaign.scheduled_at ? (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                <span>
+                                  Scheduled: {format(new Date(campaign.scheduled_at), "MMM d, yyyy 'at' h:mm a")}
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                          
+                          {/* Call Summary Statistics */}
+                          {summary && (
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              {summary.answered > 0 && (
+                                <Badge variant="default" className="text-xs">
+                                  {summary.answered} answered
+                                </Badge>
+                              )}
+                              {summary.no_answer > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {summary.no_answer} no answer
+                                </Badge>
+                              )}
+                              {summary.failed > 0 && (
+                                <Badge variant="destructive" className="text-xs">
+                                  {summary.failed} failed
+                                </Badge>
+                              )}
+                              {summary.in_progress > 0 && (
+                                <Badge variant="default" className="text-xs">
+                                  {summary.in_progress} in progress
+                                </Badge>
+                              )}
+                              {summary.pending > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {summary.pending} pending
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          
+                          {campaign.created_at && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Created {format(new Date(campaign.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Expand/Collapse Button */}
+                        {campaign.elevenlabs_batch_call_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 flex-shrink-0"
+                            onClick={() => toggleCampaignExpansion(campaign.id)}
+                            disabled={isLoadingDetails}
+                          >
+                            {isLoadingDetails ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isExpanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
-                      {campaign.created_at && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          Created {format(new Date(campaign.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      
+                      {/* Expanded Details Section */}
+                      {isExpanded && (
+                        <div className="border-t border-border px-4 pb-4 pt-3">
+                          {isLoadingDetails ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              <span className="ml-2 text-xs text-muted-foreground">Loading details...</span>
+                            </div>
+                          ) : details.details_error ? (
+                            <div className="text-xs text-destructive py-2">
+                              {details.details_error}
+                            </div>
+                          ) : recipients.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="text-xs font-medium text-muted-foreground mb-2">
+                                Recipient Call Status
+                              </div>
+                              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                                {recipients.map((recipient, index) => (
+                                  <div
+                                    key={recipient.id || index}
+                                    className="flex items-center justify-between p-2 bg-secondary/30 rounded border border-border"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {getRecipientStatusIcon(recipient.status)}
+                                      <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                      <span className="text-xs font-medium truncate">
+                                        {recipient.phone_number}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <Badge
+                                        variant={getRecipientStatusBadgeVariant(recipient.status)}
+                                        className="text-xs"
+                                      >
+                                        {formatRecipientStatus(recipient.status)}
+                                      </Badge>
+                                      {recipient.updated_at && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {format(new Date(recipient.updated_at), "MMM d, h:mm a")}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-muted-foreground py-2">
+                              No recipient details available
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {filteredCampaigns.length === 0 && searchQuery && (
