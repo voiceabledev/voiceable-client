@@ -23,7 +23,9 @@ import type {
 function getApiBaseUrl(): string {
   // Use env var if available (set at build time)
   if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+    // Remove trailing slash if present
+    const url = import.meta.env.VITE_API_BASE_URL;
+    return url.endsWith('/') ? url.slice(0, -1) : url;
   }
 
   // Check for runtime config (useful for Heroku where env vars might not be available at build time)
@@ -31,7 +33,8 @@ function getApiBaseUrl(): string {
     // Check if there's a runtime config set via a script tag or global variable
     const runtimeConfig = (window as any).__API_BASE_URL__;
     if (runtimeConfig) {
-      return runtimeConfig;
+      // Remove trailing slash if present
+      return runtimeConfig.endsWith('/') ? runtimeConfig.slice(0, -1) : runtimeConfig;
     }
 
     const hostname = window.location.hostname;
@@ -97,7 +100,10 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Remove leading slash from endpoint if present, and ensure baseURL doesn't end with slash
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const cleanBaseURL = this.baseURL.endsWith('/') ? this.baseURL.slice(0, -1) : this.baseURL;
+    const url = `${cleanBaseURL}${cleanEndpoint}`;
     const token = this.getToken();
 
     const headers: HeadersInit = {
@@ -226,36 +232,17 @@ export const authApi = {
   },
 
   signIn: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/sign_in`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        user: { email, password },
-      }),
+    // Use apiClient instead of direct fetch to ensure proper CORS handling
+    const response = await apiClient.post('/auth/sign_in', {
+      user: { email, password },
     });
-
-    const data = await response.json();
     
     // Extract JWT token from response
-    if (data.token) {
-      apiClient.setToken(data.token);
+    if (response.token) {
+      apiClient.setToken(response.token);
     }
 
-    // Also check Authorization header
-    const authHeader = response.headers.get('Authorization');
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      apiClient.setToken(token);
-    }
-
-    if (!response.ok) {
-      throw new Error(data.status?.message || 'An error occurred');
-    }
-
-    return data;
+    return response;
   },
 
   signOut: async () => {
@@ -731,6 +718,11 @@ export interface Conversation {
   }>;
   metadata?: Record<string, unknown>;
   outcome?: import('./types/outcomes').ConversationOutcome | null;
+  cost?: {
+    amount_cents: number;
+    amount_dollars: number;
+    formatted: string;
+  } | null;
 }
 
 export const conversationsApi = {

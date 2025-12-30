@@ -13,8 +13,6 @@ import {
 import { cn } from "@/lib/utils";
 import { conversationsApi, Conversation } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { OutcomeBadge } from "@/components/ui/outcome-badge";
-import ConversationOutcomePanel from "@/components/assistants/ConversationOutcomePanel";
 
 interface ConversationDisplay extends Conversation {
   date: string;
@@ -36,8 +34,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
   const [conversationDetails, setConversationDetails] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription" | "outcome">("overview");
-  const [conversationOutcomes, setConversationOutcomes] = useState<Record<string, { outcome: 'success' | 'failure' | 'escalated' }>>({});
+  const [activeDetailTab, setActiveDetailTab] = useState<"overview" | "transcription">("overview");
   const [isPlaying, setIsPlaying] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
@@ -54,9 +51,15 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
 
     setLoading(true);
     try {
+      // Default to last 30 days to match DashboardTab behavior
+      const now = Math.floor(Date.now() / 1000);
+      const thirtyDaysAgo = now - (30 * 24 * 60 * 60);
+      
       const response = await conversationsApi.list({ 
         agent_id: agentId,
-        summary_mode: 'include' 
+        summary_mode: 'include',
+        call_start_after_unix: thirtyDaysAgo,
+        call_start_before_unix: now
       });
       
       if (response.data) {
@@ -91,13 +94,6 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
       const response = await conversationsApi.get(conversationId);
       if (response.data) {
         setConversationDetails(response.data);
-        // Update conversation outcomes state with outcome from conversation details
-        if (response.data.outcome) {
-          setConversationOutcomes(prev => ({
-            ...prev,
-            [conversationId]: { outcome: response.data.outcome.outcome },
-          }));
-        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversation details';
@@ -373,7 +369,6 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
           <table className="w-full">
             <thead className="sticky top-0 bg-background">
               <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Outcome</th>
                 <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Date & Time</th>
                 <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Duration</th>
                 <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Cost</th>
@@ -382,7 +377,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center">
+                  <td colSpan={3} className="px-4 py-8 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                       <span className="text-sm text-muted-foreground">Loading conversations...</span>
@@ -391,7 +386,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                 </tr>
               ) : filteredConversations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center">
+                  <td colSpan={3} className="px-4 py-8 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <p className="text-sm">{searchQuery ? 'No conversations found matching your search.' : agentId ? 'No conversations found for this agent.' : 'Please select an agent to view conversations.'}</p>
                     </div>
@@ -399,24 +394,9 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                 </tr>
               ) : (
                 filteredConversations.map((conv) => {
-                  const outcome = conversationOutcomes[conv.id]?.outcome;
-                  const getOutcomeIcon = () => {
-                    if (outcome === 'success') return '✅';
-                    if (outcome === 'escalated') return '⚠️';
-                    if (outcome === 'failure') return '❌';
-                    if (conv.status === 'Successful') return '✅';
-                    if (conv.status === 'Failed') return '❌';
-                    return '⏸️';
-                  };
-                  const getOutcomeLabel = () => {
-                    if (outcome === 'success') return 'Success';
-                    if (outcome === 'escalated') return 'Escalated';
-                    if (outcome === 'failure') return 'Failed';
-                    return conv.status || 'Unknown';
-                  };
-                  // Estimate cost based on duration (rough calculation: ~$0.15/min)
-                  const durationMinutes = conv.duration ? parseFloat(conv.duration.split(':')[0]) + (parseFloat(conv.duration.split(':')[1] || '0') / 60) : 0;
-                  const estimatedCost = (durationMinutes * 0.15).toFixed(2);
+                  // Use cost from backend if available, otherwise show N/A
+                  const costDisplay = conv.cost?.formatted 
+                    || (conv.cost?.amount_dollars !== undefined ? `$${conv.cost.amount_dollars.toFixed(2)}` : 'N/A');
                   
                   return (
                     <tr
@@ -429,26 +409,20 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                           : "hover:bg-secondary/30"
                       )}
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{getOutcomeIcon()}</span>
-                          <span className="text-sm font-medium">{getOutcomeLabel()}</span>
-                        </div>
-                        {conv.summary && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{conv.summary}</p>
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-sm">
                         <div>{conv.date || 'N/A'}</div>
                         {conv.userId && conv.userId !== 'Unknown User' && (
                           <div className="text-xs text-muted-foreground mt-1">Caller: {conv.userId}</div>
+                        )}
+                        {conv.summary && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{conv.summary}</p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">💰</span>
-                          <span>${estimatedCost}</span>
+                          <span>{costDisplay}</span>
                         </div>
                       </td>
                     </tr>
@@ -599,7 +573,7 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
           {/* Tabs */}
           <div className="px-4 pt-3">
             <div className="flex gap-4 border-b border-border">
-              {(["overview", "transcription", "outcome"] as const).map((tab) => (
+              {(["overview", "transcription"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveDetailTab(tab)}
@@ -683,9 +657,6 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                   <p className="text-sm text-muted-foreground">No transcript available</p>
                 )}
               </div>
-            )}
-            {activeDetailTab === "outcome" && selectedConversation && (
-              <ConversationOutcomePanel conversationId={selectedConversation.id} />
             )}
 
           </div>
