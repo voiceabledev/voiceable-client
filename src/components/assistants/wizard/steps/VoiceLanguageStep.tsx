@@ -1,56 +1,9 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { AudioLines, Loader2, Mic } from "lucide-react";
+import { AudioLines, Loader2 } from "lucide-react";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LanguageSelectorDialog } from "@/components/assistants/LanguageSelectorDialog";
 import { Voice } from "@/lib/api";
-
-// Language to flag emoji mapping
-const languageFlags: Record<string, string> = {
-  english: "🇺🇸",
-  spanish: "🇪🇸",
-  french: "🇫🇷",
-  german: "🇩🇪",
-  italian: "🇮🇹",
-  portuguese: "🇵🇹",
-  polish: "🇵🇱",
-  turkish: "🇹🇷",
-  russian: "🇷🇺",
-  dutch: "🇳🇱",
-  czech: "🇨🇿",
-  arabic: "🇸🇦",
-  chinese: "🇨🇳",
-  japanese: "🇯🇵",
-  hungarian: "🇭🇺",
-  korean: "🇰🇷",
-  multi: "🌍",
-};
-
-const languageLabels: Record<string, string> = {
-  english: "English",
-  spanish: "Spanish",
-  french: "French",
-  german: "German",
-  italian: "Italian",
-  portuguese: "Portuguese",
-  polish: "Polish",
-  turkish: "Turkish",
-  russian: "Russian",
-  dutch: "Dutch",
-  czech: "Czech",
-  arabic: "Arabic",
-  chinese: "Chinese",
-  japanese: "Japanese",
-  hungarian: "Hungarian",
-  korean: "Korean",
-  multi: "Multi",
-};
 
 interface VoiceLanguageStepProps {
   selectedVoiceIds: string[];
@@ -63,8 +16,12 @@ interface VoiceLanguageStepProps {
   onPlayPreview: (voice: Voice) => void;
   voiceSearchQuery: string;
   onVoiceSearchChange: (query: string) => void;
-  selectedLanguage: string;
-  onLanguageChange: (language: string) => void;
+  selectedLanguages: string[];
+  showLanguageSelector: boolean;
+  onShowLanguageSelectorChange: (show: boolean) => void;
+  onSelectLanguages: (languages: string[]) => void;
+  languageSearchQuery: string;
+  onLanguageSearchChange: (query: string) => void;
 }
 
 export function VoiceLanguageStep({
@@ -78,10 +35,71 @@ export function VoiceLanguageStep({
   onPlayPreview,
   voiceSearchQuery,
   onVoiceSearchChange,
-  selectedLanguage,
-  onLanguageChange,
+  selectedLanguages,
+  showLanguageSelector,
+  onShowLanguageSelectorChange,
+  onSelectLanguages,
+  languageSearchQuery,
+  onLanguageSearchChange,
 }: VoiceLanguageStepProps) {
   const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
+
+  // Language flag and label helpers
+  const languageFlags: Record<string, string> = {
+    english: "🇺🇸",
+    spanish: "🇪🇸",
+    french: "🇫🇷",
+    german: "🇩🇪",
+    italian: "🇮🇹",
+    portuguese: "🇵🇹",
+    polish: "🇵🇱",
+    turkish: "🇹🇷",
+    russian: "🇷🇺",
+    dutch: "🇳🇱",
+    czech: "🇨🇿",
+    arabic: "🇸🇦",
+    chinese: "🇨🇳",
+    japanese: "🇯🇵",
+    hungarian: "🇭🇺",
+    korean: "🇰🇷",
+    multi: "🌍",
+  };
+
+  const languageLabels: Record<string, string> = {
+    english: "English",
+    spanish: "Spanish",
+    french: "French",
+    german: "German",
+    italian: "Italian",
+    portuguese: "Portuguese",
+    polish: "Polish",
+    turkish: "Turkish",
+    russian: "Russian",
+    dutch: "Dutch",
+    czech: "Czech",
+    arabic: "Arabic",
+    chinese: "Chinese",
+    japanese: "Japanese",
+    hungarian: "Hungarian",
+    korean: "Korean",
+    multi: "Multi",
+  };
+
+  const getLanguageDisplay = () => {
+    if (selectedLanguages.length === 0) {
+      return <span className="text-muted-foreground">Select languages</span>;
+    } else if (selectedLanguages.length === 1) {
+      const lang = selectedLanguages[0];
+      return (
+        <span className="flex items-center gap-2">
+          <span className="text-lg">{languageFlags[lang] || "🌐"}</span>
+          <span>{languageLabels[lang] || lang}</span>
+        </span>
+      );
+    } else {
+      return <span>{selectedLanguages.length} languages selected</span>;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -127,125 +145,24 @@ export function VoiceLanguageStep({
       </div>
 
       <div>
-        <label className="text-sm font-medium mb-2 block">Language</label>
-        <Select value={selectedLanguage} onValueChange={onLanguageChange}>
-          <SelectTrigger className="bg-white">
-            <SelectValue>
-              {selectedLanguage && (
-                <span className="flex items-center gap-2">
-                  <span className="text-lg">{languageFlags[selectedLanguage] || "🌐"}</span>
-                  <span>{languageLabels[selectedLanguage] || selectedLanguage}</span>
-                </span>
-              )}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="english">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.english}</span>
-                <span>{languageLabels.english}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="spanish">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.spanish}</span>
-                <span>{languageLabels.spanish}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="french">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.french}</span>
-                <span>{languageLabels.french}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="german">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.german}</span>
-                <span>{languageLabels.german}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="italian">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.italian}</span>
-                <span>{languageLabels.italian}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="portuguese">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.portuguese}</span>
-                <span>{languageLabels.portuguese}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="polish">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.polish}</span>
-                <span>{languageLabels.polish}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="turkish">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.turkish}</span>
-                <span>{languageLabels.turkish}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="russian">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.russian}</span>
-                <span>{languageLabels.russian}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="dutch">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.dutch}</span>
-                <span>{languageLabels.dutch}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="czech">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.czech}</span>
-                <span>{languageLabels.czech}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="arabic">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.arabic}</span>
-                <span>{languageLabels.arabic}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="chinese">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.chinese}</span>
-                <span>{languageLabels.chinese}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="japanese">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.japanese}</span>
-                <span>{languageLabels.japanese}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="hungarian">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.hungarian}</span>
-                <span>{languageLabels.hungarian}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="korean">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.korean}</span>
-                <span>{languageLabels.korean}</span>
-              </span>
-            </SelectItem>
-            <SelectItem value="multi">
-              <span className="flex items-center gap-2">
-                <span className="text-lg">{languageFlags.multi}</span>
-                <span>{languageLabels.multi}</span>
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <label className="text-sm font-medium mb-2 block">Language{selectedLanguages.length !== 1 ? 's' : ''}</label>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start bg-white"
+          onClick={() => onShowLanguageSelectorChange(true)}
+        >
+          {getLanguageDisplay()}
+        </Button>
+        <LanguageSelectorDialog
+          open={showLanguageSelector}
+          onOpenChange={onShowLanguageSelectorChange}
+          selectedLanguages={selectedLanguages}
+          onSelectLanguages={onSelectLanguages}
+          searchQuery={languageSearchQuery}
+          onSearchChange={onLanguageSearchChange}
+        />
       </div>
     </div>
   );
 }
-

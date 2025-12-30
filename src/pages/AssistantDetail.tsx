@@ -35,6 +35,7 @@ import { ToolsTab } from "@/components/assistants/ToolsTab";
 import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSettingsPanel";
 import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
+import { LanguageSelectorDialog } from "@/components/assistants/LanguageSelectorDialog";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab, { type OutcomeConfigTabRef } from "@/components/assistants/OutcomeConfigTab";
 import { DashboardTab } from "@/components/assistants/DashboardTab";
@@ -626,6 +627,10 @@ export default function AssistantDetail() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const fetchedVoiceRef = useRef<string | null>(null);
 
+  // Language Selector State
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState("");
+
   useEffect(() => {
     const fetchVoices = async () => {
       setLoadingVoices(true);
@@ -645,11 +650,16 @@ export default function AssistantDetail() {
   const getVoiceIds = (): string[] => {
     if (!agentData.agent) return [];
     
+    // First try to get from top-level voice_ids (most reliable)
+    if (Array.isArray(agentData.agent.voice_ids) && agentData.agent.voice_ids.length > 0) {
+      return agentData.agent.voice_ids.filter((id): id is string => typeof id === 'string');
+    }
+    
     // Try to get voice_ids from conversation_config
     const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
     if (conversationConfig?.voice_ids) {
       const voiceIds = conversationConfig.voice_ids;
-      if (Array.isArray(voiceIds)) {
+      if (Array.isArray(voiceIds) && voiceIds.length > 0) {
         return voiceIds.filter((id): id is string => typeof id === 'string');
       }
     }
@@ -676,6 +686,54 @@ export default function AssistantDetail() {
 
   const selectedVoiceIds = getVoiceIds();
   const primaryVoiceId = getPrimaryVoiceId();
+
+  // Get languages array from conversation_config or fallback to single language (backward compatibility)
+  const getLanguages = (): string[] => {
+    if (!agentData.agent) return ["en"]; // Default to English
+    
+    // First try to get from top-level languages (most reliable)
+    if (Array.isArray(agentData.agent.languages) && agentData.agent.languages.length > 0) {
+      return agentData.agent.languages.filter((l): l is string => typeof l === 'string');
+    }
+    
+    // Try to get languages from conversation_config
+    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+    if (conversationConfig?.languages) {
+      const languages = conversationConfig.languages;
+      if (Array.isArray(languages) && languages.length > 0) {
+        return languages.filter((l): l is string => typeof l === 'string');
+      }
+    }
+    
+    // Fallback to single language for backward compatibility
+    if (agentData.agent.language) {
+      // Convert old language names to codes
+      const langMap: Record<string, string> = {
+        'english': 'en',
+        'spanish': 'es',
+        'french': 'fr',
+        'german': 'de',
+        'italian': 'it',
+        'portuguese': 'pt',
+        'polish': 'pl',
+        'turkish': 'tr',
+        'russian': 'ru',
+        'dutch': 'nl',
+        'czech': 'cs',
+        'arabic': 'ar',
+        'chinese': 'zh',
+        'japanese': 'ja',
+        'hungarian': 'hu',
+        'korean': 'ko',
+      };
+      const lang = agentData.agent.language.toLowerCase();
+      return [langMap[lang] || lang];
+    }
+    
+    return ["en"]; // Default to English
+  };
+
+  const selectedLanguages = getLanguages();
 
   const handleSetPrimaryVoice = async (voiceId: string) => {
     if (!selectedVoiceIds.includes(voiceId)) return;
@@ -1279,6 +1337,11 @@ export default function AssistantDetail() {
                   voices={voices}
                   setShowVoiceSelector={setShowVoiceSelector}
                   onSetPrimaryVoice={handleSetPrimaryVoice}
+                  selectedLanguages={selectedLanguages}
+                  showLanguageSelector={showLanguageSelector}
+                  setShowLanguageSelector={setShowLanguageSelector}
+                  languageSearchQuery={languageSearchQuery}
+                  setLanguageSearchQuery={setLanguageSearchQuery}
                 />
               ) : activeTab === "call-script" || activeTab === "prompt-logic" ? (
                 <PromptLogicTab
@@ -1621,6 +1684,8 @@ export default function AssistantDetail() {
               filesHook.attachedFiles,
               systemToolSettingsMap
             );
+            // Refresh agent data from backend to ensure we have the latest saved data
+            await agentData.fetchAgentDetails();
           } catch (error) {
             console.error("Failed to save voice selection:", error);
             // Don't show error toast here as it might be annoying, but log it
@@ -1632,6 +1697,94 @@ export default function AssistantDetail() {
         onPlayPreview={(voice) => handlePlayPreview(voice.id)}
         searchQuery={voiceSearchQuery}
         onSearchChange={setVoiceSearchQuery}
+      />
+
+      <LanguageSelectorDialog
+        open={showLanguageSelector}
+        onOpenChange={(open) => {
+          setShowLanguageSelector(open);
+          if (!open) {
+            setLanguageSearchQuery("");
+          }
+        }}
+        selectedLanguages={selectedLanguages}
+        onSelectLanguages={async (languages) => {
+          // Languages coming from dialog are already normalized codes (e.g., 'en', 'es', 'fr')
+          // Just ensure 'en' is always in the list
+          const finalLanguages = languages.includes('en') 
+            ? languages 
+            : ['en', ...languages];
+          
+          const currentConfig = (agentData.agent as any)?.conversation_config || {};
+          const currentDefault = currentConfig.default_language as string | undefined;
+          
+          // Default language is the first one (or keep current if it's still in the list)
+          const newDefault = currentDefault && finalLanguages.includes(currentDefault)
+            ? currentDefault
+            : (finalLanguages.length > 0 ? finalLanguages[0] : 'en');
+          
+          // Build updated conversation_config
+          const updatedConfig = {
+            ...currentConfig,
+            languages: finalLanguages,
+            default_language: newDefault,
+            // Keep language for backward compatibility
+            language: newDefault,
+          };
+          
+          // Update conversationConfigRef FIRST to ensure handleSave uses latest config
+          if (agentData.setConversationConfig) {
+            agentData.setConversationConfig(updatedConfig);
+          }
+          
+          // Update local state - update both conversation_config AND top-level properties
+          agentData.handleUpdate({
+            // Update top-level languages and default_language so handleSave can read them
+            languages: finalLanguages,
+            default_language: newDefault,
+            language: newDefault, // Keep for backward compatibility
+            conversation_config: updatedConfig,
+          } as any);
+          
+          // Save to backend immediately to ensure data persists
+          // Use setTimeout to ensure state has updated
+          try {
+            // Wait a tick to ensure handleUpdate has processed
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
+            await agentData.handleSave(
+              webhookHook.webhookTools,
+              clientHook.clientTools,
+              integrationHook.agentIntegrationTools,
+              sectionHook.cenarios,
+              sectionHook.etapas,
+              sectionHook.tomDeVoz,
+              systemTools,
+              systemToolSettings,
+              filesHook.attachedFiles,
+              systemToolSettingsMap
+            );
+            
+            // Refresh agent data from backend to ensure we have the latest saved data
+            await agentData.fetchAgentDetails();
+            
+            toast({
+              title: "Success",
+              description: "Languages saved successfully.",
+            });
+          } catch (error) {
+            console.error("Failed to save language selection:", error);
+            toast({
+              title: "Error",
+              description: error instanceof Error ? error.message : "Failed to save languages.",
+              variant: "destructive",
+            });
+          }
+          
+          setShowLanguageSelector(false);
+        }}
+        searchQuery={languageSearchQuery}
+        onSearchChange={setLanguageSearchQuery}
       />
 
       {/* Modals */}

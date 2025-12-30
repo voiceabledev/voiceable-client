@@ -85,6 +85,17 @@ export function useAgentData(
           (transcriberConfig.language as string) ||
           (platformSettings.language as string) ||
           "english",
+        languages:
+          (Array.isArray(conversationConfig.languages) ? conversationConfig.languages as string[] : undefined) ||
+          (conversationConfig.language ? [conversationConfig.language as string] : undefined) ||
+          (platformSettings.language ? (Array.isArray(platformSettings.language) ? platformSettings.language as string[] : [platformSettings.language as string]) : undefined) ||
+          ["english"],
+        default_language:
+          (conversationConfig.default_language as string) ||
+          (Array.isArray(conversationConfig.languages) && conversationConfig.languages.length > 0 ? conversationConfig.languages[0] as string : undefined) ||
+          (conversationConfig.language as string) ||
+          (platformSettings.language ? (Array.isArray(platformSettings.language) ? platformSettings.language[0] : platformSettings.language) : undefined) ||
+          "english",
         first_message_mode: ((conversationConfig.first_message_mode as string) || "text") as
           | "text"
           | "audio",
@@ -95,11 +106,11 @@ export function useAgentData(
           (platformSettings.voice_id as string) ||
           "",
         voice_ids:
-          (conversationConfig.voice_ids as string[]) ||
-          (Array.isArray(conversationConfig.voice_id) ? conversationConfig.voice_id : undefined) ||
+          (Array.isArray(conversationConfig.voice_ids) ? conversationConfig.voice_ids as string[] : undefined) ||
+          (Array.isArray(conversationConfig.voice_id) ? conversationConfig.voice_id as string[] : undefined) ||
           (conversationConfig.voice_id ? [conversationConfig.voice_id as string] : undefined) ||
           (voiceConfig.voice_id ? [voiceConfig.voice_id as string] : undefined) ||
-          (platformSettings.voice_id ? (Array.isArray(platformSettings.voice_id) ? platformSettings.voice_id : [platformSettings.voice_id as string]) : undefined) ||
+          (platformSettings.voice_id ? (Array.isArray(platformSettings.voice_id) ? platformSettings.voice_id as string[] : [platformSettings.voice_id as string]) : undefined) ||
           [],
         primary_voice_id:
           (conversationConfig.primary_voice_id as string) ||
@@ -481,10 +492,31 @@ export function useAgentData(
         currentConfig_keys: Object.keys(currentConfig)
       });
 
+      // Add languages array and default_language
+      // Prioritize reading from currentConfig (conversationConfigRef) which is updated synchronously
+      // This ensures we get the latest values even if agent state hasn't updated yet
+      if (currentConfig.languages && Array.isArray(currentConfig.languages) && currentConfig.languages.length > 0) {
+        updatedConversationConfig.languages = currentConfig.languages;
+        updatedConversationConfig.default_language = currentConfig.default_language || currentConfig.languages[0];
+        // Keep language for backward compatibility
+        updatedConversationConfig.language = currentConfig.default_language || currentConfig.languages[0] || currentConfig.language;
+      } else if (agent.languages && agent.languages.length > 0) {
+        updatedConversationConfig.languages = agent.languages;
+        updatedConversationConfig.default_language = agent.default_language || agent.languages[0];
+        // Keep language for backward compatibility
+        updatedConversationConfig.language = agent.default_language || agent.languages[0] || agent.language;
+      } else if (agent.language) {
+        updatedConversationConfig.languages = [agent.language];
+        updatedConversationConfig.default_language = agent.language;
+        updatedConversationConfig.language = agent.language;
+      }
+      
       // Add transcriber configuration if language is set
-      if (agent.language) {
+      // Prioritize reading from currentConfig which is updated synchronously
+      const transcriberLanguage = (currentConfig.default_language || currentConfig.language) || (agent.default_language || agent.language);
+      if (transcriberLanguage) {
         updatedConversationConfig.transcriber = {
-          language: agent.language,
+          language: transcriberLanguage,
         };
       }
       

@@ -271,7 +271,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const { playingVoiceId, handlePlayPreview } = useVoicePreview();
 
   // Step 2: Voice & Language (merged, moved before Call Outcomes)
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["english"]);
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState("");
 
   // Handle behaviour change
   const handleBehaviourChange = async (behaviourId: string) => {
@@ -490,7 +492,22 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 setSelectedVoiceIds([platformSettings.voice_id]);
               }
             }
-            if (platformSettings.language) setSelectedLanguage(platformSettings.language);
+            if (platformSettings.language) {
+              // Support both single language (backward compatibility) and languages array
+              if (Array.isArray(platformSettings.language)) {
+                setSelectedLanguages(platformSettings.language.filter((l): l is string => typeof l === 'string'));
+              } else {
+                setSelectedLanguages([platformSettings.language as string]);
+              }
+            }
+            
+            // Also check conversation_config for languages array
+            if (agent.conversation_config) {
+              const conversationConfig = agent.conversation_config as Record<string, unknown>;
+              if (conversationConfig.languages && Array.isArray(conversationConfig.languages)) {
+                setSelectedLanguages(conversationConfig.languages.filter((l): l is string => typeof l === 'string'));
+              }
+            }
           }
           
           // Also check conversation_config for voice_ids and primary_voice_id
@@ -1044,7 +1061,10 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           },
           transcriber: {
             provider: "elevenlabs",
-            language: selectedLanguage || "english",
+            languages: selectedLanguages.length > 0 ? selectedLanguages : ["english"],
+            default_language: selectedLanguages.length > 0 ? selectedLanguages[0] : "english",
+            // Keep language for backward compatibility
+            language: selectedLanguages.length > 0 ? selectedLanguages[0] : "english",
             model: "flux-general",
           },
           // Always include voice_ids array if selected (required for Voice and Language steps)
@@ -1166,7 +1186,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         
         try {
           console.log(`[CreateAgentWizard] Syncing with ElevenLabs for step ${currentStep} (${steps[currentStep].label}), agent ID: ${savedAgentId}`);
-          console.log(`[CreateAgentWizard] Current config - Voice IDs: ${selectedVoiceIds.join(', ')}, Language: ${selectedLanguage}`);
+          console.log(`[CreateAgentWizard] Current config - Voice IDs: ${selectedVoiceIds.join(', ')}, Languages: ${selectedLanguages.join(', ')}`);
           console.log(`[CreateAgentWizard] Full config being sent:`, JSON.stringify(config, null, 2));
           
           const publishResponse = await agentsApi.publish(savedAgentId);
@@ -1409,7 +1429,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 1: // Model step
           return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
         case 2: // Voice & Language step
-          return selectedVoiceIds.length > 0 && selectedLanguage.trim() !== "";
+          return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
         case 3: { // Call Outcomes step
           // Primary outcome is required
           if (!primaryOutcome || primaryOutcome.trim() === "") {
@@ -1438,7 +1458,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 1:
           return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
         case 2: // Voice & Language step
-          return selectedVoiceIds.length > 0 && selectedLanguage.trim() !== "";
+          return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
         case 3: { // Call Outcomes step
           // Primary outcome is required
           if (!primaryOutcome || primaryOutcome.trim() === "") {
@@ -1498,8 +1518,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               onPlayPreview={handlePlayPreview}
               voiceSearchQuery={voiceSearchQuery}
               onVoiceSearchChange={setVoiceSearchQuery}
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={setSelectedLanguage}
+              selectedLanguages={selectedLanguages}
+              showLanguageSelector={showLanguageSelector}
+              onShowLanguageSelectorChange={setShowLanguageSelector}
+              onSelectLanguages={setSelectedLanguages}
+              languageSearchQuery={languageSearchQuery}
+              onLanguageSearchChange={setLanguageSearchQuery}
             />
           );
         case 3: // Call Outcomes step
@@ -1633,8 +1657,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               onPlayPreview={handlePlayPreview}
               voiceSearchQuery={voiceSearchQuery}
               onVoiceSearchChange={setVoiceSearchQuery}
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={setSelectedLanguage}
+              selectedLanguages={selectedLanguages}
+              showLanguageSelector={showLanguageSelector}
+              onShowLanguageSelectorChange={setShowLanguageSelector}
+              onSelectLanguages={setSelectedLanguages}
+              languageSearchQuery={languageSearchQuery}
+              onLanguageSearchChange={setLanguageSearchQuery}
             />
           );
         case 3: // Call Outcomes step

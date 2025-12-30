@@ -179,7 +179,9 @@ export type Agent = {
   name: string;
   provider: string;
   model: string;
-  language: string;
+  language: string; // Deprecated: use languages instead, kept for backward compatibility
+  languages?: string[]; // Array of languages
+  default_language?: string; // Default language (first in languages array)
   first_message_mode: "text" | "audio";
   first_message: string;
   voice_id?: string; // Deprecated: use voice_ids instead, kept for backward compatibility

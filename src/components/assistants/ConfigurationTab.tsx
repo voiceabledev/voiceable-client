@@ -16,6 +16,11 @@ type ConfigurationTabProps = {
   voices: Voice[];
   setShowVoiceSelector: (show: boolean) => void;
   onSetPrimaryVoice?: (voiceId: string) => void;
+  selectedLanguages: string[];
+  showLanguageSelector: boolean;
+  setShowLanguageSelector: (show: boolean) => void;
+  languageSearchQuery: string;
+  setLanguageSearchQuery: (query: string) => void;
 };
 
 export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
@@ -28,6 +33,11 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
   voices,
   setShowVoiceSelector,
   onSetPrimaryVoice,
+  selectedLanguages,
+  showLanguageSelector,
+  setShowLanguageSelector,
+  languageSearchQuery,
+  setLanguageSearchQuery,
 }) => {
   const [modelExpanded, setModelExpanded] = useState(true);
   const [voiceExpanded, setVoiceExpanded] = useState(true);
@@ -76,8 +86,26 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
       <LanguageSection
         expanded={languageExpanded}
         onToggleExpanded={() => setLanguageExpanded(!languageExpanded)}
-        selectedLanguage={agent.language || "english"}
-        setSelectedLanguage={(language) => onUpdate({ language })}
+        selectedLanguages={selectedLanguages}
+        showLanguageSelector={showLanguageSelector}
+        onShowLanguageSelectorChange={setShowLanguageSelector}
+        onSelectLanguages={async (languages) => {
+          // Languages coming from dialog are already normalized codes (e.g., 'en', 'es', 'fr')
+          // Just ensure 'en' is always in the list
+          const finalLanguages = languages.includes('en') 
+            ? languages 
+            : ['en', ...languages];
+          
+          // Update agent with languages array
+          // Note: This will trigger a save in AssistantDetail if handleSave is called
+          onUpdate({
+            languages: finalLanguages,
+            default_language: finalLanguages[0] || 'en',
+            language: finalLanguages[0] || 'en', // Keep for backward compatibility
+          } as any);
+        }}
+        languageSearchQuery={languageSearchQuery}
+        onLanguageSearchChange={setLanguageSearchQuery}
       />
     </div>
   );
