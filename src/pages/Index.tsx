@@ -1503,7 +1503,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section ref={testimonialsRef} className="py-24 px-6">
+      {/* <section ref={testimonialsRef} className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
           <motion.h2 
             className="text-4xl md:text-5xl font-bold text-foreground mb-16 text-center"
@@ -1550,7 +1550,7 @@ export default function Home() {
             ))}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Comparison Table Section */}
       <section className="py-24 px-6 bg-card/30">
