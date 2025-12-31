@@ -52,7 +52,7 @@ export function HeroSection({
         </div>
         
         {/* Title */}
-        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-8 leading-tight tracking-tight animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-8 leading-tight tracking-tight animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           {title}<br />
           <span className="bg-gradient-to-r from-primary via-emerald-light to-primary bg-clip-text text-transparent">
             {titleHighlight}
@@ -60,7 +60,7 @@ export function HeroSection({
         </h1>
         
         {/* Description */}
-        <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-3xl mx-auto leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <p className="text-lg md:text-xl text-muted-foreground mb-4 max-w-3xl mx-auto leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           {description}
         </p>
         {subdescription && (
