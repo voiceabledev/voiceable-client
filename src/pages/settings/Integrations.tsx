@@ -26,7 +26,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "State-of-the-art GPT and o-series models.",
     icon: "🤖",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -35,7 +35,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "Claude series models focused on safe, helpful AI.",
     icon: "🧠",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 2
   },
   {
@@ -44,7 +44,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "Gemini series models for rich AI understanding.",
     icon: "💎",
     iconBg: "bg-blue-600",
-    status: "available",
+    status: "upcoming",
     order: 3
   },
   {
@@ -71,7 +71,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "High performance inference platform.",
     icon: "C",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 4
   },
   {
@@ -137,7 +137,7 @@ const transcriberProviders: IntegrationProvider[] = [
     description: "Real-time speech recognition with low latency for production use.",
     icon: "D",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -155,7 +155,7 @@ const transcriberProviders: IntegrationProvider[] = [
     description: "High-accuracy speech-to-text transcription service.",
     icon: "⫾",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 2
   },
   {
@@ -194,7 +194,7 @@ const voiceProviders: IntegrationProvider[] = [
     description: "AI voice cloning and generation with natural speech synthesis.",
     icon: "⫾",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -203,7 +203,7 @@ const voiceProviders: IntegrationProvider[] = [
     description: "Real-time speech recognition with low latency for production use.",
     icon: "D",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 2
   },
   {
