@@ -15,7 +15,14 @@ import {
   Phone,
   Target
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
@@ -34,7 +41,6 @@ import {
   ComparisonTable,
   ObjectionHandlingSection,
 } from "@/components/landing";
-import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const useCases = [
   {
@@ -214,8 +220,10 @@ const testimonials = [
 ];
 
 export default function LeadsReviver() {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   const handleOpenWidget = () => {
-    openWidgetWithConfig();
+    setShowCalendarModal(true);
   };
 
   return (
@@ -234,7 +242,7 @@ export default function LeadsReviver() {
           title="Your CRM Is a Gold Mine"
           titleHighlight=""
           description="You've spent thousands acquiring leads. 60-80% went cold before they bought. Your AI lead reviver resurfaces ready buyers from your existing database — no new ad spend required."
-          primaryCta="Talk to Demo Agent"
+          primaryCta="Book Demo"
           secondaryCta="Calculate Your Hidden Revenue"
           secondaryCtaLink="/sign-up"
           onPrimaryCtaClick={handleOpenWidget}
@@ -751,7 +759,7 @@ export default function LeadsReviver() {
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-8" onClick={handleOpenWidget}>
-                  Talk to Demo Agent
+                  Book Demo
                 </Button>
                 <Button size="lg" variant="outline" className="rounded-full px-8" asChild>
                   <Link to="/sign-up">
@@ -762,6 +770,23 @@ export default function LeadsReviver() {
             </div>
           </div>
         </section>
+
+        {/* Calendar Modal */}
+        <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Footer />
       </div>

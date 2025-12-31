@@ -13,7 +13,14 @@ import {
   BarChart3,
   Lightbulb
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
@@ -35,7 +42,6 @@ import {
   ObjectionHandlingSection,
   SpeedImpactCalculator,
 } from "@/components/landing";
-import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const useCases = [
   {
@@ -213,8 +219,10 @@ const testimonials = [
 ];
 
 export default function Scheduler() {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   const handleOpenWidget = () => {
-    openWidgetWithConfig();
+    setShowCalendarModal(true);
   };
 
   return (
@@ -233,7 +241,7 @@ export default function Scheduler() {
           title="Strike While They're Hot"
           titleHighlight=""
           description="78% of deals go to whoever responds first. Your AI lead qualifier contacts new leads in under 60 seconds, qualifies them instantly, and books meetings while your competitors are still drafting emails."
-          primaryCta="Talk to Demo Qualifier"
+          primaryCta="Book Demo"
           secondaryCta="See How Many Leads Go Cold"
           secondaryCtaLink="/sign-up"
           onPrimaryCtaClick={handleOpenWidget}
@@ -637,7 +645,7 @@ export default function Scheduler() {
                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Phone className="w-5 h-5 mr-2" />
-                See Live Demo
+                Book Demo
               </Button>
               <Button 
                 size="lg" 
@@ -656,6 +664,23 @@ export default function Scheduler() {
             </p>
           </div>
         </section>
+
+        {/* Calendar Modal */}
+        <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Footer />
       </div>

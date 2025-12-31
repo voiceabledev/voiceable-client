@@ -2,6 +2,12 @@ import { useState } from "react";
 import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Accordion,
   AccordionContent,
@@ -51,7 +57,6 @@ import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
 import { Navigation } from "@/components/Navigation";
-import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const faqs = [
   {
@@ -317,8 +322,10 @@ const scaleIn = {
 };
 
 export default function Home() {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   const handleOpenWidget = () => {
-    openWidgetWithConfig();
+    setShowCalendarModal(true);
   };
 
   // Refs for scroll animations
@@ -509,7 +516,7 @@ export default function Home() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button size="lg" onClick={handleOpenWidget} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
                 <Phone className="w-5 h-5 mr-2" />
-                Talk to a Demo Agent
+                Book Demo
               </Button>
             </motion.div>
           </motion.div>
@@ -941,7 +948,7 @@ export default function Home() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button size="lg" onClick={handleOpenWidget} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
                   <Phone className="w-5 h-5 mr-2" />
-                  Talk to Live Demo Agent
+                  Book Demo
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -1753,7 +1760,7 @@ export default function Home() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button size="lg" onClick={handleOpenWidget} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
                 <Phone className="w-5 h-5 mr-2" />
-                Talk to Demo Agent
+                Book Demo
               </Button>
             </motion.div>
           </motion.div>
@@ -1766,6 +1773,23 @@ export default function Home() {
           </motion.p>
         </motion.div>
       </section>
+
+      {/* Calendar Modal */}
+      <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+            <DialogTitle>Schedule a Meeting</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <iframe
+              src="https://calendly.com/imvitoroliveira"
+              className="w-full h-full border-0"
+              title="Calendly Scheduling"
+              allow="camera; microphone; geolocation"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>
