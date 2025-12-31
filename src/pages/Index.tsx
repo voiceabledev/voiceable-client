@@ -165,7 +165,7 @@ const steps = [
   {
     number: "3",
     title: "Connect Your Tools (Optional)",
-    description: "Calendar, CRM, payment systems — connect what you need. Agents can check calendar availability, create CRM records, send confirmations, process payments. Or work standalone — your choice."
+    description: "Calendar, CRM, payment systems — connect what you need. Agents can check calendar availability, create CRM records, send confirmations, process payments. Or work standalone, your choice."
   },
   {
     number: "4",
@@ -709,7 +709,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-bold text-foreground mb-3">Takes Action</h3>
               <p className="text-muted-foreground mb-4">
-                Does more than just talk—actually completes tasks:
+                Does more than just talk, actually completes tasks:
               </p>
               <ul className="space-y-2">
                 {["Books appointments on your calendar", "Creates leads in your CRM", "Dispatches vendors for maintenance", "Sends confirmations automatically"].map((item, index) => (
@@ -812,7 +812,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Every call, every outcome, every dollar—tracked in real-time.
+            Every call, every outcome, every dollar, tracked in real-time.
           </motion.p>
 
           <motion.div 
@@ -943,7 +943,7 @@ export default function Home() {
             className="text-lg text-muted-foreground mb-8"
             variants={fadeInUp}
           >
-            No signup required. Just call and see how it handles your questions, books appointments, and resolves issues—all while tracking outcomes automatically.
+            No signup required. Just call and see how it handles your questions, books appointments, and resolves issues, all while tracking outcomes automatically.
           </motion.p>
           
           <motion.div 
@@ -1349,7 +1349,7 @@ export default function Home() {
             className="text-center text-lg text-muted-foreground"
             variants={fadeInUp}
           >
-            You don't need to change how your business operates — the agent adapts to you.
+            You don't need to change how your business operates, the agent adapts to you.
           </motion.p>
         </motion.div>
       </section>
