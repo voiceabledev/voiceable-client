@@ -1,7 +1,7 @@
 // Constants for Assistant Detail page
-import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3, TrendingUp } from "lucide-react";
+import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3, TrendingUp, GitBranch } from "lucide-react";
 
-export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-numbers", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
+export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-numbers", "workflow", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
 
 export const tabs = [
   { id: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -9,9 +9,10 @@ export const tabs = [
   { id: "performance", label: "Performance", icon: TrendingUp },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "call-script", label: "Call Script", icon: FileText },
-  { id: "tools", label: "Tools", icon: Wrench },
-  { id: "widget", label: "Widget", icon: Layout },
   { id: "phone-numbers", label: "Phone Numbers", icon: Phone },
+  { id: "tools", label: "Tools", icon: Wrench },
+  { id: "workflow", label: "Workflow", icon: GitBranch },
+  { id: "widget", label: "Widget", icon: Layout },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 
@@ -483,6 +484,69 @@ export const getAvailableIntegrationTypes = () => {
   ];
 
   return integrations;
+};
+
+// Flow Template Types
+export interface FlowTemplateNode {
+  type: import("@/types/workflow-v1").ActionType;
+  name: string;
+  config?: import("@/types/workflow-v1").NodeConfig;
+}
+
+export interface FlowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  integrationType: string; // "calcom"
+  nodes: FlowTemplateNode[];
+  connections: Array<{ from: number; to: number }>; // Indices into nodes array
+  icon?: string;
+}
+
+export const INTEGRATION_FLOW_TEMPLATES: Record<string, FlowTemplate[]> = {
+  calcom: [
+    {
+      id: "calcom-create-booking",
+      name: "Create Booking Flow",
+      description: "Get event types, check availability, and create a booking",
+      integrationType: "calcom",
+      nodes: [
+        { type: "api-request", name: "Get Event Types" },
+        { type: "api-request", name: "Get Available Slots" },
+        { type: "api-request", name: "Create Booking" }
+      ],
+      connections: [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 }
+      ]
+    },
+    {
+      id: "calcom-reschedule-booking",
+      name: "Reschedule Booking Flow",
+      description: "Get booking details and reschedule it",
+      integrationType: "calcom",
+      nodes: [
+        { type: "api-request", name: "Get Booking" },
+        { type: "api-request", name: "Reschedule Booking" }
+      ],
+      connections: [
+        { from: 0, to: 1 }
+      ]
+    },
+    {
+      id: "calcom-cancel-booking",
+      name: "Cancel Booking Flow",
+      description: "Get booking details and cancel it",
+      integrationType: "calcom",
+      nodes: [
+        { type: "api-request", name: "Get Booking" },
+        { type: "api-request", name: "Cancel Booking" }
+      ],
+      connections: [
+        { from: 0, to: 1 }
+      ]
+    }
+  ]
 };
 
 export const getIntegrationIcon = (integrationType: string): string => {

@@ -3,7 +3,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Zap, Sparkles, User } from "lucide-react";
+import { Zap, Sparkles, User, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AddNodeMenuProps {
@@ -12,6 +12,7 @@ interface AddNodeMenuProps {
   onSelectTrigger: () => void;
   onSelectAction: () => void;
   onSelectAgentStep: () => void;
+  onSelectFlowTemplate?: () => void;
   children: React.ReactNode;
 }
 
@@ -21,6 +22,7 @@ export function AddNodeMenu({
   onSelectTrigger,
   onSelectAction,
   onSelectAgentStep,
+  onSelectFlowTemplate,
   children
 }: AddNodeMenuProps) {
   const handleSelectTrigger = () => {
@@ -36,6 +38,13 @@ export function AddNodeMenu({
   const handleSelectAgentStep = () => {
     onSelectAgentStep();
     onClose();
+  };
+
+  const handleSelectFlowTemplate = () => {
+    if (onSelectFlowTemplate) {
+      onSelectFlowTemplate();
+      onClose();
+    }
   };
 
   return (
@@ -107,6 +116,26 @@ export function AddNodeMenu({
               </div>
             </div>
           </button>
+
+          {onSelectFlowTemplate && (
+            <button
+              onClick={handleSelectFlowTemplate}
+              className={cn(
+                "w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left",
+                "hover:bg-secondary/50"
+              )}
+            >
+              <div className="p-2 rounded-lg bg-purple-500">
+                <GitBranch className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="font-medium text-sm">Add flow template</div>
+                <div className="text-xs text-muted-foreground">
+                  Pre-configured integration flows
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </PopoverContent>
     </Popover>

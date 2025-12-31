@@ -16,6 +16,7 @@ export interface CreateWorkflowParams {
   memories?: Array<{ id: string; content: string }>;
   defaultModel?: string;
   safeMode?: boolean;
+  agentId?: string;
 }
 
 export interface UpdateWorkflowParams {
@@ -29,6 +30,7 @@ export interface UpdateWorkflowParams {
   memories?: Array<{ id: string; content: string }>;
   defaultModel?: string;
   safeMode?: boolean;
+  agentId?: string;
 }
 
 export const workflowsV1Api = {
@@ -63,6 +65,7 @@ export const workflowsV1Api = {
         memories: params.memories,
         defaultModel: params.defaultModel,
         safeMode: params.safeMode,
+        agentId: params.agentId,
         status: 'draft'
       }
     });
@@ -98,6 +101,20 @@ export const workflowsV1Api = {
       throw new Error('Failed to publish workflow');
     }
     return response.data;
+  },
+
+  getByAgentId: async (agentId: string): Promise<WorkflowV1 | null> => {
+    try {
+      const response = await apiClient.get<WorkflowV1[]>(`/workflows?agentId=${encodeURIComponent(agentId)}`);
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        // Return the first workflow for this agent
+        return response.data[0];
+      }
+      return null;
+    } catch (error) {
+      // If endpoint doesn't exist or returns 404, return null
+      return null;
+    }
   }
 };
 

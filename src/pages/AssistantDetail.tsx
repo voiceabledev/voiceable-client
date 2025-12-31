@@ -32,6 +32,7 @@ import { ConfigurationTab } from "@/components/assistants/ConfigurationTab";
 import { PromptLogicTab } from "@/components/assistants/PromptLogicTab";
 import { AdvancedTab } from "@/components/assistants/AdvancedTab";
 import { ToolsTab } from "@/components/assistants/ToolsTab";
+import { WorkflowTab } from "@/components/assistants/WorkflowTab";
 import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSettingsPanel";
 import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
@@ -1580,6 +1581,57 @@ export default function AssistantDetail() {
                       agentData.handlePublish
                     );
                   }}
+                />
+              ) : activeTab === "workflow" ? (
+                <WorkflowTab
+                  agentId={agentId}
+                  webhookTools={webhookHook.webhookTools}
+                  integrationTools={integrationHook.agentIntegrationTools}
+                  workflow={(() => {
+                    // Extract workflow from agent metadata
+                    if (!agentData.agent) return null;
+                    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+                    const workflowData = conversationConfig?.workflow as any;
+                    if (workflowData) {
+                      return workflowData as import("@/types/workflow-v1").WorkflowV1;
+                    }
+                    return null;
+                  })()}
+                  onSaveAgent={async (workflow) => {
+                    // Save workflow to agent metadata
+                    if (workflow && agentData.agent) {
+                      const currentConfig = (agentData.agent as any).conversation_config || {};
+                      const updatedConfig = {
+                        ...currentConfig,
+                        workflow: workflow
+                      };
+                      
+                      // Update conversation config
+                      if (agentData.setConversationConfig) {
+                        agentData.setConversationConfig(updatedConfig);
+                      }
+                      
+                      agentData.handleUpdate({
+                        conversation_config: updatedConfig,
+                      } as any);
+                    }
+                    
+                    // Save agent with all current data
+                    await agentData.handleSave(
+                      webhookHook.webhookTools,
+                      clientHook.clientTools,
+                      integrationHook.agentIntegrationTools,
+                      sectionHook.cenarios,
+                      sectionHook.etapas,
+                      sectionHook.tomDeVoz,
+                      systemTools,
+                      systemToolSettings,
+                      filesHook.attachedFiles,
+                      systemToolSettingsMap
+                    );
+                  }}
+                  onUpdateWebhookTools={webhookHook.setWebhookTools}
+                  onUpdateIntegrationTools={integrationHook.setAgentIntegrationTools}
                 />
               ) : activeTab === "advanced" ? (
                 <AdvancedTab

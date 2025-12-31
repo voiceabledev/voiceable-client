@@ -21,6 +21,7 @@ interface WorkflowCanvasV1Props {
   onAddKnowledgeBase?: (fromNodeId: string) => void;
   onAddCondition?: (fromNodeId: string) => void;
   onAddLoop?: (fromNodeId: string) => void;
+  onAddFlowTemplate?: (fromNodeId?: string) => void;
   onNodeRename?: (nodeId: string) => void;
   onNodeReplace?: (nodeId: string) => void;
   onNodeDelete?: (nodeId: string) => void;
@@ -47,6 +48,7 @@ export function WorkflowCanvasV1({
   onAddKnowledgeBase,
   onAddCondition,
   onAddLoop,
+  onAddFlowTemplate,
   onNodeRename,
   onNodeReplace,
   onNodeDelete,
@@ -621,6 +623,10 @@ export function WorkflowCanvasV1({
               setIsAddNodeMenuOpen(false);
               onAddAgentStep();
             }}
+            onSelectFlowTemplate={onAddFlowTemplate ? () => {
+              setIsAddNodeMenuOpen(false);
+              onAddFlowTemplate();
+            } : undefined}
           >
             <button
               type="button"

@@ -116,6 +116,7 @@ export interface WorkflowV1 {
   created_at?: string;
   updated_at?: string;
   status?: "draft" | "published";
+  agentId?: string; // Associated agent ID
   // Settings
   greetingMessage?: string; // Greeting message for the workflow
   context?: string; // Agent prompts/context

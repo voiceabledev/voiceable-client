@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, ArrowLeft, MessageSquare, Mail, Calendar, FileText, FileSpreadsheet, Users, Cloud, Box, Hash } from "lucide-react";
+import { Search, ArrowLeft, MessageSquare, Mail, Calendar, FileText, FileSpreadsheet, Users, Cloud, Box, Hash, Phone, Headphones, ShoppingCart, Brain, Mic } from "lucide-react";
 import type { TriggerType } from "@/types/workflow-v1";
+import { INTEGRATION_METADATA, getAvailableIntegrationTypes } from "@/constants/assistant";
 
 interface AddTriggerModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ interface AddTriggerModalProps {
 interface AppTrigger {
   id: string;
   name: string;
-  icon: any;
+  icon: string | React.ComponentType<{ className?: string }>;
   iconBg: string;
   triggers?: Array<{
     id: string;
@@ -28,129 +29,105 @@ interface AppTrigger {
   }>;
 }
 
-const apps: AppTrigger[] = [
-  {
-    id: "gmail",
-    name: "Gmail",
-    icon: Mail,
-    iconBg: "bg-red-500",
+// Build integration triggers from available integrations
+const buildIntegrationTriggers = (): AppTrigger[] => {
+  const integrations = getAvailableIntegrationTypes();
+  const triggers: AppTrigger[] = [];
+
+  // Add Google Sheets as a special case (not in integration metadata but has specific triggers)
+  triggers.push({
+    id: "google-sheets",
+    name: "Google Sheets",
+    icon: FileSpreadsheet,
+    iconBg: "bg-green-500",
     triggers: [
       {
-        id: "email-received",
-        name: "Email received",
-        description: "Triggers when a new email is received in Gmail."
+        id: "google-sheets-new-row",
+        name: "New row added",
+        description: "Triggers when a new row is added to Google Sheets"
       },
       {
-        id: "email-sent",
-        name: "Email sent",
-        description: "Triggers when a new email is sent through Gmail."
-      },
+        id: "google-sheets-row-updated",
+        name: "Row updated",
+        description: "Triggers when a row is updated in Google Sheets"
+      }
+    ]
+  });
+
+  // Add all other integrations from the Integrations page
+  integrations.forEach(integration => {
+    const metadata = INTEGRATION_METADATA[integration.id];
+    if (!metadata) {
+      // For integrations without metadata, use the integration data directly
+      triggers.push({
+        id: integration.id,
+        name: integration.name,
+        icon: integration.icon,
+        iconBg: integration.iconBg,
+        triggers: [
+          {
+            id: "webhook",
+            name: `${integration.name} webhook`,
+            description: `Triggers when a webhook is received from ${integration.name}`
+          }
+        ]
+      });
+      return;
+    }
+
+    // Skip Google Sheets as we already added it above
+    if (integration.id === "google-sheets" || integration.id === "google_sheets") {
+      return;
+    }
+
+    // Other integrations use webhook triggers
+    triggers.push({
+      id: integration.id,
+      name: integration.name,
+      icon: metadata.icon,
+      iconBg: metadata.iconBg,
+      triggers: [
+        {
+          id: "webhook",
+          name: `${integration.name} webhook`,
+          description: `Triggers when a webhook is received from ${integration.name}`
+        }
+      ]
+    });
+  });
+
+  return triggers;
+};
+
+const integrationTriggers = buildIntegrationTriggers();
+
+// Manual and webhook triggers
+const systemTriggers: AppTrigger[] = [
+  {
+    id: "manual",
+    name: "Manual trigger",
+    icon: "👆",
+    iconBg: "bg-gray-500",
+    triggers: [
       {
-        id: "new-attachment",
-        name: "New Attachment Received",
-        description: "Trigger when new email attachments are received in Gmail."
-      },
-      {
-        id: "email-matching-search",
-        name: "New Email Matching Search",
-        description: "Triggers when new emails match specified Gmail search criteria and labels."
-      },
-      {
-        id: "new-labeled-email",
-        name: "New Labeled Email",
-        description: "Triggers when new emails with specified Gmail labels are received."
+        id: "manual",
+        name: "Manual trigger",
+        description: "Manually triggered workflow"
       }
     ]
   },
   {
-    id: "google-sheets",
-    name: "Google Sheets",
-    icon: FileSpreadsheet,
-    iconBg: "bg-green-500"
-  },
-  {
-    id: "google-docs",
-    name: "Google Docs",
-    icon: FileText,
-    iconBg: "bg-blue-500"
-  },
-  {
-    id: "google-calendar",
-    name: "Google Calendar",
-    icon: Calendar,
-    iconBg: "bg-blue-500"
-  },
-  {
-    id: "google-drive",
-    name: "Google Drive",
-    icon: Cloud,
-    iconBg: "bg-yellow-500"
-  },
-  {
-    id: "slack",
-    name: "Slack",
-    icon: Hash,
-    iconBg: "bg-purple-500"
-  },
-  {
-    id: "microsoft-outlook",
-    name: "Microsoft Outlook",
-    icon: Mail,
-    iconBg: "bg-blue-500"
-  },
-  {
-    id: "microsoft-teams",
-    name: "Microsoft Teams",
-    icon: Users,
-    iconBg: "bg-purple-500"
-  },
-  {
-    id: "salesforce",
-    name: "Salesforce",
-    icon: Cloud,
-    iconBg: "bg-blue-500"
-  },
-  {
-    id: "hubspot",
-    name: "HubSpot",
-    icon: Users,
-    iconBg: "bg-orange-500"
-  },
-  {
-    id: "airtable",
-    name: "Airtable",
-    icon: FileSpreadsheet,
-    iconBg: "bg-purple-500"
-  },
-  {
-    id: "calendly",
-    name: "Calendly",
-    icon: Calendar,
-    iconBg: "bg-blue-500"
-  },
-  {
-    id: "dropbox",
-    name: "Dropbox",
-    icon: Box,
-    iconBg: "bg-blue-500"
-  },
-  {
-    id: "notion",
-    name: "Notion",
-    icon: FileText,
-    iconBg: "bg-gray-500"
-  },
-  {
-    id: "asana",
-    name: "Asana",
-    icon: Calendar,
-    iconBg: "bg-red-500"
-  },
-  {
-    id: "discord",
-    name: "Discord",
-    icon: MessageSquare,
-    iconBg: "bg-indigo-500"
+    id: "webhook",
+    name: "Webhook",
+    icon: "🔗",
+    iconBg: "bg-blue-500",
+    triggers: [
+      {
+        id: "webhook",
+        name: "Webhook trigger",
+        description: "Triggers when a webhook is called"
+      }
+    ]
   }
 ];
 
@@ -159,14 +136,21 @@ const chatTriggers: AppTrigger[] = [
     id: "chat-with-agent",
     name: "Chat with this Agent",
     icon: MessageSquare,
-    iconBg: "bg-yellow-500"
+    iconBg: "bg-yellow-500",
+    triggers: [
+      {
+        id: "webhook",
+        name: "Chat webhook",
+        description: "Triggers when a chat message is received"
+      }
+    ]
   }
 ];
 
 export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedApp, setSelectedApp] = useState<AppTrigger | null>(null);
-  const [activeTab, setActiveTab] = useState("apps");
+  const [activeTab, setActiveTab] = useState("integrations"); // Default to integrations tab
 
   const handleSelectApp = (app: AppTrigger) => {
     if (app.triggers && app.triggers.length > 0) {
@@ -183,10 +167,14 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
   const handleSelectTrigger = (app: AppTrigger, trigger: { id: string; name: string; description: string }) => {
     // Map app-specific triggers to our trigger types
     let triggerType: TriggerType = "webhook";
-    if (app.id === "google-sheets") {
-      triggerType = trigger.id.includes("new-row") ? "google-sheets-new-row" : "google-sheets-row-updated";
-    } else if (app.id === "gmail") {
-      triggerType = "webhook"; // Gmail triggers would be webhook-based
+    if (trigger.id === "google-sheets-new-row") {
+      triggerType = "google-sheets-new-row";
+    } else if (trigger.id === "google-sheets-row-updated") {
+      triggerType = "google-sheets-row-updated";
+    } else if (trigger.id === "manual") {
+      triggerType = "manual";
+    } else {
+      triggerType = "webhook";
     }
     
     onSelect(triggerType, app.id, trigger.name);
@@ -203,17 +191,21 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
     onClose();
   };
 
-  const filteredApps = apps.filter(app =>
-    app.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filterItems = <T extends { name: string }>(items: T[]) => {
+    if (!searchQuery) return items;
+    return items.filter(item =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
 
-  const filteredChatTriggers = chatTriggers.filter(trigger =>
-    trigger.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredIntegrationTriggers = filterItems(integrationTriggers);
+  const filteredSystemTriggers = filterItems(systemTriggers);
+  const filteredChatTriggers = filterItems(chatTriggers);
 
   // If an app with specific triggers is selected, show trigger selection
   if (selectedApp && selectedApp.triggers) {
     const Icon = selectedApp.icon;
+    const isStringIcon = typeof Icon === 'string';
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl bg-card border-border max-h-[80vh] overflow-y-auto">
@@ -227,7 +219,11 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
               </button>
               <div className="flex items-center gap-2">
                 <div className={`p-1.5 rounded ${selectedApp.iconBg}`}>
-                  <Icon className="h-4 w-4 text-white" />
+                  {isStringIcon ? (
+                    <span className="text-white text-sm">{Icon}</span>
+                  ) : (
+                    <Icon className="h-4 w-4 text-white" />
+                  )}
                 </div>
                 <DialogTitle className="text-xl font-semibold">{selectedApp.name}</DialogTitle>
               </div>
@@ -244,7 +240,11 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
                   className="w-full flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
                 >
                   <div className={`p-2 rounded-lg ${selectedApp.iconBg} mt-0.5`}>
-                    <Icon className="h-4 w-4 text-white" />
+                    {isStringIcon ? (
+                      <span className="text-white text-sm">{Icon}</span>
+                    ) : (
+                      <Icon className="h-4 w-4 text-white" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm">{trigger.name}</div>
@@ -284,18 +284,61 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
 
         {/* Category Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="apps">Apps</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="by-lindy">By Lindy</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
+            <TabsTrigger value="system">System</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="apps" className="mt-4">
+          <TabsContent value="integrations" className="mt-4">
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Popular</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {filteredApps.map((app) => {
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                Available Integrations ({filteredIntegrationTriggers.length})
+              </h3>
+              {filteredIntegrationTriggers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No integrations available</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {filteredIntegrationTriggers.map((app) => {
+                    const Icon = app.icon;
+                    const isStringIcon = typeof Icon === 'string';
+                    return (
+                      <button
+                        key={app.id}
+                        onClick={() => handleSelectApp(app)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                      >
+                        <div className={`p-2 rounded-lg ${app.iconBg}`}>
+                          {isStringIcon ? (
+                            <span className="text-white text-sm">{Icon}</span>
+                          ) : (
+                            <Icon className="h-5 w-5 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{app.name}</div>
+                          {app.triggers && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {app.triggers.length} {app.triggers.length === 1 ? 'trigger' : 'triggers'} available
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="system" className="mt-4">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">System Triggers</h3>
+              <div className="space-y-2">
+                {filteredSystemTriggers.map((app) => {
                   const Icon = app.icon;
+                  const isStringIcon = typeof Icon === 'string';
                   return (
                     <button
                       key={app.id}
@@ -303,10 +346,19 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
                       className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
                     >
                       <div className={`p-2 rounded-lg ${app.iconBg}`}>
-                        <Icon className="h-5 w-5 text-white" />
+                        {isStringIcon ? (
+                          <span className="text-white text-sm">{Icon}</span>
+                        ) : (
+                          <Icon className="h-5 w-5 text-white" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">{app.name}</div>
+                        {app.triggers && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {app.triggers[0]?.description}
+                          </div>
+                        )}
                       </div>
                     </button>
                   );
@@ -316,24 +368,37 @@ export function AddTriggerModal({ isOpen, onClose, onSelect }: AddTriggerModalPr
           </TabsContent>
 
           <TabsContent value="chat" className="mt-4">
-            <div className="space-y-2">
-              {filteredChatTriggers.map((trigger) => {
-                const Icon = trigger.icon;
-                return (
-                  <button
-                    key={trigger.id}
-                    onClick={() => handleSelectApp(trigger)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
-                  >
-                    <div className={`p-2 rounded-lg ${trigger.iconBg}`}>
-                      <Icon className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{trigger.name}</div>
-                    </div>
-                  </button>
-                );
-              })}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Chat Triggers</h3>
+              <div className="space-y-2">
+                {filteredChatTriggers.map((trigger) => {
+                  const Icon = trigger.icon;
+                  const isStringIcon = typeof Icon === 'string';
+                  return (
+                    <button
+                      key={trigger.id}
+                      onClick={() => handleSelectApp(trigger)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                    >
+                      <div className={`p-2 rounded-lg ${trigger.iconBg}`}>
+                        {isStringIcon ? (
+                          <span className="text-white text-sm">{Icon}</span>
+                        ) : (
+                          <Icon className="h-5 w-5 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{trigger.name}</div>
+                        {trigger.triggers && trigger.triggers[0] && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {trigger.triggers[0].description}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </TabsContent>
 

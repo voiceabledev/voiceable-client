@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, ArrowLeft, MessageSquare, Mail, Calendar, FileText, FileSpreadsheet, Users, Cloud, Box, Hash, Linkedin, Youtube, Music, Zap, GitBranch, Repeat, Sparkles, Phone, Database } from "lucide-react";
 import type { ActionType } from "@/types/workflow-v1";
+import type { AgentIntegrationTool } from "@/types/assistant";
+import { INTEGRATION_TOOLS_DISPLAY, INTEGRATION_METADATA, displayNameToActionName, getAvailableIntegrationTypes } from "@/constants/assistant";
 
 interface AddActionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (type: ActionType, app?: string, actionName?: string) => void;
+  integrationTools?: AgentIntegrationTool[]; // Agent's enabled integration tools
 }
 
 interface AppAction {
@@ -206,10 +209,101 @@ const linkedActions = [
   }
 ];
 
-export function AddActionModal({ isOpen, onClose, onSelect }: AddActionModalProps) {
+export function AddActionModal({ isOpen, onClose, onSelect, integrationTools = [] }: AddActionModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedApp, setSelectedApp] = useState<AppAction | null>(null);
-  const [activeTab, setActiveTab] = useState("top");
+  const [activeTab, setActiveTab] = useState("integrations"); // Default to integrations tab
+
+  // Build integration actions from all available integrations (like in Integrations page)
+  const integrationActions = useMemo(() => {
+    const actions: AppAction[] = [];
+    
+    // Get all available integrations from the Integrations page
+    const integrations = getAvailableIntegrationTypes();
+    
+    // Group enabled integration tools by integration_type for filtering
+    const toolsByIntegration: Record<string, AgentIntegrationTool[]> = {};
+    integrationTools.forEach(tool => {
+      if (tool.enabled) {
+        if (!toolsByIntegration[tool.integration_type]) {
+          toolsByIntegration[tool.integration_type] = [];
+        }
+        toolsByIntegration[tool.integration_type].push(tool);
+      }
+    });
+
+    // Add Google Sheets as a special case
+    actions.push({
+      id: "google-sheets",
+      name: "Google Sheets",
+      icon: FileSpreadsheet,
+      iconBg: "bg-green-500",
+      actions: [
+        {
+          id: "append-row",
+          name: "Append row",
+          description: "Append a new row to a spreadsheet."
+        },
+        {
+          id: "append-rows",
+          name: "Append rows",
+          description: "Appends multiple rows to a spreadsheet."
+        },
+        {
+          id: "update-cell",
+          name: "Update cell",
+          description: "Update a specific cell in a Google Sheets worksheet."
+        },
+        {
+          id: "clear-cell",
+          name: "Clear Cell",
+          description: "Clear the contents of a specific cell in a Google Sheets worksheet."
+        }
+      ]
+    });
+
+    // Add all integrations from the Integrations page
+    integrations.forEach(integration => {
+      const metadata = INTEGRATION_METADATA[integration.id];
+      if (!metadata) return;
+
+      // Get available actions for this integration type
+      const availableActions = INTEGRATION_TOOLS_DISPLAY[integration.id] || [];
+      
+      if (availableActions.length > 0) {
+        // Show all available actions for this integration (from Integrations page)
+        // If integration has enabled tools, we could filter, but for now show all
+        actions.push({
+          id: integration.id,
+          name: integration.name,
+          icon: metadata.icon,
+          iconBg: metadata.iconBg,
+          actions: availableActions.map(displayName => ({
+            id: displayName.toLowerCase().replace(/\s+/g, '-'),
+            name: displayName,
+            description: `${displayName} action for ${integration.name}`
+          }))
+        });
+      } else {
+        // Integration has no specific actions defined, show as generic webhook action
+        actions.push({
+          id: integration.id,
+          name: integration.name,
+          icon: metadata.icon,
+          iconBg: metadata.iconBg,
+          actions: [
+            {
+              id: "webhook",
+              name: `${integration.name} action`,
+              description: `Execute an action via ${integration.name} webhook`
+            }
+          ]
+        });
+      }
+    });
+
+    return actions;
+  }, [integrationTools]);
 
   const handleSelectApp = (app: AppAction) => {
     if (app.actions && app.actions.length > 0) {
@@ -227,6 +321,9 @@ export function AddActionModal({ isOpen, onClose, onSelect }: AddActionModalProp
     let actionType: ActionType = "api-request";
     if (app.id === "google-sheets") {
       actionType = "google-sheets-action";
+    } else if (INTEGRATION_METADATA[app.id]) {
+      // For integration actions, use api-request type with integration type as app
+      actionType = "api-request";
     }
     
     onSelect(actionType, app.id, action.name);
@@ -258,6 +355,7 @@ export function AddActionModal({ isOpen, onClose, onSelect }: AddActionModalProp
   // If an app with specific actions is selected, show action selection
   if (selectedApp && selectedApp.actions) {
     const Icon = selectedApp.icon;
+    const isStringIcon = typeof Icon === 'string';
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl bg-card border-border max-h-[80vh] overflow-y-auto">
@@ -271,7 +369,11 @@ export function AddActionModal({ isOpen, onClose, onSelect }: AddActionModalProp
               </button>
               <div className="flex items-center gap-2">
                 <div className={`p-1.5 rounded ${selectedApp.iconBg}`}>
-                  <Icon className="h-4 w-4 text-white" />
+                  {isStringIcon ? (
+                    <span className="text-white text-sm">{Icon}</span>
+                  ) : (
+                    <Icon className="h-4 w-4 text-white" />
+                  )}
                 </div>
                 <DialogTitle className="text-xl font-semibold">{selectedApp.name}</DialogTitle>
               </div>
@@ -288,7 +390,11 @@ export function AddActionModal({ isOpen, onClose, onSelect }: AddActionModalProp
                   className="w-full flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
                 >
                   <div className={`p-2 rounded-lg ${selectedApp.iconBg} mt-0.5`}>
-                    <Icon className="h-4 w-4 text-white" />
+                    {isStringIcon ? (
+                      <span className="text-white text-sm">{Icon}</span>
+                    ) : (
+                      <Icon className="h-4 w-4 text-white" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm">{action.name}</div>
@@ -328,15 +434,57 @@ export function AddActionModal({ isOpen, onClose, onSelect }: AddActionModalProp
 
         {/* Category Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="top">Top</TabsTrigger>
             <TabsTrigger value="apps">Apps</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="logic">Logic</TabsTrigger>
             <TabsTrigger value="scrapers">Scrapers</TabsTrigger>
-            <TabsTrigger value="by-lindy">By Lindy</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="integrations" className="mt-4">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                Enabled Integrations ({integrationActions.length})
+              </h3>
+              {integrationActions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No integrations enabled. Enable integrations in the Tools tab to use them in workflows.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filterItems(integrationActions).map((app) => {
+                    const Icon = app.icon;
+                    const isStringIcon = typeof Icon === 'string';
+                    return (
+                      <button
+                        key={app.id}
+                        onClick={() => handleSelectApp(app)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                      >
+                        <div className={`p-2 rounded-lg ${app.iconBg}`}>
+                          {isStringIcon ? (
+                            <span className="text-white text-sm">{Icon}</span>
+                          ) : (
+                            <Icon className="h-5 w-5 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{app.name}</div>
+                          {app.actions && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {app.actions.length} {app.actions.length === 1 ? 'action' : 'actions'} available
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
           <TabsContent value="top" className="mt-4">
             <div className="space-y-4">
