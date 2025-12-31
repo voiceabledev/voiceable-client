@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart } from "lucide-react";
+import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -743,33 +743,6 @@ export default function Integrations() {
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-          {/* Model Providers Section */}
-          {renderProviderSection(
-            "Model Providers",
-            <Brain className="h-4 w-4" />,
-            isModelProvidersOpen,
-            setIsModelProvidersOpen,
-            filteredModelProviders
-          )}
-
-          {/* Transcriber Providers Section */}
-          {renderProviderSection(
-            "Transcriber Providers",
-            <Mic className="h-4 w-4" />,
-            isTranscriberProvidersOpen,
-            setIsTranscriberProvidersOpen,
-            filteredTranscriberProviders
-          )}
-
-          {/* Voice Providers Section */}
-          {renderProviderSection(
-            "Voice Providers",
-            <span className="text-base md:text-lg">🎙️</span>,
-            isVoiceProvidersOpen,
-            setIsVoiceProvidersOpen,
-            filteredVoiceProviders
-          )}
-
           {/* CRM Providers Section */}
           {renderProviderSection(
             "CRM Providers",
@@ -786,6 +759,33 @@ export default function Integrations() {
             isSchedulingProvidersOpen,
             setIsSchedulingProvidersOpen,
             filteredSchedulingProviders
+          )}
+
+          {/* Model Providers Section */}
+          {renderProviderSection(
+            "Model Providers",
+            <Brain className="h-4 w-4" />,
+            isModelProvidersOpen,
+            setIsModelProvidersOpen,
+            filteredModelProviders
+          )}
+
+          {/* Transcriber Providers Section */}
+          {renderProviderSection(
+            "Transcriber Providers",
+            <Mic className="h-4 w-4 text-primary" />,
+            isTranscriberProvidersOpen,
+            setIsTranscriberProvidersOpen,
+            filteredTranscriberProviders
+          )}
+
+          {/* Voice Providers Section */}
+          {renderProviderSection(
+            "Voice Providers",
+            <Volume2 className="h-4 w-4 text-primary" />,
+            isVoiceProvidersOpen,
+            setIsVoiceProvidersOpen,
+            filteredVoiceProviders
           )}
 
           {/* Telephony Providers Section */}
