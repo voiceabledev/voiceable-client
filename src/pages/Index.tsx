@@ -117,11 +117,11 @@ const features = [
     title: "100+ Languages Supported",
     description: "Global by default: configure in any language, auto-detect caller language, switch languages mid-conversation, same performance tracking worldwide."
   },
-  {
-    icon: Shield,
-    title: "Enterprise-Grade Reliability",
-    description: "Production-ready infrastructure: 99.99% uptime SLA, sub-500ms latency, SOC 2 compliant, built-in AI guardrails. This isn't a demo. It's an operational system."
-  }
+  // {
+  //   icon: Shield,
+  //   title: "Enterprise-Grade Reliability",
+  //   description: "Production-ready infrastructure: 99.99% uptime SLA, sub-500ms latency, SOC 2 compliant, built-in AI guardrails. This isn't a demo. It's an operational system."
+  // }
 ];
 
 const enterpriseFeatures = [
@@ -473,7 +473,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            Book appointments, qualify leads, handle support, and track every outcome—all while you sleep.
+            Book appointments, qualify leads, handle support, and track every outcome, all while you sleep.
           </motion.p>
 
           {/* Social Proof Banner */}
@@ -522,7 +522,7 @@ export default function Home() {
           </motion.div>
 
           {/* Social Proof Quote */}
-          <motion.div 
+          {/* <motion.div 
             className="max-w-3xl mx-auto mb-12"
             initial="hidden"
             animate={heroInView ? "visible" : "hidden"}
@@ -558,7 +558,7 @@ export default function Home() {
               </blockquote>
               <p className="text-center text-sm text-muted-foreground mt-2">— Medical Practice Manager</p>
             </div>
-          </motion.div>
+          </motion.div> */}
           
         </div>
       </section>

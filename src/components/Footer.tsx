@@ -71,7 +71,7 @@ export function Footer() {
             <a href="https://www.linkedin.com/company/voiceable" className="text-muted-foreground hover:text-foreground transition-colors">
               <Linkedin className="w-5 h-5" />
             </a>
-            <a href="https://github.com/voiceable" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="https://github.com/voiceabledev" className="text-muted-foreground hover:text-foreground transition-colors">
               <Github className="w-5 h-5" />
             </a>
           </div>
