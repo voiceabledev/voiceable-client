@@ -502,7 +502,7 @@ export default function Home() {
               <Button size="lg" variant="outline" className="font-semibold px-10 py-7 text-lg rounded-full border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200" asChild>
                 <Link to="/sign-up">
                   <BarChart3 className="w-5 h-5 mr-2" />
-                  See Live Performance Dashboard
+                  Sign Up
                 </Link>
               </Button>
             </motion.div>
@@ -948,7 +948,7 @@ export default function Home() {
                 <Button size="lg" variant="outline" className="font-semibold px-8 py-6 rounded-full border-2" asChild>
                   <Link to="/sign-up">
                     <BarChart3 className="w-5 h-5 mr-2" />
-                    View Sample Dashboard
+                    Sign Up
                   </Link>
                 </Button>
               </motion.div>
