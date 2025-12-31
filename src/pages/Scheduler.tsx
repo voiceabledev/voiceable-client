@@ -388,7 +388,7 @@ export default function Scheduler() {
         />
 
         {/* Use Cases Section with Metrics */}
-        <section className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
+        {/* <section className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-12 text-center">
               Real Use Cases.<br />Measurable Pipeline Impact.
@@ -445,7 +445,7 @@ export default function Scheduler() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         <PerfectForSection
           title="Designed for real revenue teams"

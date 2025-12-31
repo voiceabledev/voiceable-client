@@ -532,18 +532,26 @@ export default function Home() {
             <div className="bg-card/60 backdrop-blur-sm rounded-2xl p-6 border border-border/50">
               <p className="text-sm text-muted-foreground mb-2 text-center">Trusted by businesses who measure outcomes, not just conversations</p>
               <div className="flex items-center justify-center gap-2 mt-4">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center -ml-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center -ml-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center -ml-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
+                <img 
+                  src="https://i.pravatar.cc/150?img=12" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover"
+                />
+                <img 
+                  src="https://i.pravatar.cc/150?img=33" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover -ml-2"
+                />
+                <img 
+                  src="https://i.pravatar.cc/150?img=47" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover -ml-2"
+                />
+                <img 
+                  src="https://i.pravatar.cc/150?img=68" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover -ml-2"
+                />
               </div>
               <blockquote className="text-center mt-4 italic text-foreground">
                 "152 appointments booked last month. $7,600 in revenue. The dashboard shows exactly where every dollar goes."
@@ -989,7 +997,7 @@ export default function Home() {
       </section>
 
       {/* Use Cases Section */}
-      <section ref={useCasesRef} className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
+      {/* <section ref={useCasesRef} className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
         <div className="max-w-7xl mx-auto">
           <motion.p 
             className="text-muted-foreground font-semibold text-sm tracking-widest uppercase mb-4"
@@ -1067,7 +1075,7 @@ export default function Home() {
             ))}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* How it works Section */}
       <section ref={howItWorksRef} className="py-24 px-6 bg-card">
@@ -1523,8 +1531,10 @@ export default function Home() {
                   "{testimonial.quote}"
                 </blockquote>
                 <div className="flex items-center gap-3 mb-4">
-                  <motion.div 
-                    className="w-10 h-10 rounded-full bg-primary/20"
+                  <motion.img 
+                    src={`https://i.pravatar.cc/150?img=${12 + index * 7}`}
+                    alt={`${testimonial.author} avatar`}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-border"
                     whileHover={{ scale: 1.1, rotate: 360 }}
                     transition={{ duration: 0.5 }}
                   />
