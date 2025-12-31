@@ -18,8 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function Profile() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signOut } = useAuth();
-  const [email] = useState("vbrazo@gmail.com");
+  const { signOut, user } = useAuth();
+  const email = user?.email || "";
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
