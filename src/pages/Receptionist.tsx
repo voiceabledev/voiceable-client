@@ -336,7 +336,7 @@ export default function Receptionist() {
             "Books appointments",
             "Knows when to transfer to a human"
           ]}
-          ctaText="Talk to the AI receptionist"
+          ctaText="Book Demo"
           onCtaClick={handleOpenWidget}
         />
 

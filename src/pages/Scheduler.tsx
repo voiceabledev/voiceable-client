@@ -383,7 +383,7 @@ export default function Scheduler() {
             "Responds to objections",
             "Books meetings when criteria are met"
           ]}
-          ctaText="Talk to the agent"
+          ctaText="Book Demo"
           onCtaClick={handleOpenWidget}
         />
 

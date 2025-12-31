@@ -413,7 +413,7 @@ export default function Confirmation() {
             "Answers common questions",
             "Updates the calendar automatically"
           ]}
-          ctaText="Talk to the agent"
+          ctaText="Book Demo"
           onCtaClick={handleOpenWidget}
         />
 

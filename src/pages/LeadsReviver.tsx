@@ -381,7 +381,7 @@ export default function LeadsReviver() {
             "Handles objections calmly",
             "Books appointments when it makes sense"
           ]}
-          ctaText="Talk to the agent"
+          ctaText="Book Demo"
           onCtaClick={handleOpenWidget}
         />
 
