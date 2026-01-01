@@ -196,7 +196,7 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                These are phone numbers available in your Twilio account that haven't been assigned yet.
+                These are phone numbers available in your account that haven't been assigned yet.
               </p>
 
               {loadingAccountNumbers ? (
@@ -255,7 +255,7 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
 
               <div className="space-y-4 pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground">
-                  Search for additional phone numbers to purchase from Twilio.
+                  Search for additional phone numbers to purchase.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
