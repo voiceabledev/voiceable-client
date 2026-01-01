@@ -141,15 +141,6 @@ export const transcriberProviders: IntegrationProvider[] = [
     order: 3
   },
   {
-    id: "elevenlabs-transcriber",
-    name: "ElevenLabs",
-    description: "High-accuracy speech-to-text transcription service.",
-    icon: "⫾",
-    iconBg: "bg-zinc-800",
-    status: "upcoming",
-    order: 2
-  },
-  {
     id: "azure-transcriber",
     name: "Azure Speech",
     description: "Azure Speech Services for high-quality transcription.",
@@ -180,22 +171,13 @@ export const transcriberProviders: IntegrationProvider[] = [
 
 export const voiceProviders: IntegrationProvider[] = [
   {
-    id: "elevenlabs",
-    name: "ElevenLabs",
-    description: "AI voice cloning and generation with natural speech synthesis.",
-    icon: "⫾",
-    iconBg: "bg-zinc-800",
-    status: "upcoming",
-    order: 1
-  },
-  {
     id: "deepgram",
     name: "Deepgram",
     description: "Real-time speech recognition with low latency for production use.",
     icon: "D",
     iconBg: "bg-zinc-800",
     status: "upcoming",
-    order: 2
+    order: 1
   },
   {
     id: "cartesia",
@@ -204,7 +186,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "▣",
     iconBg: "bg-zinc-800",
     status: "upcoming",
-    order: 3
+    order: 2
   },
   {
     id: "azure",
@@ -213,7 +195,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "A",
     iconBg: "bg-red-600",
     status: "upcoming",
-    order: 4
+    order: 3
   },
   {
     id: "inworld",
@@ -222,7 +204,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "⬡",
     iconBg: "bg-zinc-800",
     status: "upcoming",
-    order: 5
+    order: 4
   },
   {
     id: "rimeai",
@@ -231,7 +213,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "⚏",
     iconBg: "bg-zinc-800",
     status: "upcoming",
-    order: 6
+    order: 5
   },
   {
     id: "smallestai",
@@ -240,7 +222,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "⬢",
     iconBg: "bg-green-600",
     status: "upcoming",
-    order: 7
+    order: 6
   },
   {
     id: "neuphonic",
@@ -249,7 +231,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "ω",
     iconBg: "bg-orange-500",
     status: "upcoming",
-    order: 8
+    order: 7
   },
   {
     id: "hume",
@@ -258,7 +240,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "⬢",
     iconBg: "bg-purple-600",
     status: "upcoming",
-    order: 9
+    order: 8
   },
   {
     id: "lmnt",
@@ -267,7 +249,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "◐",
     iconBg: "bg-yellow-500",
     status: "upcoming",
-    order: 10
+    order: 9
   },
   {
     id: "minimax",
@@ -276,7 +258,7 @@ export const voiceProviders: IntegrationProvider[] = [
     icon: "⟁",
     iconBg: "bg-zinc-800",
     status: "upcoming",
-    order: 11
+    order: 10
   }
 ];
 
