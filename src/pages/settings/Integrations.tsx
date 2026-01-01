@@ -449,6 +449,24 @@ const communicationProviders: IntegrationProvider[] = [
     iconBg: "bg-purple-600",
     status: "upcoming",
     order: 1
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp",
+    description: "Connect WhatsApp Business API to send and receive messages. Engage with customers on their preferred platform.",
+    icon: "W",
+    iconBg: "bg-green-600",
+    status: "upcoming",
+    order: 2
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    description: "Integrate Telegram Bot API to send messages and notifications. Reach users through Telegram channels and chats.",
+    icon: "T",
+    iconBg: "bg-blue-500",
+    status: "upcoming",
+    order: 3
   }
 ];
 
