@@ -491,6 +491,45 @@ const ecommerceProviders: IntegrationProvider[] = [
   }
 ];
 
+const atsProviders: IntegrationProvider[] = [
+  {
+    id: "ashby",
+    name: "Ashby",
+    description: "Modern ATS platform for recruiting and candidate management.",
+    icon: "A",
+    iconBg: "bg-blue-600",
+    status: "upcoming",
+    order: 1
+  },
+  {
+    id: "workday",
+    name: "Workday",
+    description: "Enterprise HR and talent management platform.",
+    icon: "W",
+    iconBg: "bg-orange-500",
+    status: "upcoming",
+    order: 2
+  },
+  {
+    id: "level",
+    name: "Level",
+    description: "ATS and recruiting platform for modern hiring teams.",
+    icon: "L",
+    iconBg: "bg-purple-600",
+    status: "upcoming",
+    order: 3
+  },
+  {
+    id: "bamboohr",
+    name: "BambooHR",
+    description: "HR software for small and medium businesses.",
+    icon: "B",
+    iconBg: "bg-green-600",
+    status: "upcoming",
+    order: 4
+  }
+];
+
 export default function Integrations() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -505,6 +544,7 @@ export default function Integrations() {
   const [isCloudStorageProvidersOpen, setIsCloudStorageProvidersOpen] = useState(false);
   const [isCommunicationProvidersOpen, setIsCommunicationProvidersOpen] = useState(false);
   const [isEcommerceProvidersOpen, setIsEcommerceProvidersOpen] = useState(false);
+  const [isAtsProvidersOpen, setIsAtsProvidersOpen] = useState(false);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
 
@@ -557,6 +597,7 @@ export default function Integrations() {
   const filteredCloudStorageProviders = filterProviders(sortProviders(cloudStorageProviders));
   const filteredCommunicationProviders = filterProviders(sortProviders(communicationProviders));
   const filteredEcommerceProviders = filterProviders(sortProviders(ecommerceProviders));
+  const filteredAtsProviders = filterProviders(sortProviders(atsProviders));
 
   const handleVote = (providerId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation when clicking vote button
@@ -849,6 +890,15 @@ export default function Integrations() {
             isEcommerceProvidersOpen,
             setIsEcommerceProvidersOpen,
             filteredEcommerceProviders
+          )}
+
+          {/* ATS Providers Section */}
+          {renderProviderSection(
+            "ATS Providers",
+            <Users className="h-4 w-4" />,
+            isAtsProvidersOpen,
+            setIsAtsProvidersOpen,
+            filteredAtsProviders
           )}
         </div>
       </div>
