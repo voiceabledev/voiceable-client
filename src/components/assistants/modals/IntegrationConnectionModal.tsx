@@ -315,7 +315,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0">
         <div className="px-6 py-5 border-b bg-gradient-to-r from-background to-secondary/10 flex-shrink-0">
           <DialogHeader>
             <div className="flex items-center justify-between">
@@ -357,8 +357,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 
         <div className="flex-1 overflow-hidden">
           {integrationModalStep === "select" ? (
-            <ScrollArea className="h-[400px] p-6">
-              <div className="grid grid-cols-2 gap-4">
+            <ScrollArea className="h-[600px] p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {availableIntegrationTypes.map((type, idx) => {
                   const isConnected = userIntegrations.some(i => i.integration_type === type.id);
                   const isUpcoming = type.status === "upcoming";
@@ -381,31 +381,31 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         "border-border bg-card hover:border-primary/30"
                       )}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-semibold",
+                          "w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-semibold flex-shrink-0",
                           type.iconBg || "bg-secondary"
                         )}>
                           {type.icon || type.name.charAt(0)}
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">{type.name}</p>
-                          <p className="text-xs text-muted-foreground">{type.description}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{type.name}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{type.description}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {isUpcoming && (
-                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-50">
-                            Coming Soon
+                          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-50 whitespace-nowrap">
+                            Upcoming
                           </Badge>
                         )}
                         {isConnected && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 whitespace-nowrap">
                             Connected
                           </Badge>
                         )}
                         {isAvailable && !isConnected && (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                         )}
                       </div>
                     </button>

@@ -629,8 +629,18 @@ export const toAvailableIntegrationType = (provider: IntegrationProvider) => {
 /**
  * Get all integration types in AvailableIntegrationType format
  * (for use in IntegrationConnectionModal)
+ * Sorted with available integrations first, then upcoming ones
  */
 export const getAvailableIntegrationTypes = () => {
-  return getAllIntegrationProviders().map(toAvailableIntegrationType);
+  const allProviders = getAllIntegrationProviders();
+  
+  // Sort: available first (by order), then upcoming (by order)
+  const sorted = allProviders.sort((a, b) => {
+    if (a.status === 'available' && b.status === 'upcoming') return -1;
+    if (a.status === 'upcoming' && b.status === 'available') return 1;
+    return a.order - b.order;
+  });
+  
+  return sorted.map(toAvailableIntegrationType);
 };
 
