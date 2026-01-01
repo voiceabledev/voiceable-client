@@ -2,6 +2,12 @@ import { useState } from "react";
 import { motion, useInView, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Accordion,
   AccordionContent,
@@ -51,7 +57,6 @@ import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
 import { Navigation } from "@/components/Navigation";
-import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const faqs = [
   {
@@ -112,11 +117,11 @@ const features = [
     title: "100+ Languages Supported",
     description: "Global by default: configure in any language, auto-detect caller language, switch languages mid-conversation, same performance tracking worldwide."
   },
-  {
-    icon: Shield,
-    title: "Enterprise-Grade Reliability",
-    description: "Production-ready infrastructure: 99.99% uptime SLA, sub-500ms latency, SOC 2 compliant, built-in AI guardrails. This isn't a demo. It's an operational system."
-  }
+  // {
+  //   icon: Shield,
+  //   title: "Enterprise-Grade Reliability",
+  //   description: "Production-ready infrastructure: 99.99% uptime SLA, sub-500ms latency, SOC 2 compliant, built-in AI guardrails. This isn't a demo. It's an operational system."
+  // }
 ];
 
 const enterpriseFeatures = [
@@ -160,7 +165,7 @@ const steps = [
   {
     number: "3",
     title: "Connect Your Tools (Optional)",
-    description: "Calendar, CRM, payment systems — connect what you need. Agents can check calendar availability, create CRM records, send confirmations, process payments. Or work standalone — your choice."
+    description: "Calendar, CRM, payment systems — connect what you need. Agents can check calendar availability, create CRM records, send confirmations, process payments. Or work standalone, your choice."
   },
   {
     number: "4",
@@ -317,8 +322,10 @@ const scaleIn = {
 };
 
 export default function Home() {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   const handleOpenWidget = () => {
-    openWidgetWithConfig();
+    setShowCalendarModal(true);
   };
 
   // Refs for scroll animations
@@ -347,9 +354,9 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Voice AI That Measures What Matters | Voiceable"
-        description="Turn every call into measurable business results. Track bookings, measure revenue, and get AI-powered insights that improve performance automatically. 15-20x ROI on average."
-        keywords="AI voice agents, voice assistants, conversational AI, AI receptionist, lead qualification, appointment scheduling, voice automation, AI telephony, business automation, ROI tracking, revenue attribution"
+        title="Convert Leads & Resolve Issues With a 24/7 Support Line | Voiceable"
+        description="Answer every call, 24/7. Voiceable automates your frontline communications, works with your existing phone lines, and handles appointments, leads, and support—all while tracking outcomes automatically."
+        keywords="AI voice agents, 24/7 phone answering, automated receptionist, AI support line, lead qualification, appointment scheduling, voice automation, AI telephony, business automation, call answering service"
         url="https://voice-agent-ai-4288599ce3fe.herokuapp.com"
       />
       <div className="min-h-screen bg-background">
@@ -419,18 +426,18 @@ export default function Home() {
                 ease: "easeInOut"
               }}
             >
-              ✨ Voice agents that prove their ROI
+              ✨ Answer every call, 24/7
             </motion.span>
           </motion.div>
           
           <motion.h1 
-            className="text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-6 leading-tight tracking-tight"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight tracking-tight"
             initial="hidden"
             animate={heroInView ? "visible" : "hidden"}
             variants={fadeInUp}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            Voice AI That Measures<br />
+            Convert Leads & Resolve Issues<br />
             <motion.span 
               className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent"
               animate={{
@@ -445,28 +452,28 @@ export default function Home() {
                 backgroundSize: "200% 200%",
               }}
             >
-              What Matters
+              With a 24/7 Support Line
             </motion.span>
           </motion.h1>
           
           <motion.p 
-            className="text-2xl md:text-3xl font-bold text-foreground mb-4 max-w-4xl mx-auto leading-tight"
+            className="text-lg md:text-xl font-medium text-foreground mb-4 max-w-4xl mx-auto leading-relaxed"
             initial="hidden"
             animate={heroInView ? "visible" : "hidden"}
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            Turn Every Call Into Measurable Business Results
+            Voiceable is purpose-built to automate your frontline communications. Powered by AI, it works seamlessly with your existing phone lines & systems to answer every call and message, by day or night.
           </motion.p>
           
           <motion.p 
-            className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
+            className="text-base md:text-lg text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
             initial="hidden"
             animate={heroInView ? "visible" : "hidden"}
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            Don't just automate calls. Track bookings, measure revenue, and get AI-powered insights that improve performance automatically.
+            Book appointments, qualify leads, handle support, and track every outcome, all while you sleep.
           </motion.p>
 
           {/* Social Proof Banner */}
@@ -502,20 +509,20 @@ export default function Home() {
               <Button size="lg" variant="outline" className="font-semibold px-10 py-7 text-lg rounded-full border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200" asChild>
                 <Link to="/sign-up">
                   <BarChart3 className="w-5 h-5 mr-2" />
-                  See Live Performance Dashboard
+                  Sign Up
                 </Link>
               </Button>
             </motion.div>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button size="lg" onClick={handleOpenWidget} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-10 py-7 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
                 <Phone className="w-5 h-5 mr-2" />
-                Talk to a Demo Agent
+                Book Demo
               </Button>
             </motion.div>
           </motion.div>
 
           {/* Social Proof Quote */}
-          <motion.div 
+          {/* <motion.div 
             className="max-w-3xl mx-auto mb-12"
             initial="hidden"
             animate={heroInView ? "visible" : "hidden"}
@@ -525,25 +532,33 @@ export default function Home() {
             <div className="bg-card/60 backdrop-blur-sm rounded-2xl p-6 border border-border/50">
               <p className="text-sm text-muted-foreground mb-2 text-center">Trusted by businesses who measure outcomes, not just conversations</p>
               <div className="flex items-center justify-center gap-2 mt-4">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center -ml-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center -ml-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center -ml-2">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
+                <img 
+                  src="https://i.pravatar.cc/150?img=12" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover"
+                />
+                <img 
+                  src="https://i.pravatar.cc/150?img=33" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover -ml-2"
+                />
+                <img 
+                  src="https://i.pravatar.cc/150?img=47" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover -ml-2"
+                />
+                <img 
+                  src="https://i.pravatar.cc/150?img=68" 
+                  alt="Customer avatar" 
+                  className="w-8 h-8 rounded-full border-2 border-background object-cover -ml-2"
+                />
               </div>
               <blockquote className="text-center mt-4 italic text-foreground">
                 "152 appointments booked last month. $7,600 in revenue. The dashboard shows exactly where every dollar goes."
               </blockquote>
               <p className="text-center text-sm text-muted-foreground mt-2">— Medical Practice Manager</p>
             </div>
-          </motion.div>
+          </motion.div> */}
           
         </div>
       </section>
@@ -557,7 +572,7 @@ export default function Home() {
             animate={valuePropInView ? "visible" : "hidden"}
             variants={fadeInUp}
           >
-            Built for Business Results,<br />Not Prompt Engineering
+            Works With Your Existing<br />Phone Lines & Systems
           </motion.h2>
           
           <motion.p 
@@ -567,7 +582,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            You shouldn't need to be an AI engineer to know if your voice agent is making you money.
+            No new numbers. No complex setup. Connect your existing phone system and start answering calls in minutes.
           </motion.p>
           
           <motion.div 
@@ -578,16 +593,17 @@ export default function Home() {
           >
             <div className="grid md:grid-cols-2 gap-6">
               <motion.div variants={fadeInUp}>
-                <h3 className="text-lg font-semibold text-foreground mb-4">Most voice AI platforms make you:</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">What it does:</h3>
                 <div className="space-y-3">
                   {[
-                    "Write complex prompts",
-                    "Configure AI models manually",
-                    "Guess if it's actually working",
-                    "Track ROI in spreadsheets"
+                    "Answers every call, 24/7",
+                    "Books appointments automatically",
+                    "Qualifies leads in real-time",
+                    "Handles support issues instantly",
+                    "Tracks outcomes and revenue"
                   ].map((item, index) => (
                     <div key={index} className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                       <span className="text-foreground">{item}</span>
                     </div>
                   ))}
@@ -595,13 +611,14 @@ export default function Home() {
               </motion.div>
               
               <motion.div variants={fadeInUp}>
-                <h3 className="text-lg font-semibold text-foreground mb-4">Voiceable gives you:</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-4">How it works:</h3>
                 <div className="space-y-3">
                   {[
-                    "Agents that start working in minutes",
-                    "Automatic outcome detection and tracking",
-                    "Real-time ROI dashboards",
-                    "AI-powered optimization suggestions"
+                    "Connects to your existing phone number",
+                    "Integrates with your calendar & CRM",
+                    "Learns from your business rules",
+                    "Escalates to humans when needed",
+                    "Shows you exactly what it accomplished"
                   ].map((item, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -636,7 +653,7 @@ export default function Home() {
             viewport={{ once: true, margin: "-100px" }}
             variants={fadeInUp}
           >
-            Intelligence, Not Just Automation
+            Handles Every Scenario
           </motion.h2>
           
           <motion.p 
@@ -647,7 +664,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            We don't just transcribe calls. We understand outcomes.
+            From booking appointments to resolving support issues, your AI agent handles it all—and tracks what matters.
           </motion.p>
           
           <motion.div 
@@ -665,12 +682,12 @@ export default function Home() {
               <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <Target className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-3">Outcome Detection</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-3">Instant Response</h3>
               <p className="text-muted-foreground mb-4">
-                Automatically knows when calls achieve your goal:
+                Answers every call immediately, 24/7:
               </p>
               <ul className="space-y-2">
-                {["Appointment booked", "Lead qualified", "Issue resolved", "Payment collected"].map((item, index) => (
+                {["No missed calls or voicemails", "Responds in under 2 seconds", "Works on your existing number", "Handles multiple calls simultaneously"].map((item, index) => (
                   <li key={index} className="flex items-center gap-2">
                     <Check className="w-5 h-5 text-emerald-500" />
                     <span className="text-foreground">{item}</span>
@@ -678,7 +695,7 @@ export default function Home() {
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground mt-4 italic">
-                No keyword matching. Real AI-powered outcome intelligence.
+                Never miss another call, even at 2am.
               </p>
             </motion.div>
 
@@ -690,12 +707,12 @@ export default function Home() {
               <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <BarChart3 className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-3">Performance Insights</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-3">Takes Action</h3>
               <p className="text-muted-foreground mb-4">
-                Every call analyzed for business impact:
+                Does more than just talk, actually completes tasks:
               </p>
               <ul className="space-y-2">
-                {["Revenue generated per call", "Cost per successful outcome", "Escalation patterns and reasons", "Time-of-day performance trends"].map((item, index) => (
+                {["Books appointments on your calendar", "Creates leads in your CRM", "Dispatches vendors for maintenance", "Sends confirmations automatically"].map((item, index) => (
                   <li key={index} className="flex items-center gap-2">
                     <Check className="w-5 h-5 text-emerald-500" />
                     <span className="text-foreground">{item}</span>
@@ -703,7 +720,7 @@ export default function Home() {
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground mt-4 italic">
-                Your personal AI business analyst, included.
+                Your team only sees completed work, not raw calls.
               </p>
             </motion.div>
 
@@ -715,12 +732,12 @@ export default function Home() {
               <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <PhoneForwarded className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-3">Smart Escalations</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-3">Resolves Issues</h3>
               <p className="text-muted-foreground mb-4">
-                Human handoff is a feature, not a failure:
+                Handles support requests end-to-end:
               </p>
               <ul className="space-y-2">
-                {["Detects when to transfer (emergency, complexity, anger)", "Passes full context to human agents", "Tracks escalation cost and patterns", "Suggests ways to reduce escalation rate"].map((item, index) => (
+                {["Diagnoses problems from conversation", "Creates work orders automatically", "Dispatches the right vendor", "Follows up until resolved"].map((item, index) => (
                   <li key={index} className="flex items-center gap-2">
                     <Check className="w-5 h-5 text-emerald-500" />
                     <span className="text-foreground">{item}</span>
@@ -728,7 +745,7 @@ export default function Home() {
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground mt-4 italic">
-                Turn handoffs into competitive advantage.
+                No more voicemail ping-pong or guesswork.
               </p>
             </motion.div>
 
@@ -740,20 +757,20 @@ export default function Home() {
               <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <TrendingUp className="w-7 h-7 text-primary" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-3">Continuous Optimization</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-3">Tracks Outcomes</h3>
               <p className="text-muted-foreground mb-4">
-                AI that improves your business automatically:
+                See exactly what your agent accomplished:
               </p>
               <ul className="space-y-2">
-                {["Add insurance FAQ to reduce escalations 35%", "Switch to morning calls for 12% higher success", "Voice A performs 8% better than Voice B"].map((item, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-foreground italic">"{item}"</span>
+                {["Appointments booked", "Leads qualified", "Issues resolved", "Revenue generated"].map((item, index) => (
+                  <li key={index} className="flex items-center gap-2">
+                    <Check className="w-5 h-5 text-emerald-500" />
+                    <span className="text-foreground">{item}</span>
                   </li>
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground mt-4 italic">
-                Like having a conversion optimization team on autopilot.
+                Real business metrics, not just call volume.
               </p>
             </motion.div>
           </motion.div>
@@ -784,7 +801,7 @@ export default function Home() {
             viewport={{ once: true, margin: "-100px" }}
             variants={fadeInUp}
           >
-            ROI You Can Actually See
+            See What It's Doing Right Now
           </motion.h2>
           
           <motion.p 
@@ -795,7 +812,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Not vanity metrics. Real business impact.
+            Every call, every outcome, every dollar, tracked in real-time.
           </motion.p>
 
           <motion.div 
@@ -861,10 +878,10 @@ export default function Home() {
             </div>
 
             <div className="mt-8 text-center">
-              <p className="text-lg font-semibold text-foreground mb-4">Prove ROI on day one, not month six.</p>
+              <p className="text-lg font-semibold text-foreground mb-4">Know exactly what your agent is accomplishing, every day.</p>
               <Button size="lg" variant="outline" className="rounded-full" asChild>
                 <Link to="/sign-up">
-                  Explore Dashboard Demo <BarChart3 className="ml-2 w-5 h-5" />
+                  See Live Dashboard <BarChart3 className="ml-2 w-5 h-5" />
                 </Link>
               </Button>
             </div>
@@ -913,20 +930,20 @@ export default function Home() {
             className="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight"
             variants={fadeInUp}
           >
-            See the Intelligence in Action
+            Try It Right Now
           </motion.h2>
           
           <motion.p 
             className="text-xl md:text-2xl text-muted-foreground mb-4 leading-relaxed"
             variants={fadeInUp}
           >
-            Don't take our word for it.
+            Call our demo agent and experience how it works.
           </motion.p>
           <motion.p 
             className="text-lg text-muted-foreground mb-8"
             variants={fadeInUp}
           >
-            Talk to an agent and see how it handles your questions naturally, follows business rules consistently, knows when to escalate, and tracks the outcome automatically.
+            No signup required. Just call and see how it handles your questions, books appointments, and resolves issues, all while tracking outcomes automatically.
           </motion.p>
           
           <motion.div 
@@ -935,20 +952,20 @@ export default function Home() {
             whileHover={{ scale: 1.02 }}
           >
             <p className="text-lg md:text-xl text-foreground leading-relaxed mb-6">
-              No signup. No sales pitch. Just experience it.
+              Call now and talk to a real AI agent handling real requests.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button size="lg" onClick={handleOpenWidget} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
                   <Phone className="w-5 h-5 mr-2" />
-                  Talk to Live Demo Agent
+                  Book Demo
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button size="lg" variant="outline" className="font-semibold px-8 py-6 rounded-full border-2" asChild>
                   <Link to="/sign-up">
                     <BarChart3 className="w-5 h-5 mr-2" />
-                    View Sample Dashboard
+                    Sign Up
                   </Link>
                 </Button>
               </motion.div>
@@ -959,14 +976,14 @@ export default function Home() {
             className="bg-card/30 rounded-2xl p-6"
             variants={fadeInUp}
           >
-            <p className="text-sm text-muted-foreground mb-3">See exactly how we track:</p>
+            <p className="text-sm text-muted-foreground mb-3">Every agent automatically tracks:</p>
             <div className="flex flex-wrap justify-center gap-4 text-sm">
               {[
-                "Successful outcomes per day",
-                "Revenue attribution by call",
-                "Cost per outcome trends",
-                "AI optimization suggestions",
-                "Escalation analysis"
+                "Calls answered",
+                "Appointments booked",
+                "Leads qualified",
+                "Issues resolved",
+                "Revenue generated"
               ].map((item, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-500" />
@@ -974,13 +991,13 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <p className="text-sm text-muted-foreground mt-4 italic">This is what you get with every agent.</p>
+            <p className="text-sm text-muted-foreground mt-4 italic">All included, no extra setup required.</p>
           </motion.div>
         </motion.div>
       </section>
 
       {/* Use Cases Section */}
-      <section ref={useCasesRef} className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
+      {/* <section ref={useCasesRef} className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
         <div className="max-w-7xl mx-auto">
           <motion.p 
             className="text-muted-foreground font-semibold text-sm tracking-widest uppercase mb-4"
@@ -1058,7 +1075,7 @@ export default function Home() {
             ))}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* How it works Section */}
       <section ref={howItWorksRef} className="py-24 px-6 bg-card">
@@ -1224,7 +1241,7 @@ export default function Home() {
             animate={reliabilityInView ? "visible" : "hidden"}
             variants={fadeInUp}
           >
-            Designed for Business Outcomes,<br />Not Tech Demos
+            Built to Work, Not Just Impress
           </motion.h2>
           
           <motion.p 
@@ -1234,7 +1251,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            Most voice AI is impressive in demos, unreliable in production. We built for the opposite.
+            Production-ready infrastructure that answers every call, every time—day or night.
           </motion.p>
           
           <motion.div 
@@ -1270,7 +1287,7 @@ export default function Home() {
             variants={fadeInUp}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            This isn't a chatbot playing phone operator. It's a business system that pays for itself.
+            This isn't a demo. It's your 24/7 phone line that actually works.
           </motion.p>
 
           <motion.div 
@@ -1332,7 +1349,7 @@ export default function Home() {
             className="text-center text-lg text-muted-foreground"
             variants={fadeInUp}
           >
-            You don't need to change how your business operates — the agent adapts to you.
+            You don't need to change how your business operates, the agent adapts to you.
           </motion.p>
         </motion.div>
       </section>
@@ -1486,7 +1503,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section ref={testimonialsRef} className="py-24 px-6">
+      {/* <section ref={testimonialsRef} className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
           <motion.h2 
             className="text-4xl md:text-5xl font-bold text-foreground mb-16 text-center"
@@ -1514,8 +1531,10 @@ export default function Home() {
                   "{testimonial.quote}"
                 </blockquote>
                 <div className="flex items-center gap-3 mb-4">
-                  <motion.div 
-                    className="w-10 h-10 rounded-full bg-primary/20"
+                  <motion.img 
+                    src={`https://i.pravatar.cc/150?img=${12 + index * 7}`}
+                    alt={`${testimonial.author} avatar`}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-border"
                     whileHover={{ scale: 1.1, rotate: 360 }}
                     transition={{ duration: 0.5 }}
                   />
@@ -1531,7 +1550,7 @@ export default function Home() {
             ))}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Comparison Table Section */}
       <section className="py-24 px-6 bg-card/30">
@@ -1699,14 +1718,14 @@ export default function Home() {
             className="text-4xl md:text-6xl font-bold text-foreground mb-6"
             variants={fadeInUp}
           >
-            Start Measuring What Matters
+            Start Answering Every Call
           </motion.h2>
           
           <motion.p 
             className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto"
             variants={fadeInUp}
           >
-            Don't just automate calls. Track bookings. Measure revenue. Prove ROI.
+            Connect your phone number, set your goals, and let your AI agent handle the rest.
           </motion.p>
 
           <motion.div 
@@ -1753,7 +1772,7 @@ export default function Home() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button size="lg" onClick={handleOpenWidget} className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full shadow-lg hover:shadow-xl transition-all duration-200">
                 <Phone className="w-5 h-5 mr-2" />
-                Talk to Demo Agent
+                Book Demo
               </Button>
             </motion.div>
           </motion.div>
@@ -1766,6 +1785,23 @@ export default function Home() {
           </motion.p>
         </motion.div>
       </section>
+
+      {/* Calendar Modal */}
+      <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+            <DialogTitle>Schedule a Meeting</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <iframe
+              src="https://calendly.com/imvitoroliveira"
+              className="w-full h-full border-0"
+              title="Calendly Scheduling"
+              allow="camera; microphone; geolocation"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

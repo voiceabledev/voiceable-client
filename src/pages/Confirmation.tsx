@@ -13,7 +13,14 @@ import {
   ArrowRight,
   BarChart3
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
@@ -32,7 +39,6 @@ import {
   NoShowPreventionDashboard,
   NoShowCostCalculator,
 } from "@/components/landing";
-import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const useCases = [
   {
@@ -218,8 +224,10 @@ const testimonials = [
 ];
 
 export default function Confirmation() {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   const handleOpenWidget = () => {
-    openWidgetWithConfig();
+    setShowCalendarModal(true);
   };
 
   return (
@@ -239,7 +247,7 @@ export default function Confirmation() {
           titleHighlight=""
           description="Every no-show is lost revenue you can't recover. Your AI confirmation agent reduces no-shows by 60-80%, reschedules early enough to refill slots, and tracks every dollar saved."
           primaryCta="Calculate Your No-Show Losses"
-          secondaryCta="Talk to Demo Agent"
+          secondaryCta="Book Demo"
           secondaryCtaLink="/sign-up"
           onPrimaryCtaClick={handleOpenWidget}
           icons={[
@@ -405,7 +413,7 @@ export default function Confirmation() {
             "Answers common questions",
             "Updates the calendar automatically"
           ]}
-          ctaText="Talk to the agent"
+          ctaText="Book Demo"
           onCtaClick={handleOpenWidget}
         />
 
@@ -887,6 +895,23 @@ export default function Confirmation() {
             </div>
           </div>
         </section>
+
+        {/* Calendar Modal */}
+        <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Footer />
       </div>

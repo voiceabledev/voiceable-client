@@ -8,9 +8,11 @@ import {
   ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Account() {
-  const [email] = useState("vbrazo@gmail.com");
+  const { user } = useAuth();
+  const email = user?.email || "";
   const [newPassword, setNewPassword] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [settingsExpanded, setSettingsExpanded] = useState(false);

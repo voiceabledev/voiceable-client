@@ -35,7 +35,7 @@ export default function Login() {
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
-          <Link to="/home" className="text-2xl font-bold text-foreground">
+          <Link to="/" className="text-2xl font-bold text-foreground">
             Voiceable
           </Link>
         </div>

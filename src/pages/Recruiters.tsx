@@ -244,12 +244,12 @@ export default function Recruiters() {
               <span className="text-sm font-semibold text-primary">✨ No scripts, no prompt engineering, no technical setup</span>
             </div>
             
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-8 leading-tight tracking-tight animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-8 leading-tight tracking-tight animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
               Stop Losing Great Candidates<br />
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient">Before You Ever Talk to Them</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               Slow screening, missed calls, and scheduling delays silently kill your pipeline. Voiceable's AI recruiting agents screen candidates instantly, follow up automatically, and book interviews — so qualified talent never slips away.
             </p>
             

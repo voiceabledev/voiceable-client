@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart } from "lucide-react";
+import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,7 +26,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "State-of-the-art GPT and o-series models.",
     icon: "🤖",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -35,7 +35,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "Claude series models focused on safe, helpful AI.",
     icon: "🧠",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 2
   },
   {
@@ -44,7 +44,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "Gemini series models for rich AI understanding.",
     icon: "💎",
     iconBg: "bg-blue-600",
-    status: "available",
+    status: "upcoming",
     order: 3
   },
   {
@@ -71,7 +71,7 @@ const modelProviders: IntegrationProvider[] = [
     description: "High performance inference platform.",
     icon: "C",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 4
   },
   {
@@ -137,7 +137,7 @@ const transcriberProviders: IntegrationProvider[] = [
     description: "Real-time speech recognition with low latency for production use.",
     icon: "D",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -155,7 +155,7 @@ const transcriberProviders: IntegrationProvider[] = [
     description: "High-accuracy speech-to-text transcription service.",
     icon: "⫾",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 2
   },
   {
@@ -194,7 +194,7 @@ const voiceProviders: IntegrationProvider[] = [
     description: "AI voice cloning and generation with natural speech synthesis.",
     icon: "⫾",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -203,7 +203,7 @@ const voiceProviders: IntegrationProvider[] = [
     description: "Real-time speech recognition with low latency for production use.",
     icon: "D",
     iconBg: "bg-zinc-800",
-    status: "available",
+    status: "upcoming",
     order: 2
   },
   {
@@ -449,6 +449,24 @@ const communicationProviders: IntegrationProvider[] = [
     iconBg: "bg-purple-600",
     status: "upcoming",
     order: 1
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp",
+    description: "Connect WhatsApp Business API to send and receive messages. Engage with customers on their preferred platform.",
+    icon: "W",
+    iconBg: "bg-green-600",
+    status: "upcoming",
+    order: 2
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    description: "Integrate Telegram Bot API to send messages and notifications. Reach users through Telegram channels and chats.",
+    icon: "T",
+    iconBg: "bg-blue-500",
+    status: "upcoming",
+    order: 3
   }
 ];
 
@@ -743,33 +761,6 @@ export default function Integrations() {
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-          {/* Model Providers Section */}
-          {renderProviderSection(
-            "Model Providers",
-            <Brain className="h-4 w-4" />,
-            isModelProvidersOpen,
-            setIsModelProvidersOpen,
-            filteredModelProviders
-          )}
-
-          {/* Transcriber Providers Section */}
-          {renderProviderSection(
-            "Transcriber Providers",
-            <Mic className="h-4 w-4" />,
-            isTranscriberProvidersOpen,
-            setIsTranscriberProvidersOpen,
-            filteredTranscriberProviders
-          )}
-
-          {/* Voice Providers Section */}
-          {renderProviderSection(
-            "Voice Providers",
-            <span className="text-base md:text-lg">🎙️</span>,
-            isVoiceProvidersOpen,
-            setIsVoiceProvidersOpen,
-            filteredVoiceProviders
-          )}
-
           {/* CRM Providers Section */}
           {renderProviderSection(
             "CRM Providers",
@@ -786,6 +777,33 @@ export default function Integrations() {
             isSchedulingProvidersOpen,
             setIsSchedulingProvidersOpen,
             filteredSchedulingProviders
+          )}
+
+          {/* Model Providers Section */}
+          {renderProviderSection(
+            "Model Providers",
+            <Brain className="h-4 w-4" />,
+            isModelProvidersOpen,
+            setIsModelProvidersOpen,
+            filteredModelProviders
+          )}
+
+          {/* Transcriber Providers Section */}
+          {renderProviderSection(
+            "Transcriber Providers",
+            <Mic className="h-4 w-4 text-primary" />,
+            isTranscriberProvidersOpen,
+            setIsTranscriberProvidersOpen,
+            filteredTranscriberProviders
+          )}
+
+          {/* Voice Providers Section */}
+          {renderProviderSection(
+            "Voice Providers",
+            <Volume2 className="h-4 w-4 text-primary" />,
+            isVoiceProvidersOpen,
+            setIsVoiceProvidersOpen,
+            filteredVoiceProviders
           )}
 
           {/* Telephony Providers Section */}

@@ -221,7 +221,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
       <div className="space-y-6">
         <TabSectionCard
           title="Phone Numbers"
-          description="Manage phone numbers assigned to this agent. Purchase new numbers from Twilio or import existing ones from your account."
+          description="Manage phone numbers assigned to this agent. Purchase new numbers or import existing ones from your account."
           count={`${agentPhoneNumbers.length} phone number${agentPhoneNumbers.length !== 1 ? 's' : ''} assigned to this agent`}
           actionButton={
             <Button 

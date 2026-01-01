@@ -10,7 +10,14 @@ import {
   PhoneForwarded,
   ArrowRight
 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { SEO } from "@/components/SEO";
 import { Footer } from "@/components/Footer";
@@ -32,7 +39,6 @@ import {
   ComparisonTable,
   ObjectionHandlingSection,
 } from "@/components/landing";
-import { openWidgetWithConfig } from "@/utils/widgetHelpers";
 
 const useCases = [
   {
@@ -189,8 +195,10 @@ const testimonials = [
 ];
 
 export default function Receptionist() {
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   const handleOpenWidget = () => {
-    openWidgetWithConfig();
+    setShowCalendarModal(true);
   };
 
   return (
@@ -209,7 +217,7 @@ export default function Receptionist() {
           title="Never Miss a Booking Again"
           titleHighlight=""
           description="Every missed call is lost revenue. Your AI receptionist answers 24/7, books appointments instantly, and tracks every dollar captured."
-          primaryCta="Talk to Demo Receptionist"
+          primaryCta="Book Demo"
           secondaryCta="See How Much Revenue You're Losing"
           secondaryCtaLink="/sign-up"
           onPrimaryCtaClick={handleOpenWidget}
@@ -328,12 +336,12 @@ export default function Receptionist() {
             "Books appointments",
             "Knows when to transfer to a human"
           ]}
-          ctaText="Talk to the AI receptionist"
+          ctaText="Book Demo"
           onCtaClick={handleOpenWidget}
         />
 
         {/* Use Cases Section with ROI */}
-        <section className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
+        {/* <section className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-12 text-center">
               Real Use Cases.<br />Measurable Results.
@@ -384,7 +392,7 @@ export default function Receptionist() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         <PerfectForSection
           title="Designed for real businesses"
@@ -515,7 +523,7 @@ export default function Receptionist() {
                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-8 py-6 text-base rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Phone className="w-5 h-5 mr-2" />
-                Talk to Demo Receptionist
+                Book Demo
               </Button>
               <Button 
                 size="lg" 
@@ -534,6 +542,23 @@ export default function Receptionist() {
             </p>
           </div>
         </section>
+
+        {/* Calendar Modal */}
+        <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Footer />
       </div>
