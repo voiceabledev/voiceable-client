@@ -62,9 +62,9 @@ import { useAgentData } from "@/hooks/assistants/useAgentData";
 import {
   tabs,
   VALID_TABS,
-  getAvailableIntegrationTypes,
   displayNameToActionName,
 } from "@/constants/assistant";
+import { getAvailableIntegrationTypes } from "@/constants/integrations";
 import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi, agentsApi, authApi } from "@/lib/api";
 import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";

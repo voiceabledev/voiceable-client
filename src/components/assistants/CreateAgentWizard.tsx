@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { useIntegrationTools } from "@/hooks/assistants/useIntegrationTools";
 import { IntegrationConnectionModal } from "@/components/assistants/modals/IntegrationConnectionModal";
-import { INTEGRATION_METADATA, INTEGRATION_TOOLS_DISPLAY } from "@/constants/assistant";
+import { INTEGRATION_TOOLS_DISPLAY } from "@/constants/assistant";
+import { getAvailableIntegrationTypes } from "@/constants/integrations";
 import type { AgentIntegrationTool, WebhookTool } from "@/types/assistant";
 import type { UserIntegration as IntegrationUserIntegration } from "@/types/integrations";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
@@ -1956,12 +1957,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         onOpenChange={integrationHook.setShowIntegrationModal}
         connectingIntegrationLoading={integrationHook.connectingIntegrationLoading}
         integrationModalStep={integrationHook.integrationModalStep}
-        availableIntegrationTypes={Object.keys(INTEGRATION_METADATA).map(type => ({
-          id: type,
-          name: INTEGRATION_METADATA[type].name,
-          icon: INTEGRATION_METADATA[type].icon,
-          iconBg: INTEGRATION_METADATA[type].iconBg,
-        }))}
+        availableIntegrationTypes={getAvailableIntegrationTypes()}
         agentIntegrationTools={integrationHook.agentIntegrationTools}
         selectIntegrationToAdd={integrationHook.selectIntegrationToAdd}
         userIntegrations={userIntegrations}
