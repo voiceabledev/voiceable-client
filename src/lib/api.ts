@@ -1167,6 +1167,95 @@ export const paymentsApi = {
   },
 };
 
+export interface PaymentMethod {
+  id: number;
+  last4: string;
+  brand: string;
+  exp_month: number;
+  exp_year: number;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface AutoRechargeSettings {
+  enabled: boolean;
+  threshold_cents: number | null;
+  amount_cents: number | null;
+  monthly_limit_cents: number | null;
+  payment_method: PaymentMethod | null;
+}
+
+export interface UpdateAutoRechargeSettingsParams {
+  enabled?: boolean;
+  threshold_cents?: number;
+  amount_cents?: number;
+  monthly_limit_cents?: number | null;
+  payment_method_id?: number | null;
+}
+
+export interface CreditGrant {
+  id: number;
+  received_at: string;
+  state: 'available' | 'used' | 'expired';
+  original_amount_cents: number;
+  remaining_amount_cents: number;
+  original_amount_dollars: number;
+  remaining_amount_dollars: number;
+  source: string;
+  expires_at: string | null;
+  notes: string | null;
+}
+
+export interface CreditGrantsResponse {
+  grants: CreditGrant[];
+  totals: {
+    granted_cents: number;
+    remaining_cents: number;
+    used_cents: number;
+    granted_dollars: number;
+    remaining_dollars: number;
+    used_dollars: number;
+  };
+}
+
+export const paymentMethodsApi = {
+  list: async () => {
+    const response = await apiClient.get<PaymentMethod[]>('/payments/payment_methods');
+    return response;
+  },
+
+  setDefault: async (id: number) => {
+    const response = await apiClient.put<PaymentMethod>('/payments/set_default_payment_method', {
+      payment_method_id: id,
+    });
+    return response;
+  },
+
+  delete: async (id: number) => {
+    const response = await apiClient.delete(`/payments/payment_methods/${id}`);
+    return response;
+  },
+};
+
+export const autoRechargeApi = {
+  getSettings: async () => {
+    const response = await apiClient.get<AutoRechargeSettings>('/payments/auto_recharge_settings');
+    return response;
+  },
+
+  updateSettings: async (params: UpdateAutoRechargeSettingsParams) => {
+    const response = await apiClient.put<AutoRechargeSettings>('/payments/update_auto_recharge_settings', params);
+    return response;
+  },
+};
+
+export const creditGrantsApi = {
+  list: async () => {
+    const response = await apiClient.get<CreditGrantsResponse>('/payments/credit_grants');
+    return response;
+  },
+};
+
 // Secrets API methods (for ElevenLabs secrets management)
 export interface ElevenLabsSecret {
   secret_id: string;
