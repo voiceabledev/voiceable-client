@@ -1299,7 +1299,7 @@ export interface AdminUser {
   role: 'user' | 'admin' | 'enterprise';
   created_at: string;
   updated_at: string;
-  deleted_at?: string;
+  deleted_at?: string | null;
   total_credits?: number;
   total_spent?: number;
 }
@@ -1402,6 +1402,14 @@ export const adminApi = {
       const response = await apiClient.put<{ data: AdminUser }>(`/admin/users/${id}`, {
         user: data,
       });
+      return response;
+    },
+    discard: async (id: number) => {
+      const response = await apiClient.post(`/admin/users/${id}/discard`);
+      return response;
+    },
+    restore: async (id: number) => {
+      const response = await apiClient.post(`/admin/users/${id}/restore`);
       return response;
     },
     destroy: async (id: number) => {

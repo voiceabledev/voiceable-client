@@ -20,6 +20,9 @@ import {
   Building2,
   Edit,
   Trash2,
+  Archive,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { adminApi, AdminUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -57,8 +60,14 @@ export default function AdminUsers() {
   });
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<'user' | 'admin' | 'enterprise'>('user');
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userToDiscard, setUserToDiscard] = useState<AdminUser | null>(null);
+  const [userToRestore, setUserToRestore] = useState<AdminUser | null>(null);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [discarding, setDiscarding] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -123,6 +132,66 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDiscardClick = (user: AdminUser) => {
+    setUserToDiscard(user);
+    setShowDiscardDialog(true);
+  };
+
+  const handleDiscard = async () => {
+    if (!userToDiscard) return;
+
+    setDiscarding(true);
+    try {
+      await adminApi.users.discard(userToDiscard.id);
+      toast({
+        title: "Success",
+        description: "User discarded successfully.",
+      });
+      setShowDiscardDialog(false);
+      setUserToDiscard(null);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error discarding user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to discard user.",
+        variant: "destructive",
+      });
+    } finally {
+      setDiscarding(false);
+    }
+  };
+
+  const handleRestoreClick = (user: AdminUser) => {
+    setUserToRestore(user);
+    setShowRestoreDialog(true);
+  };
+
+  const handleRestore = async () => {
+    if (!userToRestore) return;
+
+    setRestoring(true);
+    try {
+      await adminApi.users.restore(userToRestore.id);
+      toast({
+        title: "Success",
+        description: "User restored successfully.",
+      });
+      setShowRestoreDialog(false);
+      setUserToRestore(null);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error restoring user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore user.",
+        variant: "destructive",
+      });
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   const handleDeleteClick = (user: AdminUser) => {
     setUserToDelete(user);
     setShowDeleteDialog(true);
@@ -136,7 +205,7 @@ export default function AdminUsers() {
       await adminApi.users.destroy(userToDelete.id);
       toast({
         title: "Success",
-        description: "User deleted successfully.",
+        description: "User permanently deleted successfully.",
       });
       setShowDeleteDialog(false);
       setUserToDelete(null);
@@ -151,6 +220,10 @@ export default function AdminUsers() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const isDiscarded = (user: AdminUser) => {
+    return user.deleted_at !== null && user.deleted_at !== undefined;
   };
 
   const getRoleBadge = (role?: string) => {
@@ -222,6 +295,7 @@ export default function AdminUsers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Total Credits</TableHead>
                     <TableHead>Total Spent</TableHead>
@@ -232,45 +306,86 @@ export default function AdminUsers() {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.email}</TableCell>
-                        <TableCell>{getRoleBadge(user.role)}</TableCell>
-                        <TableCell>
-                          ${((user.total_credits || 0) / 100).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          ${((user.total_spent || 0) / 100).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(user)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteClick(user)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredUsers.map((user) => {
+                      const discarded = isDiscarded(user);
+                      return (
+                        <TableRow key={user.id} className={discarded ? "opacity-60" : ""}>
+                          <TableCell className="font-medium">{user.email}</TableCell>
+                          <TableCell>
+                            {discarded ? (
+                              <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                                <Archive className="h-3 w-3 mr-1" />
+                                Discarded
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+                                Active
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{getRoleBadge(user.role)}</TableCell>
+                          <TableCell>
+                            ${((user.total_credits || 0) / 100).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            ${((user.total_spent || 0) / 100).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {!discarded && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEdit(user)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDiscardClick(user)}
+                                    className="text-orange-600 hover:text-orange-700"
+                                  >
+                                    <Archive className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {discarded && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRestoreClick(user)}
+                                    className="text-green-600 hover:text-green-700"
+                                    title="Restore user"
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteClick(user)}
+                                    className="text-destructive hover:text-destructive"
+                                    title="Delete permanently"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -341,13 +456,77 @@ export default function AdminUsers() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Discard Confirmation Dialog */}
+      <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Discard User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to discard {userToDiscard?.email}? The user will not be able to login, but the account can be restored later.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDiscardDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDiscard} disabled={discarding}>
+              {discarding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Discarding...
+                </>
+              ) : (
+                "Discard"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restore Confirmation Dialog */}
+      <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to restore {userToRestore?.email}? The user will be able to login again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRestoreDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRestore} disabled={restoring}>
+              {restoring ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                "Restore"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Permanently Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Delete User Permanently
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {userToDelete?.email}? This action cannot be undone.
+              <div className="space-y-2 mt-2">
+                <p>
+                  Are you absolutely sure you want to permanently delete {userToDelete?.email}?
+                </p>
+                <p className="font-semibold text-destructive">
+                  This action cannot be undone. All user data will be permanently removed from the system.
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -361,7 +540,7 @@ export default function AdminUsers() {
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                "Delete Permanently"
               )}
             </Button>
           </DialogFooter>
