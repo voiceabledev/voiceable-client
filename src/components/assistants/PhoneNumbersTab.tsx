@@ -220,18 +220,20 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="space-y-6">
         <TabSectionCard
-          title="Phone Numbers"
-          description="Manage phone numbers assigned to this agent. Purchase new numbers or import existing ones from your account."
+          title="Phone Number"
+          description="Manage the phone number assigned to this agent. Purchase a new number or import an existing one from your account."
           count={`${agentPhoneNumbers.length} phone number${agentPhoneNumbers.length !== 1 ? 's' : ''} assigned to this agent`}
           actionButton={
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPhoneNumberModalOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Number
-            </Button>
+            agentPhoneNumbers.length === 0 ? (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPhoneNumberModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Number
+              </Button>
+            ) : null
           }
         >
           {agentPhoneNumbers.length > 0 ? (
@@ -307,7 +309,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
             <div className="text-center py-8">
               <Phone className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-4">
-                No phone numbers assigned to this agent yet. Add a phone number to get started.
+                No phone number assigned to this agent yet. Add a phone number to get started.
               </p>
               <Button 
                 variant="outline"

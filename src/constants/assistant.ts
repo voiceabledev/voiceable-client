@@ -1,7 +1,7 @@
 // Constants for Assistant Detail page
 import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3, TrendingUp } from "lucide-react";
 
-export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-numbers", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
+export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-number", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
 
 export const tabs = [
   { id: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -11,7 +11,7 @@ export const tabs = [
   { id: "call-script", label: "Call Script", icon: FileText },
   { id: "tools", label: "Tools", icon: Wrench },
   { id: "widget", label: "Widget", icon: Layout },
-  { id: "phone-numbers", label: "Phone Numbers", icon: Phone },
+  { id: "phone-number", label: "Phone Number", icon: Phone },
   // { id: "advanced", label: "Advanced", icon: Settings },
 ];
 

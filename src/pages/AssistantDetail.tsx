@@ -152,9 +152,9 @@ export default function AssistantDetail() {
   const [loadingCredits, setLoadingCredits] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
 
-  // Fetch credit balance when phone-numbers tab is active
+  // Fetch credit balance when phone-number tab is active
   useEffect(() => {
-    if (activeTab === "phone-numbers") {
+    if (activeTab === "phone-number") {
       const fetchCredits = async () => {
         setLoadingCredits(true);
         try {
@@ -177,7 +177,7 @@ export default function AssistantDetail() {
 
   // Refresh balance when payment modal closes (in case a payment was made)
   useEffect(() => {
-    if (!showPaymentMethodModal && activeTab === "phone-numbers") {
+    if (!showPaymentMethodModal && activeTab === "phone-number") {
       const fetchCredits = async () => {
         try {
           const response = await paymentsApi.creditBalance();
@@ -582,10 +582,10 @@ export default function AssistantDetail() {
       description: "Configure and embed the web widget for chat conversations. Customize the appearance and behavior of your chat widget to match your brand.",
     },
     {
-      id: "phone-numbers",
-      target: "tab-phone-numbers",
-      title: "Phone Numbers",
-      description: "Add and manage phone numbers for voice calls. Connect phone numbers to enable voice conversations with your agent.",
+      id: "phone-number",
+      target: "tab-phone-number",
+      title: "Phone Number",
+      description: "Add and manage phone number for voice calls. Connect a phone number to enable voice conversations with your agent.",
     },
   ];
 
@@ -1500,7 +1500,7 @@ export default function AssistantDetail() {
                 />
               ) : activeTab === "widget" ? (
                 <WidgetTab agent={agentData.agent} agentId={agentId} />
-              ) : activeTab === "phone-numbers" ? (
+              ) : activeTab === "phone-number" ? (
                 loadingCredits ? (
                   <div className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
