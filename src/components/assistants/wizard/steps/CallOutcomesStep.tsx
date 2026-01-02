@@ -403,7 +403,7 @@ export function CallOutcomesStep({
       </Card>
 
       {/* Success Indicators Section */}
-      <Card>
+      {/* <Card>
         <Collapsible open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
           <CardHeader>
             <CollapsibleTrigger className="w-full">
@@ -473,10 +473,10 @@ export function CallOutcomesStep({
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
-      </Card>
+      </Card> */}
 
       {/* Failure Indicators Section */}
-      <Card>
+      {/* <Card>
         <Collapsible open={isFailureOpen} onOpenChange={setIsFailureOpen}>
           <CardHeader>
             <CollapsibleTrigger className="w-full">
@@ -546,7 +546,7 @@ export function CallOutcomesStep({
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
-      </Card>
+      </Card> */}
     </div>
   );
 }

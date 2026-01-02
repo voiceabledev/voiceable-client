@@ -448,7 +448,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         </Card>
       </Collapsible>
 
-      <Collapsible open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
+      {/* <Collapsible open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
         <Card>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
@@ -552,7 +552,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
             </CardContent>
           </CollapsibleContent>
         </Card>
-      </Collapsible>
+      </Collapsible> */}
 
       <Card>
         <CardHeader>
