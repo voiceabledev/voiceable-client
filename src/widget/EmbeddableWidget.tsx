@@ -271,6 +271,12 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
       return;
     }
 
+    // Ensure conversation is connected before sending
+    if (status === 'connecting') {
+      setError('Please wait for the connection to be established');
+      return;
+    }
+
     // Add user message to chat immediately for instant feedback
     const userMessage: WidgetMessage = {
       id: `${Date.now()}-${Math.random()}`,
@@ -282,19 +288,38 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
     setTextInput('');
 
     try {
-      // Send text to agent using interrupt method
-      // The interrupt method sends text that interrupts the agent's current speech
       const conversation = conversationRef.current;
-      if ('interrupt' in conversation && typeof conversation.interrupt === 'function') {
-        await conversation.interrupt({ text: trimmedText });
-      } else if ('sendText' in conversation && typeof conversation.sendText === 'function') {
-        await conversation.sendText(trimmedText);
-      } else if ('send' in conversation && typeof conversation.send === 'function') {
-        await conversation.send({ text: trimmedText });
-      } else {
-        // Fallback: try to call interrupt directly (using type assertion for unknown method)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (conversation as any).interrupt?.({ text: trimmedText });
+      
+      // ElevenLabs Conversation API: Use sendText method with the text string
+      // The sendText method sends text that the agent will process and respond to
+      if (typeof (conversation as any).sendText === 'function') {
+        await (conversation as any).sendText(trimmedText);
+      } 
+      // Fallback: Try interrupt method (sends text that interrupts current speech)
+      else if (typeof (conversation as any).interrupt === 'function') {
+        await (conversation as any).interrupt({ text: trimmedText });
+      }
+      // Fallback: Try send method with text property
+      else if (typeof (conversation as any).send === 'function') {
+        await (conversation as any).send({ text: trimmedText });
+      }
+      // Fallback: Try direct WebSocket send (if conversation has ws property)
+      else if ((conversation as any).ws && typeof (conversation as any).ws.send === 'function') {
+        // Send as JSON message to WebSocket
+        (conversation as any).ws.send(JSON.stringify({ 
+          type: 'text', 
+          text: trimmedText 
+        }));
+      }
+      else {
+        // Log available methods for debugging
+        const conversationKeys = Object.keys(conversation);
+        const availableMethods = conversationKeys.filter(key => 
+          typeof (conversation as any)[key] === 'function'
+        );
+        console.error('No text sending method found. Conversation object keys:', conversationKeys);
+        console.error('Available methods:', availableMethods);
+        throw new Error('Unable to send text message. Please check the console for available methods.');
       }
     } catch (err) {
       console.error('Error sending text message:', err);
