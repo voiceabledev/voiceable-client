@@ -15,7 +15,10 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  Type
+  Type,
+  ChevronUp,
+  ChevronDown,
+  Mail
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -44,6 +47,11 @@ interface WorkflowNodeV1Props {
   onRename?: (nodeId: string) => void;
   onReplace?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
+  onEmail?: (nodeId: string) => void;
+  onMoveUp?: (nodeId: string) => void;
+  onMoveDown?: (nodeId: string) => void;
+  canMoveUp?: boolean; // Whether this node can be moved up
+  canMoveDown?: boolean; // Whether this node can be moved down
   readOnly?: boolean;
   isLastNode?: boolean; // Whether this node has no outgoing connections
 }
@@ -220,6 +228,11 @@ export function WorkflowNodeV1Component({
   onRename,
   onReplace,
   onDelete,
+  onEmail,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
   readOnly = false,
   isLastNode = false
 }: WorkflowNodeV1Props) {
@@ -354,6 +367,51 @@ export function WorkflowNodeV1Component({
           }}
         >
           <div className="flex items-start gap-3 flex-1 relative">
+            {/* Reorder buttons on the left */}
+            {!readOnly && (onMoveUp || onMoveDown) && (
+              <div className="flex flex-col gap-1 flex-shrink-0">
+                {onMoveUp && canMoveUp && (
+                  <button
+                    className={cn(
+                      "h-5 w-5 rounded flex items-center justify-center transition-all",
+                      "hover:bg-secondary/80 active:bg-secondary",
+                      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+                      "cursor-pointer z-10 text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMoveUp(node.id);
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    title="Move up"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                )}
+                {onMoveDown && canMoveDown && (
+                  <button
+                    className={cn(
+                      "h-5 w-5 rounded flex items-center justify-center transition-all",
+                      "hover:bg-secondary/80 active:bg-secondary",
+                      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+                      "cursor-pointer z-10 text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMoveDown(node.id);
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    title="Move down"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
             <div className={cn(
               "p-2 rounded-lg flex-shrink-0",
               node.type === "select-trigger" && "bg-yellow-100 dark:bg-yellow-900/50",
@@ -376,7 +434,7 @@ export function WorkflowNodeV1Component({
               </div>
             </div>
             <div className="absolute top-0 right-0 flex items-center gap-1.5 flex-shrink-0">
-              {!readOnly && (onRename || onReplace || onDelete) ? (
+              {!readOnly ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -400,6 +458,17 @@ export function WorkflowNodeV1Component({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                    {onEmail && !onReplace && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEmail(node.id);
+                        }}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        Email
+                      </DropdownMenuItem>
+                    )}
                     {onRename && (
                       <DropdownMenuItem
                         onClick={(e) => {

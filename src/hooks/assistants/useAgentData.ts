@@ -131,6 +131,8 @@ export function useAgentData(
         agent_files: raw.agent_files as AgentFile[] | undefined,
         prompt_sections: promptSectionsRaw as Agent["prompt_sections"],
         system_tools: systemToolsRaw as Agent["system_tools"],
+        // CRITICAL: Include full conversation_config so workflow can be accessed
+        conversation_config: conversationConfig as Agent["conversation_config"],
       };
 
       setAgent(agentData);
@@ -453,7 +455,7 @@ export function useAgentData(
 
       // Start by preserving existing config structure to avoid losing data
       const updatedConversationConfig: Record<string, unknown> = {
-        ...currentConfig, // Preserve all existing config first (including agent_behaviour_id and agent_behaviour_config)
+        ...currentConfig, // Preserve all existing config first (including agent_behaviour_id, agent_behaviour_config, and workflow)
         voice_id: agent.primary_voice_id || agent.voice_id || (agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids[0] : undefined),
         voice_ids: Array.isArray(agent.voice_ids) ? agent.voice_ids : (agent.voice_ids ? [agent.voice_ids] : []),
         primary_voice_id: agent.primary_voice_id || (agent.voice_ids && agent.voice_ids.length > 0 ? agent.voice_ids[0] : undefined),
@@ -481,16 +483,41 @@ export function useAgentData(
         updatedConversationConfig.agent_behaviour_config = currentConfig.agent_behaviour_config;
       }
       
+      // CRITICAL: Always preserve workflow from currentConfig
+      // The workflow is set via setConversationConfig before handleSave is called
+      if (currentConfig.workflow !== undefined || 'workflow' in currentConfig) {
+        updatedConversationConfig.workflow = currentConfig.workflow;
+        const workflow = currentConfig.workflow as Record<string, unknown> | undefined;
+        console.log("handleSave - preserving workflow:", {
+          workflowId: workflow?.id as string | undefined,
+          workflowName: workflow?.name as string | undefined,
+          nodesCount: Array.isArray(workflow?.nodes) ? workflow.nodes.length : 0
+        });
+      } else {
+        console.warn("handleSave - WARNING: workflow not found in currentConfig!", {
+          currentConfigKeys: Object.keys(currentConfig),
+          currentConfigWorkflow: currentConfig.workflow
+        });
+      }
+      
       // Debug log to verify config is being preserved
+      const workflowInConfig = updatedConversationConfig.workflow as Record<string, unknown> | undefined;
       console.log("handleSave - preserving behaviour config:", {
         agent_behaviour_id: updatedConversationConfig.agent_behaviour_id,
         agent_behaviour_config: updatedConversationConfig.agent_behaviour_config,
+        hasWorkflow: 'workflow' in updatedConversationConfig,
+        workflowId: workflowInConfig?.id as string | undefined,
         currentConfig_has_id: 'agent_behaviour_id' in currentConfig,
         currentConfig_has_config: 'agent_behaviour_config' in currentConfig,
+        currentConfig_has_workflow: 'workflow' in currentConfig,
         currentConfig_id: currentConfig.agent_behaviour_id,
         currentConfig_config: currentConfig.agent_behaviour_config,
         currentConfig_keys: Object.keys(currentConfig)
       });
+      
+      // Log the final conversation_config that will be saved
+      console.log("handleSave - Final conversation_config keys:", Object.keys(updatedConversationConfig));
+      console.log("handleSave - Final conversation_config has workflow:", 'workflow' in updatedConversationConfig);
 
       // Add languages array and default_language
       // Prioritize reading from currentConfig (conversationConfigRef) which is updated synchronously
@@ -676,6 +703,19 @@ export function useAgentData(
         }
       });
 
+      // Ensure workflow is still in conversation_config before building payload
+      if (currentConfig.workflow && !updatedConversationConfig.workflow) {
+        console.warn("handleSave - Workflow was lost! Restoring from currentConfig");
+        updatedConversationConfig.workflow = currentConfig.workflow;
+      }
+      
+      const workflowForLog = updatedConversationConfig.workflow as Record<string, unknown> | undefined;
+      console.log("handleSave - Building payload with conversation_config:", {
+        hasWorkflow: 'workflow' in updatedConversationConfig,
+        workflowId: workflowForLog?.id as string | undefined,
+        conversationConfigKeys: Object.keys(updatedConversationConfig)
+      });
+      
       const basePayload = {
         name: agent.name,
         conversation_config: updatedConversationConfig,
@@ -683,6 +723,14 @@ export function useAgentData(
         webhook_tools: mergedWebhookTools,
         client_tools: clientTools,
       };
+      
+      const payloadConfig = basePayload.conversation_config as Record<string, unknown> | undefined;
+      const payloadWorkflow = payloadConfig?.workflow as Record<string, unknown> | undefined;
+      console.log("handleSave - Payload built:", {
+        hasConversationConfig: !!basePayload.conversation_config,
+        conversationConfigHasWorkflow: 'workflow' in (basePayload.conversation_config || {}),
+        workflowId: payloadWorkflow?.id as string | undefined
+      });
 
       // Transform integration_tools array into hash format expected by backend
       // Backend expects: { "pipedrive" => { "enabled_tools" => ["get_deal", ...] }, ... }

@@ -1811,6 +1811,125 @@ export interface OptimizationSuggestion {
   action: string;
 }
 
+export interface WorkflowVersion {
+  id: number;
+  version_number: number;
+  version_name: string | null;
+  description: string | null;
+  workflow_data: any;
+  is_auto_save: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListWorkflowVersionsResponse {
+  status: { code: number; message: string };
+  data: WorkflowVersion[];
+}
+
+export interface WorkflowVersionResponse {
+  status: { code: number; message: string };
+  data: WorkflowVersion;
+}
+
+export interface CreateWorkflowVersionParams {
+  workflow_data: any;
+  version_name?: string;
+  description?: string;
+  is_auto_save?: boolean;
+}
+
+export const workflowVersionsApi = {
+  list: async (agentId: string | number, limit?: number, offset?: number) => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    
+    const queryString = params.toString();
+    const endpoint = `/agents/${agentId}/workflow_versions${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<ListWorkflowVersionsResponse>(endpoint);
+    return response;
+  },
+  
+  create: async (agentId: string | number, params: CreateWorkflowVersionParams) => {
+    const endpoint = `/agents/${agentId}/workflow_versions`;
+    const response = await apiClient.post<WorkflowVersionResponse>(endpoint, params);
+    return response;
+  },
+  
+  get: async (agentId: string | number, versionNumber: number) => {
+    const endpoint = `/agents/${agentId}/workflow_versions/${versionNumber}`;
+    const response = await apiClient.get<WorkflowVersionResponse>(endpoint);
+    return response;
+  },
+  
+  restore: async (agentId: string | number, versionNumber: number) => {
+    const endpoint = `/agents/${agentId}/workflow_versions/${versionNumber}/restore`;
+    const response = await apiClient.post<WorkflowVersionResponse>(endpoint);
+    return response;
+  },
+};
+
+export interface WorkflowExecution {
+  id: number;
+  conversation_id: number;
+  agent_id: number;
+  current_node_id: string | null;
+  execution_state: 'pending' | 'running' | 'completed' | 'failed' | 'stopped';
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowExecutionLog {
+  id: number;
+  node_id: string;
+  node_type: string;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  result_data: any;
+  error_message: string | null;
+  executed_at: string;
+  created_at: string;
+}
+
+export interface WorkflowExecutionResponse {
+  status: { code: number; message: string };
+  data: WorkflowExecution;
+}
+
+export interface WorkflowExecutionLogsResponse {
+  status: { code: number; message: string };
+  data: WorkflowExecutionLog[];
+}
+
+export const workflowExecutionsApi = {
+  start: async (conversationId: string | number) => {
+    const endpoint = `/conversations/${conversationId}/workflow_executions/start`;
+    const response = await apiClient.post<WorkflowExecutionResponse>(endpoint);
+    return response;
+  },
+  
+  status: async (conversationId: string | number) => {
+    const endpoint = `/conversations/${conversationId}/workflow_executions/status`;
+    const response = await apiClient.get<WorkflowExecutionResponse>(endpoint);
+    return response;
+  },
+  
+  stop: async (conversationId: string | number, reason?: string) => {
+    const endpoint = `/conversations/${conversationId}/workflow_executions/stop`;
+    const response = await apiClient.post<WorkflowExecutionResponse>(endpoint, { reason });
+    return response;
+  },
+  
+  logs: async (conversationId: string | number) => {
+    const endpoint = `/conversations/${conversationId}/workflow_executions/logs`;
+    const response = await apiClient.get<WorkflowExecutionLogsResponse>(endpoint);
+    return response;
+  },
+};
+
 export const agentMetricsApi = {
   getMetrics: async (agentId: string | number, filters?: { start_date?: string; end_date?: string }) => {
     const params = new URLSearchParams();

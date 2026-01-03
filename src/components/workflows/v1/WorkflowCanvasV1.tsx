@@ -25,6 +25,9 @@ interface WorkflowCanvasV1Props {
   onNodeRename?: (nodeId: string) => void;
   onNodeReplace?: (nodeId: string) => void;
   onNodeDelete?: (nodeId: string) => void;
+  onNodeEmail?: (nodeId: string) => void;
+  onNodeMoveUp?: (nodeId: string) => void;
+  onNodeMoveDown?: (nodeId: string) => void;
   readOnly?: boolean;
 }
 
@@ -32,6 +35,7 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.1;
 const GRID_SIZE = 20;
+const FIXED_X_POSITION = 400; // Fixed X coordinate for all nodes (vertical layout)
 
 export function WorkflowCanvasV1({
   nodes,
@@ -52,6 +56,9 @@ export function WorkflowCanvasV1({
   onNodeRename,
   onNodeReplace,
   onNodeDelete,
+  onNodeEmail,
+  onNodeMoveUp,
+  onNodeMoveDown,
   readOnly = false
 }: WorkflowCanvasV1Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -69,6 +76,7 @@ export function WorkflowCanvasV1({
   const [nextStepMenuNodeId, setNextStepMenuNodeId] = useState<string | null>(null);
   const [nextStepMenuPosition, setNextStepMenuPosition] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<SVGSVGElement>(null);
+  const hasAutoFittedRef = useRef(false);
 
   // Handle mouse wheel zoom and pan (using native event for passive: false)
   const handleWheelNative = useCallback((e: WheelEvent) => {
@@ -104,7 +112,12 @@ export function WorkflowCanvasV1({
   // Calculate node positions for connections
   const getNodeConnectionPoint = useCallback((nodeId: string, isOutput: boolean = true, conditionIndex?: number) => {
     const node = nodes.find(n => n.id === nodeId);
-    if (!node) return { x: 0, y: 0 };
+    if (!node) {
+      console.warn(`[WorkflowCanvas] getNodeConnectionPoint: Node not found: ${nodeId}`, {
+        availableNodeIds: nodes.map(n => n.id)
+      });
+      return { x: 0, y: 0 };
+    }
 
     const NODE_WIDTH = 240;
     const NODE_HEIGHT = 100;
@@ -113,12 +126,21 @@ export function WorkflowCanvasV1({
     const dragOffset = draggedNodeId === nodeId ? nodeDragOffset : { x: 0, y: 0 };
     const actualX = node.position.x + dragOffset.x;
     const actualY = node.position.y + dragOffset.y;
+    
+    console.log(`[WorkflowCanvas] getNodeConnectionPoint for ${nodeId}:`, {
+      nodePosition: node.position,
+      dragOffset,
+      actualX,
+      actualY,
+      isOutput
+    });
 
     if (isOutput) {
       // For condition nodes, calculate position based on condition index (spread horizontally at bottom)
       if (node.type === "condition" && conditionIndex !== undefined) {
-        const conditionConfig = node.config as any;
-        const conditionCount = conditionConfig?.conditions?.length || 1;
+        const conditionConfig = node.config as unknown as Record<string, unknown> | undefined;
+        const conditions = conditionConfig?.conditions as Array<{ id: string }> | undefined;
+        const conditionCount = conditions?.length || 1;
         const spacing = NODE_WIDTH / (conditionCount + 1);
         const outputX = actualX + spacing * (conditionIndex + 1);
         return {
@@ -196,13 +218,14 @@ export function WorkflowCanvasV1({
     }
 
     if (draggedNodeId) {
-      const deltaX = (e.clientX - dragStart.x) / zoom;
+      // Only allow vertical movement (Y-axis only)
       const deltaY = (e.clientY - dragStart.y) / zoom;
-      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      const distance = Math.abs(deltaY);
       if (distance > 3) { // Threshold for considering it a drag (3 pixels)
         setHasDragged(true);
       }
-      setNodeDragOffset({ x: deltaX, y: deltaY });
+      // Set deltaX to 0 to prevent horizontal movement
+      setNodeDragOffset({ x: 0, y: deltaY });
     }
   }, [isPanning, panStart, pan, connectingFromNodeId, zoom, draggedNodeId, dragStart]);
 
@@ -212,16 +235,53 @@ export function WorkflowCanvasV1({
     if (draggedNodeId) {
       // Update node position only if it was actually dragged
       if (hasDragged) {
-        const node = nodes.find(n => n.id === draggedNodeId);
-        if (node) {
-          const updatedNode = {
-            ...node,
-            position: {
-              x: node.position.x + nodeDragOffset.x,
-              y: node.position.y + nodeDragOffset.y
-            }
-          };
-          onNodesChange(nodes.map(n => n.id === draggedNodeId ? updatedNode : n));
+        const draggedNode = nodes.find(n => n.id === draggedNodeId);
+        if (draggedNode) {
+          const newY = draggedNode.position.y + nodeDragOffset.y;
+          
+          // Find the node that the dragged node overlaps with (for reordering)
+          const overlappingNode = nodes.find(n => {
+            if (n.id === draggedNodeId) return false;
+            const nodeCenterY = n.position.y + 50; // Assuming node height is ~100, center is at +50
+            const draggedCenterY = newY + 50;
+            // Check if dragged node center is within the other node's bounds
+            return Math.abs(draggedCenterY - nodeCenterY) < 50;
+          });
+          
+          if (overlappingNode) {
+            // Swap positions: reorder nodes
+            const updatedNodes = nodes.map(n => {
+              if (n.id === draggedNodeId) {
+                return {
+                  ...n,
+                  position: {
+                    x: FIXED_X_POSITION,
+                    y: overlappingNode.position.y
+                  }
+                };
+              } else if (n.id === overlappingNode.id) {
+                return {
+                  ...n,
+                  position: {
+                    x: FIXED_X_POSITION,
+                    y: draggedNode.position.y
+                  }
+                };
+              }
+              return n;
+            });
+            onNodesChange(updatedNodes);
+          } else {
+            // Just update the dragged node's position
+            const updatedNode = {
+              ...draggedNode,
+              position: {
+                x: FIXED_X_POSITION, // Always snap to fixed X position
+                y: newY
+              }
+            };
+            onNodesChange(nodes.map(n => n.id === draggedNodeId ? updatedNode : n));
+          }
         }
       }
       // Reset drag state after a short delay to allow click handler to check hasDragged
@@ -391,6 +451,17 @@ export function WorkflowCanvasV1({
       });
     }
   }, [nodes]);
+  
+  // Auto-fit viewport when nodes are first loaded
+  useEffect(() => {
+    if (nodes.length > 0 && !hasAutoFittedRef.current && canvasRef.current) {
+      // Small delay to ensure canvas is rendered
+      setTimeout(() => {
+        handleFitToScreen();
+        hasAutoFittedRef.current = true;
+      }, 100);
+    }
+  }, [nodes.length, handleFitToScreen]);
 
   // Render grid
   const renderGrid = () => {
@@ -477,14 +548,43 @@ export function WorkflowCanvasV1({
           {connections.map((connection, idx) => {
             // For condition nodes, we might need to get the specific output point
             const fromNode = nodes.find(n => n.id === connection.from);
+            const toNode = nodes.find(n => n.id === connection.to);
+            
+            // Skip rendering if nodes aren't found
+            if (!fromNode || !toNode) {
+              console.warn(`[WorkflowCanvas] Connection ${idx} skipped - nodes not found:`, {
+                from: connection.from,
+                to: connection.to,
+                fromNodeFound: !!fromNode,
+                toNodeFound: !!toNode,
+                availableNodeIds: nodes.map(n => n.id)
+              });
+              return null;
+            }
+            
             let conditionIndex: number | undefined;
-            if (fromNode?.type === "condition" && connection.condition) {
-              const conditionConfig = fromNode.config as any;
+            if (fromNode.type === "condition" && connection.condition) {
+              const conditionConfig = fromNode.config as unknown as Record<string, unknown> | undefined;
+              const conditions = conditionConfig?.conditions as Array<{ id: string }> | undefined;
               const conditionId = connection.condition;
-              conditionIndex = conditionConfig?.conditions?.findIndex((c: any) => c.id === conditionId);
+              conditionIndex = conditions?.findIndex((c) => c.id === conditionId);
             }
             const fromPoint = getNodeConnectionPoint(connection.from, true, conditionIndex);
             const toPoint = getNodeConnectionPoint(connection.to, false);
+            
+            // Skip if connection points are invalid (0,0 means node not found)
+            if ((fromPoint.x === 0 && fromPoint.y === 0) || (toPoint.x === 0 && toPoint.y === 0)) {
+              console.warn(`[WorkflowCanvas] Connection ${idx} has invalid points:`, {
+                from: connection.from,
+                to: connection.to,
+                fromPoint,
+                toPoint,
+                fromNodePosition: fromNode?.position,
+                toNodePosition: toNode?.position
+              });
+              return null;
+            }
+            
             return (
               <ConnectionLine
                 key={`${connection.from}-${connection.to}-${idx}`}
@@ -516,38 +616,51 @@ export function WorkflowCanvasV1({
           })()}
 
           {/* Nodes */}
-          {nodes.map((node) => {
-            const isSelected = selectedNode?.id === node.id;
-            const isHovered = hoveredNodeId === node.id;
-            const displayNode = draggedNodeId === node.id
-              ? { ...node, position: { x: node.position.x + nodeDragOffset.x, y: node.position.y + nodeDragOffset.y } }
-              : node;
+          {(() => {
+            // Sort nodes by Y position to determine order
+            const sortedNodes = [...nodes].sort((a, b) => a.position.y - b.position.y);
+            
+            return sortedNodes.map((node, index) => {
+              const isSelected = selectedNode?.id === node.id;
+              const isHovered = hoveredNodeId === node.id;
+              const displayNode = draggedNodeId === node.id
+                ? { ...node, position: { x: FIXED_X_POSITION, y: node.position.y + nodeDragOffset.y } }
+                : node;
+              
+              const canMoveUp = index > 0;
+              const canMoveDown = index < sortedNodes.length - 1;
 
-            return (
-              <WorkflowNodeV1Component
-                key={node.id}
-                node={displayNode}
-                isSelected={isSelected}
-                isHovered={isHovered || connectingFromNodeId === node.id}
-                onClick={() => handleNodeClick(node, draggedNodeId === node.id && hasDragged)}
-                onMouseEnter={() => setHoveredNodeId(node.id)}
-                onMouseLeave={() => setHoveredNodeId(null)}
-                onMouseDown={(e) => handleNodeMouseDown(e, node)}
-                onConnectionPointMouseDown={(e) => handleConnectionPointMouseDown(e, node)}
-                onConnectionPointMouseUp={(e) => handleConnectionPointMouseUp(e, node)}
-                onAddNextStep={(nodeId) => {
-                  setNextStepMenuNodeId(nodeId);
-                  const pos = getNextStepButtonPosition(nodeId);
-                  setNextStepMenuPosition(pos);
-                }}
-                onRename={onNodeRename}
-                onReplace={onNodeReplace}
-                onDelete={onNodeDelete}
-                readOnly={readOnly}
-                isLastNode={!connections.some(c => c.from === node.id)}
-              />
-            );
-          })}
+              return (
+                <WorkflowNodeV1Component
+                  key={node.id}
+                  node={displayNode}
+                  isSelected={isSelected}
+                  isHovered={isHovered || connectingFromNodeId === node.id}
+                  onClick={() => handleNodeClick(node, draggedNodeId === node.id && hasDragged)}
+                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
+                  onMouseDown={(e) => handleNodeMouseDown(e, node)}
+                  onConnectionPointMouseDown={(e) => handleConnectionPointMouseDown(e, node)}
+                  onConnectionPointMouseUp={(e) => handleConnectionPointMouseUp(e, node)}
+                  onAddNextStep={(nodeId) => {
+                    setNextStepMenuNodeId(nodeId);
+                    const pos = getNextStepButtonPosition(nodeId);
+                    setNextStepMenuPosition(pos);
+                  }}
+                  onRename={onNodeRename}
+                  onReplace={onNodeReplace}
+                  onDelete={onNodeDelete}
+                  onEmail={onNodeEmail}
+                  onMoveUp={onNodeMoveUp}
+                  onMoveDown={onNodeMoveDown}
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
+                  readOnly={readOnly}
+                  isLastNode={!connections.some(c => c.from === node.id)}
+                />
+              );
+            });
+          })()}
         </g>
       </svg>
 

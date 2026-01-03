@@ -105,14 +105,16 @@ export function ConnectionLine({
       <path
         d={path}
         fill="none"
-        stroke={isHovered ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+        stroke={isHovered ? "hsl(var(--primary))" : "hsl(var(--border))"}
         strokeWidth={isHovered ? 2.5 : 2}
         strokeDasharray={isVerticalConnection ? "4 4" : "none"}
+        strokeOpacity={isHovered ? 1 : 0.8}
         className={cn(
           "transition-all",
           isHovered && "drop-shadow-sm"
         )}
         markerEnd={`url(#arrowhead-${connection.from}-${connection.to})`}
+        style={{ pointerEvents: 'none' }}
       />
 
       {/* Arrow marker definition */}
@@ -127,7 +129,8 @@ export function ConnectionLine({
         >
           <polygon
             points="0 0, 10 5, 0 10"
-            fill={isHovered ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+            fill={isHovered ? "hsl(var(--primary))" : "hsl(var(--border))"}
+            fillOpacity={isHovered ? 1 : 0.8}
             className="transition-colors"
           />
         </marker>

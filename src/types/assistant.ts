@@ -219,4 +219,6 @@ export type Agent = {
     play_keypad_touch_tone?: boolean;
     voicemail_detection?: boolean;
   };
+  // Full conversation_config for accessing workflow and other nested config
+  conversation_config?: Record<string, unknown>;
 };

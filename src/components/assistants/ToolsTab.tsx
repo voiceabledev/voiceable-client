@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import { SystemToolsSection } from "./SystemToolsSection";
 import { ExternalToolsSection } from "./ExternalToolsSection";
 import { AgentIntegrationToolsSection } from "@/components/integrations/AgentIntegrationToolsSection";
+import { WorkflowToolsSection } from "./WorkflowToolsSection";
+import type { WorkflowV1 } from "@/types/workflow-v1";
 import {
   INTEGRATION_TOOLS_DISPLAY,
   getIntegrationIcon,
@@ -37,6 +39,7 @@ type ToolsTabProps = {
   onAddIntegration: () => void;
   onEditIntegration: (integration: UserIntegration | string) => void;
   onDeleteIntegration: (id: string) => Promise<void>;
+  workflow?: WorkflowV1 | null;
 };
 
 export const ToolsTab: React.FC<ToolsTabProps> = ({
@@ -60,10 +63,12 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   onAddIntegration,
   onEditIntegration,
   onDeleteIntegration,
+  workflow,
 }) => {
   const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(true);
   const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(true);
   const [externalToolsSectionExpanded, setExternalToolsSectionExpanded] = useState(true);
+  const [workflowToolsSectionExpanded, setWorkflowToolsSectionExpanded] = useState(true);
 
   // Transform agentIntegrationTools array to Record format expected by AgentIntegrationToolsSection
   const agentIntegrationToolsRecord = useMemo(() => {
@@ -86,6 +91,12 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
 
   return (
     <div className="space-y-6">
+      <WorkflowToolsSection
+        workflow={workflow}
+        expanded={workflowToolsSectionExpanded}
+        onToggleExpanded={() => setWorkflowToolsSectionExpanded(prev => !prev)}
+      />
+      
       <SystemToolsSection
         systemTools={systemTools}
         onToggleTool={(key, checked) => onToggleSystemTool(key as keyof SystemToolsState)}

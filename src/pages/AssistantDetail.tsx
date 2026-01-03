@@ -1153,6 +1153,29 @@ export default function AssistantDetail() {
   }, [agentData.agent, agentData.conversationConfig]);
 
   // Get full system prompt for backward compatibility (combined from components)
+  // Extract workflow from agent metadata (must be at top level, not conditional)
+  const workflowFromAgent = useMemo(() => {
+    if (!agentData.agent) {
+      console.log("[WorkflowFromAgent] No agent data available");
+      return null;
+    }
+    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+    const workflowData = conversationConfig?.workflow as any;
+    if (workflowData) {
+      console.log("[WorkflowFromAgent] Workflow found in agent data", {
+        id: workflowData.id,
+        name: workflowData.name,
+        nodesCount: workflowData.nodes?.length || 0,
+        connectionsCount: workflowData.connections?.length || 0,
+        hasConnections: !!workflowData.connections,
+        connections: workflowData.connections
+      });
+      return workflowData as import("@/types/workflow-v1").WorkflowV1;
+    }
+    console.log("[WorkflowFromAgent] No workflow found in agent conversation_config");
+    return null;
+  }, [agentData.agent]);
+
   const fullSystemPrompt = useMemo(() => {
     const parts: string[] = [];
     if (promptComponents.template) parts.push(promptComponents.template);
@@ -1390,7 +1413,7 @@ export default function AssistantDetail() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden min-w-0 relative">
-        <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
+        <div className="flex-1 flex flex-col overflow-y-auto">
           {agentData.agent && (
             <>
               {activeTab === "dashboard" || activeTab === "overview" ? (
@@ -1560,6 +1583,16 @@ export default function AssistantDetail() {
                   onDeleteIntegrationTool={integrationHook.handleDeleteIntegrationTool}
                   onAddIntegration={integrationHook.openAddIntegrationModal}
                   onEditIntegration={integrationHook.openEditIntegrationModal}
+                  workflow={(() => {
+                    // Extract workflow from agent metadata
+                    if (!agentData.agent) return null;
+                    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
+                    const workflowData = conversationConfig?.workflow as any;
+                    if (workflowData) {
+                      return workflowData as import("@/types/workflow-v1").WorkflowV1;
+                    }
+                    return null;
+                  })()}
                   onDeleteIntegration={async (id) => {
                     await integrationHook.handleDeleteIntegration(
                       id,
@@ -1587,17 +1620,14 @@ export default function AssistantDetail() {
                   agentId={agentId}
                   webhookTools={webhookHook.webhookTools}
                   integrationTools={integrationHook.agentIntegrationTools}
-                  workflow={(() => {
-                    // Extract workflow from agent metadata
-                    if (!agentData.agent) return null;
-                    const conversationConfig = (agentData.agent as any).conversation_config as Record<string, unknown> | undefined;
-                    const workflowData = conversationConfig?.workflow as any;
-                    if (workflowData) {
-                      return workflowData as import("@/types/workflow-v1").WorkflowV1;
-                    }
-                    return null;
-                  })()}
+                  workflow={workflowFromAgent}
                   onSaveAgent={async (workflow) => {
+                    console.log("[SaveAgent] Starting save workflow to agent metadata", {
+                      workflowId: workflow?.id,
+                      workflowName: workflow?.name,
+                      nodesCount: workflow?.nodes?.length
+                    });
+                    
                     // Save workflow to agent metadata
                     if (workflow && agentData.agent) {
                       const currentConfig = (agentData.agent as any).conversation_config || {};
@@ -1605,6 +1635,8 @@ export default function AssistantDetail() {
                         ...currentConfig,
                         workflow: workflow
                       };
+                      
+                      console.log("[SaveAgent] Updating conversation config with workflow");
                       
                       // Update conversation config
                       if (agentData.setConversationConfig) {
@@ -1617,6 +1649,7 @@ export default function AssistantDetail() {
                     }
                     
                     // Save agent with all current data
+                    console.log("[SaveAgent] Calling handleSave to persist to backend...");
                     await agentData.handleSave(
                       webhookHook.webhookTools,
                       clientHook.clientTools,
@@ -1629,9 +1662,21 @@ export default function AssistantDetail() {
                       filesHook.attachedFiles,
                       systemToolSettingsMap
                     );
+                    console.log("[SaveAgent] handleSave completed");
+                    
+                    // Refresh agent data to ensure workflow prop is updated
+                    console.log("[SaveAgent] Fetching agent details to refresh data...");
+                    await agentData.fetchAgentDetails();
+                    console.log("[SaveAgent] Agent details fetched, workflow should now be available");
                   }}
                   onUpdateWebhookTools={webhookHook.setWebhookTools}
                   onUpdateIntegrationTools={integrationHook.setAgentIntegrationTools}
+                  onVersionRestore={async () => {
+                    // After version restore, refresh agent data to load the new workflow
+                    console.log("[AssistantDetail] Version restored, refreshing agent data...");
+                    await agentData.fetchAgentDetails();
+                    console.log("[AssistantDetail] Agent data refreshed after version restore");
+                  }}
                 />
               ) : activeTab === "advanced" ? (
                 <AdvancedTab

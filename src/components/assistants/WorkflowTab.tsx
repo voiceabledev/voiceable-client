@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { History } from "lucide-react";
 import { WorkflowCanvasV1 } from "@/components/workflows/v1/WorkflowCanvasV1";
 import { NodeConfigPanelV1 } from "@/components/workflows/v1/NodeConfigPanelV1";
 import { AddNodeMenu } from "@/components/workflows/v1/AddNodeMenu";
@@ -8,11 +10,16 @@ import { AddActionModal } from "@/components/workflows/v1/AddActionModal";
 import { AddFlowTemplateModal } from "@/components/workflows/v1/AddFlowTemplateModal";
 import { AgentStepConfigModal } from "@/components/workflows/v1/AgentStepConfigModal";
 import { RenameNodeDialog } from "@/components/workflows/v1/RenameNodeDialog";
+import { VersionHistoryPanel } from "@/components/workflows/v1/VersionHistoryPanel";
 import type { WorkflowNodeV1, WorkflowConnectionV1, WorkflowV1, NodeType, TriggerType, ActionType, AgentStepConfig, NodeConfig } from "@/types/workflow-v1";
 import { getDefaultConfigForNodeType, getDefaultNameForNodeType } from "@/types/workflow-v1";
+import { workflowVersionsApi } from "@/lib/api";
 import { workflowsV1Api } from "@/lib/api/workflows-v1";
 import type { WebhookTool, AgentIntegrationTool } from "@/types/assistant";
 import type { FlowTemplate } from "@/constants/assistant";
+
+const FIXED_X_POSITION = 400; // Fixed X coordinate for all nodes (vertical layout)
+const VERTICAL_SPACING = 150; // Vertical spacing between nodes
 
 interface WorkflowTabProps {
   agentId: string;
@@ -22,6 +29,7 @@ interface WorkflowTabProps {
   onSaveAgent?: (workflow?: WorkflowV1) => Promise<void>; // Save workflow to agent metadata
   onUpdateWebhookTools?: (tools: WebhookTool[]) => void;
   onUpdateIntegrationTools?: (tools: AgentIntegrationTool[]) => void;
+  onVersionRestore?: () => Promise<void>; // Callback when a version is restored
 }
 
 export function WorkflowTab({
@@ -32,6 +40,7 @@ export function WorkflowTab({
   onSaveAgent,
   onUpdateWebhookTools,
   onUpdateIntegrationTools,
+  onVersionRestore,
 }: WorkflowTabProps) {
   const { toast } = useToast();
 
@@ -39,7 +48,49 @@ export function WorkflowTab({
   const [loading, setLoading] = useState(true);
   const [nodes, setNodes] = useState<WorkflowNodeV1[]>([]);
   const [connections, setConnections] = useState<WorkflowConnectionV1[]>([]);
+  const pendingConnectionsRef = useRef<WorkflowConnectionV1[] | null>(null);
+  
+  // Debug: Log when connections change
+  useEffect(() => {
+    console.log("[WorkflowTab] Connections state changed:", {
+      count: connections.length,
+      connections: connections.map(c => ({ from: c.from, to: c.to, condition: c.condition }))
+    });
+  }, [connections]);
+  
+  // Set connections after nodes are set (to ensure nodes exist when rendering connections)
+  // Only run this when we have pending connections from loading a saved workflow
+  // Use a flag to ensure we only run this once per load, not on every node change
+  const connectionsSetRef = useRef(false);
+  useEffect(() => {
+    if (pendingConnectionsRef.current && nodes.length > 0 && !connectionsSetRef.current) {
+      const validConnections = pendingConnectionsRef.current.filter(conn => {
+        const fromExists = nodes.some(n => n.id === conn.from);
+        const toExists = nodes.some(n => n.id === conn.to);
+        return fromExists && toExists;
+      });
+      console.log("[WorkflowTab] Setting pending connections after nodes are set:", {
+        pendingCount: pendingConnectionsRef.current.length,
+        validCount: validConnections.length,
+        nodesCount: nodes.length
+      });
+      setConnections(validConnections);
+      pendingConnectionsRef.current = null; // Clear after setting
+      connectionsSetRef.current = true; // Mark as set
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length]); // Only depend on nodes.length, not the entire nodes array
+  
+  // Reset the flag when workflow is loaded
+  useEffect(() => {
+    if (workflowProp) {
+      connectionsSetRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflowProp?.id]); // Reset when workflow ID changes
   const [selectedNode, setSelectedNode] = useState<WorkflowNodeV1 | null>(null);
+  const workflowLoadedRef = useRef(false); // Track if workflow has been loaded
+  const lastWorkflowIdRef = useRef<string | undefined>(undefined); // Track last loaded workflow ID
 
   // Helper function to clean up orphaned connections
   const cleanupConnections = useCallback((currentNodes: WorkflowNodeV1[], currentConnections: WorkflowConnectionV1[]): WorkflowConnectionV1[] => {
@@ -60,6 +111,7 @@ export function WorkflowTab({
   const [workflowName, setWorkflowName] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [renameNodeId, setRenameNodeId] = useState<string | null>(null);
   const [replaceNodeId, setReplaceNodeId] = useState<string | null>(null);
   const [workflowGreetingMessage, setWorkflowGreetingMessage] = useState("");
@@ -67,49 +119,300 @@ export function WorkflowTab({
   const [workflowMemories, setWorkflowMemories] = useState<Array<{ id: string; content: string }>>([]);
   const [workflowDefaultModel, setWorkflowDefaultModel] = useState("Balanced Currently Gemini 3.0 Flash");
   const [workflowSafeMode, setWorkflowSafeMode] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const lastAutoSaveVersionRef = useRef<number>(0);
+
+  // Undo/Redo history
+  type WorkflowState = {
+    nodes: WorkflowNodeV1[];
+    connections: WorkflowConnectionV1[];
+  };
+  const historyRef = useRef<WorkflowState[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const isUndoRedoRef = useRef<boolean>(false);
+
+  // Save state to history
+  const saveToHistory = useCallback((currentNodes: WorkflowNodeV1[], currentConnections: WorkflowConnectionV1[]) => {
+    if (isUndoRedoRef.current) {
+      return; // Don't save history during undo/redo operations
+    }
+
+    const state: WorkflowState = {
+      nodes: JSON.parse(JSON.stringify(currentNodes)), // Deep clone
+      connections: JSON.parse(JSON.stringify(currentConnections)), // Deep clone
+    };
+
+    // Remove any future history if we're not at the end
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    }
+
+    // Add new state to history
+    historyRef.current.push(state);
+    historyIndexRef.current = historyRef.current.length - 1;
+
+    // Limit history size to prevent memory issues (keep last 50 states)
+    if (historyRef.current.length > 50) {
+      historyRef.current = historyRef.current.slice(-50);
+      historyIndexRef.current = historyRef.current.length - 1;
+    }
+  }, []);
+
+  // Undo function
+  const handleUndo = useCallback(() => {
+    if (historyIndexRef.current <= 0) {
+      return; // Nothing to undo
+    }
+
+    isUndoRedoRef.current = true;
+    historyIndexRef.current -= 1;
+    const previousState = historyRef.current[historyIndexRef.current];
+    
+    if (previousState) {
+      setNodes(previousState.nodes);
+      setConnections(previousState.connections);
+      setHasChanges(true);
+    }
+    
+    // Reset flag after state update
+    setTimeout(() => {
+      isUndoRedoRef.current = false;
+    }, 0);
+  }, []);
+
+  // Redo function
+  const handleRedo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) {
+      return; // Nothing to redo
+    }
+
+    isUndoRedoRef.current = true;
+    historyIndexRef.current += 1;
+    const nextState = historyRef.current[historyIndexRef.current];
+    
+    if (nextState) {
+      setNodes(nextState.nodes);
+      setConnections(nextState.connections);
+      setHasChanges(true);
+    }
+    
+    // Reset flag after state update
+    setTimeout(() => {
+      isUndoRedoRef.current = false;
+    }, 0);
+  }, []);
+
+  // Keyboard event handler for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if we're not in an input field
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Check for Ctrl+Z (Windows/Linux) or Cmd+Z (Mac) - Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Check for Ctrl+Shift+Z (Windows/Linux) or Cmd+Shift+Z (Mac) - Redo
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleUndo, handleRedo]);
 
   // Load workflow from agent metadata prop
   useEffect(() => {
+    console.log("[Load] Workflow loading effect triggered", {
+      workflowProp: workflowProp ? { id: workflowProp.id, name: workflowProp.name, nodesCount: workflowProp.nodes?.length } : null,
+      workflowLoadedRef: workflowLoadedRef.current,
+      lastWorkflowId: lastWorkflowIdRef.current
+    });
+    
+    // Skip if workflow has already been loaded and workflowProp hasn't actually changed
+    // Compare workflow IDs to detect real changes
+    const newWorkflowId = workflowProp?.id;
+    const lastWorkflowId = lastWorkflowIdRef.current;
+    
+    // Only reload if:
+    // 1. We haven't loaded yet (workflowLoadedRef.current is false) AND workflowProp exists
+    // 2. The workflow ID has changed (different workflow) AND new workflow exists
+    // Don't reload if workflowProp becomes null after we've already loaded
+    // IMPORTANT: Don't reload if we're currently saving (isSaving) to prevent reload loops
+    const shouldReload = (!workflowLoadedRef.current && workflowProp && !isSaving) || 
+                        (workflowLoadedRef.current && workflowProp && lastWorkflowId !== newWorkflowId && !isSaving);
+    
+    console.log("[Load] Should reload?", {
+      shouldReload,
+      hasNotLoaded: !workflowLoadedRef.current,
+      workflowPropExists: !!workflowProp,
+      workflowIdChanged: lastWorkflowId !== newWorkflowId,
+      isSaving
+    });
+    
+    // If we're currently saving, don't reload (prevents reload loops when auto-saving)
+    if (isSaving) {
+      console.log("[Load] Currently saving, skipping reload to prevent loop");
+      setLoading(false);
+      return;
+    }
+    
+    // If we've already loaded and workflowProp is now null, don't reload (preserve current state)
+    if (workflowLoadedRef.current && !workflowProp) {
+      console.log("[Load] Workflow already loaded, skipping reload when workflowProp becomes null");
+      setLoading(false); // Ensure loading is set to false
+      return;
+    }
+    
+    if (!shouldReload) {
+      console.log("[Load] Skipping reload - nothing meaningful changed");
+      setLoading(false); // Ensure loading is set to false
+      return; // Skip reloading if nothing meaningful changed
+    }
+    
+    console.log("[Load] Starting to load workflow...");
     setLoading(true);
     try {
       if (workflowProp) {
+        console.log("[Load] Loading workflow from prop:", {
+          id: workflowProp.id,
+          name: workflowProp.name,
+          nodesCount: workflowProp.nodes?.length || 0,
+          connectionsCount: workflowProp.connections?.length || 0
+        });
         setWorkflow(workflowProp);
         setWorkflowName(workflowProp.name || "Workflow");
-        setNodes(workflowProp.nodes || []);
-        setConnections(workflowProp.connections || []);
+        const initialNodes = workflowProp.nodes || [];
+        const initialConnections = workflowProp.connections || [];
+        console.log("[Load] Setting nodes and connections:", {
+          nodesCount: initialNodes.length,
+          connectionsCount: initialConnections.length,
+          nodeIds: initialNodes.map(n => n.id),
+          connectionFrom: initialConnections.map(c => c.from),
+          connectionTo: initialConnections.map(c => c.to)
+        });
+        // Set nodes first
+        setNodes(initialNodes);
+        
+        // Reset the connections set flag for this load
+        connectionsSetRef.current = false;
+        
+        // Store connections to be set after nodes are set (via useEffect)
+        console.log("[Load] Storing connections to be set after nodes:", {
+          connectionsCount: initialConnections.length,
+          connections: initialConnections.map(c => ({ from: c.from, to: c.to, condition: c.condition })),
+          nodeIds: initialNodes.map(n => n.id)
+        });
+        pendingConnectionsRef.current = initialConnections;
         setWorkflowGreetingMessage(workflowProp.greetingMessage || "");
         setWorkflowContext(workflowProp.context || "");
         setWorkflowMemories(workflowProp.memories || []);
         setWorkflowDefaultModel(workflowProp.defaultModel || "Balanced Currently Gemini 3.0 Flash");
         setWorkflowSafeMode(workflowProp.safeMode || false);
-      } else {
-        // No workflow exists yet, create empty state
-        setWorkflow(null);
-        setWorkflowName("Workflow");
-        setNodes([]);
-        setConnections([]);
-        setWorkflowGreetingMessage("");
-        setWorkflowContext("");
-        setWorkflowMemories([]);
-        setWorkflowDefaultModel("Balanced Currently Gemini 3.0 Flash");
-        setWorkflowSafeMode(false);
+        
+        // Clear localStorage draft when loading from saved workflow
+        localStorage.removeItem(`workflow-draft-${agentId}`);
+        
+        // Initialize history with initial state
+        historyRef.current = [{
+          nodes: JSON.parse(JSON.stringify(initialNodes)),
+          connections: JSON.parse(JSON.stringify(initialConnections)),
+        }];
+        historyIndexRef.current = 0;
+        workflowLoadedRef.current = true; // Mark as loaded
+        lastWorkflowIdRef.current = workflowProp.id; // Store the workflow ID
+        console.log("[Load] Workflow loaded successfully from prop");
+      } else if (!workflowLoadedRef.current) {
+        // Only load from localStorage or create empty if we haven't loaded yet
+        console.log("[Load] No workflow prop, checking localStorage draft...");
+        // Check for localStorage draft as fallback
+        const draftKey = `workflow-draft-${agentId}`;
+        const draftData = localStorage.getItem(draftKey);
+        if (draftData) {
+          try {
+            const draft = JSON.parse(draftData);
+            console.log("Loading workflow from localStorage draft:", draft);
+            setWorkflowName(draft.name || "Workflow");
+            setNodes(draft.nodes || []);
+            setConnections(draft.connections || []);
+            setWorkflowGreetingMessage(draft.greetingMessage || "");
+            setWorkflowContext(draft.context || "");
+            setWorkflowMemories(draft.memories || []);
+            setWorkflowDefaultModel(draft.defaultModel || "Balanced Currently Gemini 3.0 Flash");
+            setWorkflowSafeMode(draft.safeMode || false);
+            
+            // Initialize history with draft state
+            historyRef.current = [{
+              nodes: JSON.parse(JSON.stringify(draft.nodes || [])),
+              connections: JSON.parse(JSON.stringify(draft.connections || [])),
+            }];
+            historyIndexRef.current = 0;
+            workflowLoadedRef.current = true; // Mark as loaded
+          } catch (draftErr) {
+            console.error("Failed to parse localStorage draft:", draftErr);
+            // Fall through to empty state
+          }
+        }
+        
+        // If no draft either, create empty state
+        if (!draftData) {
+          console.log("[Load] No draft found, creating empty workflow");
+          setWorkflow(null);
+          setWorkflowName("Workflow");
+          const emptyNodes: WorkflowNodeV1[] = [];
+          const emptyConnections: WorkflowConnectionV1[] = [];
+          setNodes(emptyNodes);
+          setConnections(emptyConnections);
+          setWorkflowGreetingMessage("");
+          setWorkflowContext("");
+          setWorkflowMemories([]);
+          setWorkflowDefaultModel("Balanced Currently Gemini 3.0 Flash");
+          setWorkflowSafeMode(false);
+          
+          // Initialize history with empty state
+          historyRef.current = [{
+            nodes: [],
+            connections: [],
+          }];
+          historyIndexRef.current = 0;
+          workflowLoadedRef.current = true; // Mark as loaded
+        }
       }
     } catch (err) {
-      console.error("Failed to load workflow:", err);
+      console.error("[Load] Failed to load workflow:", err);
       // Create empty workflow state
       setWorkflow(null);
       setWorkflowName("Workflow");
-      setNodes([]);
-      setConnections([]);
+      const emptyNodes: WorkflowNodeV1[] = [];
+      const emptyConnections: WorkflowConnectionV1[] = [];
+      setNodes(emptyNodes);
+      setConnections(emptyConnections);
       setWorkflowGreetingMessage("");
       setWorkflowContext("");
       setWorkflowMemories([]);
       setWorkflowDefaultModel("Balanced Currently Gemini 3.0 Flash");
       setWorkflowSafeMode(false);
+      
+      // Initialize history with empty state
+      historyRef.current = [{
+        nodes: [],
+        connections: [],
+      }];
+      historyIndexRef.current = 0;
+      workflowLoadedRef.current = true; // Mark as loaded even on error
     } finally {
       setLoading(false);
     }
-  }, [workflowProp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflowProp?.id, agentId, isSaving]); // Only depend on workflow ID, not the entire workflow object
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -144,6 +447,9 @@ export function WorkflowTab({
     
     setTriggerJustSelected(true);
     
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
+    
     const replaceNodeId = (window as unknown as Record<string, unknown>).__workflowReplaceNodeId as string | undefined;
     
     setNodes(prev => {
@@ -168,13 +474,18 @@ export function WorkflowTab({
         }
         return newNodes;
       } else {
+        // Find the last node (highest Y position) to position new node below it
+        const lastNode = prev.length > 0 
+          ? prev.reduce((last, current) => current.position.y > last.position.y ? current : last)
+          : null;
+        
         const newNode: WorkflowNodeV1 = {
           id: `node-${Date.now()}`,
           type,
           name: nodeName,
           position: {
-            x: 400 + (prev.length * 50),
-            y: 200 + (prev.length * 150)
+            x: FIXED_X_POSITION,
+            y: lastNode ? lastNode.position.y + VERTICAL_SPACING : 200
           },
           config: getDefaultConfigForNodeType(type)
         };
@@ -184,12 +495,15 @@ export function WorkflowTab({
     });
     
     setHasChanges(true);
-  }, []);
+  }, [nodes, connections, saveToHistory]);
 
   const handleAddAction = useCallback((type: ActionType, app?: string, actionName?: string, fromNodeId?: string) => {
     const nodeName = actionName || getDefaultNameForNodeType(type);
     
     setActionJustSelected(true);
+    
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
     
     const replaceNodeId = (window as unknown as Record<string, unknown>).__workflowReplaceNodeId as string | undefined;
     
@@ -215,61 +529,16 @@ export function WorkflowTab({
         }
         return newNodes;
       } else {
-        let actualFromNodeId = fromNodeId;
-        let sourceNode = actualFromNodeId ? prev.find(n => n.id === actualFromNodeId) : null;
+        // Always connect to the last node (highest Y position)
+        const lastNode = prev.length > 0 
+          ? prev.reduce((last, current) => current.position.y > last.position.y ? current : last)
+          : null;
+        
         const NODE_HEIGHT = 100;
-        const VERTICAL_SPACING = 150;
-        
-        const existingConnections = actualFromNodeId 
-          ? connections.filter(c => c.from === actualFromNodeId)
-          : [];
-        
-        let position;
-        
-        if (sourceNode && existingConnections.length > 0) {
-          const firstTargetNode = prev.find(n => n.id === existingConnections[0].to);
-          if (firstTargetNode) {
-            const sourceBottom = sourceNode.position.y + NODE_HEIGHT;
-            const targetTop = firstTargetNode.position.y;
-            const currentDistance = targetTop - sourceBottom;
-            const spacing = Math.max(VERTICAL_SPACING, currentDistance / 2.5);
-            const newY = sourceBottom + spacing;
-            position = {
-              x: sourceNode.position.x,
-              y: newY
-            };
-          } else {
-            position = {
-              x: sourceNode.position.x,
-              y: sourceNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-            };
-          }
-        } else if (sourceNode) {
-          position = {
-            x: sourceNode.position.x,
-            y: sourceNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-          };
-        } else {
-          const lastNode = prev.length > 0 
-            ? prev.reduce((last, current) => {
-                return current.position.y > last.position.y ? current : last;
-              })
-            : null;
-          
-          if (lastNode) {
-            position = {
-              x: lastNode.position.x,
-              y: lastNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-            };
-            actualFromNodeId = lastNode.id;
-            sourceNode = lastNode;
-          } else {
-            position = {
-              x: 400,
-              y: 200
-            };
-          }
-        }
+        const position = {
+          x: FIXED_X_POSITION,
+          y: lastNode ? lastNode.position.y + NODE_HEIGHT + VERTICAL_SPACING : 200
+        };
         
         const newNode: WorkflowNodeV1 = {
           id: `node-${Date.now()}`,
@@ -279,13 +548,14 @@ export function WorkflowTab({
           config: getDefaultConfigForNodeType(type)
         };
         
-        if (actualFromNodeId) {
+        // Always create connection from last node to new node
+        if (lastNode) {
           setConnections(prevConnections => {
             const existingConnection = prevConnections.find(
-              c => c.from === actualFromNodeId && c.to === newNode.id
+              c => c.from === lastNode.id && c.to === newNode.id
             );
             if (!existingConnection) {
-              return [...prevConnections, { from: actualFromNodeId, to: newNode.id }];
+              return [...prevConnections, { from: lastNode.id, to: newNode.id }];
             }
             return prevConnections;
           });
@@ -297,63 +567,24 @@ export function WorkflowTab({
     });
     
     setHasChanges(true);
-  }, [connections]);
+  }, [connections, nodes, saveToHistory]);
 
   const handleAddFlowTemplate = useCallback((template: FlowTemplate, fromNodeId?: string) => {
     const NODE_HEIGHT = 100;
-    const VERTICAL_SPACING = 150;
+    
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
     
     setNodes(prev => {
-      let sourceNode = fromNodeId ? prev.find(n => n.id === fromNodeId) : null;
-      let startPosition;
+      // Always connect to the last node (highest Y position)
+      const lastNode = prev.length > 0 
+        ? prev.reduce((last, current) => current.position.y > last.position.y ? current : last)
+        : null;
       
-      if (sourceNode) {
-        // Position template after the source node
-        const existingConnections = connections.filter(c => c.from === fromNodeId);
-        
-        if (existingConnections.length > 0) {
-          const firstTargetNode = prev.find(n => n.id === existingConnections[0].to);
-          if (firstTargetNode) {
-            const sourceBottom = sourceNode.position.y + NODE_HEIGHT;
-            const targetTop = firstTargetNode.position.y;
-            const currentDistance = targetTop - sourceBottom;
-            const spacing = Math.max(VERTICAL_SPACING, currentDistance / (template.nodes.length + 1));
-            startPosition = {
-              x: sourceNode.position.x,
-              y: sourceBottom + spacing
-            };
-          } else {
-            startPosition = {
-              x: sourceNode.position.x,
-              y: sourceNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-            };
-          }
-        } else {
-          startPosition = {
-            x: sourceNode.position.x,
-            y: sourceNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-          };
-        }
-      } else {
-        // Position template at the end or center
-        const lastNode = prev.length > 0 
-          ? prev.reduce((last, current) => {
-              return current.position.y > last.position.y ? current : last;
-            })
-          : null;
-        
-        if (lastNode) {
-          startPosition = {
-            x: lastNode.position.x,
-            y: lastNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-          };
-        } else {
-          startPosition = {
-            x: 400,
-            y: 200
-          };
-        }
-      }
+      const startPosition = {
+        x: FIXED_X_POSITION,
+        y: lastNode ? lastNode.position.y + NODE_HEIGHT + VERTICAL_SPACING : 200
+      };
       
       // Create all nodes from template
       const templateNodes: WorkflowNodeV1[] = template.nodes.map((templateNode, index) => ({
@@ -361,7 +592,7 @@ export function WorkflowTab({
         type: templateNode.type,
         name: templateNode.name,
         position: {
-          x: startPosition.x,
+          x: FIXED_X_POSITION,
           y: startPosition.y + (index * (NODE_HEIGHT + VERTICAL_SPACING))
         },
         config: templateNode.config || getDefaultConfigForNodeType(templateNode.type)
@@ -373,10 +604,10 @@ export function WorkflowTab({
         to: templateNodes[conn.to].id
       }));
       
-      // Connect first template node to source node if provided
-      if (fromNodeId && sourceNode) {
+      // Always connect first template node to last node
+      if (lastNode) {
         templateConnections.push({
-          from: fromNodeId,
+          from: lastNode.id,
           to: templateNodes[0].id
         });
       }
@@ -391,49 +622,23 @@ export function WorkflowTab({
     });
     
     setHasChanges(true);
-  }, [connections]);
+  }, [connections, nodes, saveToHistory]);
 
   const handleSaveAgentStep = useCallback((config: AgentStepConfig, fromNodeId?: string) => {
     const NODE_HEIGHT = 100;
-    const VERTICAL_SPACING = 150;
     
-    const sourceNode = fromNodeId ? nodes.find(n => n.id === fromNodeId) : null;
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
     
-    const existingConnections = fromNodeId 
-      ? connections.filter(c => c.from === fromNodeId)
-      : [];
+    // Always connect to the last node (highest Y position)
+    const lastNode = nodes.length > 0 
+      ? nodes.reduce((last, current) => current.position.y > last.position.y ? current : last)
+      : null;
     
-    let position;
-    
-    if (sourceNode && existingConnections.length > 0) {
-      const firstTargetNode = nodes.find(n => n.id === existingConnections[0].to);
-      if (firstTargetNode) {
-        const sourceBottom = sourceNode.position.y + NODE_HEIGHT;
-        const targetTop = firstTargetNode.position.y;
-        const currentDistance = targetTop - sourceBottom;
-        const spacing = Math.max(VERTICAL_SPACING, currentDistance / 2.5);
-        const newY = sourceBottom + spacing;
-        position = {
-          x: sourceNode.position.x,
-          y: newY
-        };
-      } else {
-        position = {
-          x: sourceNode.position.x,
-          y: sourceNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-        };
-      }
-    } else if (sourceNode) {
-      position = {
-        x: sourceNode.position.x,
-        y: sourceNode.position.y + NODE_HEIGHT + VERTICAL_SPACING
-      };
-    } else {
-      position = {
-        x: 400 + (nodes.length * 50),
-        y: 200 + (nodes.length * 150)
-      };
-    }
+    const position = {
+      x: FIXED_X_POSITION,
+      y: lastNode ? lastNode.position.y + NODE_HEIGHT + VERTICAL_SPACING : 200
+    };
     
     const newNode: WorkflowNodeV1 = {
       id: `node-${Date.now()}`,
@@ -445,13 +650,14 @@ export function WorkflowTab({
 
     setNodes(prev => [...prev, newNode]);
     
-    if (fromNodeId) {
+    // Always create connection from last node to new node
+    if (lastNode) {
       setConnections(prevConnections => {
         const existingConnection = prevConnections.find(
-          c => c.from === fromNodeId && c.to === newNode.id
+          c => c.from === lastNode.id && c.to === newNode.id
         );
         if (!existingConnection) {
-          return [...prevConnections, { from: fromNodeId, to: newNode.id }];
+          return [...prevConnections, { from: lastNode.id, to: newNode.id }];
         }
         return prevConnections;
       });
@@ -459,12 +665,22 @@ export function WorkflowTab({
     
     setHasChanges(true);
     setSelectedNode(newNode);
-  }, [nodes, connections]);
+  }, [nodes, connections, saveToHistory]);
 
   const handleNodeUpdate = useCallback((updatedNode: WorkflowNodeV1) => {
-    setNodes(prev => prev.map(n => n.id === updatedNode.id ? updatedNode : n));
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
+    // Ensure X position is always fixed
+    const nodeWithFixedX = {
+      ...updatedNode,
+      position: {
+        x: FIXED_X_POSITION,
+        y: updatedNode.position.y
+      }
+    };
+    setNodes(prev => prev.map(n => n.id === updatedNode.id ? nodeWithFixedX : n));
     setHasChanges(true);
-  }, []);
+  }, [nodes, connections, saveToHistory]);
 
   const handleNodeSelect = useCallback((node: WorkflowNodeV1 | null) => {
     setSelectedNode(node);
@@ -478,16 +694,29 @@ export function WorkflowTab({
 
   // Auto-save workflow to agent metadata
   const handleSave = useCallback(async () => {
-    if (!workflowName.trim() || !onSaveAgent) {
+    // Use default name if workflowName is empty
+    const nameToUse = workflowName.trim() || "Workflow";
+    
+    if (!onSaveAgent) {
+      console.warn("[Save] Skipping save - onSaveAgent is not available");
       return;
     }
+    
+    console.log("[Save] Save conditions met", {
+      workflowName: nameToUse,
+      hasOnSaveAgent: !!onSaveAgent,
+      nodesCount: nodes.length,
+      connectionsCount: connections.length
+    });
 
+    console.log("[Save] Starting save operation...");
     setIsSaving(true);
+    
     try {
       // Create workflow object to save in agent metadata
       const workflowToSave: WorkflowV1 = {
         id: workflow?.id || `workflow-${agentId}`,
-        name: workflowName,
+        name: nameToUse,
         nodes,
         connections,
         greetingMessage: workflowGreetingMessage,
@@ -499,28 +728,87 @@ export function WorkflowTab({
         status: workflow?.status || "draft"
       };
       
+      console.log("[Save] Workflow object created:", {
+        id: workflowToSave.id,
+        name: workflowToSave.name,
+        nodesCount: workflowToSave.nodes.length,
+        connectionsCount: workflowToSave.connections.length
+      });
+      
       setWorkflow(workflowToSave);
+      
+      // Save to agent metadata first - this is critical
+      console.log("[Save] Calling onSaveAgent...");
       await onSaveAgent(workflowToSave);
+      console.log("[Save] onSaveAgent completed successfully");
+      
+      // Only clear hasChanges after successful save
       setHasChanges(false);
+      console.log("[Save] Changes flag cleared");
+      
+      // Create auto-save version on every save (non-blocking)
+      if (nodes.length > 0) {
+        try {
+          console.log("[Save] Creating auto-save version...");
+          await workflowVersionsApi.create(agentId, {
+            workflow_data: workflowToSave,
+            is_auto_save: true,
+          });
+          lastAutoSaveVersionRef.current = Date.now();
+          console.log("[Save] Auto-save version created successfully");
+        } catch (error) {
+          console.error("[Save] Failed to create auto-save version (non-critical):", error);
+          // Don't show error to user, just log it - version creation failure shouldn't block save
+        }
+      }
+      
+      console.log("[Save] Save operation completed successfully");
+      setSaveStatus("saved");
+      // Clear "saved" status after 2 seconds
+      setTimeout(() => {
+        setSaveStatus("idle");
+      }, 2000);
     } catch (err) {
-      console.error("Failed to save workflow:", err);
+      console.error("[Save] Failed to save workflow:", err);
+      // Don't clear hasChanges on error so user can retry
+      setSaveStatus("idle");
+      // Show error to user via toast
+      toast({
+        title: "Error",
+        description: "Failed to save workflow. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
+      console.log("[Save] Save operation finished");
     }
-  }, [workflow, workflowName, nodes, connections, workflowGreetingMessage, workflowContext, workflowMemories, workflowDefaultModel, workflowSafeMode, agentId, onSaveAgent]);
+  }, [workflow, workflowName, nodes, connections, workflowGreetingMessage, workflowContext, workflowMemories, workflowDefaultModel, workflowSafeMode, agentId, onSaveAgent, toast]);
 
   // Auto-save when changes are made (debounced)
   useEffect(() => {
-    if (!hasChanges || isSaving) return;
+    if (!hasChanges || isSaving) {
+      return;
+    }
+    
+    console.log("[Auto-save] Changes detected, scheduling save in 500ms...");
+    setSaveStatus("saving");
     
     const timeoutId = setTimeout(() => {
-      handleSave();
-    }, 1000); // Debounce by 1 second
+      console.log("[Auto-save] Triggering save now...");
+      handleSave().catch((error) => {
+        console.error("[Auto-save] Failed to save workflow:", error);
+        setSaveStatus("idle");
+      });
+    }, 500); // Debounce by 500ms for faster saves
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [hasChanges, isSaving, handleSave]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
     setNodes(prev => {
       const updatedNodes = prev.filter(n => n.id !== nodeId);
       setConnections(prevConnections => cleanupConnections(updatedNodes, prevConnections));
@@ -530,14 +818,26 @@ export function WorkflowTab({
       setSelectedNode(null);
     }
     setHasChanges(true);
-  }, [selectedNode, cleanupConnections]);
+  }, [selectedNode, cleanupConnections, nodes, connections, saveToHistory]);
 
   const handleRenameNode = useCallback((nodeId: string) => {
     setRenameNodeId(nodeId);
   }, []);
 
+  const handleNodeEmail = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      // Open email client with node information
+      const subject = encodeURIComponent(`Workflow Node: ${node.name}`);
+      const body = encodeURIComponent(`Node ID: ${node.id}\nNode Type: ${node.type}\nNode Name: ${node.name}`);
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    }
+  }, [nodes]);
+
   const handleRenameNodeConfirm = useCallback((newName: string) => {
     if (renameNodeId) {
+      // Save current state to history before making changes
+      saveToHistory(nodes, connections);
       setNodes(prev => prev.map(n => 
         n.id === renameNodeId ? { ...n, name: newName } : n
       ));
@@ -547,7 +847,62 @@ export function WorkflowTab({
       setHasChanges(true);
       setRenameNodeId(null);
     }
-  }, [renameNodeId, selectedNode]);
+  }, [renameNodeId, selectedNode, nodes, connections, saveToHistory]);
+
+  // Reorder functions
+  const handleMoveNodeUp = useCallback((nodeId: string) => {
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
+    
+    // Sort nodes by Y position
+    const sortedNodes = [...nodes].sort((a, b) => a.position.y - b.position.y);
+    const nodeIndex = sortedNodes.findIndex(n => n.id === nodeId);
+    
+    if (nodeIndex > 0) {
+      const currentNode = sortedNodes[nodeIndex];
+      const previousNode = sortedNodes[nodeIndex - 1];
+      
+      // Swap Y positions
+      const updatedNodes = nodes.map(n => {
+        if (n.id === currentNode.id) {
+          return { ...n, position: { x: FIXED_X_POSITION, y: previousNode.position.y } };
+        } else if (n.id === previousNode.id) {
+          return { ...n, position: { x: FIXED_X_POSITION, y: currentNode.position.y } };
+        }
+        return n;
+      });
+      
+      setNodes(updatedNodes);
+      setHasChanges(true);
+    }
+  }, [nodes, connections, saveToHistory]);
+
+  const handleMoveNodeDown = useCallback((nodeId: string) => {
+    // Save current state to history before making changes
+    saveToHistory(nodes, connections);
+    
+    // Sort nodes by Y position
+    const sortedNodes = [...nodes].sort((a, b) => a.position.y - b.position.y);
+    const nodeIndex = sortedNodes.findIndex(n => n.id === nodeId);
+    
+    if (nodeIndex < sortedNodes.length - 1) {
+      const currentNode = sortedNodes[nodeIndex];
+      const nextNode = sortedNodes[nodeIndex + 1];
+      
+      // Swap Y positions
+      const updatedNodes = nodes.map(n => {
+        if (n.id === currentNode.id) {
+          return { ...n, position: { x: FIXED_X_POSITION, y: nextNode.position.y } };
+        } else if (n.id === nextNode.id) {
+          return { ...n, position: { x: FIXED_X_POSITION, y: currentNode.position.y } };
+        }
+        return n;
+      });
+      
+      setNodes(updatedNodes);
+      setHasChanges(true);
+    }
+  }, [nodes, connections, saveToHistory]);
 
   const handleReplaceNode = useCallback((nodeId: string) => {
     setReplaceNodeId(nodeId);
@@ -567,6 +922,21 @@ export function WorkflowTab({
       }
     }
   }, [nodes]);
+
+  // Versions are now created automatically on every save, no manual creation needed
+
+  const handleVersionRestore = useCallback(async () => {
+    // After restore, we need to reload the workflow from the agent
+    // The restore creates a new version and updates the agent's conversation_config
+    // We'll mark that we need to reload the workflow
+    workflowLoadedRef.current = false;
+    lastWorkflowIdRef.current = undefined;
+    
+    // Call parent callback to refresh agent data
+    if (onVersionRestore) {
+      await onVersionRestore();
+    }
+  }, [onVersionRestore]);
 
   // Clean up orphaned connections whenever nodes change
   useEffect(() => {
@@ -592,6 +962,34 @@ export function WorkflowTab({
 
   return (
     <div className="h-full flex flex-col bg-background">
+      {/* Header with version history button and save status */}
+      <div className="flex-shrink-0 border-b border-border p-2 flex justify-between items-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {saveStatus === "saving" && (
+            <span className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+              Saving...
+            </span>
+          )}
+          {saveStatus === "saved" && (
+            <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+              <div className="h-2 w-2 rounded-full bg-green-500" />
+              Saved
+            </span>
+          )}
+          {saveStatus === "idle" && hasChanges && (
+            <span className="text-xs">Unsaved changes</span>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowVersionHistory(true)}
+        >
+          <History className="h-4 w-4" />
+        </Button>
+      </div>
+      
       {/* Main Content Area - Flow Editor Only */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Canvas Area */}
@@ -601,10 +999,14 @@ export function WorkflowTab({
             connections={connections}
             selectedNode={selectedNode}
             onNodesChange={(newNodes) => {
+              // Save previous state to history before updating
+              saveToHistory(nodes, connections);
               setNodes(newNodes);
               setHasChanges(true);
             }}
             onConnectionsChange={(newConnections) => {
+              // Save previous state to history before updating
+              saveToHistory(nodes, connections);
               setConnections(newConnections);
               setHasChanges(true);
             }}
@@ -643,6 +1045,12 @@ export function WorkflowTab({
               setFlowTemplateFromNodeId(fromNodeId);
               setIsAddFlowTemplateOpen(true);
             }}
+            onNodeRename={handleRenameNode}
+            onNodeReplace={handleReplaceNode}
+            onNodeDelete={handleDeleteNode}
+            onNodeEmail={handleNodeEmail}
+            onNodeMoveUp={handleMoveNodeUp}
+            onNodeMoveDown={handleMoveNodeDown}
           />
         </div>
 
@@ -692,7 +1100,7 @@ export function WorkflowTab({
                   type: "select-trigger",
                   name: "Select trigger",
                   position: {
-                    x: 400,
+                    x: FIXED_X_POSITION,
                     y: 200
                   },
                   config: {} as NodeConfig
@@ -734,7 +1142,7 @@ export function WorkflowTab({
                   type: "select-action",
                   name: "Select action",
                   position: {
-                    x: 400,
+                    x: FIXED_X_POSITION,
                     y: 350
                   },
                   config: {} as NodeConfig
@@ -789,7 +1197,14 @@ export function WorkflowTab({
           onRename={handleRenameNodeConfirm}
         />
       )}
+
+      {/* Version History Panel */}
+        <VersionHistoryPanel
+          agentId={agentId}
+          open={showVersionHistory}
+          onOpenChange={setShowVersionHistory}
+          onVersionRestore={handleVersionRestore}
+        />
     </div>
   );
 }
-
