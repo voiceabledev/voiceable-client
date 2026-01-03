@@ -28,7 +28,7 @@ export default defineConfig({
   build: {
     // Output directly to the Rails backend public folder
     // Rails automatically serves files from public/ at the root URL
-    outDir: path.resolve(__dirname, '../backend/public'),
+    outDir: path.resolve(__dirname, '../voiceable-api/public'),
     
     // Don't clear the output directory - we're writing to backend/public which has other files
     emptyOutDir: false,

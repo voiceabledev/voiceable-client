@@ -563,86 +563,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Built for real businesses Section */}
-      <section ref={valuePropRef} className="py-24 px-6 bg-card/30">
-        <div className="max-w-5xl mx-auto">
-          <motion.h2 
-            className="text-4xl md:text-6xl font-bold text-foreground mb-6 text-center leading-tight"
-            initial="hidden"
-            animate={valuePropInView ? "visible" : "hidden"}
-            variants={fadeInUp}
-          >
-            Works With Your Existing<br />Phone Lines & Systems
-          </motion.h2>
-          
-          <motion.p 
-            className="text-xl md:text-2xl text-muted-foreground mb-16 text-center max-w-3xl mx-auto"
-            initial="hidden"
-            animate={valuePropInView ? "visible" : "hidden"}
-            variants={fadeInUp}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            No new numbers. No complex setup. Connect your existing phone system and start answering calls in minutes.
-          </motion.p>
-          
-          <motion.div 
-            className="bg-background/60 backdrop-blur-sm rounded-3xl p-8 md:p-12 shadow-lg space-y-8"
-            initial="hidden"
-            animate={valuePropInView ? "visible" : "hidden"}
-            variants={staggerContainer}
-          >
-            <div className="grid md:grid-cols-2 gap-6">
-              <motion.div variants={fadeInUp}>
-                <h3 className="text-lg font-semibold text-foreground mb-4">What it does:</h3>
-                <div className="space-y-3">
-                  {[
-                    "Answers every call, 24/7",
-                    "Books appointments automatically",
-                    "Qualifies leads in real-time",
-                    "Handles support issues instantly",
-                    "Tracks outcomes and revenue"
-                  ].map((item, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-foreground">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-              
-              <motion.div variants={fadeInUp}>
-                <h3 className="text-lg font-semibold text-foreground mb-4">How it works:</h3>
-                <div className="space-y-3">
-                  {[
-                    "Connects to your existing phone number",
-                    "Integrates with your calendar & CRM",
-                    "Learns from your business rules",
-                    "Escalates to humans when needed",
-                    "Shows you exactly what it accomplished"
-                  ].map((item, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-foreground">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            </div>
-            
-            <motion.div 
-              className="pt-6 text-center"
-              variants={fadeInUp}
-            >
-              <Button variant="outline" className="rounded-full" asChild>
-                <Link to="/sign-up">
-                  See How It Works <ArrowRight className="ml-2 w-4 h-4" />
-                </Link>
-              </Button>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Intelligence, Not Just Automation Section */}
       <section className="py-24 px-6 bg-gradient-to-b from-background via-muted/20 to-background relative overflow-hidden">
         <div className="max-w-7xl mx-auto">
@@ -791,107 +711,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ROI Dashboard Section */}
-      <section className="py-24 px-6 bg-card/30">
-        <div className="max-w-7xl mx-auto">
-          <motion.h2 
-            className="text-4xl md:text-6xl font-bold text-foreground mb-4 text-center"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-          >
-            See What It's Doing Right Now
-          </motion.h2>
-          
-          <motion.p 
-            className="text-xl text-muted-foreground mb-12 text-center max-w-3xl mx-auto"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={fadeInUp}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            Every call, every outcome, every dollar, tracked in real-time.
-          </motion.p>
-
-          <motion.div 
-            className="bg-background rounded-3xl p-8 md:p-12 shadow-2xl border border-border"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={scaleIn}
-          >
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-foreground mb-6">Last 30 Days Performance</h3>
-              <div className="grid md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-card rounded-xl p-6 border border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Revenue Generated</p>
-                  <p className="text-3xl font-bold text-emerald-600">$7,600 <span className="text-sm text-emerald-500">↑23%</span></p>
-                </div>
-                <div className="bg-card rounded-xl p-6 border border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Cost Savings</p>
-                  <p className="text-3xl font-bold text-blue-600">$1,540/month</p>
-                </div>
-                <div className="bg-card rounded-xl p-6 border border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Success Rate</p>
-                  <p className="text-3xl font-bold text-violet-600">79% <span className="text-sm text-violet-500">↑4%</span></p>
-                </div>
-                <div className="bg-card rounded-xl p-6 border border-border">
-                  <p className="text-sm text-muted-foreground mb-2">Escalation Rate</p>
-                  <p className="text-3xl font-bold text-amber-600">15% <span className="text-sm text-amber-500">↓2%</span></p>
-                </div>
-              </div>
-              
-              <div className="bg-primary/5 rounded-xl p-6 border border-primary/20">
-                <div className="flex items-start gap-3">
-                  <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground mb-1">AI Recommendation:</p>
-                    <p className="text-foreground mb-2">"Add insurance FAQ document"</p>
-                    <p className="text-sm text-muted-foreground">→ Reduce escalations 35% · Save $68/month</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="rounded-full">Implement</Button>
-                    <Button size="sm" variant="ghost" className="rounded-full">Learn More</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-6 border-t border-border">
-              <p className="text-sm text-muted-foreground mb-4">Every agent comes with:</p>
-              <div className="grid md:grid-cols-2 gap-3">
-                {[
-                  "Real-time ROI dashboard",
-                  "Cost per outcome tracking",
-                  "Revenue attribution",
-                  "AI-powered optimization suggestions",
-                  "Exportable reports for your boss"
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm text-foreground">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-8 text-center">
-              <p className="text-lg font-semibold text-foreground mb-4">Know exactly what your agent is accomplishing, every day.</p>
-              <Button size="lg" variant="outline" className="rounded-full" asChild>
-                <Link to="/sign-up">
-                  See Live Dashboard <BarChart3 className="ml-2 w-5 h-5" />
-                </Link>
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* See the Intelligence in Action Section */}
-      <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/20 to-background relative overflow-hidden">
-        {/* Decorative elements */}
+      {/* <section className="py-32 px-6 bg-gradient-to-b from-background via-muted/20 to-background relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         <motion.div 
           className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl"
@@ -994,7 +815,7 @@ export default function Home() {
             <p className="text-sm text-muted-foreground mt-4 italic">All included, no extra setup required.</p>
           </motion.div>
         </motion.div>
-      </section>
+      </section> */}
 
       {/* Use Cases Section */}
       {/* <section ref={useCasesRef} className="py-24 px-6 bg-gradient-to-br from-primary/10 to-accent/10">
@@ -1135,7 +956,7 @@ export default function Home() {
       </section>
 
       {/* Features Section - Add before reliability */}
-      <section ref={featuresRef} className="py-24 px-6 bg-gradient-to-b from-background to-card/50">
+      {/* <section ref={featuresRef} className="py-24 px-6 bg-gradient-to-b from-background to-card/50">
         <div className="max-w-7xl mx-auto">
           <motion.h2 
             className="text-4xl md:text-5xl font-bold text-foreground mb-4 text-center"
@@ -1185,10 +1006,10 @@ export default function Home() {
             })}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Enterprise Features Section */}
-      <section className="py-24 px-6 bg-card/30">
+      {/* <section className="py-24 px-6 bg-card/30">
         <div className="max-w-7xl mx-auto">
           <motion.h2 
             className="text-4xl md:text-5xl font-bold text-foreground mb-16 text-center"
@@ -1230,10 +1051,10 @@ export default function Home() {
             })}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Designed for reliability Section */}
-      <section ref={reliabilityRef} className="py-24 px-6">
+      {/* <section ref={reliabilityRef} className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
           <motion.h2 
             className="text-4xl md:text-5xl font-bold text-foreground mb-4 text-center"
@@ -1304,10 +1125,10 @@ export default function Home() {
             </Button>
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Works where your customers are Section */}
-      <section className="py-24 px-6 bg-card">
+      {/* <section className="py-24 px-6 bg-card">
         <motion.div 
           className="max-w-4xl mx-auto"
           initial="hidden"
@@ -1352,7 +1173,7 @@ export default function Home() {
             You don't need to change how your business operates, the agent adapts to you.
           </motion.p>
         </motion.div>
-      </section>
+      </section> */}
 
       {/* Escalation Intelligence Section */}
       <section className="py-24 px-6 bg-card/30">
@@ -1551,6 +1372,104 @@ export default function Home() {
           </motion.div>
         </div>
       </section> */}
+
+      {/* ROI Dashboard Section */}
+      <section className="py-24 px-6 bg-card/30">
+        <div className="max-w-7xl mx-auto">
+          <motion.h2 
+            className="text-4xl md:text-6xl font-bold text-foreground mb-4 text-center"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeInUp}
+          >
+            See What It's Doing Right Now
+          </motion.h2>
+          
+          <motion.p 
+            className="text-xl text-muted-foreground mb-12 text-center max-w-3xl mx-auto"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeInUp}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            Every call, every outcome, every dollar, tracked in real-time.
+          </motion.p>
+
+          <motion.div 
+            className="bg-background rounded-3xl p-8 md:p-12 shadow-2xl border border-border"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={scaleIn}
+          >
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-foreground mb-6">Last 30 Days Performance</h3>
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-card rounded-xl p-6 border border-border">
+                  <p className="text-sm text-muted-foreground mb-2">Revenue Generated</p>
+                  <p className="text-3xl font-bold text-emerald-600">$7,600 <span className="text-sm text-emerald-500">↑23%</span></p>
+                </div>
+                <div className="bg-card rounded-xl p-6 border border-border">
+                  <p className="text-sm text-muted-foreground mb-2">Cost Savings</p>
+                  <p className="text-3xl font-bold text-blue-600">$1,540/month</p>
+                </div>
+                <div className="bg-card rounded-xl p-6 border border-border">
+                  <p className="text-sm text-muted-foreground mb-2">Success Rate</p>
+                  <p className="text-3xl font-bold text-violet-600">79% <span className="text-sm text-violet-500">↑4%</span></p>
+                </div>
+                <div className="bg-card rounded-xl p-6 border border-border">
+                  <p className="text-sm text-muted-foreground mb-2">Escalation Rate</p>
+                  <p className="text-3xl font-bold text-amber-600">15% <span className="text-sm text-amber-500">↓2%</span></p>
+                </div>
+              </div>
+              
+              <div className="bg-primary/5 rounded-xl p-6 border border-primary/20">
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground mb-1">AI Recommendation:</p>
+                    <p className="text-foreground mb-2">"Add insurance FAQ document"</p>
+                    <p className="text-sm text-muted-foreground">→ Reduce escalations 35% · Save $68/month</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="rounded-full">Implement</Button>
+                    <Button size="sm" variant="ghost" className="rounded-full">Learn More</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-border">
+              <p className="text-sm text-muted-foreground mb-4">Every agent comes with:</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                {[
+                  "Real-time ROI dashboard",
+                  "Cost per outcome tracking",
+                  "Revenue attribution",
+                  "AI-powered optimization suggestions",
+                  "Exportable reports for your boss"
+                ].map((item, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 text-center">
+              <p className="text-lg font-semibold text-foreground mb-4">Know exactly what your agent is accomplishing, every day.</p>
+              <Button size="lg" variant="outline" className="rounded-full" asChild>
+                <Link to="/sign-up">
+                  See Live Dashboard <BarChart3 className="ml-2 w-5 h-5" />
+                </Link>
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
       {/* Comparison Table Section */}
       <section className="py-24 px-6 bg-card/30">
