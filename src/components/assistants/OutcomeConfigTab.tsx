@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Plus, X, ChevronDown, Settings } from 'lucide-react';
+import { Loader2, Plus, X, ChevronDown, Settings, CheckCircle2, Calendar, Package, RotateCcw, Info, ShoppingCart, Truck, RefreshCw, MessageSquare, UtensilsCrossed, MapPin, Clock } from 'lucide-react';
 import { useOutcomeDefinition } from '@/hooks/assistants/useOutcomeDefinition';
 import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
@@ -35,13 +35,28 @@ interface OutcomeConfigTabProps {
 }
 
 const PRIMARY_OUTCOMES = [
-  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support' },
-  { value: 'meeting_booked', label: 'Meeting Booked', type: 'sales' },
-  { value: 'lead_qualified', label: 'Lead Qualified', type: 'sales' },
-  { value: 'information_provided', label: 'Information Provided', type: 'general' },
-  { value: 'appointment_scheduled', label: 'Appointment Scheduled', type: 'sales' },
+  // Retail/E-commerce outcomes
   { value: 'order_placed', label: 'Order Placed', type: 'sales' },
-  { value: 'complaint_resolved', label: 'Complaint Resolved', type: 'support' },
+  { value: 'order_status_checked', label: 'Order Status Checked', type: 'support' },
+  { value: 'shipping_info_provided', label: 'Shipping Information Provided', type: 'support' },
+  { value: 'tracking_provided', label: 'Tracking Provided', type: 'support' },
+  { value: 'return_initiated', label: 'Return Initiated', type: 'support' },
+  { value: 'exchange_processed', label: 'Exchange Processed', type: 'support' },
+  { value: 'refund_processed', label: 'Refund Processed', type: 'support' },
+  { value: 'product_inquiry_answered', label: 'Product Inquiry Answered', type: 'general' },
+  { value: 'inventory_checked', label: 'Inventory Checked', type: 'general' },
+  { value: 'account_updated', label: 'Account Updated', type: 'support' },
+  // Restaurant outcomes
+  { value: 'reservation_booked', label: 'Reservation Booked', type: 'sales' },
+  { value: 'reservation_updated', label: 'Reservation Updated', type: 'sales' },
+  { value: 'reservation_cancelled', label: 'Reservation Cancelled', type: 'sales' },
+  { value: 'menu_inquiry_answered', label: 'Menu Inquiry Answered', type: 'general' },
+  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support' },
+  { value: 'location_hours_provided', label: 'Location & Hours Provided', type: 'general' },
+  // General outcomes
+  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support' },
+  { value: 'information_provided', label: 'Information Provided', type: 'general' },
+  { value: 'feedback_collected', label: 'Feedback Collected', type: 'general' },
 ];
 
 const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({ 

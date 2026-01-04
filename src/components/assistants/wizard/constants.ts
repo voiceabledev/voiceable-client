@@ -237,7 +237,7 @@ export const templateDefaults: Record<string, TemplateDefaults> = {
       },
     ],
   },
-  "Feedback Gathered": {
+  "Feedback Gatherer": {
     provider: "openai",
     model: "gpt-4o",
     recommendedVoiceIds: [],

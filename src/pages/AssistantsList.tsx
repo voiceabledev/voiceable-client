@@ -25,7 +25,10 @@ import {
   MessageCircle,
   Target,
   ClipboardList,
-  UserCheck
+  UserCheck,
+  ShoppingBag,
+  UtensilsCrossed,
+  Phone
 } from "lucide-react";
 import { agentsApi, Agent, voicesApi, Voice, agentTemplatesApi, AgentTemplate } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +53,9 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'target': Target,
   'clipboard-list': ClipboardList,
   'user-check': UserCheck,
+  'shopping-bag': ShoppingBag,
+  'utensils-crossed': UtensilsCrossed,
+  'phone': Phone,
 };
 
 // Template to integration tools mapping

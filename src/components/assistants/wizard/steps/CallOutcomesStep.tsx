@@ -13,19 +13,34 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Settings, ChevronDown, Plus, X, PhoneForwarded, RotateCcw, CheckCircle2, Calendar, UserCheck, Info, ShoppingCart, AlertCircle, Target } from "lucide-react";
+import { Settings, ChevronDown, Plus, X, PhoneForwarded, RotateCcw, CheckCircle2, Calendar, UserCheck, Info, ShoppingCart, AlertCircle, Target, Package, Truck, RefreshCw, MessageSquare, UtensilsCrossed, MapPin, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import type { HumanTransferRule } from "@/types/assistant";
 
 const PRIMARY_OUTCOMES = [
-  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support', icon: CheckCircle2 },
-  { value: 'meeting_booked', label: 'Meeting Booked', type: 'sales', icon: Calendar },
-  { value: 'lead_qualified', label: 'Lead Qualified', type: 'sales', icon: UserCheck },
-  { value: 'information_provided', label: 'Information Provided', type: 'general', icon: Info },
-  { value: 'appointment_scheduled', label: 'Appointment Scheduled', type: 'sales', icon: Calendar },
+  // Retail/E-commerce outcomes
   { value: 'order_placed', label: 'Order Placed', type: 'sales', icon: ShoppingCart },
-  { value: 'complaint_resolved', label: 'Complaint Resolved', type: 'support', icon: AlertCircle },
+  { value: 'order_status_checked', label: 'Order Status Checked', type: 'support', icon: CheckCircle2 },
+  { value: 'shipping_info_provided', label: 'Shipping Information Provided', type: 'support', icon: Truck },
+  { value: 'tracking_provided', label: 'Tracking Provided', type: 'support', icon: Package },
+  { value: 'return_initiated', label: 'Return Initiated', type: 'support', icon: RotateCcw },
+  { value: 'exchange_processed', label: 'Exchange Processed', type: 'support', icon: RefreshCw },
+  { value: 'refund_processed', label: 'Refund Processed', type: 'support', icon: RotateCcw },
+  { value: 'product_inquiry_answered', label: 'Product Inquiry Answered', type: 'general', icon: Info },
+  { value: 'inventory_checked', label: 'Inventory Checked', type: 'general', icon: Package },
+  { value: 'account_updated', label: 'Account Updated', type: 'support', icon: UserCheck },
+  // Restaurant outcomes
+  { value: 'reservation_booked', label: 'Reservation Booked', type: 'sales', icon: Calendar },
+  { value: 'reservation_updated', label: 'Reservation Updated', type: 'sales', icon: Calendar },
+  { value: 'reservation_cancelled', label: 'Reservation Cancelled', type: 'sales', icon: X },
+  { value: 'menu_inquiry_answered', label: 'Menu Inquiry Answered', type: 'general', icon: UtensilsCrossed },
+  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support', icon: CheckCircle2 },
+  { value: 'location_hours_provided', label: 'Location & Hours Provided', type: 'general', icon: MapPin },
+  // General outcomes
+  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support', icon: CheckCircle2 },
+  { value: 'information_provided', label: 'Information Provided', type: 'general', icon: Info },
+  { value: 'feedback_collected', label: 'Feedback Collected', type: 'general', icon: MessageSquare },
 ];
 
 const DEFAULT_ESCALATION_DESCRIPTION = `Transfer the conversation to a human agent when appropriate.
