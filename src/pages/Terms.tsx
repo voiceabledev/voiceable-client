@@ -14,8 +14,9 @@ export default function Terms() {
       <div className="min-h-screen bg-background">
         <Navigation />
 
-        <div className="pt-32 pb-24 px-6">
-          <div className="max-w-4xl mx-auto prose prose-slate dark:prose-invert max-w-none">
+        <div className="pt-32 pb-24">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="prose prose-slate dark:prose-invert max-w-none">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Voiceable Terms of Service</h1>
             <p className="text-muted-foreground mb-8">Last Updated: February 27, 2025</p>
 
@@ -416,6 +417,7 @@ export default function Terms() {
                 Voiceable welcomes comments, questions, concerns, or suggestions. Please send us any inquiries at support@voiceable.ai or find more information about us by visiting our Documentation.
               </p>
             </section>
+            </div>
           </div>
         </div>
 

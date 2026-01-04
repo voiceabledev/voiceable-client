@@ -108,10 +108,6 @@ const SolutionsSection = () => {
               })}
             </div>
 
-            <Button variant="ghost" className="text-foreground group p-0">
-              Learn more
-              <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-            </Button>
           </div>
 
           {/* Right side - Chart */}

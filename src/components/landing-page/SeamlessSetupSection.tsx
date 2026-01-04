@@ -22,7 +22,7 @@ import {
   SiCalendly,
   SiGooglecalendar,
 } from "react-icons/si";
-import { Brain, Cloud, Calendar, Users, Globe, Smile, Truck, CloudLightning, Mail, ArrowRightLeft, Infinity as InfinityIcon, ShieldCheck } from "lucide-react";
+import { Brain, Cloud, Calendar, Users, Globe, Smile, Truck, CloudLightning, Mail, ArrowRightLeft, Infinity as InfinityIcon, ShieldCheck, Package } from "lucide-react";
 import { IconType } from "react-icons";
 
 // Integration logo mapping - using react-icons where available, lucide-react as fallback
@@ -64,57 +64,57 @@ const integrationLogos: { id: string; Icon: IconType | React.ComponentType<{ cla
 // Feature cards data
 const features = [
   {
-    id: "localized-responses",
-    title: "Localized Responses",
-    description: "Speaks the resident's language, references local regs, and adjusts time zones automatically.",
-    Icon: Globe,
+    id: "order-management",
+    title: "Automated Order Management",
+    description: "Process phone orders, track shipments, handle returns and exchanges, and manage reservations, all automatically, 24/7.",
+    Icon: Package,
   },
   {
-    id: "personalized-outreach",
-    title: "Personalized Outreach",
-    description: "Greets residents by name, recalls last tickets, and tailors replies to unit history and lease details.",
+    id: "personalized-service",
+    title: "Personalized Customer Service",
+    description: "Greets customers by name, recalls order history, preferences, and past interactions to deliver tailored experiences.",
     Icon: Smile,
   },
   {
     id: "smart-scheduling",
-    title: "Smart Scheduling",
-    description: "Books showings, vendor visits, and callbacks directly on your calendar based on real-time availability.",
+    title: "Smart Reservation Booking",
+    description: "Books restaurant reservations, delivery time slots, and appointments directly on your calendar based on real-time availability.",
     Icon: Calendar,
   },
   {
-    id: "intelligent-dispatch",
-    title: "Intelligent Dispatch",
-    description: "Assigns work orders to the nearest qualified tech, notifies them, and tracks progress until completion.",
+    id: "inventory-inquiries",
+    title: "Real-Time Inventory Lookup",
+    description: "Answers product availability questions, checks stock levels, and suggests alternatives when items are out of stock.",
     Icon: Truck,
   },
   {
-    id: "weather-triggers",
-    title: "Weather Triggers",
-    description: "Launches freeze alerts, storm prep, and HVAC checks the moment severe weather hits your area.",
+    id: "menu-information",
+    title: "Menu & Product Information",
+    description: "Answers questions about menu items, ingredients, allergens, product details, and pricing instantly, even during peak hours.",
     Icon: CloudLightning,
   },
   {
     id: "omni-channel-inbox",
     title: "Omni-Channel Inbox",
-    description: "Manages phone, SMS, and email in one queue, maintaining full context as conversations hop channels.",
+    description: "Manages phone, SMS, and email in one queue, maintaining full context as conversations hop channels seamlessly.",
     Icon: Mail,
   },
   {
     id: "warm-transfers",
     title: "Warm Transfers",
-    description: "Seamlessly hand live calls from the voice agent to your team, no dropped context, no repeating details.",
+    description: "Seamlessly hand live calls from the voice agent to your team, no dropped context, no repeating order details.",
     Icon: ArrowRightLeft,
   },
   {
     id: "call-recording",
-    title: "Call Recording",
-    description: "Every conversation is automatically captured, transcribed, and indexed so you can search, audit, & iterate.",
+    title: "Call Recording & Analytics",
+    description: "Every conversation is automatically captured, transcribed, and indexed so you can search, audit, and improve service quality.",
     Icon: InfinityIcon,
   },
   {
     id: "test-before-launch",
     title: "Test Before Launch",
-    description: "Run real-world call, SMS, and email simulations to stress-test workflows and fix gaps before tenants ever pick up the phone.",
+    description: "Run real-world call, SMS, and email simulations to stress-test workflows and fix gaps before customers ever call.",
     Icon: ShieldCheck,
   },
 ];

@@ -16,7 +16,7 @@ const HumanLedSection = () => {
           </h2>
 
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            <span className="text-primary">Operator</span> is designed to enhance team productivity by
+            <span className="text-primary">Voiceable</span> is designed to enhance team productivity by
             eliminating the manual and repetitive tasks, so you can
             focus on providing a more personal high-touch
             experience.

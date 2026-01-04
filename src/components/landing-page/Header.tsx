@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Circle, Menu, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -13,37 +13,62 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated, loading } = useAuth();
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Show full navigation only on home page (/)
+  const isHomePage = location.pathname === "/";
 
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 py-3 md:py-4 backdrop-blur-md bg-background/80 border-b border-border/50">
         <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <img src="/voiceable_logo.png" alt="Voiceable" className="h-6 md:h-8 w-auto" />
-          </div>
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+          >
+            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" />
+          </button>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            <a href="#features" className="nav-pill">How it Works</a>
-            <a href="#solutions" className="nav-pill">Use Cases</a>
+            <a href="/" className="nav-pill">Home</a>
+            {isHomePage && (
+              <>
+                <a href="#features" className="nav-pill">How it Works</a>
+                <a href="#solutions" className="nav-pill">Use Cases</a>
+              </>
+            )}
+            <a href="/pricing" className="nav-pill">Pricing</a>
           </nav>
 
           {/* Desktop CTAs */}
-          <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
-              Login
-            </Button>
-            <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
-              <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
-              Demo Call
-            </Button>
-          </div>
+          {!loading && (
+            <div className="hidden md:flex items-center gap-3">
+              {isAuthenticated ? (
+                <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-5" onClick={() => navigate("/assistants")}>
+                  Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
+                    Login
+                  </Button>
+                  <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
+                    <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
+                    Demo Call
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Mobile Menu Button */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -57,44 +82,78 @@ const Header = () => {
                 {/* Mobile Navigation */}
                 <nav className="flex flex-col gap-4">
                   <a 
-                    href="#features" 
+                    href="/" 
                     className="text-foreground hover:text-primary transition-colors py-2"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    How it Works
+                    Home
                   </a>
+                  {isHomePage && (
+                    <>
+                      <a 
+                        href="#features" 
+                        className="text-foreground hover:text-primary transition-colors py-2"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        How it Works
+                      </a>
+                      <a 
+                        href="#solutions" 
+                        className="text-foreground hover:text-primary transition-colors py-2"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Use Cases
+                      </a>
+                    </>
+                  )}
                   <a 
-                    href="#solutions" 
+                    href="/pricing" 
                     className="text-foreground hover:text-primary transition-colors py-2"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Use Cases
+                    Pricing
                   </a>
                 </nav>
 
                 {/* Mobile CTAs */}
-                <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start text-foreground hover:bg-secondary" 
-                    onClick={() => {
-                      navigate("/login");
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    Login
-                  </Button>
-                  <Button 
-                    className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full" 
-                    onClick={() => {
-                      setShowCalendarModal(true);
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
-                    Demo Call
-                  </Button>
-                </div>
+                {!loading && (
+                  <div className="flex flex-col gap-3 pt-4 border-t border-border">
+                    {isAuthenticated ? (
+                      <Button 
+                        className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full" 
+                        onClick={() => {
+                          navigate("/assistants");
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        Dashboard
+                      </Button>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start text-foreground hover:bg-secondary" 
+                          onClick={() => {
+                            navigate("/login");
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          Login
+                        </Button>
+                        <Button 
+                          className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full" 
+                          onClick={() => {
+                            setShowCalendarModal(true);
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
+                          Demo Call
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>

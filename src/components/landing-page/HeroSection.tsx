@@ -40,7 +40,7 @@ const HeroSection = () => {
             Voiceable is purpose-built to automate customer service for retail,
             e-commerce, and restaurants. Powered by AI and humans, it works seamlessly
             with your existing phone lines & systems to handle orders, reservations,
-            and support—24/7, day or night.
+            and support - 24/7, day or night.
           </p>
 
           {/* CTA */}

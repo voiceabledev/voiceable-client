@@ -36,8 +36,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { Navigation } from "@/components/Navigation";
-import { Footer } from "@/components/Footer";
+import Header from "@/components/landing-page/Header";
+import Footer from "@/components/landing-page/Footer";
 
 // LLM Options organized by provider
 const llmOptions = {
@@ -342,31 +342,38 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Navigation />
+      <Header />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-16 px-6">
-        <div className="max-w-7xl mx-auto">
-          <span className="text-primary font-semibold uppercase tracking-wider text-sm">
-            Pricing
-          </span>
-          <h1 className="text-5xl md:text-7xl font-light mt-4 max-w-4xl leading-tight">
-            Simple, scalable pricing
+      <section className="pt-32 pb-16 px-6 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 mb-8">
+            <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center">
+              <span className="text-[10px] font-bold text-primary-foreground">$</span>
+            </div>
+            <span className="text-sm text-primary font-medium">Transparent Pricing</span>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 max-w-4xl mx-auto">
+            Simple, scalable{" "}
+            <span className="text-gradient-amber">pricing</span>
           </h1>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
+            Pay only for what you use. No hidden fees, no surprises.
+          </p>
         </div>
       </section>
 
       {/* Plan Headers */}
-      <section className="py-12 px-6 border-t border-border/50">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+      <section className="py-16 px-6 border-t border-border/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
             {/* Pay As You Go */}
-            <div className="text-center space-y-4">
-              <h2 className="text-3xl font-light">Pay As You Go</h2>
-              <p className="text-primary font-medium">Usage based</p>
+            <div className="text-center space-y-6">
+              <h2 className="text-4xl md:text-5xl font-bold">Pay As You Go</h2>
+              <p className="text-lg text-muted-foreground">Usage based pricing</p>
               <Button
                 variant="outline"
-                className="w-full max-w-xs uppercase tracking-wider text-xs py-6"
+                className="rounded-full px-8 py-6 text-base border-2 border-foreground hover:bg-secondary/50"
                 onClick={() => navigate("/sign-up")}
               >
                 Start with $10 Free
@@ -374,11 +381,11 @@ const Pricing = () => {
             </div>
 
             {/* Enterprise */}
-            <div className="text-center space-y-4">
-              <h2 className="text-3xl font-light">Enterprise</h2>
-              <p className="text-primary font-medium">Annual contract</p>
+            <div className="text-center space-y-6">
+              <h2 className="text-4xl md:text-5xl font-bold">Enterprise</h2>
+              <p className="text-lg text-muted-foreground">Annual contract with custom pricing</p>
               <Button 
-                className="w-full max-w-xs uppercase tracking-wider text-xs py-6"
+                className="rounded-full px-8 py-6 text-base bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => setShowContactSalesModal(true)}
               >
                 Contact Sales
@@ -390,7 +397,7 @@ const Pricing = () => {
 
       {/* Comparison Table */}
       <section className="py-8 px-6">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -448,13 +455,18 @@ const Pricing = () => {
 
       {/* Usage Calculator */}
       <section className="py-24 px-6 bg-card/50">
-        <div className="max-w-5xl mx-auto">
-          <span className="text-muted-foreground uppercase tracking-wider text-sm">
-            Usage Calculator
-          </span>
-          <h2 className="text-4xl md:text-5xl font-light mt-4 mb-16">
-            Estimate your cost
-          </h2>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-primary font-semibold uppercase tracking-wider text-sm">
+              Usage Calculator
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold mt-4">
+              Estimate your <span className="text-gradient-amber">cost</span>
+            </h2>
+            <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
+              Calculate your monthly costs based on your expected usage
+            </p>
+          </div>
 
           {/* Calculator Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -663,8 +675,8 @@ const Pricing = () => {
 
       {/* FAQ Section */}
       <section className="py-24 px-6">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-light mb-12">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-bold mb-12 text-center">
             Frequently Asked Questions
           </h2>
 

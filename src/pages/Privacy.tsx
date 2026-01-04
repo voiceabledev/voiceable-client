@@ -14,8 +14,9 @@ export default function Privacy() {
       <div className="min-h-screen bg-background">
         <Navigation />
 
-        <div className="pt-32 pb-24 px-6">
-          <div className="max-w-4xl mx-auto prose prose-slate dark:prose-invert max-w-none">
+        <div className="pt-32 pb-24">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="prose prose-slate dark:prose-invert max-w-none">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Voiceable - Privacy Policy</h1>
             <p className="text-muted-foreground mb-8">Last Updated: January 15, 2025</p>
 
@@ -402,6 +403,7 @@ export default function Privacy() {
                 If you have any questions about this Privacy Policy, please contact us at support@voiceable.ai.
               </p>
             </section>
+            </div>
           </div>
         </div>
 

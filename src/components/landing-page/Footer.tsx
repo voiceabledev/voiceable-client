@@ -58,10 +58,10 @@ const Footer = () => {
 
         {/* Links */}
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground mb-8">
-          <a href="#" className="flex items-center gap-1 hover:text-foreground transition-colors">
+          <div className="flex items-center gap-1 hover:text-foreground transition-colors">
             <span className="text-xs">©</span>
             Voiceable Inc.
-          </a>
+          </div>
           {/* <a href="#" className="flex items-center gap-1 hover:text-foreground transition-colors">
             <Heart className="w-3 h-3" />
             Built with grit from Vancouver

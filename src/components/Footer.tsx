@@ -3,11 +3,11 @@ import { Sparkles, Twitter, Linkedin, Github } from "lucide-react";
 const footerLinks = {
   product: [
     { name: "Home", href: "/" },
-    { name: "Receptionist", href: "/receptionist" },
+    // { name: "Receptionist", href: "/receptionist" },
     // { name: "Recruiters", href: "/recruiters" },
-    { name: "Lead Qualifier", href: "/scheduler" },
-    { name: "Leads Reviver", href: "/leads-reviver" },
-    { name: "Appointment Confirmation", href: "/confirmation" },
+    // { name: "Lead Qualifier", href: "/scheduler" },
+    // { name: "Leads Reviver", href: "/leads-reviver" },
+    // { name: "Appointment Confirmation", href: "/confirmation" },
     { name: "Pricing", href: "/pricing" },
     // { name: "Documentation", href: "https://docs.voiceable.dev/" }
   ],
