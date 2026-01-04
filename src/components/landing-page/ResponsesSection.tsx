@@ -111,7 +111,7 @@ const ResponsesSection = () => {
             </div>
             <p className="text-sm text-muted-foreground">
               Seamlessly hand live calls from the AI
-              operator to your team, no dropped context,
+              assistant to your team, no dropped context,
               no repeating details.
             </p>
           </div>

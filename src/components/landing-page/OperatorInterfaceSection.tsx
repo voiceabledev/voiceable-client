@@ -345,9 +345,9 @@ const OperatorInterfaceSection = () => {
       <div className="container mx-auto px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
           {/* Main Interface Container */}
-          <div className="bg-card rounded-2xl md:rounded-3xl border border-border overflow-hidden shadow-2xl">
-            {/* Top Navigation Tabs - Grouped by Segments */}
-            <div className="p-3 md:p-4 border-b border-border overflow-x-auto">
+          <div className="border border-border bg-card overflow-hidden">
+            {/* Top Navigation Tabs */}
+            <div className="p-3 md:p-4 border-b border-border overflow-x-auto bg-muted/30">
               <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-max">
                 {segments.map((segment, segmentIndex) => (
                   <div key={segment.id} className="flex items-center gap-2">
@@ -387,85 +387,14 @@ const OperatorInterfaceSection = () => {
               </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="grid lg:grid-cols-2 gap-0">
-              {/* Left Panel - Chat Area */}
-              <div className="p-4 md:p-6 lg:border-r border-border border-b lg:border-b-0 min-h-[300px] md:min-h-[400px] flex flex-col">
-                {/* Chat Messages */}
-                <div className="flex-1 space-y-4 mb-4">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeTab}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-6"
-                    >
-                      {/* User Message - Right Side, Full Row */}
-                      <div className="flex items-start gap-4 justify-end">
-                        <div className="flex-1 flex flex-col items-end max-w-[80%]">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs text-muted-foreground">{currentExample.user.time}</span>
-                            <span className="font-medium text-sm">
-                              {currentExample.user.name} <span className="text-muted-foreground font-normal">| {currentExample.user.location}</span>
-                            </span>
-                          </div>
-                          <div className="conversation-bubble-light w-full">
-                            <p className="text-sm">
-                              {currentExample.user.message}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                          <span className="text-primary-foreground text-xs font-medium">{currentExample.user.avatar}</span>
-                        </div>
-                      </div>
-
-                      {/* Voice Agent Message - Left Side, Full Row */}
-                      <div className="flex items-start gap-4 justify-start">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                          <AudioWaveformIcon />
-                        </div>
-                        <div className="flex-1 flex flex-col items-start max-w-[80%]">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-medium text-sm">
-                              Voice Agent
-                            </span>
-                            <span className="text-xs text-muted-foreground">| Audio {currentExample.ai.audioDuration}</span>
-                          </div>
-                          <div className="conversation-bubble w-full">
-                            <p className="text-sm leading-relaxed">
-                              {currentExample.ai.message}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* Footer */}
-                <div className="text-center pt-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground tracking-widest uppercase">
-                    POWERED BY VOICEABLE
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Panel - Details/Metadata */}
-              <div className="p-4 md:p-6 bg-muted/30 lg:border-l border-border">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4"
-                  >
-                    {/* Audio Player - Horizontal Row */}
-                    <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg border border-border mb-4">
+            {/* Main Content Area - 50/50 Split */}
+            <div className="grid grid-cols-12">
+              {/* Left Side - Chat Area */}
+              <div className="col-span-12 md:col-span-6 border-r border-border">
+                <div className="flex flex-col min-h-[400px] md:min-h-[500px]">
+                  {/* Audio Player - At Top */}
+                  <div className="p-4 md:p-6 border-b border-border">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
                       <button 
                         onClick={() => setIsPlaying(!isPlaying)}
                         className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors flex-shrink-0"
@@ -488,99 +417,181 @@ const OperatorInterfaceSection = () => {
                         </span>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Status Button */}
-                    <button className={`
-                      w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                      transition-all duration-200
-                      ${isStatusHighlighted(activeTab, currentExample.metadata.status)
-                        ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-secondary/50 text-foreground border border-border hover:bg-secondary"
-                      }
-                    `}>
-                      <RotateCcw className={`w-4 h-4 ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : "text-muted-foreground"}`} />
-                      <span>Status: {currentExample.metadata.status}</span>
-                    </button>
+                  {/* Chat Messages */}
+                  <div className="flex-1 space-y-4 p-4 md:p-6 overflow-y-auto">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-6"
+                      >
+                        {/* User Message */}
+                        <div className="flex items-start gap-4 justify-end">
+                          <div className="flex-1 flex flex-col items-end max-w-[80%]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs text-muted-foreground">{currentExample.user.time}</span>
+                              <span className="font-medium text-sm">
+                                {currentExample.user.name} <span className="text-muted-foreground font-normal">| {currentExample.user.location}</span>
+                              </span>
+                            </div>
+                            <div className="conversation-bubble-light w-full">
+                              <p className="text-sm">
+                                {currentExample.user.message}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-foreground text-xs font-medium">{currentExample.user.avatar}</span>
+                          </div>
+                        </div>
 
-                    {/* Priority Button */}
-                    <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-secondary/50 text-foreground border border-border hover:bg-secondary transition-all duration-200">
-                      <AlertCircle className="w-4 h-4 text-muted-foreground" />
-                      <span>Priority: {currentExample.metadata.priority}</span>
-                    </button>
+                        {/* Voice Agent Message */}
+                        <div className="flex items-start gap-4 justify-start">
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                            <AudioWaveformIcon />
+                          </div>
+                          <div className="flex-1 flex flex-col items-start max-w-[80%]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-medium text-sm">
+                                Voice Agent
+                              </span>
+                              <span className="text-xs text-muted-foreground">| Audio {currentExample.ai.audioDuration}</span>
+                            </div>
+                            <div className="conversation-bubble w-full">
+                              <p className="text-sm leading-relaxed">
+                                {currentExample.ai.message}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
 
-                    {/* Sentiment Button */}
-                    <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-secondary/50 text-foreground border border-border hover:bg-secondary transition-all duration-200">
-                      {(() => {
-                        const SentimentIcon = currentExample.metadata.sentimentIcon;
-                        return <SentimentIcon className="w-4 h-4 text-muted-foreground" />;
-                      })()}
-                      <span>Sentiment: {currentExample.metadata.sentiment}</span>
-                    </button>
+              {/* Right Side - Metadata Content */}
+              <div className="col-span-12 md:col-span-6 flex flex-col">
+                <div className="flex-1 p-4 md:p-6 overflow-y-auto min-h-[400px] md:min-h-[500px] flex flex-col justify-end">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4"
+                    >
+                      {/* Status, Priority, Sentiment - Same Row */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Status Button */}
+                        <button className={`
+                          flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                          transition-all duration-200 relative
+                          ${isStatusHighlighted(activeTab, currentExample.metadata.status)
+                            ? "bg-gradient-to-r from-primary/30 via-primary/20 to-primary/10 text-primary border-2 border-primary/50 shadow-lg shadow-primary/20"
+                            : "bg-muted/50 text-foreground border border-border hover:bg-muted"
+                          }
+                        `}>
+                          {isStatusHighlighted(activeTab, currentExample.metadata.status) && (
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg" />
+                          )}
+                          <RotateCcw className={`w-4 h-4 flex-shrink-0 ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : "text-muted-foreground"}`} />
+                          <span className="truncate">Status: {currentExample.metadata.status}</span>
+                        </button>
 
-                    {/* Actions */}
-                    <div className="space-y-2 pt-2">
-                      {currentExample.metadata.actions.map((action, index) => {
-                        const isChecked = isActionHighlighted(activeTab, action);
-                        return (
-                          <button
-                            key={index}
-                            className={`
-                              w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                              transition-all duration-200
-                              ${isChecked
-                                ? "bg-primary/20 text-primary border border-primary/30"
-                                : "bg-secondary/50 text-foreground border border-border hover:bg-secondary"
-                              }
-                            `}
-                          >
-                            <CheckCircle2 className={`w-4 h-4 ${isChecked ? "text-primary" : "text-muted-foreground"}`} />
-                            <span className="text-left flex-1">
-                              {action.includes("Action:") ? (
-                                <>
-                                  Action: <span className="font-medium">{action.replace("Action: ", "")}</span>
-                                </>
-                              ) : (
-                                action
+                        {/* Priority Button */}
+                        <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground border border-border hover:bg-muted transition-all duration-200">
+                          <AlertCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                          <span className="truncate">Priority: {currentExample.metadata.priority}</span>
+                        </button>
+
+                        {/* Sentiment Button */}
+                        <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground border border-border hover:bg-muted transition-all duration-200">
+                          {(() => {
+                            const SentimentIcon = currentExample.metadata.sentimentIcon;
+                            return <SentimentIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />;
+                          })()}
+                          <span className="truncate">Sentiment: {currentExample.metadata.sentiment}</span>
+                        </button>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="space-y-2 pt-2">
+                        {currentExample.metadata.actions.map((action, index) => {
+                          const isChecked = isActionHighlighted(activeTab, action);
+                          return (
+                            <button
+                              key={index}
+                              className={`
+                                w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                                transition-all duration-200 relative
+                                ${isChecked
+                                  ? "bg-gradient-to-r from-green-500/30 via-green-500/20 to-green-500/10 text-green-600 dark:text-green-400 border-2 border-green-500/50 shadow-lg shadow-green-500/20"
+                                  : "bg-muted/50 text-foreground border border-border hover:bg-muted"
+                                }
+                              `}
+                            >
+                              {isChecked && (
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-l-lg" />
                               )}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                              <CheckCircle2 className={`w-4 h-4 ${isChecked ? "text-green-600 dark:text-green-400 fill-green-500/30" : "text-muted-foreground"}`} />
+                              <span className="text-left flex-1">
+                                {action.includes("Action:") ? (
+                                  <>
+                                    Action: <span className="font-medium">{action.replace("Action: ", "")}</span>
+                                  </>
+                                ) : (
+                                  action
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                    {/* Documents */}
-                    <div className="space-y-2 pt-2">
-                      {currentExample.metadata.documents.map((doc, index) => {
-                        const isChecked = isDocumentHighlighted(activeTab, doc);
-                        return (
-                          <button
-                            key={index}
-                            className={`
-                              w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                              transition-all duration-200
-                              ${isChecked
-                                ? "bg-primary/20 text-primary border border-primary/30"
-                                : "bg-secondary/50 text-foreground border border-border hover:bg-secondary"
-                              }
-                            `}
-                          >
-                            <FileText className={`w-4 h-4 ${isChecked ? "text-primary" : "text-muted-foreground"}`} />
-                            <span className="text-left flex-1">
-                              {doc.includes("Docs:") ? (
-                                <>
-                                  Docs: <span className="font-medium">{doc.replace("Docs: ", "")}</span>
-                                </>
-                              ) : (
-                                <span className="font-medium">{doc}</span>
+                      {/* Documents */}
+                      <div className="space-y-2 pt-2">
+                        {currentExample.metadata.documents.map((doc, index) => {
+                          const isChecked = isDocumentHighlighted(activeTab, doc);
+                          return (
+                            <button
+                              key={index}
+                              className={`
+                                w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                                transition-all duration-200 relative
+                                ${isChecked
+                                  ? "bg-gradient-to-r from-blue-500/30 via-blue-500/20 to-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500/50 shadow-lg shadow-blue-500/20"
+                                  : "bg-muted/50 text-foreground border border-border hover:bg-muted"
+                                }
+                              `}
+                            >
+                              {isChecked && (
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-lg" />
                               )}
-                            </span>
-                            {isChecked && <CheckCircle2 className="w-4 h-4 text-primary" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
+                              <FileText className={`w-4 h-4 ${isChecked ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"}`} />
+                              <span className="text-left flex-1">
+                                {doc.includes("Docs:") ? (
+                                  <>
+                                    Docs: <span className="font-medium">{doc.replace("Docs: ", "")}</span>
+                                  </>
+                                ) : (
+                                  <span className="font-medium">{doc}</span>
+                                )}
+                              </span>
+                              {isChecked && <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 fill-blue-500/30" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
           </div>

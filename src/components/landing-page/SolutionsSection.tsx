@@ -81,7 +81,7 @@ const SolutionsSection = () => {
           {/* Left side - Text content */}
           <div className="animate-fade-in">
             <p className="text-primary mb-2">
-              <span className="text-primary">Operator</span> is your...
+              <span className="text-primary">Voiceable</span> is your...
             </p>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
               {activeSolution.title}
@@ -107,7 +107,6 @@ const SolutionsSection = () => {
                 );
               })}
             </div>
-
           </div>
 
           {/* Right side - Chart */}

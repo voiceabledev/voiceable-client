@@ -220,7 +220,7 @@ const SeamlessSetupSection = () => {
           </h2>
 
           <p className="text-lg text-muted-foreground mb-8">
-            <span className="text-primary">Operator</span> is designed to easily
+            <span className="text-primary">Voiceable</span> is designed to easily
             integrate and enhance your current
             software stack. Free your data with
             no API keys, lock-ins or data silos.

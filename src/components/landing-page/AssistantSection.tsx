@@ -27,7 +27,7 @@ const AssistantSection = () => {
           </h2>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Operator handles each issue uniquely based on the user
+            Voiceable handles each issue uniquely based on the user
             and scenario. It greets by name, recalls previous issues,
             and follows up until each case is resolved.
           </p>

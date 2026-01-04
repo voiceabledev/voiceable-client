@@ -29,7 +29,7 @@ const HumanLedSection = () => {
             <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">AI</div>
             <h3 className="text-xl font-semibold mb-2">Safeguards & Guardrails</h3>
             <p className="text-muted-foreground">
-              When Operator encounters uncertainty, it proactively flags the issue and waits for
+              When Voiceable encounters uncertainty, it proactively flags the issue and waits for
               human guidance.
             </p>
           </div>
@@ -38,7 +38,7 @@ const HumanLedSection = () => {
             <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">HUMAN</div>
             <h3 className="text-xl font-semibold mb-2">User Powered</h3>
             <p className="text-muted-foreground">
-              Operator identifies the optimal next steps and waits for user approval before executing
+              Voiceable identifies the optimal next steps and waits for user approval before executing
               irreversible actions.
             </p>
           </div>
