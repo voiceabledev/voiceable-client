@@ -35,26 +35,26 @@ interface OutcomeConfigTabProps {
 }
 
 const PRIMARY_OUTCOMES = [
-  // Retail/E-commerce outcomes
+  // Sales outcomes
   { value: 'order_placed', label: 'Order Placed', type: 'sales' },
+  { value: 'reservation_booked', label: 'Reservation Booked', type: 'sales' },
+  { value: 'reservation_updated', label: 'Reservation Updated', type: 'sales' },
+  { value: 'reservation_cancelled', label: 'Reservation Cancelled', type: 'sales' },
+  // Support outcomes
   { value: 'order_status_checked', label: 'Order Status Checked', type: 'support' },
   { value: 'shipping_info_provided', label: 'Shipping Information Provided', type: 'support' },
   { value: 'tracking_provided', label: 'Tracking Provided', type: 'support' },
   { value: 'return_initiated', label: 'Return Initiated', type: 'support' },
   { value: 'exchange_processed', label: 'Exchange Processed', type: 'support' },
   { value: 'refund_processed', label: 'Refund Processed', type: 'support' },
+  { value: 'account_updated', label: 'Account Updated', type: 'support' },
+  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support' },
+  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support' },
+  // General outcomes
   { value: 'product_inquiry_answered', label: 'Product Inquiry Answered', type: 'general' },
   { value: 'inventory_checked', label: 'Inventory Checked', type: 'general' },
-  { value: 'account_updated', label: 'Account Updated', type: 'support' },
-  // Restaurant outcomes
-  { value: 'reservation_booked', label: 'Reservation Booked', type: 'sales' },
-  { value: 'reservation_updated', label: 'Reservation Updated', type: 'sales' },
-  { value: 'reservation_cancelled', label: 'Reservation Cancelled', type: 'sales' },
   { value: 'menu_inquiry_answered', label: 'Menu Inquiry Answered', type: 'general' },
-  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support' },
   { value: 'location_hours_provided', label: 'Location & Hours Provided', type: 'general' },
-  // General outcomes
-  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support' },
   { value: 'information_provided', label: 'Information Provided', type: 'general' },
   { value: 'feedback_collected', label: 'Feedback Collected', type: 'general' },
 ];
@@ -147,11 +147,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         description: 'Escalation rules saved successfully.',
       });
       
-      // Refetch agent data to update webhook tools
-      if (onAgentDataChange) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await onAgentDataChange();
-      }
+      // Refetch outcome definition to update local state
+      await fetchOutcomeDefinition();
     } catch (error: unknown) {
       console.error('Error saving escalation rules:', error);
       const errorMessage = (error as { response?: { data?: { errors?: string | string[] } }; message?: string })?.response?.data?.errors || 
@@ -172,7 +169,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     outcomeDefinition,
     updateOutcomeDefinition,
     createOutcomeDefinition,
-    onAgentDataChange,
+    fetchOutcomeDefinition,
     toast,
   ]);
 
@@ -325,11 +322,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           failure_keywords: failureKeywords,
         });
         
-        // Refetch agent data to update webhook tools
-        if (onAgentDataChange) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          await onAgentDataChange();
-        }
+        // Refetch outcome definition to update local state
+        await fetchOutcomeDefinition();
       } catch (error: unknown) {
         console.error('Error auto-saving outcome definition:', error);
         const errorMessage = (error as { response?: { data?: { errors?: string | string[] } }; message?: string })?.response?.data?.errors || 
@@ -365,7 +359,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     outcomeDefinition,
     updateOutcomeDefinition,
     createOutcomeDefinition,
-    onAgentDataChange,
+    fetchOutcomeDefinition,
     toast,
   ]);
 
@@ -436,7 +430,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
               <SelectTrigger id="primary-outcome">
                 <SelectValue placeholder="Select primary outcome" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[200px]">
                 {PRIMARY_OUTCOMES.map(outcome => (
                   <SelectItem key={outcome.value} value={outcome.value}>
                     <div className="flex items-center gap-2">
