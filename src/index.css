@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -45,6 +45,13 @@
     --violet-light: 270 91% 65%;
     --amber: 38 92% 50%;
     --rose: 346 77% 50%;
+    
+    /* Landing page specific colors (from landing-page project) */
+    --amber-glow: 36 100% 60%;
+    --purple: 270 60% 60%;
+    --purple-light: 280 80% 70%;
+    --green: 142 70% 45%;
+    --pink: 330 80% 60%;
     
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%), hsl(158 64% 52%));
@@ -107,6 +114,52 @@
     --amber: 38 92% 55%;
     --rose: 346 77% 55%;
     
+    /* Landing page specific colors (dark mode) */
+    --amber-glow: 36 100% 65%;
+    --purple: 270 60% 65%;
+    --purple-light: 280 80% 72%;
+    --green: 142 70% 50%;
+    --pink: 330 80% 65%;
+  }
+  
+  /* Landing page specific dark theme (matches original landing-page design) */
+  .landing-page-theme {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 36 100% 50%;
+    --primary-foreground: 0 0% 4%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 270 60% 60%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 36 100% 50%;
+    
+    /* Landing page specific colors */
+    --amber: 36 100% 50%;
+    --amber-glow: 36 100% 60%;
+    --purple: 270 60% 60%;
+    --purple-light: 280 80% 70%;
+    --green: 142 70% 45%;
+    --pink: 330 80% 60%;
+    
     /* Dark gradients */
     --gradient-primary: linear-gradient(135deg, hsl(160 84% 45%), hsl(158 64% 55%));
     --gradient-accent: linear-gradient(135deg, hsl(262 83% 65%), hsl(270 91% 72%));
@@ -134,6 +187,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    overflow-x: hidden;
   }
 
   /* Elegant scrollbar */
@@ -170,6 +224,49 @@
 
   .section-label {
     @apply text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-2 px-3;
+  }
+  
+  /* Landing page specific components */
+  .hero-glow {
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 1200px;
+    height: 600px;
+    background: radial-gradient(ellipse 70% 50% at 50% 30%, hsl(36 100% 50% / 0.2), hsl(25 100% 45% / 0.1) 50%, transparent 80%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .feature-pill {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium;
+    @apply bg-secondary text-foreground;
+    @apply border border-border;
+  }
+
+  .nav-pill {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
+    @apply text-muted-foreground;
+  }
+
+  .nav-pill:hover {
+    @apply text-foreground bg-secondary;
+  }
+
+  .nav-pill.active {
+    @apply text-foreground bg-secondary;
+  }
+
+  .conversation-bubble {
+    @apply rounded-2xl p-4;
+    @apply bg-primary/10 border border-primary/20;
+  }
+
+  .conversation-bubble-light {
+    @apply rounded-2xl p-4;
+    @apply bg-muted;
   }
 
   /* Elegant button hover effects */
@@ -256,6 +353,39 @@
     background-size: 200% 200%;
     animation: gradient 3s ease infinite;
   }
+  
+  /* Landing page specific utilities */
+  .text-gradient-amber {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(36 100% 60%), hsl(25 100% 50%));
+  }
+
+  .text-gradient-purple {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(280 80% 70%), hsl(320 80% 60%));
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 60px 20px hsl(36 100% 50% / 0.15);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 40px 10px hsl(270 60% 50% / 0.2);
+  }
+
+  .glass-dark {
+    @apply backdrop-blur-xl;
+    @apply bg-background/90 border border-border/50;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.6s ease-out forwards;
+    opacity: 0;
+  }
+  
+  .animate-scroll-left {
+    animation: scroll-left 30s linear infinite;
+  }
 }
 
 @keyframes float {
@@ -305,5 +435,25 @@
   }
   100% {
     background-position: 0% 50%;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scroll-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
