@@ -16,39 +16,7 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-  
-  <!-- Industry-Specific Landing Pages -->
-  <url>
-    <loc>https://www.voiceable.dev/recruiters</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.voiceable.dev/receptionist</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.voiceable.dev/scheduler</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.voiceable.dev/leads-reviver</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.voiceable.dev/bubble-voice</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.voiceable.dev/custom-agents</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  
+
   <!-- Pricing & Legal Pages -->
   <url>
     <loc>https://www.voiceable.dev/pricing</loc>
@@ -81,12 +49,5 @@
     <loc>https://www.voiceable.dev/reset-password</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
-  </url>
-  
-  <!-- Utility Pages -->
-  <url>
-    <loc>https://www.voiceable.dev/confirmation</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
   </url>
 </urlset>

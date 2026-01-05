@@ -85,12 +85,6 @@ const App = () => (
               <Route path="/" element={<Landing2 />} />
               <Route path="/retail-ecommerce" element={<Landing />} />
               <Route path="/recruitment" element={<Landing3 />} />
-              <Route path="/recruiters" element={<Recruiters />} />
-              <Route path="/receptionist" element={<Receptionist />} />
-              <Route path="/scheduler" element={<Scheduler />} />
-              <Route path="/leads-reviver" element={<LeadsReviver />} />
-              <Route path="/confirmation" element={<Confirmation />} />
-              <Route path="/bubble-voice" element={<BubbleVoice />} />
               <Route path="/sign-up" element={<SignUp />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/reset-password-confirm" element={<ResetPasswordConfirm />} />
