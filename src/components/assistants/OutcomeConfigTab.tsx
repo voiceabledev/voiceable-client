@@ -14,7 +14,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Plus, X, ChevronDown, Settings, RotateCcw } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Plus, X, ChevronDown, Settings, RotateCcw, Check } from 'lucide-react';
 import { useOutcomeDefinition } from '@/hooks/assistants/useOutcomeDefinition';
 import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
@@ -56,8 +57,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     updateOutcomeDefinition,
   } = useOutcomeDefinition(agentId);
 
-  const [primaryOutcome, setPrimaryOutcome] = useState<string>('');
-  const [secondaryOutcomes, setSecondaryOutcomes] = useState<string[]>([]);
+  // Combined state for all primary goals (first one goes to primary_outcome, rest to secondary_outcomes)
+  const [primaryOutcomes, setPrimaryOutcomes] = useState<string[]>([]);
   const [successKeywords, setSuccessKeywords] = useState<string[]>(['']);
   const [failureKeywords, setFailureKeywords] = useState<string[]>(['']);
   
@@ -86,18 +87,19 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
 
   // Function to save escalation rules to outcome definition
   const saveEscalationRulesToOutcomeDefinition = useCallback(async (settings: EscalationRuleSettings) => {
-    if (!primaryOutcome) {
+    if (primaryOutcomes.length === 0) {
       toast({
         title: 'Error',
-        description: 'Please select a primary outcome before saving escalation rules.',
+        description: 'Please select at least one primary goal before saving escalation rules.',
         variant: 'destructive',
       });
       return;
     }
 
+    // First goal goes to primary_outcome, rest to secondary_outcomes
     const data = {
-      primary_outcome: primaryOutcome,
-      secondary_outcomes: secondaryOutcomes,
+      primary_outcome: primaryOutcomes[0] || '',
+      secondary_outcomes: primaryOutcomes.slice(1),
       success_conditions: {
         keywords: successKeywords.filter(k => k.trim()),
       },
@@ -140,8 +142,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       throw error;
     }
   }, [
-    primaryOutcome,
-    secondaryOutcomes,
+    primaryOutcomes,
     successKeywords,
     failureKeywords,
     outcomeDefinition,
@@ -158,8 +159,10 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
 
   useEffect(() => {
     if (outcomeDefinition) {
+      // Combine primary_outcome and secondary_outcomes into single array
       const newPrimaryOutcome = outcomeDefinition.primary_outcome || '';
       const newSecondaryOutcomes = outcomeDefinition.secondary_outcomes || [];
+      const allOutcomes = newPrimaryOutcome ? [newPrimaryOutcome, ...newSecondaryOutcomes] : [];
       
       // Handle keywords - ensure we have at least one empty string if array is empty
       // This is needed because empty arrays [] are truthy, so we need to check length
@@ -192,8 +195,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       }
 
       // Update state
-      setPrimaryOutcome(newPrimaryOutcome);
-      setSecondaryOutcomes(newSecondaryOutcomes);
+      setPrimaryOutcomes(allOutcomes);
       setSuccessKeywords(newSuccessKeywords);
       setFailureKeywords(newFailureKeywords);
       setEscalationRuleSettings(newEscalationRuleSettings);
@@ -201,22 +203,19 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       // Update the ref to match the loaded data so auto-save doesn't trigger
       // Note: escalation_rules are excluded from auto-save comparison
       previousDataRef.current = JSON.stringify({
-        primary_outcome: newPrimaryOutcome,
-        secondary_outcomes: newSecondaryOutcomes,
+        primary_outcomes: allOutcomes,
         success_keywords: newSuccessKeywords,
         failure_keywords: newFailureKeywords,
       });
     } else {
       // Reset to defaults
-      setPrimaryOutcome('');
-      setSecondaryOutcomes([]);
+      setPrimaryOutcomes([]);
       setSuccessKeywords(['']);
       setFailureKeywords(['']);
       
       // Update the ref for empty state (excluding escalation_rules from auto-save)
       previousDataRef.current = JSON.stringify({
-        primary_outcome: '',
-        secondary_outcomes: [],
+        primary_outcomes: [],
         success_keywords: [''],
         failure_keywords: [''],
       });
@@ -235,8 +234,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       isInitialLoad.current = false;
       // Store initial data to compare against (excluding escalation_rules for auto-save comparison)
       const initialData = JSON.stringify({
-        primary_outcome: primaryOutcome,
-        secondary_outcomes: secondaryOutcomes,
+        primary_outcomes: primaryOutcomes,
         success_keywords: successKeywords,
         failure_keywords: failureKeywords,
       });
@@ -244,15 +242,14 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       return;
     }
 
-    // Don't save if no primary outcome is selected
-    if (!primaryOutcome) {
+    // Don't save if no primary goals are selected
+    if (primaryOutcomes.length === 0) {
       return;
     }
 
     // Create current data snapshot for comparison (excluding escalation_rules)
     const currentData = JSON.stringify({
-      primary_outcome: primaryOutcome,
-      secondary_outcomes: secondaryOutcomes,
+      primary_outcomes: primaryOutcomes,
       success_keywords: successKeywords,
       failure_keywords: failureKeywords,
     });
@@ -272,9 +269,10 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
 
     // Debounce the save by 500ms
     saveTimeoutRef.current = setTimeout(async () => {
+      // First goal goes to primary_outcome, rest to secondary_outcomes
       const data = {
-        primary_outcome: primaryOutcome,
-        secondary_outcomes: secondaryOutcomes,
+        primary_outcome: primaryOutcomes[0] || '',
+        secondary_outcomes: primaryOutcomes.slice(1),
         success_conditions: {
           keywords: successKeywords.filter(k => k.trim()),
         },
@@ -301,8 +299,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         
         // Update the ref after successful save to prevent re-saving the same data
         previousDataRef.current = JSON.stringify({
-          primary_outcome: primaryOutcome,
-          secondary_outcomes: secondaryOutcomes,
+          primary_outcomes: primaryOutcomes,
           success_keywords: successKeywords,
           failure_keywords: failureKeywords,
         });
@@ -321,8 +318,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         });
         // Revert the ref on error so it can retry
         previousDataRef.current = JSON.stringify({
-          primary_outcome: primaryOutcome,
-          secondary_outcomes: secondaryOutcomes,
+          primary_outcomes: primaryOutcomes,
           success_keywords: successKeywords,
           failure_keywords: failureKeywords,
         });
@@ -336,8 +332,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       }
     };
   }, [
-    primaryOutcome,
-    secondaryOutcomes,
+    primaryOutcomes,
     successKeywords,
     failureKeywords,
     // escalationRuleSettings is intentionally excluded from dependencies
@@ -370,7 +365,24 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     ? PRIMARY_OUTCOMES 
     : PRIMARY_OUTCOMES.filter(o => o.category === outcomeCategory || !o.category);
 
-  const selectedOutcomeType = filteredOutcomes.find(o => o.value === primaryOutcome)?.type || 'general';
+  // Determine agent type based on selected outcomes (check all selected outcomes)
+  const selectedOutcomeTypes = primaryOutcomes
+    .map(outcomeValue => filteredOutcomes.find(o => o.value === outcomeValue)?.type)
+    .filter(Boolean) as string[];
+  const selectedOutcomeType = selectedOutcomeTypes.includes('sales') ? 'sales' 
+    : selectedOutcomeTypes.includes('support') ? 'support' 
+    : 'general';
+
+  // Toggle outcome selection
+  const toggleOutcome = (outcomeValue: string) => {
+    setPrimaryOutcomes(prev => {
+      if (prev.includes(outcomeValue)) {
+        return prev.filter(v => v !== outcomeValue);
+      } else {
+        return [...prev, outcomeValue];
+      }
+    });
+  };
 
   if (loading) {
     return (
@@ -403,9 +415,9 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="mb-2">Primary Goal</CardTitle>
+                  <CardTitle className="mb-2">Primary Goals</CardTitle>
                   <CardDescription>
-                    What is the main thing you want your agent to accomplish in each call?
+                    What are the main things you want your agent to accomplish in each call? You can select multiple goals.
                   </CardDescription>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isPrimaryOpen ? 'transform rotate-180' : ''}`} />
@@ -414,34 +426,80 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="primary-outcome">Primary Outcome</Label>
-            <Select value={primaryOutcome} onValueChange={setPrimaryOutcome}>
-              <SelectTrigger id="primary-outcome">
-                <SelectValue placeholder="Select primary outcome" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px]">
-                {filteredOutcomes.map(outcome => (
-                  <SelectItem key={outcome.value} value={outcome.value}>
-                    <div className="flex items-center gap-2">
-                      {outcome.label}
-                      <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'}>
-                        {outcome.type}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div>
+                <Label htmlFor="primary-outcomes">Primary Outcomes</Label>
+                <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
+                  {filteredOutcomes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No outcomes available for this category.</p>
+                  ) : (
+                    filteredOutcomes.map(outcome => {
+                      const isSelected = primaryOutcomes.includes(outcome.value);
+                      return (
+                        <div
+                          key={outcome.value}
+                          className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                          onClick={() => toggleOutcome(outcome.value)}
+                        >
+                          <Checkbox
+                            id={`outcome-${outcome.value}`}
+                            checked={isSelected}
+                            onCheckedChange={() => toggleOutcome(outcome.value)}
+                          />
+                          <label
+                            htmlFor={`outcome-${outcome.value}`}
+                            className="flex-1 flex items-center gap-2 cursor-pointer"
+                          >
+                            <span className="text-sm font-medium">{outcome.label}</span>
+                            <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
+                              {outcome.type}
+                            </Badge>
+                          </label>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                {primaryOutcomes.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">Please select at least one primary goal.</p>
+                )}
+              </div>
 
-          {selectedOutcomeType && (
-            <div className="flex items-center gap-2">
-              <Badge variant={selectedOutcomeType === 'support' ? 'default' : selectedOutcomeType === 'sales' ? 'secondary' : 'outline'}>
-                {selectedOutcomeType === 'support' ? 'Support Agent' : selectedOutcomeType === 'sales' ? 'Sales Agent' : 'General Agent'}
-              </Badge>
-            </div>
-          )}
+              {/* Display selected goals as chips */}
+              {primaryOutcomes.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Selected Goals</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {primaryOutcomes.map(outcomeValue => {
+                      const outcome = filteredOutcomes.find(o => o.value === outcomeValue);
+                      if (!outcome) return null;
+                      return (
+                        <Badge
+                          key={outcomeValue}
+                          variant="secondary"
+                          className="flex items-center gap-1 pr-1"
+                        >
+                          {outcome.label}
+                          <button
+                            onClick={() => toggleOutcome(outcomeValue)}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                            type="button"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedOutcomeType && primaryOutcomes.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge variant={selectedOutcomeType === 'support' ? 'default' : selectedOutcomeType === 'sales' ? 'secondary' : 'outline'}>
+                    {selectedOutcomeType === 'support' ? 'Support Agent' : selectedOutcomeType === 'sales' ? 'Sales Agent' : 'General Agent'}
+                  </Badge>
+                </div>
+              )}
             </CardContent>
           </CollapsibleContent>
         </Card>

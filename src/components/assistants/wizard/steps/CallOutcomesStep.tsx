@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,8 @@ Assistant: "Our standard refund policy allows returns within 30 days of purchase
 interface CallOutcomesStepProps {
   primaryOutcome?: string;
   onPrimaryOutcomeChange?: (value: string) => void;
+  primaryOutcomes?: string[];
+  onPrimaryOutcomesChange?: (values: string[]) => void;
   escalationRuleSettings?: EscalationRuleSettings;
   onEscalationRuleSettingsChange?: (settings: EscalationRuleSettings) => void;
   successKeywords?: string[];
@@ -67,6 +69,8 @@ interface CallOutcomesStepProps {
 export function CallOutcomesStep({
   primaryOutcome = '',
   onPrimaryOutcomeChange,
+  primaryOutcomes: propPrimaryOutcomes,
+  onPrimaryOutcomesChange,
   escalationRuleSettings,
   onEscalationRuleSettingsChange,
   successKeywords = [],
@@ -75,6 +79,35 @@ export function CallOutcomesStep({
   onFailureKeywordsChange,
   showValidationErrors = false,
 }: CallOutcomesStepProps) {
+  // Support both old single outcome and new multiple outcomes
+  const [internalPrimaryOutcomes, setInternalPrimaryOutcomes] = useState<string[]>(primaryOutcome ? [primaryOutcome] : []);
+  const primaryOutcomes = propPrimaryOutcomes !== undefined ? propPrimaryOutcomes : internalPrimaryOutcomes;
+  const setPrimaryOutcomes = onPrimaryOutcomesChange || setInternalPrimaryOutcomes;
+  
+  // Sync with old primaryOutcome prop for backward compatibility
+  useEffect(() => {
+    if (primaryOutcome && !primaryOutcomes.includes(primaryOutcome)) {
+      setPrimaryOutcomes([primaryOutcome]);
+    } else if (!primaryOutcome && primaryOutcomes.length > 0 && onPrimaryOutcomeChange) {
+      // If primaryOutcome is cleared, clear the first outcome
+      const newOutcomes = primaryOutcomes.slice(1);
+      setPrimaryOutcomes(newOutcomes);
+      if (newOutcomes.length > 0 && onPrimaryOutcomeChange) {
+        onPrimaryOutcomeChange(newOutcomes[0]);
+      }
+    }
+  }, [primaryOutcome]);
+  
+  const toggleOutcome = (outcomeValue: string) => {
+    const newOutcomes = primaryOutcomes.includes(outcomeValue)
+      ? primaryOutcomes.filter(v => v !== outcomeValue)
+      : [...primaryOutcomes, outcomeValue];
+    setPrimaryOutcomes(newOutcomes);
+    // Update old prop for backward compatibility
+    if (onPrimaryOutcomeChange && newOutcomes.length > 0) {
+      onPrimaryOutcomeChange(newOutcomes[0]);
+    }
+  };
   const [isEscalationOpen, setIsEscalationOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isFailureOpen, setIsFailureOpen] = useState(false);
@@ -111,75 +144,80 @@ export function CallOutcomesStep({
 
   return (
     <div className="space-y-6">
-      {/* Primary Goal Section */}
+      {/* Primary Goals Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Primary Goal</CardTitle>
+          <CardTitle>Primary Goals</CardTitle>
           <CardDescription>
-            Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes.
+            Define what success means for your agent's calls. You can select multiple goals. We'll automatically analyze conversations to track outcomes.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Label htmlFor="primary-outcome">
-              Primary Outcome <span className="text-destructive">*</span>
+            <Label htmlFor="primary-outcomes">
+              Primary Outcomes <span className="text-destructive">*</span>
             </Label>
-            <Select
-              value={primaryOutcome}
-              onValueChange={(value) => {
-                if (onPrimaryOutcomeChange) {
-                  onPrimaryOutcomeChange(value);
-                }
-              }}
-            >
-              <SelectTrigger 
-                id="primary-outcome" 
-                className={cn(
-                  "w-full justify-start",
-                  showValidationErrors && !primaryOutcome && "border-destructive focus-visible:ring-destructive"
-                )}
-              >
-                {primaryOutcome ? (() => {
-                  const selectedOutcome = PRIMARY_OUTCOMES.find(o => o.value === primaryOutcome);
-                  if (selectedOutcome) {
-                    const Icon = selectedOutcome.icon;
+            <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
+              {PRIMARY_OUTCOMES.map((outcome) => {
+                const Icon = outcome.icon;
+                const isSelected = primaryOutcomes.includes(outcome.value);
+                return (
+                  <div
+                    key={outcome.value}
+                    className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                    onClick={() => toggleOutcome(outcome.value)}
+                  >
+                    <Checkbox
+                      id={`wizard-outcome-${outcome.value}`}
+                      checked={isSelected}
+                      onCheckedChange={() => toggleOutcome(outcome.value)}
+                    />
+                    <label
+                      htmlFor={`wizard-outcome-${outcome.value}`}
+                      className="flex-1 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="text-sm font-medium">{outcome.label}</span>
+                      <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
+                        {outcome.type}
+                      </Badge>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+            {showValidationErrors && primaryOutcomes.length === 0 && (
+              <p className="text-xs text-destructive mt-1">At least one primary goal is required</p>
+            )}
+            {primaryOutcomes.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <Label>Selected Goals</Label>
+                <div className="flex flex-wrap gap-2">
+                  {primaryOutcomes.map(outcomeValue => {
+                    const outcome = PRIMARY_OUTCOMES.find(o => o.value === outcomeValue);
+                    if (!outcome) return null;
                     return (
-                      <div className="flex items-center gap-2 justify-start w-full">
-                        <Icon className="h-4 w-4" />
-                        <SelectValue className="text-left">{selectedOutcome.label}</SelectValue>
-                        <Badge variant={selectedOutcome.type === 'support' ? 'default' : selectedOutcome.type === 'sales' ? 'secondary' : 'outline'} className="ml-auto mr-2">
-                          {selectedOutcome.type}
-                        </Badge>
-                      </div>
+                      <Badge
+                        key={outcomeValue}
+                        variant="secondary"
+                        className="flex items-center gap-1 pr-1"
+                      >
+                        {outcome.label}
+                        <button
+                          onClick={() => toggleOutcome(outcomeValue)}
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          type="button"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
                     );
-                  }
-                  return <SelectValue placeholder="Select a primary outcome" />;
-                })() : (
-                  <SelectValue placeholder="Select a primary outcome" />
-                )}
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px]">
-                {PRIMARY_OUTCOMES.map((outcome) => {
-                  const Icon = outcome.icon;
-                  return (
-                    <SelectItem key={outcome.value} value={outcome.value}>
-                      <div className="flex items-center gap-2 justify-start">
-                        <Icon className="h-4 w-4" />
-                        <span>{outcome.label}</span>
-                        <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'}>
-                          {outcome.type}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            {showValidationErrors && !primaryOutcome && (
-              <p className="text-xs text-destructive mt-1">Primary outcome is required</p>
+                  })}
+                </div>
+              </div>
             )}
             <p className="text-xs text-muted-foreground">
-              This is the main goal you want your agent to achieve during calls.
+              These are the main goals you want your agent to achieve during calls.
             </p>
           </div>
         </CardContent>
