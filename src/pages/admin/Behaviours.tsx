@@ -348,7 +348,8 @@ export default function AdminBehaviours() {
             </Button>
           </div>
         ) : (
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">Position</TableHead>
@@ -446,12 +447,13 @@ export default function AdminBehaviours() {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </div>
 
       {/* Create/Edit Behaviour Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] md:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingBehaviour ? "Edit Behaviour" : "Create Behaviour"}</DialogTitle>
             <DialogDescription>
@@ -551,7 +553,7 @@ export default function AdminBehaviours() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <div className="space-y-2">
                         <Label>Add Label</Label>
                         <Input
@@ -585,7 +587,7 @@ export default function AdminBehaviours() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <div className="space-y-2">
                         <Label>Notes Placeholder</Label>
                         <Input
@@ -626,7 +628,7 @@ export default function AdminBehaviours() {
 
       {/* Edit Sections Dialog */}
       <Dialog open={sectionsDialogOpen} onOpenChange={setSectionsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] md:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Sections: {editingSectionsFor?.name}</DialogTitle>
             <DialogDescription>Update the sections for this behaviour.</DialogDescription>
@@ -678,7 +680,7 @@ export default function AdminBehaviours() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div className="space-y-2">
                       <Label>Add Label</Label>
                       <Input
@@ -710,7 +712,7 @@ export default function AdminBehaviours() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div className="space-y-2">
                       <Label>Notes Placeholder</Label>
                       <Input

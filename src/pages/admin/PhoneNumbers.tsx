@@ -94,8 +94,8 @@ export default function AdminPhoneNumbers() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
           {/* Search */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+            <div className="relative flex-1 w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by phone number, user email, or agent name..."
@@ -113,7 +113,8 @@ export default function AdminPhoneNumbers() {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Phone Number</TableHead>
@@ -147,13 +148,14 @@ export default function AdminPhoneNumbers() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
           )}
 
           {/* Pagination */}
           {!loading && pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-xs md:text-sm text-muted-foreground text-center md:text-left">
                 Showing {((page - 1) * pagination.per_page) + 1} to {Math.min(page * pagination.per_page, pagination.total)} of {pagination.total} phone numbers
               </p>
               <div className="flex items-center gap-2">

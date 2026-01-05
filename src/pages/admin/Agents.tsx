@@ -156,8 +156,8 @@ export default function AdminAgents() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
           {/* Search */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+            <div className="relative flex-1 w-full md:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search agents by name or user email..."
@@ -175,7 +175,8 @@ export default function AdminAgents() {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-              <Table>
+              <div className="overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -226,13 +227,14 @@ export default function AdminAgents() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
           )}
 
           {/* Pagination */}
           {!loading && pagination.total_pages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-xs md:text-sm text-muted-foreground text-center md:text-left">
                 Showing {((page - 1) * pagination.per_page) + 1} to {Math.min(page * pagination.per_page, pagination.total)} of {pagination.total} agents
               </p>
               <div className="flex items-center gap-2">
@@ -260,7 +262,7 @@ export default function AdminAgents() {
 
       {/* Agent Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-6xl h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="max-w-[95vw] md:max-w-6xl h-[90vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="px-6 pt-6 pb-4">
             <DialogTitle>Agent Details</DialogTitle>
             <DialogDescription>
@@ -275,20 +277,22 @@ export default function AdminAgents() {
           ) : agentDetails ? (
             <div className="flex-1 overflow-hidden flex flex-col px-6 pb-6">
               <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden min-h-0">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="details">Details</TabsTrigger>
-                  <TabsTrigger value="tools">Tools</TabsTrigger>
-                  <TabsTrigger value="prompt">Prompt</TabsTrigger>
-                  <TabsTrigger value="phone-numbers">Phone Numbers</TabsTrigger>
-                  <TabsTrigger value="conversations">Conversations</TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto mb-4">
+                  <TabsList className="inline-flex min-w-full md:grid md:w-full md:grid-cols-5">
+                    <TabsTrigger value="details" className="whitespace-nowrap">Details</TabsTrigger>
+                    <TabsTrigger value="tools" className="whitespace-nowrap">Tools</TabsTrigger>
+                    <TabsTrigger value="prompt" className="whitespace-nowrap">Prompt</TabsTrigger>
+                    <TabsTrigger value="phone-numbers" className="whitespace-nowrap">Phone Numbers</TabsTrigger>
+                    <TabsTrigger value="conversations" className="whitespace-nowrap">Conversations</TabsTrigger>
+                  </TabsList>
+                </div>
                 
                 <TabsContent value="details" className="flex-1 overflow-y-auto mt-0">
                   <div className="space-y-6">
                     {/* Basic Information */}
                     <div>
                       <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Name</label>
                           <p className="text-base font-semibold">{agentDetails.name}</p>
