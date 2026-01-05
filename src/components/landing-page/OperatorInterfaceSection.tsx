@@ -336,12 +336,12 @@ const OperatorInterfaceSection = ({
           {/* Main Interface Container */}
           <div className="border border-border bg-card overflow-hidden">
             {/* Top Navigation Tabs */}
-            <div className="p-3 md:p-4 border-b border-border overflow-x-auto bg-muted/30">
-              <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-max">
+            <div className="p-3 md:p-4 border-b border-border overflow-x-auto bg-muted/30 scrollbar-hide">
+              <div className="flex items-center gap-3 md:gap-4 min-w-max">
                 {segments.map((segment, segmentIndex) => (
-                  <div key={segment.id} className="flex items-center gap-2">
+                  <div key={segment.id} className="flex items-center gap-2 md:gap-3">
                     {segmentIndex > 0 && (
-                      <div className="w-px h-6 bg-border" />
+                      <div className="w-px h-8 bg-border/50 mx-1" />
                     )}
                     <div className="flex items-center gap-2">
                       {segment.tabs.map((tab) => {
@@ -353,19 +353,19 @@ const OperatorInterfaceSection = ({
                             key={tab.id}
                             onClick={() => handleTabChange(tab.id)}
                             className={`
-                              relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
-                              transition-all duration-300
+                              relative flex items-center gap-2 px-4 md:px-5 py-2.5 md:py-3 rounded-lg text-sm font-medium whitespace-nowrap
+                              transition-all duration-200 flex-shrink-0
                               ${isActive 
-                                ? "bg-secondary text-foreground" 
-                                : "text-muted-foreground hover:text-foreground"
+                                ? "bg-secondary text-foreground shadow-sm border border-border" 
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent"
                               }
                             `}
                             title={`${segment.label}: ${tab.label}`}
                           >
-                            <Icon className="w-4 h-4" />
-                            <span>{tab.label}</span>
+                            <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`} />
+                            <span className="font-medium">{tab.label}</span>
                             {isActive && (
-                              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
+                              <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
                             )}
                           </button>
                         );
@@ -477,36 +477,45 @@ const OperatorInterfaceSection = ({
                       className="space-y-4"
                     >
                       {/* Status, Priority, Sentiment - Same Row */}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* Status Button */}
                         <button className={`
-                          flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                          flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold
                           transition-all duration-200 relative
                           ${isStatusHighlighted(activeTab, currentExample.metadata.status)
                             ? "bg-gradient-to-r from-primary/30 via-primary/20 to-primary/10 text-primary border-2 border-primary/50 shadow-lg shadow-primary/20"
-                            : "bg-muted/50 text-foreground border border-border hover:bg-muted"
+                            : "bg-muted/70 text-foreground border border-border hover:bg-muted"
                           }
                         `}>
                           {isStatusHighlighted(activeTab, currentExample.metadata.status) && (
                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg" />
                           )}
-                          <RotateCcw className={`w-4 h-4 flex-shrink-0 ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : "text-muted-foreground"}`} />
-                          <span className="truncate">Status: {currentExample.metadata.status}</span>
+                          <RotateCcw className={`w-5 h-5 flex-shrink-0 ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : "text-foreground/70"}`} />
+                          <div className="flex flex-col items-start min-w-0 flex-1">
+                            <span className="text-xs font-normal text-muted-foreground">Status</span>
+                            <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.status}</span>
+                          </div>
                         </button>
 
                         {/* Priority Button */}
-                        <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground border border-border hover:bg-muted transition-all duration-200">
-                          <AlertCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate">Priority: {currentExample.metadata.priority}</span>
+                        <button className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold bg-muted/70 text-foreground border border-border hover:bg-muted transition-all duration-200">
+                          <AlertCircle className="w-5 h-5 text-foreground/70 flex-shrink-0" />
+                          <div className="flex flex-col items-start min-w-0 flex-1">
+                            <span className="text-xs font-normal text-muted-foreground">Priority</span>
+                            <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.priority}</span>
+                          </div>
                         </button>
 
                         {/* Sentiment Button */}
-                        <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground border border-border hover:bg-muted transition-all duration-200">
+                        <button className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold bg-muted/70 text-foreground border border-border hover:bg-muted transition-all duration-200">
                           {(() => {
                             const SentimentIcon = currentExample.metadata.sentimentIcon;
-                            return <SentimentIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />;
+                            return <SentimentIcon className="w-5 h-5 text-foreground/70 flex-shrink-0" />;
                           })()}
-                          <span className="truncate">Sentiment: {currentExample.metadata.sentiment}</span>
+                          <div className="flex flex-col items-start min-w-0 flex-1">
+                            <span className="text-xs font-normal text-muted-foreground">Sentiment</span>
+                            <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.sentiment}</span>
+                          </div>
                         </button>
                       </div>
 

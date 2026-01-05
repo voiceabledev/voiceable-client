@@ -165,40 +165,42 @@ const ResponsesSection = ({ categories = defaultCategories }: ResponsesSectionPr
             <span>24/7 Responses</span>
           </div>
 
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+          <h2 className="text-3xl md:text-4xl lg:text-6xl font-bold tracking-tight mb-4 md:mb-6 px-4">
             Never miss another ring
           </h2>
 
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-12">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-8 md:mb-12 px-4">
             Stress free, <span className="text-primary">Voiceable</span> answers every phone call &
             message. Automatically responding, handling, routing,
             and escalating based on the scenario...
           </p>
 
           {/* Category Tabs */}
-          <div className="flex items-center justify-center gap-2 mb-12">
-            {categories.map((category) => {
-              const Icon = category.icon;
-              const isActive = activeCategory === category.id;
-              
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setActiveCategory(category.id)}
-                  className={`
-                    flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium
-                    transition-all duration-300
-                    ${isActive 
-                      ? "bg-secondary text-foreground" 
-                      : "text-muted-foreground hover:text-foreground"
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{category.label}</span>
-                </button>
-              );
-            })}
+          <div className="w-full mb-8 md:mb-12 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
+            <div className="flex items-center gap-2 min-w-max justify-center md:justify-center">
+              {categories.map((category) => {
+                const Icon = category.icon;
+                const isActive = activeCategory === category.id;
+                
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    className={`
+                      flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-3 rounded-full text-xs md:text-sm font-medium whitespace-nowrap
+                      transition-all duration-300 flex-shrink-0
+                      ${isActive 
+                        ? "bg-secondary text-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
+                      }
+                    `}
+                  >
+                    <Icon className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap">{category.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Animated word */}
@@ -218,7 +220,7 @@ const ResponsesSection = ({ categories = defaultCategories }: ResponsesSectionPr
           </div>
 
           {/* Phone notification mockup */}
-          <div className="max-w-xs mx-auto">
+          <div className="max-w-xs mx-auto px-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeCategoryData.id}
@@ -226,21 +228,21 @@ const ResponsesSection = ({ categories = defaultCategories }: ResponsesSectionPr
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                className="bg-gradient-to-b from-card to-background rounded-[2.5rem] border border-border p-4 shadow-2xl h-auto"
+                className="bg-gradient-to-b from-card to-background rounded-[2.5rem] border border-border p-3 md:p-4 shadow-2xl h-auto"
               >
-                <div className="bg-muted rounded-2xl p-4 overflow-visible">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-pink/20 flex items-center justify-center">
+                <div className="bg-muted rounded-2xl p-3 md:p-4 overflow-visible">
+                  <div className="flex items-center gap-2 md:gap-3 mb-2">
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-pink/20 flex items-center justify-center flex-shrink-0">
                       <span className="text-pink text-xs">{activeCategoryData.emoji}</span>
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">Rose</span>
-                        <span className="text-xs text-muted-foreground">1:46 AM</span>
+                        <span className="font-medium text-xs md:text-sm truncate">Rose</span>
+                        <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">1:46 AM</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed break-words">
+                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed break-words">
                     {activeCategoryData.message}
                   </p>
                 </div>

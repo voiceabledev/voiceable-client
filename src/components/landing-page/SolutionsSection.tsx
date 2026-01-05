@@ -51,57 +51,59 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
     <section id="solutions" className="py-32">
       <div className="container mx-auto px-6">
         {/* Tabs */}
-        <div className="flex items-center justify-center gap-2 mb-16">
-          {solutions.map((solution) => {
-            const Icon = solution.icon;
-            const isActive = activeTab === solution.id;
-            
-            return (
-              <button
-                key={solution.id}
-                onClick={() => setActiveTab(solution.id)}
-                className={`
-                  flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium
-                  transition-all duration-300
-                  ${isActive 
-                    ? "bg-secondary text-foreground" 
-                    : "text-muted-foreground hover:text-foreground"
-                  }
-                `}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{solution.label}</span>
-              </button>
-            );
-          })}
+        <div className="w-full mb-8 md:mb-16 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
+          <div className="flex items-center gap-2 min-w-max justify-center md:justify-center">
+            {solutions.map((solution) => {
+              const Icon = solution.icon;
+              const isActive = activeTab === solution.id;
+              
+              return (
+                <button
+                  key={solution.id}
+                  onClick={() => setActiveTab(solution.id)}
+                  className={`
+                    flex items-center gap-2 px-3 md:px-4 lg:px-5 py-2 md:py-3 rounded-full text-xs md:text-sm font-medium whitespace-nowrap
+                    transition-all duration-300 flex-shrink-0
+                    ${isActive 
+                      ? "bg-secondary text-foreground" 
+                      : "text-muted-foreground hover:text-foreground"
+                    }
+                  `}
+                >
+                  <Icon className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{solution.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Content */}
-        <div className="grid lg:grid-cols-2 gap-12 items-start max-w-6xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-start max-w-6xl mx-auto">
           {/* Left side - Text content */}
-          <div className="animate-fade-in">
-            <p className="text-primary mb-2">
+          <div className="animate-fade-in px-4 md:px-0">
+            <p className="text-primary mb-2 text-sm md:text-base">
               <span className="text-primary">Voiceable</span> is your...
             </p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6">
               {activeSolution?.title}
             </h2>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-muted-foreground mb-6 md:mb-8 text-sm md:text-base">
               {activeSolution?.description}
             </p>
 
             {/* Features */}
-            <div className="space-y-6 mb-8">
+            <div className="space-y-4 md:space-y-6 mb-6 md:mb-8">
               {activeSolution?.features.map((feature, index) => {
                 const FeatureIcon = feature.icon;
                 return (
-                  <div key={index} className="flex gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-                      <FeatureIcon className="w-5 h-5 text-muted-foreground" />
+                  <div key={index} className="flex gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                      <FeatureIcon className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold mb-1 text-sm md:text-base">{feature.title}</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground">{feature.description}</p>
                     </div>
                   </div>
                 );
@@ -110,19 +112,19 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
           </div>
 
           {/* Right side - Chart */}
-          <div className="bg-card rounded-3xl border border-border p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold">Requests Handled</h3>
+          <div className="bg-card rounded-3xl border border-border p-4 md:p-6 mx-4 md:mx-0">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h3 className="font-semibold text-sm md:text-base">Requests Handled</h3>
               <div className="flex items-center gap-2">
-                <button className="px-3 py-1 text-xs rounded-full bg-secondary">Daily</button>
-                <button className="px-3 py-1 text-xs rounded-full text-muted-foreground">Monthly</button>
+                <button className="px-2 md:px-3 py-1 text-xs rounded-full bg-secondary">Daily</button>
+                <button className="px-2 md:px-3 py-1 text-xs rounded-full text-muted-foreground">Monthly</button>
               </div>
             </div>
 
             {/* Chart visualization */}
-            <div className="relative h-64">
+            <div className="relative h-48 md:h-64">
               {/* Y-axis labels */}
-              <div className="absolute left-0 top-0 bottom-8 w-8 flex flex-col justify-between text-xs text-muted-foreground">
+              <div className="absolute left-0 top-0 bottom-6 md:bottom-8 w-6 md:w-8 flex flex-col justify-between text-[10px] md:text-xs text-muted-foreground">
                 <span>100</span>
                 <span>80</span>
                 <span>60</span>
@@ -132,7 +134,7 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
               </div>
 
               {/* Chart area */}
-              <div className="ml-10 h-full relative">
+              <div className="ml-8 md:ml-10 h-full relative">
                 {/* Grid lines */}
                 <div className="absolute inset-0 flex flex-col justify-between">
                   {[...Array(6)].map((_, i) => (
@@ -153,10 +155,10 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
                     d="M 0,200 Q 50,180 100,160 T 200,120 T 300,80 T 400,40"
                     fill="none"
                     stroke="url(#chartGradient)"
-                    strokeWidth="3"
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                     vectorEffect="non-scaling-stroke"
-                    className="animate-fade-in"
+                    className="animate-fade-in md:stroke-[3]"
                     style={{ 
                       strokeDasharray: 500,
                       strokeDashoffset: 0,
@@ -165,14 +167,14 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
                 </svg>
 
                 {/* Current value indicator */}
-                <div className="absolute right-0 top-4 flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-purple animate-pulse" />
-                  <span className="text-2xl font-bold">87</span>
+                <div className="absolute right-0 top-2 md:top-4 flex items-center gap-1.5 md:gap-2">
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-purple animate-pulse" />
+                  <span className="text-xl md:text-2xl font-bold">87</span>
                 </div>
               </div>
 
               {/* X-axis label */}
-              <div className="absolute bottom-0 left-10 right-0 text-center text-xs text-muted-foreground">
+              <div className="absolute bottom-0 left-8 md:left-10 right-0 text-center text-[10px] md:text-xs text-muted-foreground px-2">
                 Number of Requests Automated
               </div>
             </div>
