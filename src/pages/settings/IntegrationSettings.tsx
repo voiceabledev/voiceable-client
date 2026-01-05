@@ -526,6 +526,7 @@ export default function IntegrationSettings() {
                     hasSavedValues={hasSavedIntegration}
                     submitButtonText={hasSavedIntegration ? "Save" : "Connect"}
                     hideSubmitButton={true}
+                    integrationType={integrationType}
                   />
                   <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-3 sm:justify-end">
                     {hasSavedIntegration && (
