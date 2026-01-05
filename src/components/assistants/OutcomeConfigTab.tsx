@@ -33,6 +33,7 @@ interface OutcomeConfigTabProps {
   onEscalationRuleSettingsChange?: (settings: EscalationRuleSettings) => void;
   onSaveEscalationRules?: (settings: EscalationRuleSettings) => Promise<void>;
   onEnableTransferToNumber?: (settings: EscalationRuleSettings) => void;
+  outcomeCategory?: 'retail' | 'scheduling' | 'recruitment' | 'all'; // Filter outcomes by category
 }
 
 const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({ 
@@ -43,6 +44,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
   onEscalationRuleSettingsChange,
   onSaveEscalationRules,
   onEnableTransferToNumber,
+  outcomeCategory = 'all',
 }, ref) => {
   const { toast } = useToast();
   const {
@@ -363,7 +365,12 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     setter(prev => prev.filter((_, i) => i !== index));
   };
 
-  const selectedOutcomeType = PRIMARY_OUTCOMES.find(o => o.value === primaryOutcome)?.type || 'general';
+  // Filter outcomes based on category
+  const filteredOutcomes = outcomeCategory === 'all' 
+    ? PRIMARY_OUTCOMES 
+    : PRIMARY_OUTCOMES.filter(o => o.category === outcomeCategory || !o.category);
+
+  const selectedOutcomeType = filteredOutcomes.find(o => o.value === primaryOutcome)?.type || 'general';
 
   if (loading) {
     return (
@@ -414,7 +421,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
                 <SelectValue placeholder="Select primary outcome" />
               </SelectTrigger>
               <SelectContent className="max-h-[200px]">
-                {PRIMARY_OUTCOMES.map(outcome => (
+                {filteredOutcomes.map(outcome => (
                   <SelectItem key={outcome.value} value={outcome.value}>
                     <div className="flex items-center gap-2">
                       {outcome.label}

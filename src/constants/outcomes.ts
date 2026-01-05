@@ -1,4 +1,4 @@
-import { CheckCircle2, Calendar, Package, Truck, X, Info, MessageSquare, MapPin, RotateCcw, Wrench, TrendingUp } from "lucide-react";
+import { Calendar, Info, MessageSquare, MapPin, Wrench, TrendingUp, UserPlus, PhoneForwarded, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface PrimaryOutcome {
@@ -6,24 +6,23 @@ export interface PrimaryOutcome {
   label: string;
   type: 'support' | 'sales' | 'general';
   icon: LucideIcon;
+  category?: 'retail' | 'scheduling' | 'recruitment'; // Optional category for filtering
 }
 
 export const PRIMARY_OUTCOMES: PrimaryOutcome[] = [
-  // Support outcomes - Order Management (most emphasized on landing page)
-  { value: 'order_status_checked', label: 'Order Status Checked', type: 'support', icon: CheckCircle2 },
-  { value: 'shipping_info_provided', label: 'Shipping Information Provided', type: 'support', icon: Truck },
-  { value: 'tracking_provided', label: 'Tracking Provided', type: 'support', icon: Package },
-  { value: 'delivery_rescheduled', label: 'Delivery Rescheduled', type: 'support', icon: Calendar },
-  { value: 'return_exchange_processed', label: 'Return/Exchange Processed', type: 'support', icon: RotateCcw },
-  { value: 'refund_processed', label: 'Refund Processed', type: 'support', icon: RotateCcw },
-  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support', icon: Wrench },
-  { value: 'order_cancelled', label: 'Order Cancelled', type: 'support', icon: X },
-  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support', icon: CheckCircle2 },
   // Sales outcomes
   { value: 'lead_converted', label: 'Lead Converted', type: 'sales', icon: TrendingUp },
-  // General outcomes
-  { value: 'product_inquiry_answered', label: 'Product Inquiry Answered', type: 'general', icon: Info },
-  { value: 'inventory_checked', label: 'Inventory Checked', type: 'general', icon: Package },
+  // General outcomes (used across all categories)
   { value: 'location_hours_provided', label: 'Location & Hours Provided', type: 'general', icon: MapPin },
   { value: 'feedback_collected', label: 'Feedback Collected', type: 'general', icon: MessageSquare },
+  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support', icon: Wrench },
+  // Scheduling/Q&A/CRM outcomes (for Landing2)
+  { value: 'appointment_booked', label: 'Appointment Booked', type: 'sales', icon: Calendar, category: 'scheduling' },
+  { value: 'appointment_rescheduled', label: 'Appointment Rescheduled', type: 'sales', icon: Calendar, category: 'scheduling' },
+  { value: 'lead_qualified', label: 'Lead Qualified', type: 'sales', icon: UserPlus, category: 'scheduling' },
+  { value: 'lead_captured', label: 'Lead Captured', type: 'sales', icon: UserPlus, category: 'scheduling' },
+  { value: 'information_provided', label: 'Information Provided', type: 'general', icon: Info, category: 'scheduling' },
+  { value: 'question_answered', label: 'Question Answered', type: 'general', icon: MessageSquare, category: 'scheduling' },
+  { value: 'follow_up_completed', label: 'Follow-up Completed', type: 'sales', icon: RefreshCw, category: 'scheduling' },
+  { value: 'call_transferred', label: 'Call Transferred', type: 'support', icon: PhoneForwarded, category: 'scheduling' },
 ];
