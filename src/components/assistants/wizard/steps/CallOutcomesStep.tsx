@@ -99,6 +99,12 @@ export function CallOutcomesStep({
   }, [primaryOutcome]);
   
   const toggleOutcome = (outcomeValue: string) => {
+    // Check if outcome is disabled (coming soon)
+    const outcome = PRIMARY_OUTCOMES.find(o => o.value === outcomeValue);
+    if (outcome?.comingSoon) {
+      return; // Don't allow selection of coming soon outcomes
+    }
+    
     const newOutcomes = primaryOutcomes.includes(outcomeValue)
       ? primaryOutcomes.filter(v => v !== outcomeValue)
       : [...primaryOutcomes, outcomeValue];
@@ -161,26 +167,51 @@ export function CallOutcomesStep({
               {PRIMARY_OUTCOMES.map((outcome) => {
                 const Icon = outcome.icon;
                 const isSelected = primaryOutcomes.includes(outcome.value);
+                const isDisabled = outcome.comingSoon === true;
                 return (
                   <div
                     key={outcome.value}
-                    className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                    onClick={() => toggleOutcome(outcome.value)}
+                    className={`flex items-center space-x-3 p-2 rounded-md ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}
+                    onClick={(e) => {
+                      // Prevent double-toggling if clicking directly on checkbox
+                      if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+                        return;
+                      }
+                      if (!isDisabled) {
+                        toggleOutcome(outcome.value);
+                      }
+                    }}
                   >
-                    <Checkbox
-                      id={`wizard-outcome-${outcome.value}`}
-                      checked={isSelected}
-                      onCheckedChange={() => toggleOutcome(outcome.value)}
-                    />
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        id={`wizard-outcome-${outcome.value}`}
+                        checked={isSelected}
+                        disabled={isDisabled}
+                        onCheckedChange={(checked) => {
+                          if (!isDisabled) {
+                            toggleOutcome(outcome.value);
+                          }
+                        }}
+                      />
+                    </div>
                     <label
                       htmlFor={`wizard-outcome-${outcome.value}`}
-                      className="flex-1 flex items-center gap-2 cursor-pointer"
+                      className={`flex-1 flex items-center gap-2 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                      onClick={(e) => {
+                        // Prevent default label behavior and let row handler take over
+                        e.preventDefault();
+                      }}
                     >
                       <Icon className="h-4 w-4" />
                       <span className="text-sm font-medium">{outcome.label}</span>
                       <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
                         {outcome.type}
                       </Badge>
+                      {isDisabled && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Coming Soon
+                        </Badge>
+                      )}
                     </label>
                   </div>
                 );

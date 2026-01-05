@@ -271,7 +271,7 @@ Assistant: "Our standard refund policy allows returns within 30 days of purchase
                 </div>
               ) : (
                 (settings.humanTransferRules || []).map((rule) => (
-                  <div key={rule.id} className="group relative bg-white rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div key={rule.id} data-rule-id={rule.id} className="group relative bg-white rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -309,16 +309,23 @@ Assistant: "Our standard refund policy allows returns within 30 days of purchase
                         </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1.5 block">Condition</label>
+                        <label className="text-sm font-medium mb-1.5 block">
+                          Condition <span className="text-destructive">*</span>
+                        </label>
                         <div className="relative">
                           <Textarea
                             placeholder="Enter the condition for transferring to this phone number"
                             value={rule.condition}
                             onChange={(e) => updateHumanTransferRule(rule.id, { condition: e.target.value })}
-                            className="bg-secondary/20 border-transparent focus:border-primary/30 min-h-[100px] text-sm resize-none"
+                            className={`bg-secondary/20 border-transparent focus:border-primary/30 min-h-[100px] text-sm resize-none ${
+                              !rule.condition.trim() ? 'border-destructive focus:border-destructive' : ''
+                            }`}
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">Type {"{{"} to add variables</p>
+                        {!rule.condition.trim() && (
+                          <p className="text-xs text-destructive mt-1.5">Condition is required</p>
+                        )}
+                        {/* <p className="text-xs text-muted-foreground mt-1.5">Type {"{{"} to add variables</p> */}
                       </div>
                     </div>
                   </div>
@@ -335,7 +342,25 @@ Assistant: "Our standard refund policy allows returns within 30 days of purchase
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={onSave} disabled={saving}>
+          <Button 
+            onClick={() => {
+              // Validate that all rules have conditions
+              const invalidRules = (settings.humanTransferRules || []).filter(
+                rule => !rule.condition || !rule.condition.trim()
+              );
+              if (invalidRules.length > 0) {
+                // Scroll to first invalid rule
+                const firstInvalidId = invalidRules[0].id;
+                const element = document.querySelector(`[data-rule-id="${firstInvalidId}"]`);
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+              }
+              onSave();
+            }} 
+            disabled={saving || (settings.humanTransferRules || []).some(rule => !rule.condition || !rule.condition.trim())}
+          >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -158,11 +158,20 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
   }), [saveEscalationRulesToOutcomeDefinition]);
 
   useEffect(() => {
+    // Set loading flag to prevent auto-save during data load
+    isLoadingData.current = true;
+    
     if (outcomeDefinition) {
       // Combine primary_outcome and secondary_outcomes into single array
       const newPrimaryOutcome = outcomeDefinition.primary_outcome || '';
       const newSecondaryOutcomes = outcomeDefinition.secondary_outcomes || [];
       const allOutcomes = newPrimaryOutcome ? [newPrimaryOutcome, ...newSecondaryOutcomes] : [];
+      
+      // Filter out any outcomes that are marked as "coming soon" (disabled)
+      const filteredAllOutcomes = allOutcomes.filter(outcomeValue => {
+        const outcome = PRIMARY_OUTCOMES.find(o => o.value === outcomeValue);
+        return outcome && !outcome.comingSoon;
+      });
       
       // Handle keywords - ensure we have at least one empty string if array is empty
       // This is needed because empty arrays [] are truthy, so we need to check length
@@ -194,18 +203,23 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         };
       }
 
-      // Update state
-      setPrimaryOutcomes(allOutcomes);
+      // Update state (using filtered outcomes to remove any coming soon items)
+      setPrimaryOutcomes(filteredAllOutcomes);
       setSuccessKeywords(newSuccessKeywords);
       setFailureKeywords(newFailureKeywords);
       setEscalationRuleSettings(newEscalationRuleSettings);
 
       // Update the ref to match the loaded data so auto-save doesn't trigger
       // Note: escalation_rules are excluded from auto-save comparison
+      // Sort arrays to ensure consistent comparison
+      const sortedAllOutcomes = [...filteredAllOutcomes].sort();
+      const sortedSuccessKeywords = [...newSuccessKeywords].sort();
+      const sortedFailureKeywords = [...newFailureKeywords].sort();
+      
       previousDataRef.current = JSON.stringify({
-        primary_outcomes: allOutcomes,
-        success_keywords: newSuccessKeywords,
-        failure_keywords: newFailureKeywords,
+        primary_outcomes: sortedAllOutcomes,
+        success_keywords: sortedSuccessKeywords,
+        failure_keywords: sortedFailureKeywords,
       });
     } else {
       // Reset to defaults
@@ -220,38 +234,53 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         failure_keywords: [''],
       });
     }
+    
+    // Use setTimeout to clear loading flag after state updates have been processed
+    // This ensures auto-save doesn't trigger from the state updates above
+    setTimeout(() => {
+      isLoadingData.current = false;
+    }, 100);
   }, [outcomeDefinition, setEscalationRuleSettings]);
 
   // Track if this is the initial load to prevent auto-save on mount
   const isInitialLoad = useRef(true);
+  const isLoadingData = useRef(false); // Track when we're loading data from server
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousDataRef = useRef<string>('');
 
-  // Auto-save when values change (but not on initial load)
+  // Auto-save when values change (but not on initial load or when loading data from server)
   // Note: escalation_rules are excluded from auto-save - they are only saved when the save button is clicked
   useEffect(() => {
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false;
+    // Don't auto-save if we're still on initial load or loading data from server
+    if (isInitialLoad.current || isLoadingData.current) {
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+      }
       // Store initial data to compare against (excluding escalation_rules for auto-save comparison)
+      // Sort arrays to ensure consistent comparison
+      const sortedPrimaryOutcomes = [...primaryOutcomes].sort();
+      const sortedSuccessKeywords = [...successKeywords].sort();
+      const sortedFailureKeywords = [...failureKeywords].sort();
+      
       const initialData = JSON.stringify({
-        primary_outcomes: primaryOutcomes,
-        success_keywords: successKeywords,
-        failure_keywords: failureKeywords,
+        primary_outcomes: sortedPrimaryOutcomes,
+        success_keywords: sortedSuccessKeywords,
+        failure_keywords: sortedFailureKeywords,
       });
       previousDataRef.current = initialData;
       return;
     }
 
-    // Don't save if no primary goals are selected
-    if (primaryOutcomes.length === 0) {
-      return;
-    }
-
     // Create current data snapshot for comparison (excluding escalation_rules)
+    // Sort arrays to ensure consistent comparison
+    const sortedPrimaryOutcomes = [...primaryOutcomes].sort();
+    const sortedSuccessKeywords = [...successKeywords].sort();
+    const sortedFailureKeywords = [...failureKeywords].sort();
+    
     const currentData = JSON.stringify({
-      primary_outcomes: primaryOutcomes,
-      success_keywords: successKeywords,
-      failure_keywords: failureKeywords,
+      primary_outcomes: sortedPrimaryOutcomes,
+      success_keywords: sortedSuccessKeywords,
+      failure_keywords: sortedFailureKeywords,
     });
 
     // Only save if data actually changed
@@ -259,7 +288,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       return;
     }
 
-    // Update the ref with current data
+    // Update the ref with current data (use sorted versions for consistency)
     previousDataRef.current = currentData;
 
     // Clear any pending save
@@ -269,9 +298,39 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
 
     // Debounce the save by 500ms
     saveTimeoutRef.current = setTimeout(async () => {
+      // If no goals selected, we still need to save to clear them (backend validation will handle the error)
+      // But if there's no existing outcome definition, don't create one with empty goals
+      if (primaryOutcomes.length === 0) {
+        if (!outcomeDefinition) {
+          // Don't create a new outcome definition with no goals
+          previousDataRef.current = currentData;
+          return;
+        }
+        // If we have an existing definition, we can try to save empty (backend will validate)
+        // But actually, let's prevent this - require at least one goal
+        toast({
+          title: 'Validation Error',
+          description: 'At least one primary goal must be selected.',
+          variant: 'destructive',
+        });
+        // Revert the ref so it can be saved again when user adds a goal
+        previousDataRef.current = JSON.stringify({
+          primary_outcomes: [],
+          success_keywords: sortedSuccessKeywords,
+          failure_keywords: sortedFailureKeywords,
+        });
+        return;
+      }
+      
+      // Ensure first goal is valid
+      if (!primaryOutcomes[0]) {
+        console.warn('Cannot save: first primary goal is invalid');
+        return;
+      }
+      
       // First goal goes to primary_outcome, rest to secondary_outcomes
       const data = {
-        primary_outcome: primaryOutcomes[0] || '',
+        primary_outcome: primaryOutcomes[0],
         secondary_outcomes: primaryOutcomes.slice(1),
         success_conditions: {
           keywords: successKeywords.filter(k => k.trim()),
@@ -291,21 +350,23 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       };
 
       try {
+        // Set loading flag before save to prevent any state updates from triggering another save
+        isLoadingData.current = true;
+        
         if (outcomeDefinition) {
-          await updateOutcomeDefinition(data);
+          await updateOutcomeDefinition(data, { silent: true }); // Silent for auto-save
         } else {
-          await createOutcomeDefinition(data);
+          await createOutcomeDefinition(data, { silent: true }); // Silent for auto-save
         }
         
-        // Update the ref after successful save to prevent re-saving the same data
-        previousDataRef.current = JSON.stringify({
-          primary_outcomes: primaryOutcomes,
-          success_keywords: successKeywords,
-          failure_keywords: failureKeywords,
-        });
+        // The hook already updates outcomeDefinition state, which will trigger the load useEffect
+        // We set isLoadingData to prevent that from triggering another save
+        // No need to refetch - the hook already updated the state
         
-        // Refetch outcome definition to update local state
-        await fetchOutcomeDefinition();
+        // Clear loading flag after a short delay to allow state to update
+        setTimeout(() => {
+          isLoadingData.current = false;
+        }, 200);
       } catch (error: unknown) {
         console.error('Error auto-saving outcome definition:', error);
         const errorMessage = (error as { response?: { data?: { errors?: string | string[] } }; message?: string })?.response?.data?.errors || 
@@ -317,10 +378,15 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           variant: 'destructive',
         });
         // Revert the ref on error so it can retry
+        // Sort arrays to ensure consistent comparison
+        const sortedPrimaryOutcomes = [...primaryOutcomes].sort();
+        const sortedSuccessKeywords = [...successKeywords].sort();
+        const sortedFailureKeywords = [...failureKeywords].sort();
+        
         previousDataRef.current = JSON.stringify({
-          primary_outcomes: primaryOutcomes,
-          success_keywords: successKeywords,
-          failure_keywords: failureKeywords,
+          primary_outcomes: sortedPrimaryOutcomes,
+          success_keywords: sortedSuccessKeywords,
+          failure_keywords: sortedFailureKeywords,
         });
       }
     }, 500);
@@ -360,10 +426,27 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     setter(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Filter outcomes based on category
-  const filteredOutcomes = outcomeCategory === 'all' 
-    ? PRIMARY_OUTCOMES 
-    : PRIMARY_OUTCOMES.filter(o => o.category === outcomeCategory || !o.category);
+  // Filter outcomes based on category and sort alphabetically by label
+  const filteredOutcomes = useMemo(() => {
+    const filtered = outcomeCategory === 'all' 
+      ? PRIMARY_OUTCOMES 
+      : PRIMARY_OUTCOMES.filter(o => o.category === outcomeCategory || !o.category);
+    
+    // Sort alphabetically by label
+    return filtered.slice().sort((a, b) => a.label.localeCompare(b.label));
+  }, [outcomeCategory]);
+
+  // Order selected primary outcomes based on their order in filteredOutcomes
+  const orderedPrimaryOutcomes = useMemo(() => {
+    return primaryOutcomes.slice().sort((a, b) => {
+      const indexA = filteredOutcomes.findIndex(o => o.value === a);
+      const indexB = filteredOutcomes.findIndex(o => o.value === b);
+      // If not found in filteredOutcomes, put at the end
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+  }, [primaryOutcomes, filteredOutcomes]);
 
   // Determine agent type based on selected outcomes (check all selected outcomes)
   const selectedOutcomeTypes = primaryOutcomes
@@ -374,15 +457,31 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     : 'general';
 
   // Toggle outcome selection
-  const toggleOutcome = (outcomeValue: string) => {
+  const toggleOutcome = useCallback((outcomeValue: string) => {
+    // Check if outcome is disabled (coming soon)
+    const outcome = filteredOutcomes.find(o => o.value === outcomeValue);
+    if (outcome?.comingSoon) {
+      return; // Don't allow selection of coming soon outcomes
+    }
+    
     setPrimaryOutcomes(prev => {
       if (prev.includes(outcomeValue)) {
+        // Unselecting - check if this is the last item
+        if (prev.length === 1) {
+          toast({
+            title: 'Cannot unselect',
+            description: 'At least one primary goal must be selected.',
+            variant: 'destructive',
+          });
+          return prev; // Don't allow unselecting the last item
+        }
         return prev.filter(v => v !== outcomeValue);
       } else {
+        // Selecting - add to array
         return [...prev, outcomeValue];
       }
     });
-  };
+  }, [toast, filteredOutcomes]);
 
   if (loading) {
     return (
@@ -427,32 +526,46 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           <CollapsibleContent>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="primary-outcomes">Primary Outcomes</Label>
+                {/* <Label htmlFor="primary-outcomes">Primary Outcomes</Label> */}
                 <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
                   {filteredOutcomes.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No outcomes available for this category.</p>
                   ) : (
                     filteredOutcomes.map(outcome => {
                       const isSelected = primaryOutcomes.includes(outcome.value);
+                      const isDisabled = outcome.comingSoon === true;
                       return (
                         <div
                           key={outcome.value}
-                          className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                          onClick={() => toggleOutcome(outcome.value)}
+                          className={`flex items-center space-x-3 p-2 rounded-md ${isDisabled ? 'opacity-60' : 'hover:bg-muted/50'}`}
                         >
                           <Checkbox
                             id={`outcome-${outcome.value}`}
                             checked={isSelected}
-                            onCheckedChange={() => toggleOutcome(outcome.value)}
+                            disabled={isDisabled}
+                            onCheckedChange={() => !isDisabled && toggleOutcome(outcome.value)}
                           />
                           <label
                             htmlFor={`outcome-${outcome.value}`}
-                            className="flex-1 flex items-center gap-2 cursor-pointer"
+                            className={`flex-1 flex items-center gap-2 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            onClick={(e) => {
+                              if (isDisabled) {
+                                e.preventDefault();
+                                return;
+                              }
+                              e.preventDefault();
+                              toggleOutcome(outcome.value);
+                            }}
                           >
                             <span className="text-sm font-medium">{outcome.label}</span>
                             <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
                               {outcome.type}
                             </Badge>
+                            {isDisabled && (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                Coming Soon
+                              </Badge>
+                            )}
                           </label>
                         </div>
                       );
@@ -469,7 +582,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
                 <div className="space-y-2">
                   <Label>Selected Goals</Label>
                   <div className="flex flex-wrap gap-2">
-                    {primaryOutcomes.map(outcomeValue => {
+                    {orderedPrimaryOutcomes.map(outcomeValue => {
                       const outcome = filteredOutcomes.find(o => o.value === outcomeValue);
                       if (!outcome) return null;
                       return (
@@ -490,14 +603,6 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
                       );
                     })}
                   </div>
-                </div>
-              )}
-
-              {selectedOutcomeType && primaryOutcomes.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge variant={selectedOutcomeType === 'support' ? 'default' : selectedOutcomeType === 'sales' ? 'secondary' : 'outline'}>
-                    {selectedOutcomeType === 'support' ? 'Support Agent' : selectedOutcomeType === 'sales' ? 'Sales Agent' : 'General Agent'}
-                  </Badge>
                 </div>
               )}
             </CardContent>

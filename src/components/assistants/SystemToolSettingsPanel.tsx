@@ -384,7 +384,7 @@ The reason must include a specific reference to the wording in the user message 
                 </div>
               ) : (
                 (settings.transferRules || []).map((rule) => (
-                  <div key={rule.id} className="group relative bg-white rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div key={rule.id} data-rule-id={rule.id} className="group relative bg-white rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -425,13 +425,20 @@ The reason must include a specific reference to the wording in the user message 
                         )}
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1.5 block">Condition</label>
+                        <label className="text-sm font-medium mb-1.5 block">
+                          Condition <span className="text-destructive">*</span>
+                        </label>
                         <Textarea
                           placeholder="Enter the condition for transferring to this agent"
                           value={rule.condition}
                           onChange={(e) => updateTransferRule(rule.id, { condition: e.target.value })}
-                          className="bg-secondary/20 border-transparent focus:border-primary/30 min-h-[80px] text-sm resize-none"
+                          className={`bg-secondary/20 border-transparent focus:border-primary/30 min-h-[80px] text-sm resize-none ${
+                            !rule.condition.trim() ? 'border-destructive focus:border-destructive' : ''
+                          }`}
                         />
+                        {!rule.condition.trim() && (
+                          <p className="text-xs text-destructive mt-1.5">Condition is required</p>
+                        )}
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-1.5 block">Delay before transfer (milliseconds)</label>
@@ -528,7 +535,7 @@ The reason must include a specific reference to the wording in the user message 
                 </div>
               ) : (
                 (settings.humanTransferRules || []).map((rule) => (
-                  <div key={rule.id} className="group relative bg-white rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div key={rule.id} data-rule-id={rule.id} className="group relative bg-white rounded-xl border border-border p-4 shadow-sm hover:shadow-md transition-all duration-200">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -566,16 +573,23 @@ The reason must include a specific reference to the wording in the user message 
                         </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1.5 block">Condition</label>
+                        <label className="text-sm font-medium mb-1.5 block">
+                          Condition <span className="text-destructive">*</span>
+                        </label>
                         <div className="relative">
                           <Textarea
                             placeholder="Enter the condition for transferring to this phone number"
                             value={rule.condition}
                             onChange={(e) => updateHumanTransferRule(rule.id, { condition: e.target.value })}
-                            className="bg-secondary/20 border-transparent focus:border-primary/30 min-h-[100px] text-sm resize-none"
+                            className={`bg-secondary/20 border-transparent focus:border-primary/30 min-h-[100px] text-sm resize-none ${
+                              !rule.condition.trim() ? 'border-destructive focus:border-destructive' : ''
+                            }`}
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">Type {"{{"} to add variables</p>
+                        {!rule.condition.trim() && (
+                          <p className="text-xs text-destructive mt-1.5">Condition is required</p>
+                        )}
+                        {/* <p className="text-xs text-muted-foreground mt-1.5">Type {"{{"} to add variables</p> */}
                       </div>
                     </div>
                   </div>
@@ -593,7 +607,42 @@ The reason must include a specific reference to the wording in the user message 
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={onSave} disabled={saving}>
+          <Button 
+            onClick={() => {
+              // Validate that all rules have conditions
+              const transferRulesInvalid = (settings.transferRules || []).some(
+                rule => !rule.condition || !rule.condition.trim()
+              );
+              const humanTransferRulesInvalid = (settings.humanTransferRules || []).some(
+                rule => !rule.condition || !rule.condition.trim()
+              );
+              
+              if (transferRulesInvalid || humanTransferRulesInvalid) {
+                // Find first invalid rule and scroll to it
+                const invalidTransferRule = (settings.transferRules || []).find(
+                  rule => !rule.condition || !rule.condition.trim()
+                );
+                const invalidHumanRule = (settings.humanTransferRules || []).find(
+                  rule => !rule.condition || !rule.condition.trim()
+                );
+                
+                const firstInvalidId = invalidTransferRule?.id || invalidHumanRule?.id;
+                if (firstInvalidId) {
+                  const element = document.querySelector(`[data-rule-id="${firstInvalidId}"]`);
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }
+                return;
+              }
+              onSave();
+            }} 
+            disabled={
+              saving || 
+              (settings.transferRules || []).some(rule => !rule.condition || !rule.condition.trim()) ||
+              (settings.humanTransferRules || []).some(rule => !rule.condition || !rule.condition.trim())
+            }
+          >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

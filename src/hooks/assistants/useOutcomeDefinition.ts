@@ -87,7 +87,7 @@ export function useOutcomeDefinition(agentId: string | undefined) {
     }
   }, [agentId, toast]);
 
-  const createOutcomeDefinition = useCallback(async (data: Omit<OutcomeDefinition, 'id' | 'agent_id' | 'created_at' | 'updated_at' | 'outcome_type'>) => {
+  const createOutcomeDefinition = useCallback(async (data: Omit<OutcomeDefinition, 'id' | 'agent_id' | 'created_at' | 'updated_at' | 'outcome_type'>, options?: { silent?: boolean }) => {
     if (!agentId) {
       throw new Error('Agent ID is required');
     }
@@ -103,10 +103,13 @@ export function useOutcomeDefinition(agentId: string | undefined) {
       if (outcomeData) {
         console.log('Setting outcome definition:', outcomeData);
         setOutcomeDefinition(outcomeData);
-        toast({
-          title: 'Success',
-          description: 'Success criteria created successfully.',
-        });
+        // Only show toast if not silent (for auto-save)
+        if (!options?.silent) {
+          toast({
+            title: 'Success',
+            description: 'Success criteria created successfully.',
+          });
+        }
         return outcomeData;
       } else {
         console.error('Unexpected response structure. Full response:', JSON.stringify(response, null, 2));
@@ -130,7 +133,7 @@ export function useOutcomeDefinition(agentId: string | undefined) {
     }
   }, [agentId, toast]);
 
-  const updateOutcomeDefinition = useCallback(async (data: Partial<Omit<OutcomeDefinition, 'id' | 'agent_id' | 'created_at' | 'updated_at' | 'outcome_type'>>) => {
+  const updateOutcomeDefinition = useCallback(async (data: Partial<Omit<OutcomeDefinition, 'id' | 'agent_id' | 'created_at' | 'updated_at' | 'outcome_type'>>, options?: { silent?: boolean }) => {
     if (!agentId) {
       throw new Error('Agent ID is required');
     }
@@ -146,10 +149,13 @@ export function useOutcomeDefinition(agentId: string | undefined) {
       if (outcomeData) {
         console.log('Setting outcome definition:', outcomeData);
         setOutcomeDefinition(outcomeData);
-        toast({
-          title: 'Success',
-          description: 'Success criteria updated successfully.',
-        });
+        // Only show toast if not silent (for auto-save)
+        if (!options?.silent) {
+          toast({
+            title: 'Success',
+            description: 'Success criteria updated successfully.',
+          });
+        }
         return outcomeData;
       } else {
         console.error('Unexpected response structure. Full response:', JSON.stringify(response, null, 2));

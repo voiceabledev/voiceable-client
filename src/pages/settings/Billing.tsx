@@ -254,13 +254,15 @@ export default function Billing() {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-7xl mx-auto p-4 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="conversation_history">Conversation History</TabsTrigger>
-              <TabsTrigger value="payment_methods">Payment Methods</TabsTrigger>
-              <TabsTrigger value="credit_grants">Credit Grants</TabsTrigger>
-              <TabsTrigger value="history">Billing History</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scrollbar-hide -mx-4 md:mx-0 mb-6">
+              <TabsList className="inline-flex w-auto min-w-full md:grid md:w-full md:grid-cols-5 md:min-w-0 px-4 md:px-0">
+                <TabsTrigger value="overview" className="whitespace-nowrap min-w-max md:min-w-0">Overview</TabsTrigger>
+                <TabsTrigger value="conversation_history" className="whitespace-nowrap min-w-max md:min-w-0">Conversation History</TabsTrigger>
+                <TabsTrigger value="payment_methods" className="whitespace-nowrap min-w-max md:min-w-0">Payment Methods</TabsTrigger>
+                <TabsTrigger value="credit_grants" className="whitespace-nowrap min-w-max md:min-w-0">Credit Grants</TabsTrigger>
+                <TabsTrigger value="history" className="whitespace-nowrap min-w-max md:min-w-0">Billing History</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="overview" className="space-y-6 md:space-y-8">
           {/* Stats Overview */}
