@@ -9,13 +9,19 @@ import { Voice } from "@/lib/api";
 type ConfigurationTabProps = {
   agent: Agent | null;
   onUpdate: (updates: Partial<Agent>) => void;
-  onPlayPreview: (voiceId: string) => Promise<void>;
+  onPlayPreview: (voice: Voice) => Promise<void>;
   loadingVoices: boolean;
   selectedVoiceIds: string[];
   primaryVoiceId?: string;
   voices: Voice[];
-  setShowVoiceSelector: (show: boolean) => void;
+  showVoiceSelector: boolean;
+  onShowVoiceSelectorChange: (show: boolean) => void;
+  onSelectVoices: (voiceIds: string[]) => void;
   onSetPrimaryVoice?: (voiceId: string) => void;
+  playingVoiceId: string | null;
+  voiceSearchQuery: string;
+  onVoiceSearchChange: (query: string) => void;
+  onVoiceDialogClose?: () => void;
   selectedLanguages: string[];
   defaultLanguage?: string;
   showLanguageSelector: boolean;
@@ -33,8 +39,14 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
   selectedVoiceIds,
   primaryVoiceId,
   voices,
-  setShowVoiceSelector,
+  showVoiceSelector,
+  onShowVoiceSelectorChange,
+  onSelectVoices,
   onSetPrimaryVoice,
+  playingVoiceId,
+  voiceSearchQuery,
+  onVoiceSearchChange,
+  onVoiceDialogClose,
   selectedLanguages,
   defaultLanguage,
   showLanguageSelector,
@@ -84,8 +96,15 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
         selectedVoiceIds={selectedVoiceIds}
         primaryVoiceId={primaryVoiceId}
         voices={voices}
-        setShowVoiceSelector={setShowVoiceSelector}
+        showVoiceSelector={showVoiceSelector}
+        onShowVoiceSelectorChange={onShowVoiceSelectorChange}
+        onSelectVoices={onSelectVoices}
         onSetPrimaryVoice={onSetPrimaryVoice}
+        playingVoiceId={playingVoiceId}
+        onPlayPreview={onPlayPreview}
+        voiceSearchQuery={voiceSearchQuery}
+        onVoiceSearchChange={onVoiceSearchChange}
+        onDialogClose={onVoiceDialogClose}
       />
       <LanguageSection
         expanded={languageExpanded}

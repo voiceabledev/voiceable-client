@@ -92,8 +92,8 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
                 {/* Simple Mode: Quality Selection */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">AI Quality</label>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-start gap-3">
+                    <div className="flex-1 w-full">
                       <Select
                         value={`${selectedProvider}:${selectedModel}`}
                         onValueChange={(value) => {
@@ -102,26 +102,35 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
                           setSelectedModel(model);
                         }}
                       >
-                        <SelectTrigger className="bg-white border-border">
+                        <SelectTrigger className="bg-white border-border w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="openai:gpt-4o">
-                            <div className="flex items-center justify-between w-full">
-                              <span>●●●●○ Best (Recommended)</span>
-                              <span className="text-xs text-muted-foreground ml-2">~$0.15/min</span>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full gap-1 md:gap-2">
+                              <span className="text-xs md:text-sm">Best (Recommended)</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs md:text-sm">●●●●○</span>
+                                <span className="text-[10px] md:text-xs text-muted-foreground">~$0.15/min</span>
+                              </div>
                             </div>
                           </SelectItem>
                           <SelectItem value="openai:gpt-4o-mini">
-                            <div className="flex items-center justify-between w-full">
-                              <span>●●●○○ Standard</span>
-                              <span className="text-xs text-muted-foreground ml-2">~$0.05/min</span>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full gap-1 md:gap-2">
+                              <span className="text-xs md:text-sm">Standard</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs md:text-sm">●●●○○</span>
+                                <span className="text-[10px] md:text-xs text-muted-foreground">~$0.05/min</span>
+                              </div>
                             </div>
                           </SelectItem>
                           <SelectItem value="openai:gpt-3.5-turbo">
-                            <div className="flex items-center justify-between w-full">
-                              <span>●●○○○ Economy</span>
-                              <span className="text-xs text-muted-foreground ml-2">~$0.02/min</span>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full gap-1 md:gap-2">
+                              <span className="text-xs md:text-sm">Economy</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs md:text-sm">●●○○○</span>
+                                <span className="text-[10px] md:text-xs text-muted-foreground">~$0.02/min</span>
+                              </div>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -136,7 +145,7 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowAdvanced(true)}
-                      className="mt-0 whitespace-nowrap border border-border"
+                      className="w-full md:w-auto whitespace-nowrap border border-border"
                     >
                       Show Advanced Options
                     </Button>

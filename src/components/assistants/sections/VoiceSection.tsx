@@ -1,9 +1,10 @@
 import React from "react";
-import { AudioLines, ChevronDown, Loader2, X, Star } from "lucide-react";
+import { AudioLines, ChevronDown, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Voice } from "@/lib/api";
+import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 
 type VoiceSectionProps = {
   expanded: boolean;
@@ -12,8 +13,15 @@ type VoiceSectionProps = {
   selectedVoiceIds: string[];
   primaryVoiceId?: string;
   voices: Voice[];
-  setShowVoiceSelector: (show: boolean) => void;
+  showVoiceSelector: boolean;
+  onShowVoiceSelectorChange: (show: boolean) => void;
+  onSelectVoices: (voiceIds: string[]) => void;
   onSetPrimaryVoice?: (voiceId: string) => void;
+  playingVoiceId: string | null;
+  onPlayPreview: (voice: Voice) => void;
+  voiceSearchQuery: string;
+  onVoiceSearchChange: (query: string) => void;
+  onDialogClose?: () => void;
 };
 
 export const VoiceSection: React.FC<VoiceSectionProps> = ({
@@ -23,8 +31,15 @@ export const VoiceSection: React.FC<VoiceSectionProps> = ({
   selectedVoiceIds,
   primaryVoiceId,
   voices,
-  setShowVoiceSelector,
+  showVoiceSelector,
+  onShowVoiceSelectorChange,
+  onSelectVoices,
   onSetPrimaryVoice,
+  playingVoiceId,
+  onPlayPreview,
+  voiceSearchQuery,
+  onVoiceSearchChange,
+  onDialogClose,
 }) => {
   const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
   const getVoiceDisplayName = (voiceId: string) => {
@@ -78,7 +93,7 @@ export const VoiceSection: React.FC<VoiceSectionProps> = ({
                     type="button"
                     variant="outline"
                     className="w-full justify-between bg-white border-border"
-                    onClick={() => setShowVoiceSelector(true)}
+                    onClick={() => onShowVoiceSelectorChange(true)}
                   >
                     <span className="truncate">
                       {selectedVoiceIds.length === 0
@@ -89,6 +104,26 @@ export const VoiceSection: React.FC<VoiceSectionProps> = ({
                     </span>
                     <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
                   </Button>
+                  
+                  <VoiceSelectorDialog
+                    open={showVoiceSelector}
+                    onOpenChange={(open) => {
+                      onShowVoiceSelectorChange(open);
+                      if (!open) {
+                        onVoiceSearchChange("");
+                        if (onDialogClose) {
+                          onDialogClose();
+                        }
+                      }
+                    }}
+                    voices={voices}
+                    selectedVoiceIds={selectedVoiceIds}
+                    onSelectVoices={onSelectVoices}
+                    playingVoiceId={playingVoiceId}
+                    onPlayPreview={onPlayPreview}
+                    searchQuery={voiceSearchQuery}
+                    onSearchChange={onVoiceSearchChange}
+                  />
                   
                   {/* Display selected voices as badges */}
                   {selectedVoiceIds.length > 0 && (

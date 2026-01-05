@@ -34,7 +34,6 @@ import { AdvancedTab } from "@/components/assistants/AdvancedTab";
 import { ToolsTab } from "@/components/assistants/ToolsTab";
 import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSettingsPanel";
 import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
-import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
 import { LanguageSelectorDialog } from "@/components/assistants/LanguageSelectorDialog";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab, { type OutcomeConfigTabRef } from "@/components/assistants/OutcomeConfigTab";
@@ -1461,13 +1460,52 @@ export default function AssistantDetail() {
                 <ConfigurationTab
                   agent={agentData.agent}
                   onUpdate={agentData.handleUpdate}
-                  onPlayPreview={handlePlayPreview}
+                  onPlayPreview={(voice) => handlePlayPreview(voice.id)}
                   loadingVoices={loadingVoices}
                   selectedVoiceIds={selectedVoiceIds}
                   primaryVoiceId={primaryVoiceId}
                   voices={voices}
-                  setShowVoiceSelector={setShowVoiceSelector}
+                  showVoiceSelector={showVoiceSelector}
+                  onShowVoiceSelectorChange={setShowVoiceSelector}
+                  onSelectVoices={async (voiceIds) => {
+                    // Update conversation_config with voice_ids array
+                    const currentConfig = (agentData.agent as any)?.conversation_config || {};
+                    const currentPrimary = currentConfig.primary_voice_id as string | undefined;
+                    
+                    // If current primary is still in the new list, keep it; otherwise use first voice
+                    const newPrimary = currentPrimary && voiceIds.includes(currentPrimary) 
+                      ? currentPrimary 
+                      : (voiceIds.length > 0 ? voiceIds[0] : undefined);
+                    
+                    // Build updated conversation_config
+                    const updatedConfig = {
+                      ...currentConfig,
+                      voice_ids: voiceIds, // Always set as array, even if empty
+                      primary_voice_id: newPrimary,
+                      // Keep voice_id for backward compatibility (use primary voice)
+                      voice_id: newPrimary,
+                    };
+                    
+                    // Update local state immediately - update both conversation_config AND top-level properties
+                    agentData.handleUpdate({
+                      // Update top-level voice_ids and primary_voice_id so handleSave can read them
+                      voice_ids: voiceIds, // Always set as array
+                      primary_voice_id: newPrimary,
+                      voice_id: newPrimary, // Keep for backward compatibility
+                      conversation_config: updatedConfig,
+                    } as any);
+                  }}
                   onSetPrimaryVoice={handleSetPrimaryVoice}
+                  playingVoiceId={playingVoiceId}
+                  voiceSearchQuery={voiceSearchQuery}
+                  onVoiceSearchChange={setVoiceSearchQuery}
+                  onVoiceDialogClose={() => {
+                    if (currentAudioRef.current) {
+                      currentAudioRef.current.pause();
+                      currentAudioRef.current = null;
+                      setPlayingVoiceId(null);
+                    }
+                  }}
                   selectedLanguages={selectedLanguages}
                   defaultLanguage={defaultLanguage}
                   showLanguageSelector={showLanguageSelector}
@@ -1755,82 +1793,6 @@ export default function AssistantDetail() {
 
       </div>
 
-      <VoiceSelectorDialog
-        open={showVoiceSelector}
-        onOpenChange={(open) => {
-          setShowVoiceSelector(open);
-          if (!open) {
-            setVoiceSearchQuery("");
-            if (currentAudioRef.current) {
-              currentAudioRef.current.pause();
-              currentAudioRef.current = null;
-              setPlayingVoiceId(null);
-            }
-          }
-        }}
-        voices={voices}
-        selectedVoiceIds={selectedVoiceIds}
-        onSelectVoices={async (voiceIds) => {
-          // Update conversation_config with voice_ids array
-          const currentConfig = (agentData.agent as any)?.conversation_config || {};
-          const currentPrimary = currentConfig.primary_voice_id as string | undefined;
-          
-          // If current primary is still in the new list, keep it; otherwise use first voice
-          const newPrimary = currentPrimary && voiceIds.includes(currentPrimary) 
-            ? currentPrimary 
-            : (voiceIds.length > 0 ? voiceIds[0] : undefined);
-          
-          // Build updated conversation_config
-          const updatedConfig = {
-            ...currentConfig,
-            voice_ids: voiceIds, // Always set as array, even if empty
-            primary_voice_id: newPrimary,
-            // Keep voice_id for backward compatibility (use primary voice)
-            voice_id: newPrimary,
-          };
-          
-          // Update local state immediately - update both conversation_config AND top-level properties
-          agentData.handleUpdate({
-            // Update top-level voice_ids and primary_voice_id so handleSave can read them
-            voice_ids: voiceIds, // Always set as array
-            primary_voice_id: newPrimary,
-            voice_id: newPrimary, // Keep for backward compatibility
-            conversation_config: updatedConfig,
-          } as any);
-          
-          // Also update conversationConfigRef to ensure handleSave uses latest config
-          if (agentData.setConversationConfig) {
-            agentData.setConversationConfig(updatedConfig);
-          }
-          
-          // Save to backend immediately to ensure data persists
-          try {
-            await agentData.handleSave(
-              webhookHook.webhookTools,
-              clientHook.clientTools,
-              integrationHook.agentIntegrationTools,
-              sectionHook.cenarios,
-              sectionHook.etapas,
-              sectionHook.tomDeVoz,
-              systemTools,
-              systemToolSettings,
-              filesHook.attachedFiles,
-              systemToolSettingsMap
-            );
-            // Refresh agent data from backend to ensure we have the latest saved data
-            await agentData.fetchAgentDetails();
-          } catch (error) {
-            console.error("Failed to save voice selection:", error);
-            // Don't show error toast here as it might be annoying, but log it
-          }
-          
-          setShowVoiceSelector(false);
-        }}
-        playingVoiceId={playingVoiceId}
-        onPlayPreview={(voice) => handlePlayPreview(voice.id)}
-        searchQuery={voiceSearchQuery}
-        onSearchChange={setVoiceSearchQuery}
-      />
 
       <LanguageSelectorDialog
         open={showLanguageSelector}
