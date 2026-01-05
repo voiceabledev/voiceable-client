@@ -9,7 +9,7 @@ export default function Terms() {
         title="Terms of Service | Voiceable"
         description="Voiceable Terms of Service - Please read these Terms carefully, as they constitute a legally binding agreement between Voiceable Inc. and you."
         keywords="terms of service, terms and conditions, legal agreement, user agreement"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/terms"
+        url="https://www.voiceable.dev/terms"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

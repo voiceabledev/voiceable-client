@@ -171,7 +171,7 @@ export default function BubbleVoice() {
         title="Voice Widget for Your Website | Voiceable"
         description="Add conversational AI to your website with a simple voice widget. Engage visitors, answer questions, and book appointments — all through natural voice interactions."
         keywords="voice widget, website voice assistant, conversational AI, voice chat, website engagement, customer support automation, voice interface"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/bubble-voice"
+        url="https://www.voiceable.dev/bubble-voice"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

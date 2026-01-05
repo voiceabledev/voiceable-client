@@ -207,7 +207,7 @@ export default function Receptionist() {
         title="Never Miss Another Booking | AI Receptionist 24/7 | Voiceable"
         description="Never miss another booking. AI receptionist answers 24/7, books appointments instantly, and captures revenue you're currently losing. See exactly what you're missing."
         keywords="AI receptionist, virtual receptionist, automated receptionist, call answering service, front desk automation, medical receptionist, business phone system, revenue capture, lost bookings, after-hours bookings, ROI calculator, appointment booking AI, 24/7 receptionist"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/receptionist"
+        url="https://www.voiceable.dev/receptionist"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

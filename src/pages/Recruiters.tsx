@@ -223,7 +223,7 @@ export default function Recruiters() {
         title="Stop Losing Great Candidates | AI Recruiting Agents | Voiceable"
         description="Automate candidate screening, follow-ups, and interview scheduling with AI recruiting agents. No scripts, no prompts, no technical setup. Hire faster with Voiceable."
         keywords="AI recruiting, recruiting agents, candidate screening, automated phone screens, recruiting automation, ATS integration, talent acquisition, staffing automation, candidate loss prevention, screening automation, recruiter time savings"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/recruiters"
+        url="https://www.voiceable.dev/recruiters"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

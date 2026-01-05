@@ -236,7 +236,7 @@ export default function Confirmation() {
         title="Stop Paying for Empty Chairs | AI Appointment Confirmation | Voiceable"
         description="Stop paying for empty chairs. AI appointment confirmation reduces no-shows by 60-80%, reschedules early enough to refill slots. Average savings: $4,800/month. See your ROI instantly."
         keywords="appointment confirmation, reduce no-shows, no-show prevention, appointment reminders, automated confirmation, scheduling automation, appointment management, booking confirmation, revenue protection, prevent no-shows"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/confirmation"
+        url="https://www.voiceable.dev/confirmation"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

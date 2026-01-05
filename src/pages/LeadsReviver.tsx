@@ -232,7 +232,7 @@ export default function LeadsReviver() {
         title="Your CRM Is a Gold Mine | AI Lead Reviver | Voiceable"
         description="Your CRM is a gold mine. 15-25% of 'dead' leads are ready to buy now. AI lead reviver resurfaces opportunities from your existing database — no new ad spend required."
         keywords="lead revival, CRM mining, dead lead recovery, sunk cost recovery, lead re-engagement, hidden pipeline, lead reactivation, CRM reactivation, sales automation, lead follow-up, past leads"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/leads-reviver"
+        url="https://www.voiceable.dev/leads-reviver"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

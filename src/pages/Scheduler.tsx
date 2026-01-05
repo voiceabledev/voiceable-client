@@ -231,7 +231,7 @@ export default function Scheduler() {
         title="Contact Leads in Under 60 Seconds | AI Lead Qualifier | Voiceable"
         description="Contact leads in under 60 seconds. AI lead qualifier qualifies prospects instantly and books only quality meetings. 78% of deals go to whoever responds first. Stop losing to speed."
         keywords="AI lead qualifier, appointment setter, lead qualification, sales automation, automated booking, lead follow-up, sales agent, appointment scheduling, pipeline velocity, 60 second response, lead qualification AI, sales automation tool"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/scheduler"
+        url="https://www.voiceable.dev/scheduler"
       />
       <div className="min-h-screen bg-background">
         <Navigation />

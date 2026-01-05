@@ -9,7 +9,7 @@ export default function Privacy() {
         title="Privacy Policy | Voiceable"
         description="Voiceable Privacy Policy - Learn how we collect, safeguard and disclose information that results from your use of our Service."
         keywords="privacy policy, data protection, GDPR, CCPA, privacy rights"
-        url="https://voice-agent-ai-4288599ce3fe.herokuapp.com/privacy"
+        url="https://www.voiceable.dev/privacy"
       />
       <div className="min-h-screen bg-background">
         <Navigation />
