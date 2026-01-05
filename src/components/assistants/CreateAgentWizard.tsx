@@ -9,6 +9,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi, outcomeDefinitionsApi } from "@/lib/api";
 import { SectionEntry, SectionPayload, Agent } from "@/types/assistant";
+import type { OutcomeDefinition } from "@/types/outcomes";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 import {
   Dialog,
@@ -73,7 +74,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
 
   // Step 3: Voice & Language
-  const [primaryOutcome, setPrimaryOutcome] = useState<string>("");
+  const [primaryOutcomes, setPrimaryOutcomes] = useState<string[]>([]);
   const [escalationRuleSettings, setEscalationRuleSettings] = useState<EscalationRuleSettings>({
     name: 'transfer_to_number',
     description: '',
@@ -627,6 +628,47 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               });
             });
             integrationHook.setAgentIntegrationTools(integrationTools);
+          }
+
+          // Restore outcome definitions
+          try {
+            const outcomeResponse = await outcomeDefinitionsApi.get(agent.id);
+            // The API returns { data: OutcomeDefinition | null } or nested structure
+            // Extract the actual OutcomeDefinition from the response
+            const responseData = outcomeResponse.data as OutcomeDefinition | { outcome_definition?: OutcomeDefinition } | null;
+            const outcomeDef = (responseData && typeof responseData === 'object' && 'outcome_definition' in responseData)
+              ? responseData.outcome_definition
+              : (responseData as OutcomeDefinition | null);
+            if (outcomeDef && typeof outcomeDef === 'object' && 'primary_outcome' in outcomeDef) {
+              // Combine primary_outcome and secondary_outcomes into primaryOutcomes array
+              const allOutcomes = [
+                outcomeDef.primary_outcome,
+                ...(outcomeDef.secondary_outcomes || [])
+              ].filter((outcome): outcome is string => typeof outcome === 'string' && outcome.trim() !== '');
+              setPrimaryOutcomes(allOutcomes);
+              
+              // Restore success and failure keywords
+              if (outcomeDef.success_conditions?.keywords) {
+                setSuccessKeywords(outcomeDef.success_conditions.keywords);
+              }
+              if (outcomeDef.failure_conditions?.failure_keywords) {
+                setFailureKeywords(outcomeDef.failure_conditions.failure_keywords);
+              }
+              
+              // Restore escalation rules
+              if (outcomeDef.escalation_rules) {
+                setEscalationRuleSettings({
+                  name: outcomeDef.escalation_rules.name || 'transfer_to_number',
+                  description: outcomeDef.escalation_rules.description || '',
+                  disableInterruptions: outcomeDef.escalation_rules.disableInterruptions || false,
+                  humanTransferRules: outcomeDef.escalation_rules.humanTransferRules || [],
+                  escalation_keywords: outcomeDef.escalation_rules.escalation_keywords || [],
+                });
+              }
+            }
+          } catch (outcomeError) {
+            console.error('Failed to load outcome definitions:', outcomeError);
+            // Don't show error toast - outcome definitions might not exist yet
           }
         }
       } catch (error) {
@@ -1270,11 +1312,11 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         console.log(`[CreateAgentWizard] Saving Call Outcomes data for step ${currentStep}, agent ID: ${savedAgentId}`);
         
         try {
-          // Save outcome definition if primary outcome is set
-          if (primaryOutcome) {
+          // Save outcome definition if at least one primary outcome is set
+          if (primaryOutcomes && primaryOutcomes.length > 0) {
             const outcomeData = {
-              primary_outcome: primaryOutcome,
-              secondary_outcomes: [],
+              primary_outcome: primaryOutcomes[0],
+              secondary_outcomes: primaryOutcomes.slice(1),
               success_conditions: {
                 keywords: successKeywords.filter(k => k.trim()),
               },
@@ -1477,8 +1519,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 2: // Voice & Language step
           return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
         case 3: { // Call Outcomes step
-          // Primary outcome is required
-          if (!primaryOutcome || primaryOutcome.trim() === "") {
+          // At least one primary outcome is required
+          if (!primaryOutcomes || primaryOutcomes.length === 0) {
             return false;
           }
           // Validate escalation rules if any exist
@@ -1506,8 +1548,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 2: // Voice & Language step
           return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
         case 3: { // Call Outcomes step
-          // Primary outcome is required
-          if (!primaryOutcome || primaryOutcome.trim() === "") {
+          // At least one primary outcome is required
+          if (!primaryOutcomes || primaryOutcomes.length === 0) {
             return false;
           }
           // Validate escalation rules if any exist
@@ -1592,8 +1634,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 3: // Call Outcomes step
           return (
             <CallOutcomesStep
-              primaryOutcome={primaryOutcome}
-              onPrimaryOutcomeChange={setPrimaryOutcome}
+              primaryOutcomes={primaryOutcomes}
+              onPrimaryOutcomesChange={setPrimaryOutcomes}
               escalationRuleSettings={escalationRuleSettings}
               onEscalationRuleSettingsChange={setEscalationRuleSettings}
               successKeywords={successKeywords}
@@ -1751,8 +1793,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case 3: // Call Outcomes step
           return (
             <CallOutcomesStep
-              primaryOutcome={primaryOutcome}
-              onPrimaryOutcomeChange={setPrimaryOutcome}
+              primaryOutcomes={primaryOutcomes}
+              onPrimaryOutcomesChange={setPrimaryOutcomes}
               escalationRuleSettings={escalationRuleSettings}
               onEscalationRuleSettingsChange={setEscalationRuleSettings}
               successKeywords={successKeywords}
