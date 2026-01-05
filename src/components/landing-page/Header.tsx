@@ -39,7 +39,7 @@ const Header = () => {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
           >
-            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" />
+            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" fetchPriority="high" />
           </button>
 
           {/* Desktop Navigation */}
@@ -85,7 +85,7 @@ const Header = () => {
           {/* Mobile Menu Button */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon" className="text-foreground">
+              <Button variant="ghost" size="icon" className="text-foreground" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>

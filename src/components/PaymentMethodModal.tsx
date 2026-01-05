@@ -11,17 +11,24 @@ import { Label } from "@/components/ui/label";
 import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { paymentsApi, apiClient } from "@/lib/api";
-import { loadStripe } from "@stripe/stripe-js";
+// Lazy load Stripe to reduce initial bundle size
+let stripePromise: Promise<any> | null = null;
+
+const getStripePromise = () => {
+  if (!stripePromise) {
+    stripePromise = import("@stripe/stripe-js").then(({ loadStripe }) =>
+      loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "")
+    );
+  }
+  return stripePromise;
+};
+
 import {
   Elements,
   CardElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
-);
 
 interface PaymentMethodModalProps {
   open: boolean;
@@ -566,7 +573,7 @@ export function PaymentMethodModal({
           <DialogTitle className="text-xl">Add Payment Method</DialogTitle>
         </DialogHeader>
 
-        <Elements stripe={stripePromise}>
+        <Elements stripe={getStripePromise()}>
           <PaymentForm
             onSuccess={onSuccess}
             onClose={() => onOpenChange(false)}

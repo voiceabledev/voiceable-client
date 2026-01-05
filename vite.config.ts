@@ -15,4 +15,38 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Enable code splitting for better performance
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Split vendor chunks
+          if (id.includes('node_modules')) {
+            // Separate large third-party libraries
+            if (id.includes('@stripe')) {
+              return 'stripe';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'radix-ui';
+            }
+            if (id.includes('@tanstack')) {
+              return 'tanstack';
+            }
+            if (id.includes('framer-motion')) {
+              return 'framer-motion';
+            }
+            if (id.includes('recharts')) {
+              return 'recharts';
+            }
+            // All other node_modules
+            return 'vendor';
+          }
+        },
+      },
+    },
+    // Optimize chunk size
+    chunkSizeWarningLimit: 1000,
+    // Enable source maps in production for debugging (optional)
+    sourcemap: false,
+  },
 }));

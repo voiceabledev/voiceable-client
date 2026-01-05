@@ -661,33 +661,35 @@ const Landing3 = () => {
         image="/og-image.png"
       />
       <Header />
-      <HeroSection 
-        badgeText={heroContent.badgeText}
-        headline={heroContent.headline}
-        subtitle={heroContent.subtitle}
-        socialProofText={heroContent.socialProofText}
-      />
-      <OperatorInterfaceSection 
-        segments={operatorSegments}
-        tabExamples={operatorTabExamples}
-      />
-      <FeaturesSection features={featuresContent} />
-      <LiveCallsSection calls={liveCallsContent} />
-      <AssistantSection 
-        headline={assistantContent.headline}
-        description={assistantContent.description}
-        showCalendarOnly={true}
-      />
-      <ResponsesSection categories={responsesCategories} />
-      <SolutionsSection solutions={solutionsContent} />
-      <HumanLedSection />
-      <SeamlessSetupSection features={seamlessSetupFeatures} />
-      <CTASection 
-        title={ctaContent.title}
-        description={ctaContent.description}
-        features={ctaContent.features}
-        showCalendarOnly={true}
-      />
+      <main>
+        <HeroSection 
+          badgeText={heroContent.badgeText}
+          headline={heroContent.headline}
+          subtitle={heroContent.subtitle}
+          socialProofText={heroContent.socialProofText}
+        />
+        <OperatorInterfaceSection 
+          segments={operatorSegments}
+          tabExamples={operatorTabExamples}
+        />
+        <FeaturesSection features={featuresContent} />
+        <LiveCallsSection calls={liveCallsContent} />
+        <AssistantSection 
+          headline={assistantContent.headline}
+          description={assistantContent.description}
+          showCalendarOnly={true}
+        />
+        <ResponsesSection categories={responsesCategories} />
+        <SolutionsSection solutions={solutionsContent} />
+        <HumanLedSection />
+        <SeamlessSetupSection features={seamlessSetupFeatures} />
+        <CTASection 
+          title={ctaContent.title}
+          description={ctaContent.description}
+          features={ctaContent.features}
+          showCalendarOnly={true}
+        />
+      </main>
       <Footer />
     </div>
   );

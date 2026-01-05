@@ -32,17 +32,19 @@ const Landing = () => {
         image="/og-image.png"
       />
       <Header />
-      <HeroSection />
-      <OperatorInterfaceSection />
-      <FeaturesSection />
-      <LiveCallsSection />
-      <AssistantSection showCalendarOnly={true} />
-      <ResponsesSection />
-      <SolutionsSection />
-      <HumanLedSection />
-      <SeamlessSetupSection />
-      {/* <UserLoveSection /> */}
-      <CTASection showCalendarOnly={true} />
+      <main>
+        <HeroSection />
+        <OperatorInterfaceSection />
+        <FeaturesSection />
+        <LiveCallsSection />
+        <AssistantSection showCalendarOnly={true} />
+        <ResponsesSection />
+        <SolutionsSection />
+        <HumanLedSection />
+        <SeamlessSetupSection />
+        {/* <UserLoveSection /> */}
+        <CTASection showCalendarOnly={true} />
+      </main>
       <Footer />
       {/* <FeatureNav 
         activeFeature={activeFeature} 

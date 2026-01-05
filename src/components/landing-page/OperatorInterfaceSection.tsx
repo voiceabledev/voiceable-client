@@ -387,6 +387,7 @@ const OperatorInterfaceSection = ({
                       <button 
                         onClick={() => setIsPlaying(!isPlaying)}
                         className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors flex-shrink-0"
+                        aria-label={isPlaying ? "Pause audio" : "Play audio"}
                       >
                         {isPlaying ? (
                           <Pause className="w-4 h-4 text-foreground fill-foreground" />

@@ -211,6 +211,40 @@ To connect a custom domain:
 2. Deploy the `dist/` directory to your hosting provider
 3. Configure your server to serve `index.html` for all routes (SPA routing)
 
+### Performance Optimization & Cache Configuration
+
+The application includes several performance optimizations:
+
+- **Google Fonts**: Loaded with `display=swap` and deferred loading to prevent render-blocking
+- **Resource Hints**: Preconnect and DNS-prefetch for third-party domains
+- **LCP Optimization**: Logo image preloaded with `fetchPriority="high"`
+- **Deferred Third-Party Scripts**: Microsoft Clarity loads after initial render to reduce forced reflows
+
+**Important: Cache Headers Configuration**
+
+To achieve optimal performance, configure your server/CDN to set appropriate cache headers:
+
+```nginx
+# Example Nginx configuration
+location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+
+# HTML files should not be cached
+location ~* \.html$ {
+    expires -1;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+}
+```
+
+**Recommended Cache TTL:**
+- Static assets (JS, CSS, images): 1 year with `immutable` flag
+- HTML files: No cache or very short TTL (5 minutes)
+- Font files: 1 year
+
+This configuration can save up to **845 KiB** on repeat visits and significantly improve performance scores.
+
 ## 🤝 Contributing
 
 1. Create a feature branch

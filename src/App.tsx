@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { NotificationContainer } from "@/components/ui/notifications";
@@ -8,64 +9,68 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Overview from "@/pages/Overview";
-import AssistantsList from "@/pages/AssistantsList";
-import AssistantDetail from "@/pages/AssistantDetail";
-import VoiceLibrary from "@/pages/VoiceLibrary";
-import PhoneNumbers from "@/pages/PhoneNumbers";
-import ApiKeys from "@/pages/ApiKeys";
-import Outbound from "@/pages/Outbound";
-import NewCampaign from "@/pages/NewCampaign";
-import Files from "@/pages/Files";
-import SettingsList from "@/pages/SettingsList";
-import Settings from "@/pages/Settings";
-import Billing from "@/pages/settings/Billing";
-import Members from "@/pages/settings/Members";
-import Profile from "@/pages/settings/Profile";
-import OrgSettings from "@/pages/settings/OrgSettings";
-import Integrations from "@/pages/settings/Integrations";
-import IntegrationSettings from "@/pages/settings/IntegrationSettings";
-import FinancialSimulation from "@/pages/settings/FinancialSimulation";
-import Conversations from "@/pages/Conversations";
-import Dashboards from "@/pages/Dashboards";
-import Escalations from "@/pages/Escalations";
-import NotFound from "@/pages/NotFound";
-import Index from "@/pages/Index";
-import Pricing from "@/pages/Pricing";
-import CustomAgents from "@/pages/CustomAgents";
-import WorkflowEditor from "@/pages/WorkflowEditor";
-import WorkflowsList from "@/pages/WorkflowsList";
-import WorkflowEditorV1 from "@/pages/WorkflowEditorV1";
-import SignUp from "@/pages/auth/SignUp";
-import ResetPassword from "@/pages/auth/ResetPassword";
-import ResetPasswordConfirm from "@/pages/auth/ResetPasswordConfirm";
-import Account from "@/pages/auth/Account";
-import Login from "@/pages/auth/Login";
-import Recruiters from "@/pages/Recruiters";
-import Receptionist from "@/pages/Receptionist";
-import Scheduler from "@/pages/Scheduler";
-import LeadsReviver from "@/pages/LeadsReviver";
-import Confirmation from "@/pages/Confirmation";
-import BubbleVoice from "@/pages/BubbleVoice";
-import WidgetDesignStudio from "@/pages/WidgetDesignStudio";
-import Privacy from "@/pages/Privacy";
-import Terms from "@/pages/Terms";
-import AdminLayout from "@/pages/admin/AdminLayout";
-import AdminUsers from "@/pages/admin/Users";
-import AdminAgents from "@/pages/admin/Agents";
-import AdminPayments from "@/pages/admin/Payments";
-import AdminConversationSpending from "@/pages/admin/ConversationSpending";
-import AdminIntegrations from "@/pages/admin/Integrations";
-import AdminCampaigns from "@/pages/admin/Campaigns";
-import AdminPhoneNumbers from "@/pages/admin/PhoneNumbers";
-import AdminApiKeys from "@/pages/admin/ApiKeys";
-import AdminFinancialSimulation from "@/pages/admin/FinancialSimulation";
-import AdminTemplates from "@/pages/admin/Templates";
-import AdminBehaviours from "@/pages/admin/Behaviours";
 import { AdminRoute } from "@/components/AdminRoute";
-import Landing from "./pages/Landing";
+
+// Critical routes - keep as static imports for faster initial load
 import Landing2 from "./pages/Landing2";
+import Landing from "./pages/Landing";
 import Landing3 from "./pages/Landing3";
+import Login from "@/pages/auth/Login";
+import SignUp from "@/pages/auth/SignUp";
+import NotFound from "@/pages/NotFound";
+
+// Lazy load routes for code splitting
+const Overview = lazy(() => import("@/pages/Overview"));
+const AssistantsList = lazy(() => import("@/pages/AssistantsList"));
+const AssistantDetail = lazy(() => import("@/pages/AssistantDetail"));
+const VoiceLibrary = lazy(() => import("@/pages/VoiceLibrary"));
+const PhoneNumbers = lazy(() => import("@/pages/PhoneNumbers"));
+const ApiKeys = lazy(() => import("@/pages/ApiKeys"));
+const Outbound = lazy(() => import("@/pages/Outbound"));
+const NewCampaign = lazy(() => import("@/pages/NewCampaign"));
+const Files = lazy(() => import("@/pages/Files"));
+const SettingsList = lazy(() => import("@/pages/SettingsList"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const Billing = lazy(() => import("@/pages/settings/Billing"));
+const Members = lazy(() => import("@/pages/settings/Members"));
+const Profile = lazy(() => import("@/pages/settings/Profile"));
+const OrgSettings = lazy(() => import("@/pages/settings/OrgSettings"));
+const Integrations = lazy(() => import("@/pages/settings/Integrations"));
+const IntegrationSettings = lazy(() => import("@/pages/settings/IntegrationSettings"));
+const FinancialSimulation = lazy(() => import("@/pages/settings/FinancialSimulation"));
+const Conversations = lazy(() => import("@/pages/Conversations"));
+const Dashboards = lazy(() => import("@/pages/Dashboards"));
+const Escalations = lazy(() => import("@/pages/Escalations"));
+const Pricing = lazy(() => import("@/pages/Pricing"));
+const CustomAgents = lazy(() => import("@/pages/CustomAgents"));
+const WorkflowEditor = lazy(() => import("@/pages/WorkflowEditor"));
+const WorkflowsList = lazy(() => import("@/pages/WorkflowsList"));
+const WorkflowEditorV1 = lazy(() => import("@/pages/WorkflowEditorV1"));
+const ResetPassword = lazy(() => import("@/pages/auth/ResetPassword"));
+const ResetPasswordConfirm = lazy(() => import("@/pages/auth/ResetPasswordConfirm"));
+const Account = lazy(() => import("@/pages/auth/Account"));
+const WidgetDesignStudio = lazy(() => import("@/pages/WidgetDesignStudio"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const AdminLayout = lazy(() => import("@/pages/admin/AdminLayout"));
+const AdminUsers = lazy(() => import("@/pages/admin/Users"));
+const AdminAgents = lazy(() => import("@/pages/admin/Agents"));
+const AdminPayments = lazy(() => import("@/pages/admin/Payments"));
+const AdminConversationSpending = lazy(() => import("@/pages/admin/ConversationSpending"));
+const AdminIntegrations = lazy(() => import("@/pages/admin/Integrations"));
+const AdminCampaigns = lazy(() => import("@/pages/admin/Campaigns"));
+const AdminPhoneNumbers = lazy(() => import("@/pages/admin/PhoneNumbers"));
+const AdminApiKeys = lazy(() => import("@/pages/admin/ApiKeys"));
+const AdminFinancialSimulation = lazy(() => import("@/pages/admin/FinancialSimulation"));
+const AdminTemplates = lazy(() => import("@/pages/admin/Templates"));
+const AdminBehaviours = lazy(() => import("@/pages/admin/Behaviours"));
+
+// Loading component for lazy routes
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -81,71 +86,73 @@ const App = () => (
         </div>
         <AuthProvider>
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Landing2 />} />
-              <Route path="/retail-ecommerce" element={<Landing />} />
-              <Route path="/recruitment" element={<Landing3 />} />
-              <Route path="/sign-up" element={<SignUp />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/reset-password-confirm" element={<ResetPasswordConfirm />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/custom-agents" element={<CustomAgents />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/assistants/:id/widget/design" element={<ProtectedRoute><WidgetDesignStudio /></ProtectedRoute>} />
-              <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route path="/account" element={<Account />} />
-                <Route path="/overview" element={<Overview />} />
-                <Route path="/assistants" element={<AssistantsList />} />
-                <Route path="/assistants/create" element={<AssistantDetail />} />
-                <Route path="/assistants/:id" element={<AssistantDetail />} />
-                <Route path="/workflows" element={<WorkflowsList />} />
-                <Route path="/workflows/new" element={<WorkflowEditor />} />
-                <Route path="/workflows/:id" element={<WorkflowEditor />} />
-                <Route path="/workflows-v1/new" element={<WorkflowEditorV1 />} />
-                <Route path="/workflows-v1/:id" element={<WorkflowEditorV1 />} />
-                <Route path="/phone-numbers" element={<PhoneNumbers />} />
-                <Route path="/voice-library" element={<VoiceLibrary />} />
-                <Route path="/api-keys" element={<ApiKeys />} />
-                <Route path="/files" element={<Files />} />
-                <Route path="/outbound" element={<Outbound />} />
-                <Route path="/outbound/new" element={<NewCampaign />} />
-                <Route path="/conversations" element={<Conversations />} />
-                <Route path="/dashboards" element={<Dashboards />} />
-                <Route path="/escalations" element={<Escalations />} />
-                <Route path="/settings" element={<Settings />}>
-                  <Route index element={<SettingsList />} />
-                  <Route path="org" element={<OrgSettings />} />
-                  <Route path="billing" element={<Billing />} />
-                  <Route path="members" element={<Members />} />
-                  <Route path="integrations" element={<Integrations />} />
-                  <Route path="integrations/:type" element={<IntegrationSettings />} />
-                  <Route path="voice-library" element={<VoiceLibrary />} />
-                  <Route path="profile" element={<Profile />} />
-                  <Route path="financial-simulation" element={<FinancialSimulation />} />
-                  <Route path="api-keys" element={<ApiKeys />} />
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/" element={<Landing2 />} />
+                <Route path="/retail-ecommerce" element={<Landing />} />
+                <Route path="/recruitment" element={<Landing3 />} />
+                <Route path="/sign-up" element={<SignUp />} />
+                <Route path="/reset-password" element={<Suspense fallback={<LoadingFallback />}><ResetPassword /></Suspense>} />
+                <Route path="/reset-password-confirm" element={<Suspense fallback={<LoadingFallback />}><ResetPasswordConfirm /></Suspense>} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/custom-agents" element={<Suspense fallback={<LoadingFallback />}><CustomAgents /></Suspense>} />
+                <Route path="/pricing" element={<Suspense fallback={<LoadingFallback />}><Pricing /></Suspense>} />
+                <Route path="/privacy" element={<Suspense fallback={<LoadingFallback />}><Privacy /></Suspense>} />
+                <Route path="/terms" element={<Suspense fallback={<LoadingFallback />}><Terms /></Suspense>} />
+                <Route path="/assistants/:id/widget/design" element={<ProtectedRoute><Suspense fallback={<LoadingFallback />}><WidgetDesignStudio /></Suspense></ProtectedRoute>} />
+                <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                  <Route path="/account" element={<Suspense fallback={<LoadingFallback />}><Account /></Suspense>} />
+                  <Route path="/overview" element={<Suspense fallback={<LoadingFallback />}><Overview /></Suspense>} />
+                  <Route path="/assistants" element={<Suspense fallback={<LoadingFallback />}><AssistantsList /></Suspense>} />
+                  <Route path="/assistants/create" element={<Suspense fallback={<LoadingFallback />}><AssistantDetail /></Suspense>} />
+                  <Route path="/assistants/:id" element={<Suspense fallback={<LoadingFallback />}><AssistantDetail /></Suspense>} />
+                  <Route path="/workflows" element={<Suspense fallback={<LoadingFallback />}><WorkflowsList /></Suspense>} />
+                  <Route path="/workflows/new" element={<Suspense fallback={<LoadingFallback />}><WorkflowEditor /></Suspense>} />
+                  <Route path="/workflows/:id" element={<Suspense fallback={<LoadingFallback />}><WorkflowEditor /></Suspense>} />
+                  <Route path="/workflows-v1/new" element={<Suspense fallback={<LoadingFallback />}><WorkflowEditorV1 /></Suspense>} />
+                  <Route path="/workflows-v1/:id" element={<Suspense fallback={<LoadingFallback />}><WorkflowEditorV1 /></Suspense>} />
+                  <Route path="/phone-numbers" element={<Suspense fallback={<LoadingFallback />}><PhoneNumbers /></Suspense>} />
+                  <Route path="/voice-library" element={<Suspense fallback={<LoadingFallback />}><VoiceLibrary /></Suspense>} />
+                  <Route path="/api-keys" element={<Suspense fallback={<LoadingFallback />}><ApiKeys /></Suspense>} />
+                  <Route path="/files" element={<Suspense fallback={<LoadingFallback />}><Files /></Suspense>} />
+                  <Route path="/outbound" element={<Suspense fallback={<LoadingFallback />}><Outbound /></Suspense>} />
+                  <Route path="/outbound/new" element={<Suspense fallback={<LoadingFallback />}><NewCampaign /></Suspense>} />
+                  <Route path="/conversations" element={<Suspense fallback={<LoadingFallback />}><Conversations /></Suspense>} />
+                  <Route path="/dashboards" element={<Suspense fallback={<LoadingFallback />}><Dashboards /></Suspense>} />
+                  <Route path="/escalations" element={<Suspense fallback={<LoadingFallback />}><Escalations /></Suspense>} />
+                  <Route path="/settings" element={<Suspense fallback={<LoadingFallback />}><Settings /></Suspense>}>
+                    <Route index element={<Suspense fallback={<LoadingFallback />}><SettingsList /></Suspense>} />
+                    <Route path="org" element={<Suspense fallback={<LoadingFallback />}><OrgSettings /></Suspense>} />
+                    <Route path="billing" element={<Suspense fallback={<LoadingFallback />}><Billing /></Suspense>} />
+                    <Route path="members" element={<Suspense fallback={<LoadingFallback />}><Members /></Suspense>} />
+                    <Route path="integrations" element={<Suspense fallback={<LoadingFallback />}><Integrations /></Suspense>} />
+                    <Route path="integrations/:type" element={<Suspense fallback={<LoadingFallback />}><IntegrationSettings /></Suspense>} />
+                    <Route path="voice-library" element={<Suspense fallback={<LoadingFallback />}><VoiceLibrary /></Suspense>} />
+                    <Route path="profile" element={<Suspense fallback={<LoadingFallback />}><Profile /></Suspense>} />
+                    <Route path="financial-simulation" element={<Suspense fallback={<LoadingFallback />}><FinancialSimulation /></Suspense>} />
+                    <Route path="api-keys" element={<Suspense fallback={<LoadingFallback />}><ApiKeys /></Suspense>} />
+                  </Route>
                 </Route>
-              </Route>
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-                <Route index element={<Navigate to="/admin/users" replace />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="agents" element={<AdminAgents />} />
-                <Route path="templates" element={<AdminTemplates />} />
-                <Route path="behaviours" element={<AdminBehaviours />} />
-                <Route path="integrations" element={<AdminIntegrations />} />
-                <Route path="campaigns" element={<AdminCampaigns />} />
-                <Route path="phone-numbers" element={<AdminPhoneNumbers />} />
-                <Route path="api-keys" element={<AdminApiKeys />} />
-                <Route path="payments" element={<AdminPayments />} />
-                <Route path="conversation-spending" element={<AdminConversationSpending />} />
-                <Route path="financial-simulation" element={<AdminFinancialSimulation />} />
-              </Route>
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminRoute><Suspense fallback={<LoadingFallback />}><AdminLayout /></Suspense></AdminRoute>}>
+                  <Route index element={<Navigate to="/admin/users" replace />} />
+                  <Route path="users" element={<Suspense fallback={<LoadingFallback />}><AdminUsers /></Suspense>} />
+                  <Route path="agents" element={<Suspense fallback={<LoadingFallback />}><AdminAgents /></Suspense>} />
+                  <Route path="templates" element={<Suspense fallback={<LoadingFallback />}><AdminTemplates /></Suspense>} />
+                  <Route path="behaviours" element={<Suspense fallback={<LoadingFallback />}><AdminBehaviours /></Suspense>} />
+                  <Route path="integrations" element={<Suspense fallback={<LoadingFallback />}><AdminIntegrations /></Suspense>} />
+                  <Route path="campaigns" element={<Suspense fallback={<LoadingFallback />}><AdminCampaigns /></Suspense>} />
+                  <Route path="phone-numbers" element={<Suspense fallback={<LoadingFallback />}><AdminPhoneNumbers /></Suspense>} />
+                  <Route path="api-keys" element={<Suspense fallback={<LoadingFallback />}><AdminApiKeys /></Suspense>} />
+                  <Route path="payments" element={<Suspense fallback={<LoadingFallback />}><AdminPayments /></Suspense>} />
+                  <Route path="conversation-spending" element={<Suspense fallback={<LoadingFallback />}><AdminConversationSpending /></Suspense>} />
+                  <Route path="financial-simulation" element={<Suspense fallback={<LoadingFallback />}><AdminFinancialSimulation /></Suspense>} />
+                </Route>
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>

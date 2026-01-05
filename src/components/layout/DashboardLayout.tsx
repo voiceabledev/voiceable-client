@@ -25,6 +25,7 @@ export function DashboardLayout() {
               variant="ghost"
               size="icon"
               onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
