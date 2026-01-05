@@ -26,7 +26,7 @@ export function SEO({
 
   return (
     <Helmet>
-      {/* Primary Meta Tags */}
+      {/* Primary Meta Tags - These will automatically replace matching tags from index.html */}
       <title>{fullTitle}</title>
       <meta name="title" content={fullTitle} />
       <meta name="description" content={description} />
@@ -37,7 +37,7 @@ export function SEO({
       <meta name="revisit-after" content="7 days" />
       <link rel="canonical" href={fullUrl} />
 
-      {/* Open Graph / Facebook */}
+      {/* Open Graph / Facebook - These will replace matching og: tags from index.html */}
       <meta property="og:type" content={type} />
       <meta property="og:url" content={fullUrl} />
       <meta property="og:title" content={fullTitle} />
@@ -48,7 +48,7 @@ export function SEO({
       <meta property="og:site_name" content={siteName} />
       <meta property="og:locale" content="en_US" />
 
-      {/* Twitter */}
+      {/* Twitter - These will replace matching twitter: tags from index.html */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:url" content={fullUrl} />
       <meta name="twitter:title" content={fullTitle} />

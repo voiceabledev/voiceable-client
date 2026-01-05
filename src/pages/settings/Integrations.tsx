@@ -305,6 +305,24 @@ export default function Integrations() {
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          {/* Scheduling Providers Section */}
+          {renderProviderSection(
+            "Scheduling Providers",
+            <CalendarDays className="h-4 w-4" />,
+            isSchedulingProvidersOpen,
+            setIsSchedulingProvidersOpen,
+            filteredSchedulingProviders
+          )}
+
+          {/* CRM Providers Section */}
+          {renderProviderSection(
+            "CRM Providers",
+            <Users className="h-4 w-4" />,
+            isCrmProvidersOpen,
+            setIsCrmProvidersOpen,
+            filteredCrmProviders
+          )}
+
           {/* E-commerce Providers Section */}
           {renderProviderSection(
             "E-commerce Providers",
@@ -321,24 +339,6 @@ export default function Integrations() {
             isPosProvidersOpen,
             setIsPosProvidersOpen,
             filteredPosProviders
-          )}
-
-          {/* CRM Providers Section */}
-          {renderProviderSection(
-            "CRM Providers",
-            <Users className="h-4 w-4" />,
-            isCrmProvidersOpen,
-            setIsCrmProvidersOpen,
-            filteredCrmProviders
-          )}
-
-          {/* Scheduling Providers Section */}
-          {renderProviderSection(
-            "Scheduling Providers",
-            <CalendarDays className="h-4 w-4" />,
-            isSchedulingProvidersOpen,
-            setIsSchedulingProvidersOpen,
-            filteredSchedulingProviders
           )}
 
           {/* ATS Providers Section */}
