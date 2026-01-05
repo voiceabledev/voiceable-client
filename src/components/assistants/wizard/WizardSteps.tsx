@@ -13,37 +13,40 @@ interface StepsProps {
 
 export const Steps = ({ numSteps, currentStep, steps }: StepsProps) => {
   return (
-    <div className="flex items-center justify-center gap-2 max-w-2xl mx-auto">
-      {steps.map((step, index) => {
-        const stepNum = index + 1;
-        const isCompleted = index < currentStep;
-        const isCurrent = index === currentStep;
-        const isActive = isCompleted || isCurrent;
-        const Icon = step.icon;
+    <div className="w-full overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="flex items-center justify-center gap-1 md:gap-2 max-w-2xl mx-auto min-w-max md:min-w-0">
+        {steps.map((step, index) => {
+          const stepNum = index + 1;
+          const isCompleted = index < currentStep;
+          const isCurrent = index === currentStep;
+          const isActive = isCompleted || isCurrent;
+          const Icon = step.icon;
 
-        return (
-          <React.Fragment key={stepNum}>
-            <Step 
-              num={stepNum} 
-              isCompleted={isCompleted}
-              isCurrent={isCurrent}
-              icon={Icon} 
-              label={step.label} 
-            />
-            {stepNum !== numSteps && (
-              <div className={cn(
-                "flex-1 h-0.5 rounded-full relative transition-colors",
-                isCompleted ? "bg-primary" : "bg-muted"
-              )}>
-                {/* Thick line for completed connections */}
-                {isCompleted && (
-                  <div className="absolute left-0 right-0 -top-0.5 bottom-0 bg-primary h-1 rounded-full" />
-                )}
-              </div>
-            )}
-          </React.Fragment>
-        );
-      })}
+          return (
+            <React.Fragment key={stepNum}>
+              <Step 
+                num={stepNum} 
+                isCompleted={isCompleted}
+                isCurrent={isCurrent}
+                icon={Icon} 
+                label={step.label} 
+              />
+              {stepNum !== numSteps && (
+                <div className={cn(
+                  "h-0.5 rounded-full relative transition-colors",
+                  "w-4 md:flex-1",
+                  isCompleted ? "bg-primary" : "bg-muted"
+                )}>
+                  {/* Thick line for completed connections */}
+                  {isCompleted && (
+                    <div className="absolute left-0 right-0 -top-0.5 bottom-0 bg-primary h-1 rounded-full" />
+                  )}
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -66,7 +69,7 @@ const Step = ({
   const isActive = isCompleted || isCurrent;
   
   return (
-    <div className="relative flex flex-col items-center gap-2 min-w-[80px]">
+    <div className="relative flex flex-col items-center gap-1 md:gap-2 min-w-[60px] md:min-w-[80px]">
       <div className="relative">
         {/* Glow effect for current step */}
         {isCurrent && (
@@ -81,7 +84,7 @@ const Step = ({
         {/* Step circle */}
         <div
           className={cn(
-            "w-10 h-10 flex items-center justify-center shrink-0 rounded-full font-semibold text-sm relative z-10 transition-all duration-300",
+            "w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shrink-0 rounded-full font-semibold text-xs md:text-sm relative z-10 transition-all duration-300",
             isCompleted
               ? "bg-primary border-2 border-primary text-primary-foreground"
               : isCurrent
@@ -98,7 +101,7 @@ const Step = ({
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <Check className="h-5 w-5" />
+                <Check className="h-4 w-4 md:h-5 md:w-5" />
               </motion.div>
             ) : (
               <motion.div
@@ -109,7 +112,7 @@ const Step = ({
                 transition={{ duration: 0.2 }}
               >
                 <Icon className={cn(
-                  "h-5 w-5",
+                  "h-4 w-4 md:h-5 md:w-5",
                   isCurrent ? "text-primary-foreground" : "text-muted-foreground"
                 )} />
               </motion.div>
@@ -118,7 +121,7 @@ const Step = ({
         </div>
       </div>
       <span className={cn(
-        "text-xs font-medium text-center",
+        "text-[10px] md:text-xs font-medium text-center leading-tight px-1",
         isActive ? "text-foreground font-semibold" : "text-muted-foreground"
       )}>
         {label}
