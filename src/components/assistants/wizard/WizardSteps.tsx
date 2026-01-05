@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StepType } from "./types";
+import { PRIMARY_OUTCOMES } from "@/constants/outcomes";
 
 interface StepsProps {
   numSteps: number;

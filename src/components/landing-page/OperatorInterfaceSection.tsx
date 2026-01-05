@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingBag, Phone, Sparkles, Bell, ArrowRight, Heart, Home, Play, Pause, CheckCircle2, FileText, AlertCircle, Meh, Smile, Frown, RotateCcw, UtensilsCrossed } from "lucide-react";
+import { ShoppingBag, Phone, Sparkles, ArrowRight, Heart, Home, Play, Pause, CheckCircle2, FileText, AlertCircle, Meh, Smile, Frown, RotateCcw, LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const AudioWaveformIcon = () => (
@@ -8,14 +8,54 @@ const AudioWaveformIcon = () => (
   </svg>
 );
 
-// Segments structure
-const segments = [
+interface Tab {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface Segment {
+  id: string;
+  label: string;
+  tabs: Tab[];
+}
+
+interface TabExample {
+  user: {
+    name: string;
+    location: string;
+    time: string;
+    avatar: string;
+    message: string;
+  };
+  ai: {
+    audioDuration: string;
+    message: string;
+  };
+  metadata: {
+    status: string;
+    statusColor: string;
+    priority: string;
+    sentiment: string;
+    sentimentIcon: LucideIcon;
+    actions: string[];
+    documents: string[];
+  };
+}
+
+interface OperatorInterfaceSectionProps {
+  segments?: Segment[];
+  tabExamples?: Record<string, TabExample>;
+}
+
+// Default segments structure
+const defaultSegments: Segment[] = [
   {
     id: "customer-service",
     label: "Customer Service",
     tabs: [
       { id: "reception", label: "Reception", icon: Phone },
-      { id: "faq", label: "FAQ", icon: Home },
+      { id: "product_inquiry", label: "Product Inquiry", icon: Home },
     ]
   },
   {
@@ -26,19 +66,11 @@ const segments = [
     ]
   },
   {
-    id: "restaurants",
-    label: "Restaurants",
-    tabs: [
-      { id: "reservations", label: "Reservations", icon: UtensilsCrossed },
-    ]
-  },
-  {
     id: "operations",
     label: "Operations",
     tabs: [
       { id: "triage", label: "Triage", icon: Sparkles },
       { id: "dispatch", label: "Dispatch", icon: ArrowRight },
-      { id: "after-hours", label: "After Hours", icon: Bell },
     ]
   },
   {
@@ -50,10 +82,8 @@ const segments = [
   },
 ];
 
-// Flatten tabs for easy access
-const allTabs = segments.flatMap(segment => segment.tabs);
-
-const tabExamples = {
+// Default tab examples
+const defaultTabExamples: Record<string, TabExample> = {
   orders: {
     user: {
       name: "Sarah",
@@ -79,34 +109,6 @@ const tabExamples = {
       documents: [
         "Docs: Order Details",
         "Shipping_Info_12345.pdf"
-      ]
-    }
-  },
-  reservations: {
-    user: {
-      name: "Michael",
-      location: "Restaurant",
-      time: "6:30 PM EST",
-      avatar: "M",
-      message: "Hi, I'd like to make a reservation for this Saturday evening. Party of 4, around 7 PM if possible."
-    },
-    ai: {
-      audioDuration: "00:38",
-      message: "Hi Michael! I'd be happy to help you make a reservation. I have availability this Saturday at 6:30 PM or 8:00 PM for a party of 4. Which time works better for you? I can also accommodate any dietary restrictions or special requests you might have."
-    },
-    metadata: {
-      status: "Pending",
-      statusColor: "bg-yellow-500",
-      priority: "Low",
-      sentiment: "Interested",
-      sentimentIcon: Smile,
-      actions: [
-        "Action: Reservation Requested",
-        "Availability Checked"
-      ],
-      documents: [
-        "Docs: Reservation System",
-        "Table_Availability.pdf"
       ]
     }
   },
@@ -148,7 +150,7 @@ const tabExamples = {
     },
     ai: {
       audioDuration: "01:05",
-      message: "Hi Sofia, I'm sorry about the mix-up with your order! Let me help resolve this right away. I can see your order details and I'll need to verify what you received versus what you ordered. Can you check the packing slip or invoice that came with the package? I can process a replacement order immediately, or if you prefer, I can issue a full refund. Which would you prefer?"
+      message: "Hi Sofia, I'm sorry about the mix-up with your order! Let me help resolve this right away. I can see your order details and I'll need to verify what you received versus what you ordered. Can you check the packing slip or invoice that came with the package? I can process a replacement order immediately with express shipping at no additional cost. Would you like me to start that process now?"
     },
     metadata: {
       status: "New Issue",
@@ -163,34 +165,6 @@ const tabExamples = {
       documents: [
         "Docs: Order Management",
         "Return_Process_Guide.pdf"
-      ]
-    }
-  },
-  "after-hours": {
-    user: {
-      name: "James",
-      location: "Restaurant",
-      time: "11:23 PM EST",
-      avatar: "J",
-      message: "I made a reservation for tonight at 8 PM but I'm running late. Can you still hold my table? I should be there in about 20 minutes."
-    },
-    ai: {
-      audioDuration: "01:18",
-      message: "Hi James, absolutely! I can see your reservation for tonight at 8 PM. I'll let the restaurant know you're running about 20 minutes late and we'll hold your table. We typically hold reservations for 15 minutes past the reservation time, but since you called ahead, we can extend that for you. I'll send you a confirmation text. See you soon!"
-    },
-    metadata: {
-      status: "Rescheduled",
-      statusColor: "bg-yellow-500",
-      priority: "Medium",
-      sentiment: "Neutral",
-      sentimentIcon: Meh,
-      actions: [
-        "Action: Reservation Updated",
-        "Restaurant Notified"
-      ],
-      documents: [
-        "Docs: Reservation System",
-        "Late_Arrival_Protocol.pdf"
       ]
     }
   },
@@ -225,14 +199,14 @@ const tabExamples = {
   feedback: {
     user: {
       name: "Lisa",
-      location: "Restaurant",
+      location: "Online Store",
       time: "4:45 PM EST",
       avatar: "L",
-      message: "I wanted to share that I had an amazing dinner at your restaurant last night. The service was excellent, the food was delicious, and the ambiance was perfect. I'll definitely be back!"
+      message: "I just received my order and I'm absolutely thrilled! The quality is even better than I expected, and the shipping was super fast. The packaging was also really nice. I'll definitely be ordering from you again!"
     },
     ai: {
       audioDuration: "00:38",
-      message: "Thank you so much for that wonderful feedback, Lisa! I'm thrilled to hear about your positive experience. I'll make sure to pass this along to the kitchen staff and management team. Positive feedback like this really helps us recognize great work and motivates our team. We'd love to have you back soon! Is there anything else I can help you with today?"
+      message: "Thank you so much for that wonderful feedback, Lisa! I'm thrilled to hear about your positive experience with your order. I'll make sure to pass this along to our fulfillment team and management. Positive feedback like this really helps us recognize great work and motivates our team. We'd love to have you shop with us again soon! Is there anything else I can help you with today?"
     },
     metadata: {
       status: "Resolved",
@@ -246,44 +220,47 @@ const tabExamples = {
       ],
       documents: [
         "Docs: Customer Feedback",
-        "Restaurant_Reviews_2024.pdf"
+        "Customer_Reviews_2024.pdf"
       ]
     }
   },
-  faq: {
+  product_inquiry: {
     user: {
       name: "Robert",
       location: "Online Store",
       time: "1:20 PM EST",
       avatar: "R",
-      message: "What's your return policy and how long do I have to return an item?"
+      message: "I'm interested in the winter jacket you have. Can you tell me what sizes are available and if it's waterproof?"
     },
     ai: {
-      audioDuration: "00:45",
-      message: "Hi Robert! Our return policy allows returns within 30 days of purchase for items in original condition with tags attached. You can initiate a return through your account online, by calling this number, or by visiting any of our store locations. For online returns, we'll email you a prepaid return label. Would you like me to help you start a return now?"
+      audioDuration: "00:52",
+      message: "Hi Robert! Great choice on the winter jacket. It's available in sizes small through XXL, and yes, it's fully waterproof with a breathable membrane. The jacket also features insulated lining for temperatures down to -10°F, adjustable cuffs, and a detachable hood. We have it in black, navy, and charcoal. Which size and color are you interested in? I can check current availability right now."
     },
     metadata: {
       status: "Answered",
       statusColor: "bg-blue-500",
       priority: "Low",
-      sentiment: "Neutral",
-      sentimentIcon: Meh,
+      sentiment: "Interested",
+      sentimentIcon: Smile,
       actions: [
-        "Action: FAQ Provided",
-        "Return Policy Shared"
+        "Action: Product Info Provided",
+        "Inventory Checked"
       ],
       documents: [
-        "Docs: Customer Policies",
-        "Return_Policy_Guide.pdf"
+        "Docs: Product Catalog",
+        "Winter_Collection_2024.pdf"
       ]
     }
   }
 };
 
-const OperatorInterfaceSection = () => {
-  const [activeTab, setActiveTab] = useState("triage");
+const OperatorInterfaceSection = ({ 
+  segments = defaultSegments, 
+  tabExamples = defaultTabExamples 
+}: OperatorInterfaceSectionProps) => {
+  const [activeTab, setActiveTab] = useState(segments[0]?.tabs[0]?.id || "triage");
   const [isPlaying, setIsPlaying] = useState(false);
-  const currentExample = tabExamples[activeTab as keyof typeof tabExamples] || tabExamples.triage;
+  const currentExample = tabExamples[activeTab] || tabExamples[Object.keys(tabExamples)[0]];
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -297,45 +274,57 @@ const OperatorInterfaceSection = () => {
 
   // Helper function to determine if status should be highlighted
   const isStatusHighlighted = (tabId: string, status: string) => {
+    // Check if current example's status matches
+    const example = tabExamples[tabId];
+    if (example && example.metadata.status === status) {
+      return true;
+    }
+    // Fallback to default map for backward compatibility
     const highlightMap: Record<string, string[]> = {
       triage: ["New Issue"],
       orders: ["Processing"],
-      reservations: ["Pending"],
       reception: ["In Progress"],
-      "after-hours": ["Rescheduled"],
       dispatch: ["In Transit"],
       feedback: ["Resolved"],
-      faq: ["Answered"],
+      product_inquiry: ["Answered"],
     };
     return highlightMap[tabId]?.includes(status) || false;
   };
 
   // Helper function to determine if action should be highlighted
   const isActionHighlighted = (tabId: string, action: string) => {
+    // Check if current example's actions include this action
+    const example = tabExamples[tabId];
+    if (example && example.metadata.actions.includes(action)) {
+      return true;
+    }
+    // Fallback to default map for backward compatibility
     const highlightMap: Record<string, string[]> = {
       triage: ["Action: Issue Ticket Created", "Triage Attempted"],
       orders: ["Action: Order Status Checked", "Tracking Number Sent"],
-      reservations: ["Action: Reservation Requested", "Availability Checked"],
       reception: ["Action: Order Status Checked", "Address Update Initiated"],
-      "after-hours": ["Action: Reservation Updated", "Restaurant Notified"],
       dispatch: ["Action: Tracking Provided", "Delivery Confirmed"],
       feedback: ["Action: Feedback Logged", "Team Notified"],
-      faq: ["Action: FAQ Provided", "Return Policy Shared"],
+      product_inquiry: ["Action: Product Info Provided", "Inventory Checked"],
     };
     return highlightMap[tabId]?.includes(action) || false;
   };
 
   // Helper function to determine if document should be highlighted
   const isDocumentHighlighted = (tabId: string, doc: string) => {
+    // Check if current example's documents include this document
+    const example = tabExamples[tabId];
+    if (example && example.metadata.documents.some(d => d.includes(doc) || doc.includes(d.replace("Docs: ", "").replace(".pdf", "")))) {
+      return true;
+    }
+    // Fallback to default map for backward compatibility
     const highlightMap: Record<string, string[]> = {
       triage: ["Return_Process_Guide.pdf"],
       orders: ["Shipping_Info_12345.pdf"],
-      reservations: ["Table_Availability.pdf"],
       reception: ["Order_History_2024.pdf"],
-      "after-hours": ["Late_Arrival_Protocol.pdf"],
       dispatch: ["Order_67890_Tracking.pdf"],
-      feedback: ["Restaurant_Reviews_2024.pdf"],
-      faq: ["Return_Policy_Guide.pdf"],
+      feedback: ["Customer_Reviews_2024.pdf"],
+      product_inquiry: ["Winter_Collection_2024.pdf"],
     };
     return highlightMap[tabId]?.includes(doc) || false;
   };

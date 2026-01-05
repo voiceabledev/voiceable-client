@@ -611,7 +611,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
       </div>
 
       {/* ROI Section */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>ROI Analysis</CardTitle>
           <CardDescription>Return on investment for this period</CardDescription>
@@ -636,7 +636,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ agent, agentId, onNa
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Escalation Analysis */}
       <Card>

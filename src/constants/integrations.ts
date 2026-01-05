@@ -171,15 +171,6 @@ export const transcriberProviders: IntegrationProvider[] = [
 
 export const voiceProviders: IntegrationProvider[] = [
   {
-    id: "deepgram",
-    name: "Deepgram",
-    description: "Real-time speech recognition with low latency for production use.",
-    icon: "D",
-    iconBg: "bg-zinc-800",
-    status: "upcoming",
-    order: 1
-  },
-  {
     id: "cartesia",
     name: "Cartesia",
     description: "Lightning-fast text-to-speech with ultra-low latency.",
@@ -446,10 +437,10 @@ export const ecommerceProviders: IntegrationProvider[] = [
   {
     id: "shopify",
     name: "Shopify",
-    description: "Connect your Shopify store and sync customers, orders, or products. Grow your business faster.",
+    description: "Easiest for Ecommerce. Connect your Shopify store and sync customers, orders, or products. Grow your business faster.",
     icon: "🛍️",
     iconBg: "bg-green-600",
-    status: "upcoming",
+    status: "available",
     order: 1
   },
   {
@@ -522,15 +513,6 @@ export const paymentProcessingProviders: IntegrationProvider[] = [
     order: 2
   },
   {
-    id: "square",
-    name: "Square",
-    description: "Payment processing and point-of-sale solutions for businesses of all sizes.",
-    icon: "S",
-    iconBg: "bg-emerald-600",
-    status: "upcoming",
-    order: 3
-  },
-  {
     id: "adyen",
     name: "Adyen",
     description: "Global payment platform supporting 250+ payment methods worldwide.",
@@ -559,6 +541,60 @@ export const paymentProcessingProviders: IntegrationProvider[] = [
   }
 ];
 
+export const restaurantReservationProviders: IntegrationProvider[] = [
+  {
+    id: "opentable",
+    name: "OpenTable",
+    description: "Restaurant reservations platform. Manage bookings, check availability, and handle customer reservations seamlessly.",
+    icon: "🍽️",
+    iconBg: "bg-orange-600",
+    status: "upcoming",
+    order: 1
+  }
+];
+
+export const posProviders: IntegrationProvider[] = [
+  {
+    id: "square",
+    name: "Square",
+    description: "Easiest for POS/Brick-and-Mortar. Point-of-sale solutions for restaurants and retail businesses.",
+    icon: "S",
+    iconBg: "bg-emerald-600",
+    status: "upcoming",
+    order: 1
+  },
+  {
+    id: "clover",
+    name: "Clover",
+    description: "POS for Restaurants & Retail. Complete point-of-sale system with payment processing, inventory, and customer management.",
+    icon: "C",
+    iconBg: "bg-blue-600",
+    status: "upcoming",
+    order: 2
+  }
+];
+
+export const databaseProviders: IntegrationProvider[] = [
+  {
+    id: "airtable",
+    name: "Airtable",
+    description: "Connect to Airtable bases to read and write records. Sync data between your voice assistant and Airtable databases.",
+    icon: "A",
+    iconBg: "bg-orange-500",
+    status: "upcoming",
+    order: 1
+  },
+  {
+    id: "google-sheets",
+    name: "Google Sheets",
+    description: "Read and write data to Google Sheets. Sync customer information, orders, and other data with your spreadsheets.",
+    icon: "📊",
+    iconBg: "bg-green-600",
+    status: "upcoming",
+    order: 2
+  }
+];
+
 /**
  * Get all integration providers from all categories
  */
@@ -576,6 +612,9 @@ export const getAllIntegrationProviders = (): IntegrationProvider[] => {
     ...ecommerceProviders,
     ...atsProviders,
     ...paymentProcessingProviders,
+    ...restaurantReservationProviders,
+    ...posProviders,
+    ...databaseProviders,
   ];
 };
 

@@ -64,6 +64,8 @@ import AdminTemplates from "@/pages/admin/Templates";
 import AdminBehaviours from "@/pages/admin/Behaviours";
 import { AdminRoute } from "@/components/AdminRoute";
 import Landing from "./pages/Landing";
+import Landing2 from "./pages/Landing2";
+import Landing3 from "./pages/Landing3";
 
 const queryClient = new QueryClient();
 
@@ -80,8 +82,9 @@ const App = () => (
         <AuthProvider>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/landing" element={<Landing />} />
+              <Route path="/" element={<Landing2 />} />
+              <Route path="/retail-ecommerce" element={<Landing />} />
+              <Route path="/recruitment" element={<Landing3 />} />
               <Route path="/recruiters" element={<Recruiters />} />
               <Route path="/receptionist" element={<Receptionist />} />
               <Route path="/scheduler" element={<Scheduler />} />

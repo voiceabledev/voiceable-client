@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2, CreditCard } from "lucide-react";
+import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2, CreditCard, UtensilsCrossed, Store, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,6 +20,9 @@ import {
   ecommerceProviders,
   atsProviders,
   paymentProcessingProviders,
+  restaurantReservationProviders,
+  posProviders,
+  databaseProviders,
 } from "@/constants/integrations";
 
 export default function Integrations() {
@@ -38,6 +41,9 @@ export default function Integrations() {
   const [isEcommerceProvidersOpen, setIsEcommerceProvidersOpen] = useState(false);
   const [isAtsProvidersOpen, setIsAtsProvidersOpen] = useState(false);
   const [isPaymentProcessingProvidersOpen, setIsPaymentProcessingProvidersOpen] = useState(false);
+  const [isRestaurantReservationProvidersOpen, setIsRestaurantReservationProvidersOpen] = useState(false);
+  const [isPosProvidersOpen, setIsPosProvidersOpen] = useState(false);
+  const [isDatabaseProvidersOpen, setIsDatabaseProvidersOpen] = useState(false);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
 
@@ -92,6 +98,9 @@ export default function Integrations() {
   const filteredEcommerceProviders = filterProviders(sortProviders(ecommerceProviders));
   const filteredAtsProviders = filterProviders(sortProviders(atsProviders));
   const filteredPaymentProcessingProviders = filterProviders(sortProviders(paymentProcessingProviders));
+  const filteredRestaurantReservationProviders = filterProviders(sortProviders(restaurantReservationProviders));
+  const filteredPosProviders = filterProviders(sortProviders(posProviders));
+  const filteredDatabaseProviders = filterProviders(sortProviders(databaseProviders));
 
   const handleVote = (providerId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation when clicking vote button
@@ -296,6 +305,24 @@ export default function Integrations() {
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          {/* E-commerce Providers Section */}
+          {renderProviderSection(
+            "E-commerce Providers",
+            <ShoppingCart className="h-4 w-4" />,
+            isEcommerceProvidersOpen,
+            setIsEcommerceProvidersOpen,
+            filteredEcommerceProviders
+          )}
+
+          {/* POS Providers Section */}
+          {renderProviderSection(
+            "POS Systems",
+            <Store className="h-4 w-4" />,
+            isPosProvidersOpen,
+            setIsPosProvidersOpen,
+            filteredPosProviders
+          )}
+
           {/* CRM Providers Section */}
           {renderProviderSection(
             "CRM Providers",
@@ -323,6 +350,15 @@ export default function Integrations() {
             filteredAtsProviders
           )}
 
+          {/* Restaurant Reservations Section */}
+          {renderProviderSection(
+            "Restaurant Reservations",
+            <UtensilsCrossed className="h-4 w-4" />,
+            isRestaurantReservationProvidersOpen,
+            setIsRestaurantReservationProvidersOpen,
+            filteredRestaurantReservationProviders
+          )}
+
           {/* Telephony Providers Section */}
           {renderProviderSection(
             "Telephony Providers",
@@ -348,15 +384,6 @@ export default function Integrations() {
             isCommunicationProvidersOpen,
             setIsCommunicationProvidersOpen,
             filteredCommunicationProviders
-          )}
-
-          {/* E-commerce Providers Section */}
-          {renderProviderSection(
-            "E-commerce Providers",
-            <ShoppingCart className="h-4 w-4" />,
-            isEcommerceProvidersOpen,
-            setIsEcommerceProvidersOpen,
-            filteredEcommerceProviders
           )}
 
           {/* Model Providers Section */}
@@ -402,6 +429,15 @@ export default function Integrations() {
             isCloudStorageProvidersOpen,
             setIsCloudStorageProvidersOpen,
             filteredCloudStorageProviders
+          )}
+
+          {/* Database Providers Section */}
+          {renderProviderSection(
+            "Database Providers",
+            <Database className="h-4 w-4" />,
+            isDatabaseProvidersOpen,
+            setIsDatabaseProvidersOpen,
+            filteredDatabaseProviders
           )}
         </div>
       </div>

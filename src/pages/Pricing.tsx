@@ -198,7 +198,7 @@ const Pricing = () => {
       { feature: "Call Minutes", paygo: "Usage based", enterprise: "Custom" },
       {
         feature: "Call Concurrency",
-        paygo: "10 included + $10 / line / mo",
+        paygo: "10 included + $5 / line / mo",
         enterprise: "Custom",
       },
     ],

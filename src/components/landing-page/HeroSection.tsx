@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Star } from "lucide-react";
+import { ChevronRight, Star, Mic } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,19 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
-const HeroSection = () => {
+interface HeroSectionProps {
+  badgeText?: string;
+  headline?: string;
+  subtitle?: string;
+  socialProofText?: string;
+}
+
+const HeroSection = ({ 
+  badgeText = "Answer every call, 24/7",
+  headline = "Convert leads & resolve\nissues with a 24/7 support\nline",
+  subtitle = "Voiceable is purpose-built to automate customer service for retail & e-commerce. Powered by AI and humans, it works seamlessly with phone lines & systems to handle orders, inquiries, and support - 24/7, day or night.",
+  socialProofText = "Trusted by Retailers & E-commerces"
+}: HeroSectionProps) => {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   return (
@@ -24,23 +36,30 @@ const HeroSection = () => {
             <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center">
               <span className="text-[10px] font-bold text-primary-foreground">✨</span>
             </div>
-            <span className="text-sm text-primary font-medium">Answer every call, 24/7</span>
+            <span className="text-sm text-primary font-medium">{badgeText}</span>
           </div>
 
           {/* Main headline */}
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-slide-up">
-            Convert leads & resolve<br />
-            issues with a{" "}
-            <span className="text-gradient-amber">24/7 support</span>
-            <br />line
+            {headline.split('\n').map((line, i) => {
+              const parts = line.split('24/7');
+              return (
+                <span key={i}>
+                  {parts.map((part, j) => (
+                    <span key={j}>
+                      {part}
+                      {j < parts.length - 1 && <span className="text-gradient-amber">24/7</span>}
+                    </span>
+                  ))}
+                  {i < headline.split('\n').length - 1 && <br />}
+                </span>
+              );
+            })}
           </h1>
 
           {/* Subtitle */}
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            Voiceable is purpose-built to automate customer service for retail,
-            e-commerce, and restaurants. Powered by AI and humans, it works seamlessly
-            with your existing phone lines & systems to handle orders, reservations,
-            and support - 24/7, day or night.
+            {subtitle}
           </p>
 
           {/* CTA */}
@@ -65,9 +84,16 @@ const HeroSection = () => {
               {/* Phone content */}
               <div className="mt-16 p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-muted" />
-                    <span className="font-medium text-sm">Call Voice Agent</span>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10 border-2 border-purple/30 shadow-lg">
+                      <AvatarFallback className="bg-gradient-to-br from-purple via-pink to-purple text-background flex items-center justify-center">
+                        <Mic className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm">Voice Agent</span>
+                      <span className="text-xs text-muted-foreground">AI Assistant</span>
+                    </div>
                   </div>
                   <div className="w-10 h-10 rounded-full bg-green flex items-center justify-center">
                     <svg className="w-5 h-5 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,7 +150,7 @@ const HeroSection = () => {
                   </Avatar>
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground">Trusted by Retailers & Restaurants</p>
+              <p className="text-sm text-muted-foreground">{socialProofText}</p>
             </div>
             
             <div>

@@ -1,14 +1,33 @@
 import { useState } from "react";
-import { ShoppingBag, UtensilsCrossed, MessageSquare, Package, Phone, Clock, ChevronRight } from "lucide-react";
+import { ShoppingBag, UtensilsCrossed, MessageSquare, Package, Phone, Clock, ChevronRight, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const solutions = [
+interface SolutionFeature {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}
+
+interface Solution {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  features: SolutionFeature[];
+}
+
+interface SolutionsSectionProps {
+  solutions?: Solution[];
+}
+
+const defaultSolutions: Solution[] = [
   {
     id: "retail",
     label: "Retail / E-commerce",
     icon: ShoppingBag,
     title: "Customer Support & Order Management Agent",
-    description: "Handle every customer inquiry, order tracking request, and support issue across phone, SMS, and email, so your team can focus on growing your business",
+    description: "Handle every customer inquiry, order tracking request, and support issue across phone, so your team can focus on growing your business",
     features: [
       {
         icon: MessageSquare,
@@ -22,29 +41,10 @@ const solutions = [
       }
     ]
   },
-  {
-    id: "restaurant",
-    label: "Restaurant / QSR",
-    icon: UtensilsCrossed,
-    title: "Order Taker & Customer Service Agent",
-    description: "Handle phone orders, reservations, menu inquiries, and customer service 24/7, never miss an order or reservation again",
-    features: [
-      {
-        icon: Phone,
-        title: "Automated Order Taking",
-        description: "Process phone orders, answer menu questions, handle special requests, and confirm order details, all automatically, even during peak hours."
-      },
-      {
-        icon: Clock,
-        title: "Reservation & Support",
-        description: "Manage reservations, handle complaints, provide location and hours information, and route urgent issues to the right team member instantly."
-      }
-    ]
-  }
 ];
 
-const SolutionsSection = () => {
-  const [activeTab, setActiveTab] = useState("retail");
+const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProps) => {
+  const [activeTab, setActiveTab] = useState(solutions[0]?.id || "retail");
   const activeSolution = solutions.find(s => s.id === activeTab) || solutions[0];
 
   return (
@@ -84,15 +84,15 @@ const SolutionsSection = () => {
               <span className="text-primary">Voiceable</span> is your...
             </p>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              {activeSolution.title}
+              {activeSolution?.title}
             </h2>
             <p className="text-muted-foreground mb-8">
-              {activeSolution.description}
+              {activeSolution?.description}
             </p>
 
             {/* Features */}
             <div className="space-y-6 mb-8">
-              {activeSolution.features.map((feature, index) => {
+              {activeSolution?.features.map((feature, index) => {
                 const FeatureIcon = feature.icon;
                 return (
                   <div key={index} className="flex gap-4">

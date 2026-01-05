@@ -79,7 +79,7 @@ export default function AssistantDetail() {
   // Tab State - Map old tab names to new ones for backward compatibility
   const tabFromUrl = searchParams.get("tab");
   const mapOldTabToNew = (tab: string | null): string => {
-    if (!tab) return "dashboard";
+    if (!tab) return "calls";
     const mapping: Record<string, string> = {
       "overview": "dashboard",
       "conversations": "calls",
@@ -91,7 +91,7 @@ export default function AssistantDetail() {
   };
   const mappedTab = mapOldTabToNew(tabFromUrl);
   const initialTab =
-    mappedTab && VALID_TABS.includes(mappedTab as (typeof VALID_TABS)[number]) ? mappedTab : "dashboard";
+    mappedTab && VALID_TABS.includes(mappedTab as (typeof VALID_TABS)[number]) ? mappedTab : "calls";
   const [activeTab, setActiveTab] = useState(initialTab);
   const lastSetTabRef = useRef<string | null>(null);
   const outcomeConfigTabRef = useRef<OutcomeConfigTabRef>(null);
@@ -539,12 +539,12 @@ export default function AssistantDetail() {
 
   // Tour steps configuration
   const tourSteps: TourStep[] = [
-    {
-      id: "dashboard",
-      target: "tab-dashboard",
-      title: "Dashboard",
-      description: "Get an overview of your agent's performance, metrics, and key insights. Monitor call volume, success rates, and track your agent's effectiveness at a glance.",
-    },
+    // {
+    //   id: "dashboard",
+    //   target: "tab-dashboard",
+    //   title: "Dashboard",
+    //   description: "Get an overview of your agent's performance, metrics, and key insights. Monitor call volume, success rates, and track your agent's effectiveness at a glance.",
+    // },
     {
       id: "calls",
       target: "tab-calls",
@@ -1393,15 +1393,16 @@ export default function AssistantDetail() {
           {agentData.agent && (
             <>
               {activeTab === "dashboard" || activeTab === "overview" ? (
-                <DashboardTab 
-                  agent={agentData.agent} 
-                  agentId={agentId}
-                  onNavigateToWidget={() => {
-                    setActiveTab("widget");
-                    lastSetTabRef.current = "widget";
-                    setSearchParams({ tab: "widget" });
-                  }}
-                />
+                // <DashboardTab 
+                //   agent={agentData.agent} 
+                //   agentId={agentId}
+                //   onNavigateToWidget={() => {
+                //     setActiveTab("widget");
+                //     lastSetTabRef.current = "widget";
+                //     setSearchParams({ tab: "widget" });
+                //   }}
+                // />
+                <></>
               ) : activeTab === "calls" || activeTab === "conversations" ? (
                 <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
               ) : activeTab === "performance" || activeTab === "outcomes" ? (

@@ -14,11 +14,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, Plus, X, ChevronDown, Settings, CheckCircle2, Calendar, Package, RotateCcw, Info, ShoppingCart, Truck, RefreshCw, MessageSquare, UtensilsCrossed, MapPin, Clock } from 'lucide-react';
+import { Loader2, Plus, X, ChevronDown, Settings, RotateCcw } from 'lucide-react';
 import { useOutcomeDefinition } from '@/hooks/assistants/useOutcomeDefinition';
 import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
 import { EscalationRulesPanel, type EscalationRuleSettings } from './EscalationRulesPanel';
+import { PRIMARY_OUTCOMES } from '@/constants/outcomes';
 
 export interface OutcomeConfigTabRef {
   saveEscalationRules: (settings: EscalationRuleSettings) => Promise<void>;
@@ -33,31 +34,6 @@ interface OutcomeConfigTabProps {
   onSaveEscalationRules?: (settings: EscalationRuleSettings) => Promise<void>;
   onEnableTransferToNumber?: (settings: EscalationRuleSettings) => void;
 }
-
-const PRIMARY_OUTCOMES = [
-  // Sales outcomes
-  { value: 'order_placed', label: 'Order Placed', type: 'sales' },
-  { value: 'reservation_booked', label: 'Reservation Booked', type: 'sales' },
-  { value: 'reservation_updated', label: 'Reservation Updated', type: 'sales' },
-  { value: 'reservation_cancelled', label: 'Reservation Cancelled', type: 'sales' },
-  // Support outcomes
-  { value: 'order_status_checked', label: 'Order Status Checked', type: 'support' },
-  { value: 'shipping_info_provided', label: 'Shipping Information Provided', type: 'support' },
-  { value: 'tracking_provided', label: 'Tracking Provided', type: 'support' },
-  { value: 'return_initiated', label: 'Return Initiated', type: 'support' },
-  { value: 'exchange_processed', label: 'Exchange Processed', type: 'support' },
-  { value: 'refund_processed', label: 'Refund Processed', type: 'support' },
-  { value: 'account_updated', label: 'Account Updated', type: 'support' },
-  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support' },
-  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support' },
-  // General outcomes
-  { value: 'product_inquiry_answered', label: 'Product Inquiry Answered', type: 'general' },
-  { value: 'inventory_checked', label: 'Inventory Checked', type: 'general' },
-  { value: 'menu_inquiry_answered', label: 'Menu Inquiry Answered', type: 'general' },
-  { value: 'location_hours_provided', label: 'Location & Hours Provided', type: 'general' },
-  { value: 'information_provided', label: 'Information Provided', type: 'general' },
-  { value: 'feedback_collected', label: 'Feedback Collected', type: 'general' },
-];
 
 const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({ 
   agentId, 
@@ -303,8 +279,15 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         failure_conditions: {
           failure_keywords: failureKeywords.filter(k => k.trim()),
         },
-        // Note: escalation_rules are NOT included in auto-save
-        // They are only saved when the save button is clicked in the escalation rules panel
+        // Note: escalation_rules are preserved from existing definition during auto-save
+        // They are only updated when the save button is clicked in the escalation rules panel
+        escalation_rules: outcomeDefinition?.escalation_rules || {
+          escalation_keywords: [],
+          name: 'transfer_to_number',
+          description: '',
+          disableInterruptions: false,
+          humanTransferRules: [],
+        },
       };
 
       try {

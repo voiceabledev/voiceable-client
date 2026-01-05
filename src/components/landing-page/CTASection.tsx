@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Star, Check, ChevronRight } from "lucide-react";
+import { Sparkles, Star, Check, ChevronRight, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,8 +7,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const CTASection = () => {
+interface CTASectionProps {
+  title?: string;
+  description?: string;
+  features?: string[];
+  showCalendarOnly?: boolean;
+}
+
+const CTASection = ({ 
+  title = "Voice Agent",
+  description = "Staff your phone line with an agent available 24/7 in any language",
+  features = [
+    "100% uptime over the last 30 days",
+    "24/7 availability, day & night",
+    "Instant human-like responses",
+    "Integrate with any system"
+  ],
+  showCalendarOnly = false
+}: CTASectionProps) => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   return (
@@ -27,28 +45,40 @@ const CTASection = () => {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-6 h-6 text-purple" />
-                  <h2 className="text-3xl md:text-4xl font-bold">Voice Agent</h2>
+                  <h2 className="text-3xl md:text-4xl font-bold">{title}</h2>
                 </div>
                 
                 <p className="text-lg text-muted-foreground mb-8">
-                  Staff your phone line with an
-                  agent available 24/7 in any
-                  language
+                  {description}
                 </p>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6" onClick={() => {
+                  <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6 py-6 flex items-center gap-3" onClick={() => {
                     setShowScheduleModal(true);
                   }}>
-                    <span className="w-2 h-2 rounded-full bg-pink mr-2" />
-                    Call Voice Agent
+                    <Avatar className="w-6 h-6 border-2 border-purple/30 shadow-md flex-shrink-0">
+                      <AvatarFallback className="bg-gradient-to-br from-purple via-pink to-purple text-background flex items-center justify-center">
+                        <Mic className="w-3.5 h-3.5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>Call Voice Agent</span>
                   </Button>
-                  <Button variant="ghost" className="text-foreground group" onClick={() => {
-                    window.location.href = "/login";
-                  }}>
-                    Start for free
-                    <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </Button>
+                  {!showCalendarOnly && (
+                    <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
+                      window.location.href = "/login";
+                    }}>
+                      <span>Start for free</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+                    </Button>
+                  )}
+                  {showCalendarOnly && (
+                    <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
+                      setShowScheduleModal(true);
+                    }}>
+                      <span>Book a demo</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -66,22 +96,16 @@ const CTASection = () => {
 
                 {/* Features list */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-green" />
-                    <span className="text-muted-foreground">100% uptime over the last 30 days</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">24/7 availability, day & night</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Instant human-like responses</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Integrate with any system</span>
-                  </div>
+                  {features.map((feature, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      {index === 0 ? (
+                        <div className="w-2 h-2 rounded-full bg-green" />
+                      ) : (
+                        <Check className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      <span className="text-muted-foreground">{feature}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

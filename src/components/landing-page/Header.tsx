@@ -22,8 +22,13 @@ const Header = () => {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Show full navigation only on home page (/)
+  // Show full navigation on home page and landing pages
   const isHomePage = location.pathname === "/";
+  const isLandingPage = location.pathname === "/" || location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment";
+  const showFullNav = isHomePage || isLandingPage;
+  // For Landing.tsx (/retail-ecommerce) and Landing3.tsx (/recruitment), only show calendar modal (no login/dashboard/pricing)
+  // Landing2.tsx (/) should show login and demo call buttons
+  const isCalendarOnlyPage = location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment";
 
   return (
     <>
@@ -40,19 +45,26 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
             <a href="/" className="nav-pill">Home</a>
-            {isHomePage && (
+            {showFullNav && (
               <>
                 <a href="#features" className="nav-pill">How it Works</a>
                 <a href="#solutions" className="nav-pill">Use Cases</a>
               </>
             )}
-            <a href="/pricing" className="nav-pill">Pricing</a>
+            {!isCalendarOnlyPage && (
+              <a href="/pricing" className="nav-pill">Pricing</a>
+            )}
           </nav>
 
           {/* Desktop CTAs */}
           {!loading && (
             <div className="hidden md:flex items-center gap-3">
-              {isAuthenticated ? (
+              {isCalendarOnlyPage ? (
+                <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
+                  <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
+                  Book a Demo
+                </Button>
+              ) : isAuthenticated ? (
                 <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-5" onClick={() => navigate("/assistants")}>
                   Dashboard
                 </Button>
@@ -88,7 +100,7 @@ const Header = () => {
                   >
                     Home
                   </a>
-                  {isHomePage && (
+                  {showFullNav && (
                     <>
                       <a 
                         href="#features" 
@@ -106,19 +118,32 @@ const Header = () => {
                       </a>
                     </>
                   )}
-                  <a 
-                    href="/pricing" 
-                    className="text-foreground hover:text-primary transition-colors py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Pricing
-                  </a>
+                  {!isCalendarOnlyPage && (
+                    <a 
+                      href="/pricing" 
+                      className="text-foreground hover:text-primary transition-colors py-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Pricing
+                    </a>
+                  )}
                 </nav>
 
                 {/* Mobile CTAs */}
                 {!loading && (
                   <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                    {isAuthenticated ? (
+                    {isCalendarOnlyPage ? (
+                      <Button 
+                        className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full" 
+                        onClick={() => {
+                          setShowCalendarModal(true);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
+                        Book a Demo
+                      </Button>
+                    ) : isAuthenticated ? (
                       <Button 
                         className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full" 
                         onClick={() => {

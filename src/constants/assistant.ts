@@ -4,7 +4,7 @@ import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarCh
 export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-number", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
 
 export const tabs = [
-  { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+  // { id: "dashboard", label: "Dashboard", icon: BarChart3 },
   { id: "calls", label: "Calls", icon: MessageSquare },
   { id: "performance", label: "Performance", icon: TrendingUp },
   { id: "settings", label: "Settings", icon: Settings },

@@ -1,17 +1,30 @@
 import { User, Clock } from "lucide-react";
 
-const calls = [
+interface Call {
+  type: string;
+  location: string;
+  topic: string;
+  status: "Resolved" | "Unresolved" | "In Progress";
+  time: string;
+  duration: string;
+}
+
+interface LiveCallsSectionProps {
+  calls?: Call[];
+}
+
+const defaultCalls: Call[] = [
   { type: "Customer", location: "in Ypsilanti", topic: "Order Status", status: "Resolved", time: "11 min ago", duration: "260 sec" },
-  { type: "Diner", location: "in Portland", topic: "Reservation", status: "Unresolved", time: "26 min ago", duration: "205 sec" },
-  { type: "Shopper", location: "in New York", topic: "Returns", status: "Unresolved", time: "14 min ago", duration: "339 sec" },
+  { type: "Customer", location: "in Portland", topic: "Delivery Reschedule", status: "Unresolved", time: "26 min ago", duration: "205 sec" },
+  { type: "Shopper", location: "in New York", topic: "Product Inquiry", status: "Unresolved", time: "14 min ago", duration: "339 sec" },
   { type: "Customer", location: "in Ann Arbor", topic: "Shipping", status: "Unresolved", time: "16 min ago", duration: "3518 sec" },
-  { type: "Guest", location: "in New York", topic: "Menu Inquiry", status: "Resolved", time: "16 min ago", duration: "249 sec" },
-  { type: "Customer", location: "in Ypsilanti", topic: "Product Inquiry", status: "Unresolved", time: "23 min ago", duration: "1807 sec" },
-  { type: "Diner", location: "in Chicago", topic: "Delivery", status: "Resolved", time: "13 min ago", duration: "207 sec" },
-  { type: "Shopper", location: "in Chicago", topic: "Payment Issue", status: "In Progress", time: "8 min ago", duration: "292 sec" },
+  { type: "Customer", location: "in New York", topic: "Inventory Check", status: "Resolved", time: "16 min ago", duration: "249 sec" },
+  { type: "Customer", location: "in Ypsilanti", topic: "Order Cancellation", status: "Unresolved", time: "23 min ago", duration: "1807 sec" },
+  { type: "Shopper", location: "in Chicago", topic: "Tracking Info", status: "Resolved", time: "13 min ago", duration: "207 sec" },
+  { type: "Customer", location: "in Chicago", topic: "Special Request", status: "In Progress", time: "8 min ago", duration: "292 sec" },
 ];
 
-const LiveCallsSection = () => {
+const LiveCallsSection = ({ calls = defaultCalls }: LiveCallsSectionProps) => {
   return (
     <section className="overflow-hidden">
       <div className="container mx-auto px-6 mb-12">
@@ -23,7 +36,9 @@ const LiveCallsSection = () => {
       {/* Scrolling calls */}
       <div className="relative">
         <div className="flex gap-4 animate-scroll-left">
-          {[...calls, ...calls].map((call, index) => (
+          {[...calls, ...calls].map((call, index) => {
+            if (!call) return null;
+            return (
             <div 
               key={index}
               className="flex-shrink-0 bg-card rounded-2xl border border-border p-4 min-w-[280px]"
@@ -55,7 +70,8 @@ const LiveCallsSection = () => {
                 <span>{call.duration}</span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

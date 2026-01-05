@@ -25,9 +25,9 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <SEO
-        title="AI Voice Agents for Retail, E-commerce & Restaurants | Voiceable"
-        description="Transform customer service with AI voice agents for retail stores, e-commerce businesses, and restaurants. Handle orders, reservations, returns, and customer inquiries 24/7 with intelligent voice automation."
-        keywords="AI voice agents, retail automation, e-commerce customer service, restaurant reservations, order management, customer support automation, voice AI for retail, AI phone answering, automated customer service, retail AI assistant"
+        title="AI Voice Agents for Retail & E-commerce | Voiceable"
+        description="Transform customer service with AI voice agents for retail stores and e-commerce businesses. Handle order tracking, delivery scheduling, returns, and customer inquiries 24/7 with intelligent voice automation."
+        keywords="AI voice agents, retail automation, e-commerce customer service, order management, delivery scheduling, customer support automation, voice AI for retail, AI phone answering, automated customer service, retail AI assistant"
         url={currentUrl}
         image="/og-image.png"
       />
@@ -36,13 +36,13 @@ const Landing = () => {
       <OperatorInterfaceSection />
       <FeaturesSection />
       <LiveCallsSection />
-      <AssistantSection />
+      <AssistantSection showCalendarOnly={true} />
       <ResponsesSection />
       <SolutionsSection />
       <HumanLedSection />
       <SeamlessSetupSection />
       {/* <UserLoveSection /> */}
-      <CTASection />
+      <CTASection showCalendarOnly={true} />
       <Footer />
       {/* <FeatureNav 
         activeFeature={activeFeature} 

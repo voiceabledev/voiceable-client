@@ -61,12 +61,24 @@ const integrationLogos: { id: string; Icon: IconType | React.ComponentType<{ cla
   { id: "outlook_calendar", Icon: Calendar }, // Using Calendar icon as fallback
 ];
 
-// Feature cards data
-const features = [
+// Feature interface
+interface Feature {
+  id: string;
+  title: string;
+  description: string;
+  Icon: React.ComponentType<{ className?: string }>;
+}
+
+interface SeamlessSetupSectionProps {
+  features?: Feature[];
+}
+
+// Default feature cards data
+const defaultFeatures: Feature[] = [
   {
     id: "order-management",
     title: "Automated Order Management",
-    description: "Process phone orders, track shipments, handle returns and exchanges, and manage reservations, all automatically, 24/7.",
+    description: "Process phone orders, track shipments, handle returns and exchanges, and schedule deliveries, all automatically, 24/7.",
     Icon: Package,
   },
   {
@@ -76,12 +88,6 @@ const features = [
     Icon: Smile,
   },
   {
-    id: "smart-scheduling",
-    title: "Smart Reservation Booking",
-    description: "Books restaurant reservations, delivery time slots, and appointments directly on your calendar based on real-time availability.",
-    Icon: Calendar,
-  },
-  {
     id: "inventory-inquiries",
     title: "Real-Time Inventory Lookup",
     description: "Answers product availability questions, checks stock levels, and suggests alternatives when items are out of stock.",
@@ -89,15 +95,9 @@ const features = [
   },
   {
     id: "menu-information",
-    title: "Menu & Product Information",
-    description: "Answers questions about menu items, ingredients, allergens, product details, and pricing instantly, even during peak hours.",
+    title: "Product Information",
+    description: "Answers questions about product details, specifications, availability, pricing, and shipping options instantly, even during peak hours.",
     Icon: CloudLightning,
-  },
-  {
-    id: "omni-channel-inbox",
-    title: "Omni-Channel Inbox",
-    description: "Manages phone, SMS, and email in one queue, maintaining full context as conversations hop channels seamlessly.",
-    Icon: Mail,
   },
   {
     id: "warm-transfers",
@@ -114,7 +114,7 @@ const features = [
   {
     id: "test-before-launch",
     title: "Test Before Launch",
-    description: "Run real-world call, SMS, and email simulations to stress-test workflows and fix gaps before customers ever call.",
+    description: "Run real-world call simulations to stress-test workflows and fix gaps before customers ever call.",
     Icon: ShieldCheck,
   },
 ];
@@ -197,7 +197,7 @@ const DoubleScrollingLogos = () => {
   );
 };
 
-const SeamlessSetupSection = () => {
+const SeamlessSetupSection = ({ features = defaultFeatures }: SeamlessSetupSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (

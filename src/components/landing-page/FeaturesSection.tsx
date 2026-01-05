@@ -1,35 +1,49 @@
-import { Check, MessageCircle, Calendar, Wrench } from "lucide-react";
+import { Check, MessageCircle, Calendar, Wrench, LucideIcon } from "lucide-react";
 
-const features = [
+interface Feature {
+  title: string;
+  description: string;
+  benefits: string[];
+  gradient: string;
+  icon: LucideIcon;
+}
+
+interface FeaturesSectionProps {
+  features?: Feature[];
+}
+
+const defaultFeatures: Feature[] = [
   {
     title: "Instant Response",
-    description: "Responds 24/7 like a human to everyday resident questions like lease, payment, and property details. Voiceable pulls answers from your knowledge base, logs every interaction, and leaves staff free for higher-value work.",
+    description: "Responds 24/7 like a human to everyday customer questions like order status, payment, and product details. Voiceable pulls answers from your knowledge base, logs every interaction, and leaves staff free for higher-value work.",
     benefits: ["Uptick in resident satisfaction", "Decrease manual ticket volume"],
     gradient: "from-primary/20 via-emerald-500/10 to-transparent",
     icon: MessageCircle,
   },
   {
     title: "Takes Action",
-    description: "Prospects book tours in a single tap. Voiceable syncs with your leasing calendar, sends confirmations and reminders, and follows up automatically, so no lead falls through the cracks.",
-    benefits: ["Convert more leads to tours", "Reduce missed connections"],
+    description: "Prospects book appointments in a single tap. Voiceable syncs with your calendar, sends confirmations and reminders, and follows up automatically, so no lead falls through the cracks.",
+    benefits: ["Convert more leads to appointments", "Reduce missed connections"],
     gradient: "from-green/20 via-emerald-500/10 to-transparent",
     icon: Calendar,
   },
   {
     title: "Resolves Issue",
-    description: "Real-time triage diagnoses maintenance requests, prioritizes them, and routes jobs to the right vendor before the phone even stops ringing -- cutting out voicemail ping-pong and guesswork.",
+    description: "Real-time triage diagnoses issues, prioritizes them, and routes them to the right team before the phone even stops ringing -- cutting out voicemail ping-pong and guesswork.",
     benefits: ["On-time work-order completion", "Eliminate remote call centers"],
     gradient: "from-amber/20 via-orange-500/10 to-transparent",
     icon: Wrench,
   },
 ];
 
-const FeaturesSection = () => {
+const FeaturesSection = ({ features = defaultFeatures }: FeaturesSectionProps) => {
   return (
     <section id="features" className="py-16 md:py-32">
       <div className="container mx-auto px-4 md:px-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {features.map((feature, index) => (
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
             <div 
               key={index}
               className="bg-card rounded-3xl border border-border overflow-hidden group hover:border-primary/50 transition-all relative flex flex-col min-h-[400px] md:h-[500px]"
@@ -41,10 +55,7 @@ const FeaturesSection = () => {
                 {/* Icon */}
                 <div className="relative z-10 flex flex-col items-center gap-4">
                   <div className="w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    {(() => {
-                      const Icon = feature.icon;
-                      return <Icon className="w-10 h-10 text-primary" />;
-                    })()}
+                    <Icon className="w-10 h-10 text-primary" />
                   </div>
                   <h3 className="text-lg md:text-xl font-semibold text-foreground">{feature.title}</h3>
                 </div>
@@ -66,7 +77,8 @@ const FeaturesSection = () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

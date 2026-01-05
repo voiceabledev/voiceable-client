@@ -1,23 +1,37 @@
 import { useState } from "react";
-import { Clock, Smile, Globe, ArrowRightLeft, AlertTriangle, Calendar, CreditCard, Wrench } from "lucide-react";
+import { Clock, Smile, Globe, ArrowRightLeft, AlertTriangle, Calendar, CreditCard, Wrench, Package, Truck, ShoppingBag, Box, LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const categories = [
+interface Category {
+  id: string;
+  label: string;
+  title: string;
+  description: string;
+  message: string;
+  icon: LucideIcon;
+  emoji: string;
+}
+
+interface ResponsesSectionProps {
+  categories?: Category[];
+}
+
+const defaultCategories: Category[] = [
   {
-    id: "emergencies",
-    label: "Emergencies",
-    title: "Emergencies",
-    description: "Immediate response to urgent situations that require immediate attention, 24/7.",
-    message: "There's a huge bat in our living room and we can't get it out...",
-    icon: AlertTriangle,
-    emoji: "🏠",
+    id: "issues",
+    label: "Issues",
+    title: "Issues",
+    description: "Track and resolve support requests, from technical problems to urgent inquiries.",
+    message: "I'm having trouble accessing my account. Can someone help me resolve this?",
+    icon: Wrench,
+    emoji: "🔧",
   },
   {
-    id: "showings",
-    label: "Showings",
-    title: "Showings",
-    description: "Seamlessly schedule property viewings and manage tour requests in real-time.",
-    message: "Hi, I saw your listing online. Can I schedule a viewing for this weekend?",
+    id: "scheduling",
+    label: "Scheduling",
+    title: "Scheduling",
+    description: "Seamlessly schedule appointments, meetings, and calls in real-time.",
+    message: "Hi, I'd like to schedule an appointment with a representative. What times are available this week?",
     icon: Calendar,
     emoji: "📅",
   },
@@ -25,24 +39,51 @@ const categories = [
     id: "payments",
     label: "Payments",
     title: "Payments",
-    description: "Handle rent payments, questions about billing, and payment method updates instantly.",
-    message: "I tried to pay my rent but the payment isn't going through. Can you help?",
+    description: "Handle payments, questions about billing, and payment method updates instantly.",
+    message: "I tried to make a payment but it isn't going through. Can you help?",
     icon: CreditCard,
     emoji: "💳",
   },
   {
-    id: "issues",
-    label: "Issues",
-    title: "Issues",
-    description: "Track and resolve maintenance requests, from minor fixes to urgent repairs.",
-    message: "My kitchen sink has been leaking for days. When can someone come fix it?",
-    icon: Wrench,
-    emoji: "🔧",
+    id: "orders",
+    label: "Orders",
+    title: "Orders",
+    description: "Check order status, track shipments, and answer questions about recent purchases instantly.",
+    message: "Hi, I placed an order yesterday, order #12345. Can you tell me when it will be delivered?",
+    icon: Package,
+    emoji: "📦",
+  },
+  {
+    id: "shipping",
+    label: "Shipping",
+    title: "Shipping",
+    description: "Answer delivery questions, provide tracking information, and help reschedule deliveries.",
+    message: "My package was supposed to arrive today but I haven't received it. Can you check the status?",
+    icon: Truck,
+    emoji: "🚚",
+  },
+  {
+    id: "products",
+    label: "Products",
+    title: "Products",
+    description: "Answer product questions, provide specifications, and help customers find what they need.",
+    message: "I'm interested in your winter jacket. What sizes are available and is it waterproof?",
+    icon: ShoppingBag,
+    emoji: "🛍️",
+  },
+  {
+    id: "inventory",
+    label: "Inventory",
+    title: "Inventory",
+    description: "Check product availability, verify stock levels, and suggest alternatives when items are out of stock.",
+    message: "Do you have the blue sweater in size medium? I need it by Friday.",
+    icon: Box,
+    emoji: "📦",
   },
 ];
 
-const ResponsesSection = () => {
-  const [activeCategory, setActiveCategory] = useState(categories[0].id);
+const ResponsesSection = ({ categories = defaultCategories }: ResponsesSectionProps) => {
+  const [activeCategory, setActiveCategory] = useState(categories[0]?.id || "issues");
   const activeCategoryData = categories.find(cat => cat.id === activeCategory) || categories[0];
 
   return (
@@ -86,8 +127,8 @@ const ResponsesSection = () => {
               <h3 className="font-semibold">Personalized Outreach</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Greets residents by name, recalls last tickets,
-              and tailors replies to unit history and lease
+              Greets customers by name, recalls last orders,
+              and tailors replies to order history and product
               details.
             </p>
           </div>
@@ -98,8 +139,8 @@ const ResponsesSection = () => {
               <h3 className="font-semibold">Localized Responses</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Speaks the resident's language, references
-              local regs, and adjusts time zones
+              Speaks the customer's language, references
+              local regulations, and adjusts time zones
               automatically.
             </p>
           </div>
@@ -111,7 +152,7 @@ const ResponsesSection = () => {
             </div>
             <p className="text-sm text-muted-foreground">
               Seamlessly hand live calls from the AI
-              assistant to your team, no dropped context,
+              Voiceable to your team, no dropped context,
               no repeating details.
             </p>
           </div>
@@ -194,7 +235,7 @@ const ResponsesSection = () => {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">Madeline</span>
+                        <span className="font-medium text-sm">Rose</span>
                         <span className="text-xs text-muted-foreground">1:46 AM</span>
                       </div>
                     </div>

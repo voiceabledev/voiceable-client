@@ -12,36 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Settings, ChevronDown, Plus, X, PhoneForwarded, RotateCcw, CheckCircle2, Calendar, UserCheck, Info, ShoppingCart, AlertCircle, Target, Package, Truck, RefreshCw, MessageSquare, UtensilsCrossed, MapPin, Clock } from "lucide-react";
+import { Settings, ChevronDown, Plus, X, PhoneForwarded, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import type { HumanTransferRule } from "@/types/assistant";
-
-const PRIMARY_OUTCOMES = [
-  // Sales outcomes
-  { value: 'order_placed', label: 'Order Placed', type: 'sales', icon: ShoppingCart },
-  { value: 'reservation_booked', label: 'Reservation Booked', type: 'sales', icon: Calendar },
-  { value: 'reservation_updated', label: 'Reservation Updated', type: 'sales', icon: Calendar },
-  { value: 'reservation_cancelled', label: 'Reservation Cancelled', type: 'sales', icon: X },
-  // Support outcomes
-  { value: 'order_status_checked', label: 'Order Status Checked', type: 'support', icon: CheckCircle2 },
-  { value: 'shipping_info_provided', label: 'Shipping Information Provided', type: 'support', icon: Truck },
-  { value: 'tracking_provided', label: 'Tracking Provided', type: 'support', icon: Package },
-  { value: 'return_initiated', label: 'Return Initiated', type: 'support', icon: RotateCcw },
-  { value: 'exchange_processed', label: 'Exchange Processed', type: 'support', icon: RefreshCw },
-  { value: 'refund_processed', label: 'Refund Processed', type: 'support', icon: RotateCcw },
-  { value: 'account_updated', label: 'Account Updated', type: 'support', icon: UserCheck },
-  { value: 'special_request_handled', label: 'Special Request Handled', type: 'support', icon: CheckCircle2 },
-  { value: 'issue_resolved', label: 'Issue Resolved', type: 'support', icon: CheckCircle2 },
-  // General outcomes
-  { value: 'product_inquiry_answered', label: 'Product Inquiry Answered', type: 'general', icon: Info },
-  { value: 'inventory_checked', label: 'Inventory Checked', type: 'general', icon: Package },
-  { value: 'menu_inquiry_answered', label: 'Menu Inquiry Answered', type: 'general', icon: UtensilsCrossed },
-  { value: 'location_hours_provided', label: 'Location & Hours Provided', type: 'general', icon: MapPin },
-  { value: 'information_provided', label: 'Information Provided', type: 'general', icon: Info },
-  { value: 'feedback_collected', label: 'Feedback Collected', type: 'general', icon: MessageSquare },
-];
+import { PRIMARY_OUTCOMES } from "@/constants/outcomes";
 
 const DEFAULT_ESCALATION_DESCRIPTION = `Transfer the conversation to a human agent when appropriate.
 Call this function when:
@@ -158,7 +135,7 @@ export function CallOutcomesStep({
               <SelectTrigger 
                 id="primary-outcome" 
                 className={cn(
-                  "w-full",
+                  "w-full justify-start",
                   showValidationErrors && !primaryOutcome && "border-destructive focus-visible:ring-destructive"
                 )}
               >
@@ -167,10 +144,13 @@ export function CallOutcomesStep({
                   if (selectedOutcome) {
                     const Icon = selectedOutcome.icon;
                     return (
-                      <>
-                        <Icon className="h-4 w-4 mr-2" />
-                        <SelectValue>{selectedOutcome.label}</SelectValue>
-                      </>
+                      <div className="flex items-center gap-2 justify-start w-full">
+                        <Icon className="h-4 w-4" />
+                        <SelectValue className="text-left">{selectedOutcome.label}</SelectValue>
+                        <Badge variant={selectedOutcome.type === 'support' ? 'default' : selectedOutcome.type === 'sales' ? 'secondary' : 'outline'} className="ml-auto mr-2">
+                          {selectedOutcome.type}
+                        </Badge>
+                      </div>
                     );
                   }
                   return <SelectValue placeholder="Select a primary outcome" />;
@@ -178,14 +158,17 @@ export function CallOutcomesStep({
                   <SelectValue placeholder="Select a primary outcome" />
                 )}
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[200px]">
                 {PRIMARY_OUTCOMES.map((outcome) => {
                   const Icon = outcome.icon;
                   return (
                     <SelectItem key={outcome.value} value={outcome.value}>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 justify-start">
                         <Icon className="h-4 w-4" />
                         <span>{outcome.label}</span>
+                        <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'}>
+                          {outcome.type}
+                        </Badge>
                       </div>
                     </SelectItem>
                   );
