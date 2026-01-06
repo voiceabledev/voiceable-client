@@ -7,24 +7,52 @@ import { toFullConfig } from "@/utils/widgetConfig";
 
 /**
  * Get the backend base URL for widget.js and API calls
+ * Uses the same logic as the API client to ensure consistency
  */
-export function getBackendBaseUrl(): string {
+function getApiBaseUrlForBackend(): string {
   // Use env var if available (set at build time)
   if (import.meta.env.VITE_API_BASE_URL) {
-    // Remove /api/v1 suffix to get the base URL
-    return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+    const url = import.meta.env.VITE_API_BASE_URL;
+    return url.endsWith('/') ? url.slice(0, -1) : url;
   }
 
-  const hostname = window.location.hostname;
-  const protocol = window.location.protocol;
+  // Check for runtime config (useful for Heroku/dynamic configs)
+  if (typeof window !== 'undefined') {
+    const runtimeConfig = (window as any).__API_BASE_URL__;
+    if (runtimeConfig) {
+      return runtimeConfig.endsWith('/') ? runtimeConfig.slice(0, -1) : runtimeConfig;
+    }
 
-  // For localhost development, Rails runs on port 3000
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:3000';
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If on Heroku or production domain, construct API URL
+    if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
+      return '/api/v1';
+    }
+    
+    // For localhost development - check what port the frontend is on and infer backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Default to 3000, but can be overridden with VITE_API_BASE_URL
+      return 'http://localhost:3000/api/v1';
+    }
+    
+    // For other production domains, try to construct API URL
+    return `${protocol}//${hostname}/api/v1`;
   }
 
-  // For production, assume same domain (widget.js is served from backend)
-  return `${protocol}//${hostname}`;
+  // Default fallback
+  return 'http://localhost:3000/api/v1';
+}
+
+/**
+ * Get the backend base URL for widget.js and API calls
+ * Derives from API base URL to ensure consistency
+ */
+export function getBackendBaseUrl(): string {
+  const apiBaseUrl = getApiBaseUrlForBackend();
+  // Remove /api/v1 suffix to get the base URL
+  return apiBaseUrl.replace(/\/api\/v1\/?$/, '');
 }
 
 /**

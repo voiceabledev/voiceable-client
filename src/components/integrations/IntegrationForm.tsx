@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, EyeOff } from "lucide-react";
 import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
-import { getBackendBaseUrl } from "@/utils/widgetHelpers";
+import { integrationsApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface IntegrationFormProps {
   schema: IntegrationSchema;
@@ -33,6 +34,8 @@ export function IntegrationForm({
   const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [oauthLoading, setOAuthLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setConfig(initialConfig);
@@ -326,10 +329,32 @@ export function IntegrationForm({
   };
 
   // Handle OAuth connection for Google Calendar
-  const handleOAuthConnect = () => {
+  const handleOAuthConnect = async () => {
     if (integrationType === 'google_calendar') {
-      const backendUrl = getBackendBaseUrl();
-      window.location.href = `${backendUrl}/api/v1/oauth/google_calendar/authorize`;
+      setOAuthLoading(true);
+      try {
+        // Make authenticated API call to get OAuth URL
+        const response = await integrationsApi.getOAuthUrl('google_calendar');
+        if (response.data?.authorization_url) {
+          // Redirect to Google OAuth consent screen
+          window.location.href = response.data.authorization_url;
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to get OAuth authorization URL.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('OAuth error:', error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to initiate OAuth flow.",
+          variant: "destructive",
+        });
+      } finally {
+        setOAuthLoading(false);
+      }
     }
   };
 
@@ -364,10 +389,10 @@ export function IntegrationForm({
             type="button"
             variant="default"
             onClick={handleOAuthConnect}
-            disabled={isLoading}
+            disabled={isLoading || oauthLoading}
             className="w-full text-xs md:text-sm"
           >
-            Connect with Google Calendar
+            {oauthLoading ? "Connecting..." : "Connect with Google Calendar"}
           </Button>
           <p className="text-xs text-muted-foreground">
             Click to authorize access to your Google Calendar. You'll be redirected to Google to sign in.

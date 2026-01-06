@@ -379,6 +379,16 @@ export const integrationsApi = {
     const response = await apiClient.get<IntegrationSchema[]>('/integrations/schemas');
     return response;
   },
+
+  getOAuthUrl: async (integrationType: string) => {
+    // Get OAuth authorization URL for integrations that support OAuth
+    const response = await apiClient.get<{ authorization_url: string }>(`/oauth/${integrationType}/authorize`, {
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    return response;
+  },
 };
 
 // Agents API methods

@@ -374,6 +374,18 @@ export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
     "Get Booking",
     "Reschedule Booking",
     "Cancel Booking"
+  ],
+  google_calendar: [
+    "Get Events",
+    "Create Event",
+    "Update Event",
+    "Delete Event"
+  ],
+  outlook_calendar: [
+    "Get Events",
+    "Create Event",
+    "Update Event",
+    "Delete Event"
   ]
 };
 
@@ -470,7 +482,7 @@ export const getAvailableIntegrationTypes = () => {
       description: "Overlay availability and events from Google Calendar",
       icon: "📆",
       iconBg: "bg-blue-500",
-      status: "upcoming" as const,
+      status: "available" as const,
     },
     {
       id: "outlook_calendar",
@@ -571,6 +583,18 @@ export const displayNameToActionName = (displayName: string, integrationType: st
       "Reschedule Booking": "reschedule_booking",
       "Cancel Booking": "cancel_booking",
     },
+    google_calendar: {
+      "Get Events": "get_events",
+      "Create Event": "create_event",
+      "Update Event": "update_event",
+      "Delete Event": "delete_event",
+    },
+    outlook_calendar: {
+      "Get Events": "get_events",
+      "Create Event": "create_event",
+      "Update Event": "update_event",
+      "Delete Event": "delete_event",
+    },
   };
   return mapping[integrationType]?.[displayName] || displayName.toLowerCase().replace(/\s+/g, "_");
 };
@@ -640,6 +664,18 @@ export const actionNameToDisplayName = (actionName: string, integrationType: str
       "get_booking": "Get Booking",
       "reschedule_booking": "Reschedule Booking",
       "cancel_booking": "Cancel Booking",
+    },
+    google_calendar: {
+      "get_events": "Get Events",
+      "create_event": "Create Event",
+      "update_event": "Update Event",
+      "delete_event": "Delete Event",
+    },
+    outlook_calendar: {
+      "get_events": "Get Events",
+      "create_event": "Create Event",
+      "update_event": "Update Event",
+      "delete_event": "Delete Event",
     },
   };
   return mapping[integrationType]?.[actionName] || actionName.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");

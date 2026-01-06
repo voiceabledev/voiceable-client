@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils";
 import type { AgentIntegrationTool } from "@/types/assistant";
 import type { UserIntegration, IntegrationSchema } from "@/types/integrations";
 import { INTEGRATION_TOOLS_DISPLAY, INTEGRATION_METADATA, actionNameToDisplayName } from "@/constants/assistant";
+import { IntegrationForm } from "@/components/integrations/IntegrationForm";
+import { integrationsApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 type AvailableIntegrationType = {
   id: string;
@@ -82,10 +85,12 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 }) => {
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [oauthLoading, setOAuthLoading] = useState(false);
   const isClosingRef = useRef(false);
   const prevOpenRef = useRef(open);
   const isSavingRef = useRef(false);
   const isOpeningRef = useRef(false);
+  const { toast } = useToast();
 
   // Track when the open prop changes
   useEffect(() => {
@@ -429,76 +434,117 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
               <div className="flex-1 min-h-0 overflow-y-auto">
                 <div className="p-6">
                   <TabsContent value="credentials" className="mt-0 space-y-6">
-                    <div className="space-y-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                      <div className="flex gap-3">
-                        <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm text-blue-900">
-                          <p className="font-medium mb-1">Secure API Connection</p>
-                          <p className="text-blue-700">
-                            Your API key is encrypted and stored securely. It will never be exposed in logs or shared with third parties.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
-                          <ShieldCheck className="h-4 w-4 text-primary" />
-                          Credential Type
-                        </h3>
-                        <div className="p-4 border-2 border-primary/20 rounded-xl bg-primary/5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <ShieldCheck className="h-5 w-5 text-primary" />
+                    {(() => {
+                      const schema = connectingIntegrationType 
+                        ? integrationSchemas[connectingIntegrationType] 
+                        : null;
+                      const isOAuthIntegration = schema?.auth_type === 'oauth' || connectingIntegrationType === 'google_calendar';
+                      
+                      // Use IntegrationForm for OAuth integrations
+                      if (isOAuthIntegration && schema) {
+                        return (
+                          <IntegrationForm
+                            schema={schema}
+                            initialConfig={editingIntegrationConfig?.config || {}}
+                            onSubmit={async (config) => {
+                              // Convert config values to strings for handleIntegrationConnect
+                              const stringConfig: Record<string, string> = {};
+                              Object.entries(config).forEach(([key, value]) => {
+                                stringConfig[key] = String(value);
+                              });
+                              await handleIntegrationConnect(stringConfig);
+                              // In wizard mode or for new integrations, automatically add all tools and save
+                              if (isWizardMode || isNewIntegration) {
+                                const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                                setSelectedIntegrationToolsForModal(availableTools);
+                                await handleSaveSelectedIntegrationTools();
+                              } else {
+                                setIntegrationModalTab("tools");
+                              }
+                            }}
+                            isLoading={connectingIntegrationLoading}
+                            hasSavedValues={!!editingIntegrationConfig}
+                            submitButtonText={editingIntegrationConfig ? "Update" : "Connect"}
+                            hideSubmitButton={true}
+                            integrationType={connectingIntegrationType || undefined}
+                          />
+                        );
+                      }
+                      
+                      // Use simple API key form for non-OAuth integrations
+                      return (
+                        <div className="space-y-6">
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div className="flex gap-3">
+                              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                              <div className="text-sm text-blue-900">
+                                <p className="font-medium mb-1">Secure API Connection</p>
+                                <p className="text-blue-700">
+                                  Your API key is encrypted and stored securely. It will never be exposed in logs or shared with third parties.
+                                </p>
+                              </div>
                             </div>
+                          </div>
+
+                          <div className="space-y-4">
                             <div>
-                              <div className="font-semibold">API Key</div>
-                              <div className="text-xs text-muted-foreground">Secure token-based authentication</div>
+                              <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+                                <ShieldCheck className="h-4 w-4 text-primary" />
+                                Credential Type
+                              </h3>
+                              <div className="p-4 border-2 border-primary/20 rounded-xl bg-primary/5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                    <ShieldCheck className="h-5 w-5 text-primary" />
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold">API Key</div>
+                                    <div className="text-xs text-muted-foreground">Secure token-based authentication</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label htmlFor="api-key" className="text-base font-semibold flex items-center gap-2">
+                                API Key
+                                {editingIntegrationConfig && (
+                                  <Badge variant="outline" className="font-normal">
+                                    Currently configured
+                                  </Badge>
+                                )}
+                              </Label>
+                              <Input
+                                id="api-key"
+                                type="text"
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                                placeholder={editingIntegrationConfig ? "Enter new API key to update" : `Enter your ${integrationMeta.name} API key`}
+                                className="font-mono text-sm h-11"
+                              />
+                              <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+                                <p className="font-medium text-foreground">Where to find your API key:</p>
+                                {connectingIntegrationType === 'calcom' && (
+                                  <p>Navigate to Settings → Developer → API Keys in your Cal.com dashboard</p>
+                                )}
+                                {connectingIntegrationType === 'pipedrive' && (
+                                  <p>Go to Settings → Personal Preferences → API in your Pipedrive account</p>
+                                )}
+                                {connectingIntegrationType === 'calendly' && (
+                                  <p>Access Integrations & Apps → API & Webhooks → Personal Access Tokens</p>
+                                )}
+                                {connectingIntegrationType === 'hubspot' && (
+                                  <p>Create a private app in Settings → Integrations → Private Apps</p>
+                                )}
+                                {!['calcom', 'pipedrive', 'calendly', 'hubspot'].includes(connectingIntegrationType || '') && (
+                                  <p>Check your {integrationMeta.name} account settings for API credentials</p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <Label htmlFor="api-key" className="text-base font-semibold flex items-center gap-2">
-                          API Key
-                          {editingIntegrationConfig && (
-                            <Badge variant="outline" className="font-normal">
-                              Currently configured
-                            </Badge>
-                          )}
-                        </Label>
-                        <Input
-                          id="api-key"
-                          type="text"
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder={editingIntegrationConfig ? "Enter new API key to update" : `Enter your ${integrationMeta.name} API key`}
-                          className="font-mono text-sm h-11"
-                        />
-                        <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
-                          <p className="font-medium text-foreground">Where to find your API key:</p>
-                          {connectingIntegrationType === 'calcom' && (
-                            <p>Navigate to Settings → Developer → API Keys in your Cal.com dashboard</p>
-                          )}
-                          {connectingIntegrationType === 'pipedrive' && (
-                            <p>Go to Settings → Personal Preferences → API in your Pipedrive account</p>
-                          )}
-                          {connectingIntegrationType === 'calendly' && (
-                            <p>Access Integrations & Apps → API & Webhooks → Personal Access Tokens</p>
-                          )}
-                          {connectingIntegrationType === 'hubspot' && (
-                            <p>Create a private app in Settings → Integrations → Private Apps</p>
-                          )}
-                          {!['calcom', 'pipedrive', 'calendly', 'hubspot'].includes(connectingIntegrationType || '') && (
-                            <p>Check your {integrationMeta.name} account settings for API credentials</p>
-                          )}
-                        </div>
-                      </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </TabsContent>
 
                   <TabsContent value="tools" className="mt-0 space-y-5">
@@ -635,38 +681,139 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     )}
                   </Button>
                 ) : (
-                  <Button 
-                    type="button"
-                    onClick={async () => {
-                      // Save/update the API key first
-                      await handleIntegrationConnect({ api_key: apiKey });
-                      // In wizard mode or for new integrations, automatically add all tools and save
-                      if (isWizardMode || isNewIntegration) {
-                        // Automatically add all available tools
-                        const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
-                        setSelectedIntegrationToolsForModal(availableTools);
-                        // Save and close
-                        await handleSaveSelectedIntegrationTools();
-                      } else {
-                        // For existing integrations, move to tools tab to select tools
-                        setIntegrationModalTab("tools");
-                      }
-                    }}
-                    disabled={connectingIntegrationLoading || (!apiKey && !editingIntegrationConfig)}
-                    className="min-w-32"
-                  >
-                    {connectingIntegrationLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="h-4 w-4 mr-2" />
-                        Add Integration
-                      </>
-                    )}
-                  </Button>
+                  (() => {
+                    const schema = connectingIntegrationType 
+                      ? integrationSchemas[connectingIntegrationType] 
+                      : null;
+                    const isOAuthIntegration = schema?.auth_type === 'oauth' || connectingIntegrationType === 'google_calendar';
+                    const hasOAuthToken = editingIntegrationConfig?.config?.api_key || editingIntegrationConfig?.config?.access_token;
+                    
+                    // For OAuth integrations with existing token, show Add Integration button
+                    // This allows users to add the integration to the agent even if it's already connected to their account
+                    if (isOAuthIntegration && hasOAuthToken) {
+                      return (
+                        <Button 
+                          type="button"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // For new integrations (not yet added to agent) or wizard mode, automatically add all tools and save
+                            if (isWizardMode || isNewIntegration) {
+                              const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                              setSelectedIntegrationToolsForModal(availableTools);
+                              await handleSaveSelectedIntegrationTools();
+                            } else {
+                              // For existing integrations (already added to agent), move to tools tab to select tools
+                              setIntegrationModalTab("tools");
+                            }
+                          }}
+                          disabled={isSaving}
+                          className="min-w-32"
+                        >
+                          {isSaving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-4 w-4 mr-2" />
+                              Add Integration
+                            </>
+                          )}
+                        </Button>
+                      );
+                    }
+                    
+                    // For OAuth integrations without token, show OAuth connect button
+                    if (isOAuthIntegration && !hasOAuthToken) {
+                      const handleOAuthConnect = async () => {
+                        if (connectingIntegrationType === 'google_calendar') {
+                          setOAuthLoading(true);
+                          try {
+                            const response = await integrationsApi.getOAuthUrl('google_calendar');
+                            if (response.data?.authorization_url) {
+                              window.location.href = response.data.authorization_url;
+                            } else {
+                              toast({
+                                title: "Error",
+                                description: "Failed to get OAuth authorization URL.",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch (error) {
+                            console.error('OAuth error:', error);
+                            toast({
+                              title: "Error",
+                              description: error instanceof Error ? error.message : "Failed to initiate OAuth flow.",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setOAuthLoading(false);
+                          }
+                        }
+                      };
+
+                      return (
+                        <Button 
+                          type="button"
+                          onClick={handleOAuthConnect}
+                          disabled={oauthLoading}
+                          className="min-w-32"
+                        >
+                          {oauthLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-4 w-4 mr-2" />
+                              Connect with Google
+                            </>
+                          )}
+                        </Button>
+                      );
+                    }
+                    
+                    // For non-OAuth integrations, show the API key submit button
+                    return (
+                      <Button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Save/update the API key first
+                          await handleIntegrationConnect({ api_key: apiKey });
+                          // In wizard mode or for new integrations, automatically add all tools and save
+                          if (isWizardMode || isNewIntegration) {
+                            // Automatically add all available tools
+                            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                            setSelectedIntegrationToolsForModal(availableTools);
+                            // Save and close
+                            await handleSaveSelectedIntegrationTools();
+                          } else {
+                            // For existing integrations, move to tools tab to select tools
+                            setIntegrationModalTab("tools");
+                          }
+                        }}
+                        disabled={connectingIntegrationLoading || isSaving || (!apiKey && !editingIntegrationConfig)}
+                        className="min-w-32"
+                      >
+                        {connectingIntegrationLoading || isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Add Integration
+                          </>
+                        )}
+                      </Button>
+                    );
+                  })()
                 )}
               </>
             )}
