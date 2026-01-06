@@ -308,7 +308,7 @@ export const schedulingProviders: IntegrationProvider[] = [
     description: "Overlay availability and events from Google Calendar.",
     icon: "📅",
     iconBg: "bg-blue-500",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
@@ -440,7 +440,7 @@ export const ecommerceProviders: IntegrationProvider[] = [
     description: "Easiest for Ecommerce. Connect your Shopify store and sync customers, orders, or products. Grow your business faster.",
     icon: "🛍️",
     iconBg: "bg-green-600",
-    status: "available",
+    status: "upcoming",
     order: 1
   },
   {
