@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, EyeOff } from "lucide-react";
 import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
+import { getBackendBaseUrl } from "@/utils/widgetHelpers";
 
 interface IntegrationFormProps {
   schema: IntegrationSchema;
@@ -15,6 +16,7 @@ interface IntegrationFormProps {
   hasSavedValues?: boolean;
   submitButtonText?: string;
   hideSubmitButton?: boolean;
+  integrationType?: string;
 }
 
 export function IntegrationForm({
@@ -26,6 +28,7 @@ export function IntegrationForm({
   hasSavedValues = false,
   submitButtonText,
   hideSubmitButton = false,
+  integrationType,
 }: IntegrationFormProps) {
   const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -322,11 +325,26 @@ export function IntegrationForm({
     }
   };
 
+  // Handle OAuth connection for Google Calendar
+  const handleOAuthConnect = () => {
+    if (integrationType === 'google_calendar') {
+      const backendUrl = getBackendBaseUrl();
+      window.location.href = `${backendUrl}/api/v1/oauth/google_calendar/authorize`;
+    }
+  };
+
+  // Check if this is an OAuth integration
+  const isOAuthIntegration = schema.auth_type === 'oauth' || integrationType === 'google_calendar';
+  const hasOAuthToken = initialConfig?.api_key || initialConfig?.access_token;
+
   // Render fields in order: required first, then optional
   const orderedFields = [
     ...schema.required.map((name) => [name, schema.fields[name]] as const),
     ...schema.optional.map((name) => [name, schema.fields[name]] as const),
   ];
+
+  // For OAuth integrations, show OAuth button instead of API key field
+  const shouldShowOAuthButton = isOAuthIntegration && !hasOAuthToken && integrationType === 'google_calendar';
 
   return (
     <form 
@@ -339,7 +357,48 @@ export function IntegrationForm({
       }}
       className="space-y-3 md:space-y-4"
     >
-      {orderedFields.map(([fieldName, fieldConfig]) => renderField(fieldName, fieldConfig))}
+      {shouldShowOAuthButton ? (
+        <div className="space-y-2">
+          <Label className="text-xs md:text-sm">Connect with Google</Label>
+          <Button
+            type="button"
+            variant="default"
+            onClick={handleOAuthConnect}
+            disabled={isLoading}
+            className="w-full text-xs md:text-sm"
+          >
+            Connect with Google Calendar
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Click to authorize access to your Google Calendar. You'll be redirected to Google to sign in.
+          </p>
+        </div>
+      ) : (
+        orderedFields.map(([fieldName, fieldConfig]) => {
+          // For OAuth integrations with existing token, show read-only fields
+          if (isOAuthIntegration && (fieldName === 'api_key' || fieldName === 'access_token' || fieldName === 'refresh_token')) {
+            return (
+              <div key={fieldName} className="space-y-2">
+                <Label htmlFor={fieldName} className="text-xs md:text-sm">
+                  {fieldConfig.label}
+                </Label>
+                <Input
+                  id={fieldName}
+                  type="password"
+                  value="••••••••••••••••"
+                  readOnly
+                  disabled
+                  className="bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  OAuth token (auto-populated). Reconnect to refresh.
+                </p>
+              </div>
+            );
+          }
+          return renderField(fieldName, fieldConfig);
+        })
+      )}
 
       {!hideSubmitButton && (
         <div className="flex justify-center pt-4">

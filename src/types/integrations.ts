@@ -15,6 +15,7 @@ export interface IntegrationSchema {
   required: string[];
   optional: string[];
   fields: Record<string, IntegrationFieldConfig>;
+  auth_type?: 'oauth' | 'api_key';
 }
 
 export interface IntegrationConfig {

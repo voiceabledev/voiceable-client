@@ -308,7 +308,7 @@ export const schedulingProviders: IntegrationProvider[] = [
     description: "Overlay availability and events from Google Calendar.",
     icon: "📅",
     iconBg: "bg-blue-500",
-    status: "upcoming",
+    status: "available",
     order: 1
   },
   {
@@ -664,4 +664,3 @@ export const getAvailableIntegrationTypes = () => {
   
   return sorted.map(toAvailableIntegrationType);
 };
-
