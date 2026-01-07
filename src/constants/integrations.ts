@@ -317,7 +317,7 @@ export const schedulingProviders: IntegrationProvider[] = [
     description: "Integrate Microsoft Outlook calendars for scheduling.",
     icon: "🗓️",
     iconBg: "bg-sky-700",
-    status: "upcoming",
+    status: "available",
     order: 2
   },
   {
@@ -326,7 +326,7 @@ export const schedulingProviders: IntegrationProvider[] = [
     description: "Bring Calendly booking links into your assistant workflows.",
     icon: "C",
     iconBg: "bg-orange-500",
-    status: "upcoming",
+    status: "available",
     order: 3
   },
   {

@@ -276,8 +276,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6">
-      <div className="space-y-6">
+    <div className="space-y-6">
         <TabSectionHeader icon={Layout} label="WIDGET" />
 
         {/* Deployment Warning */}
@@ -449,6 +448,5 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           </div>
         </TabSectionCard>
       </div>
-    </div>
   );
 }

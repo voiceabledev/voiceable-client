@@ -1536,6 +1536,35 @@ export default function AssistantDetail() {
                   fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
                   setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
                   behaviourConfig={behaviourConfig}
+                  conversationConfig={agentData.conversationConfig}
+                  onUpdateConversationConfig={async (updates: Record<string, unknown>) => {
+                    if (!agentData.agent) return;
+                    
+                    const currentConfig = agentData.conversationConfig || {};
+                    const updatedConfig = {
+                      ...currentConfig,
+                      ...updates,
+                    };
+                    
+                    // Update conversationConfig state first
+                    if (agentData.setConversationConfig) {
+                      agentData.setConversationConfig(updatedConfig);
+                    }
+                    
+                    // Save to backend using handleSave
+                    await agentData.handleSave(
+                      webhookHook.webhookTools,
+                      clientHook.clientTools,
+                      integrationHook.agentIntegrationTools,
+                      sectionHook.cenarios,
+                      sectionHook.etapas,
+                      sectionHook.tomDeVoz,
+                      systemTools,
+                      systemToolSettings,
+                      filesHook.attachedFiles,
+                      systemToolSettingsMap
+                    );
+                  }}
                 />
               ) : activeTab === "widget" ? (
                 <WidgetTab agent={agentData.agent} agentId={agentId} />

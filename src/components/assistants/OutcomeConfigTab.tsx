@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Plus, X, ChevronDown, Settings, RotateCcw, Check } from 'lucide-react';
+import { Loader2, Plus, X, ChevronDown, Settings, RotateCcw, Check, Target } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useOutcomeDefinition } from '@/hooks/assistants/useOutcomeDefinition';
 import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
@@ -493,38 +494,50 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold mb-2">Call Outcomes</h2>
-          <p className="text-muted-foreground">
-            Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes. Changes are saved automatically.
-          </p>
+      <div>
+        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+          <Target className="h-4 w-4" />
+          <span>CALL OUTCOMES</span>
         </div>
-        {saving && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Saving...
-          </div>
-        )}
-      </div>
-
-      <Collapsible open={isPrimaryOpen} onOpenChange={setIsPrimaryOpen}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="mb-2">Primary Goals</CardTitle>
-                  <CardDescription>
-                    What are the main things you want your agent to accomplish in each call? You can select multiple goals.
-                  </CardDescription>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isPrimaryOpen ? 'transform rotate-180' : ''}`} />
+        <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+          <div className="flex items-start justify-between gap-2 mb-4">
+            <div className="text-left flex-1">
+              <h3 className="text-base md:text-lg font-semibold">Call Outcomes</h3>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes. Changes are saved automatically.
+              </p>
+            </div>
+            {saving && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-shrink-0">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
               </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
+            )}
+          </div>
+
+          <div className="space-y-6">
+            {/* Primary Goals Section */}
+            <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+              <button 
+                className="w-full flex items-start justify-between gap-2" 
+                onClick={() => setIsPrimaryOpen(!isPrimaryOpen)}
+              >
+                <div className="text-left flex-1">
+                  <h3 className="text-base md:text-lg font-semibold">Primary Goals</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    What are the main things you want your agent to accomplish in each call? You can select multiple goals.
+                  </p>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
+                    isPrimaryOpen && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {isPrimaryOpen && (
+                <div className="mt-4 md:mt-6 space-y-4">
               <div>
                 {/* <Label htmlFor="primary-outcomes">Primary Outcomes</Label> */}
                 <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
@@ -605,10 +618,9 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
                   </div>
                 </div>
               )}
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+                </div>
+              )}
+            </div>
 
       {/* <Collapsible open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
         <Card>
@@ -716,31 +728,33 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         </Card>
       </Collapsible> */}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="mb-2">Escalation Rules</CardTitle>
-              <CardDescription>
-                Configure transfer behaviors and escalation triggers
-              </CardDescription>
+            {/* Escalation Rules Section */}
+            <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-left flex-1">
+                  <h3 className="text-base md:text-lg font-semibold">Escalation Rules</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Configure transfer behaviors and escalation triggers
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (onOpenEscalationPanel) {
+                      onOpenEscalationPanel();
+                    }
+                  }}
+                  className="h-8 flex-shrink-0"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configure
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (onOpenEscalationPanel) {
-                  onOpenEscalationPanel();
-                }
-              }}
-              className="h-8"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Configure
-            </Button>
           </div>
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
       
       {/* Escalation Rules Panel - will be rendered in parent's right panel area */}
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { Settings, Globe, Plug } from "lucide-react";
 import { SystemToolsSection } from "./SystemToolsSection";
 import { ExternalToolsSection } from "./ExternalToolsSection";
 import { AgentIntegrationToolsSection } from "@/components/integrations/AgentIntegrationToolsSection";
@@ -61,9 +62,9 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   onEditIntegration,
   onDeleteIntegration,
 }) => {
-  const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(true);
-  const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(true);
-  const [externalToolsSectionExpanded, setExternalToolsSectionExpanded] = useState(true);
+  const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(false);
+  const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(false);
+  const [externalToolsSectionExpanded, setExternalToolsSectionExpanded] = useState(false);
 
   // Transform agentIntegrationTools array to Record format expected by AgentIntegrationToolsSection
   const agentIntegrationToolsRecord = useMemo(() => {
@@ -86,56 +87,74 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <SystemToolsSection
-        systemTools={systemTools}
-        onToggleTool={(key, checked) => onToggleSystemTool(key as keyof SystemToolsState)}
-        onOpenSettings={onOpenSystemToolSettings ? (key) => onOpenSystemToolSettings(key as keyof SystemToolsState) : undefined}
-        expanded={systemToolsSectionExpanded}
-        onToggleExpanded={() => setSystemToolsSectionExpanded(prev => !prev)}
-      />
+      <div>
+        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+          <Settings className="h-4 w-4" />
+          <span>SYSTEM TOOLS</span>
+        </div>
+        <SystemToolsSection
+          systemTools={systemTools}
+          onToggleTool={(key, checked) => onToggleSystemTool(key as keyof SystemToolsState)}
+          onOpenSettings={onOpenSystemToolSettings ? (key) => onOpenSystemToolSettings(key as keyof SystemToolsState) : undefined}
+          expanded={systemToolsSectionExpanded}
+          onToggleExpanded={() => setSystemToolsSectionExpanded(prev => !prev)}
+        />
+      </div>
       
-      <ExternalToolsSection
-        webhooks={webhookTools}
-        clientTools={clientTools}
-        onAddWebhook={onAddWebhook}
-        onEditWebhook={(id) => {
-          const tool = webhookTools.find(t => t.id === id);
-          if (tool) onEditWebhook(tool);
-        }}
-        onDeleteWebhook={onDeleteWebhook}
-        onEditClientTool={(id) => {
-          const tool = clientTools.find(t => t.id === id);
-          if (tool) onEditClientTool(tool);
-        }}
-        onDeleteClientTool={onDeleteClientTool}
-        expanded={externalToolsSectionExpanded}
-        onToggleExpanded={() => setExternalToolsSectionExpanded(prev => !prev)}
-      />
+      <div>
+        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+          <Globe className="h-4 w-4" />
+          <span>EXTERNAL TOOLS</span>
+        </div>
+        <ExternalToolsSection
+          webhooks={webhookTools}
+          clientTools={clientTools}
+          onAddWebhook={onAddWebhook}
+          onEditWebhook={(id) => {
+            const tool = webhookTools.find(t => t.id === id);
+            if (tool) onEditWebhook(tool);
+          }}
+          onDeleteWebhook={onDeleteWebhook}
+          onEditClientTool={(id) => {
+            const tool = clientTools.find(t => t.id === id);
+            if (tool) onEditClientTool(tool);
+          }}
+          onDeleteClientTool={onDeleteClientTool}
+          expanded={externalToolsSectionExpanded}
+          onToggleExpanded={() => setExternalToolsSectionExpanded(prev => !prev)}
+        />
+      </div>
 
-      <AgentIntegrationToolsSection
-        agentIntegrationTools={agentIntegrationToolsRecord}
-        integrationToolsSectionExpanded={integrationToolsSectionExpanded}
-        integrationToolsExpanded={integrationToolsExpanded}
-        onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
-        onToggleIntegrationExpanded={onToggleIntegrationExpand}
-        onOpenAddIntegrationModal={onAddIntegration}
-        onOpenEditIntegrationModal={(integrationType) => {
-          // Pass the integration type directly - the hook will handle fetching if needed
-          onEditIntegration(integrationType);
-        }}
-        onDeleteIntegration={async (integrationType) => {
-          // Find the user integration by type to get its ID
-          const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
-          if (userIntegration?.id) {
-            await onDeleteIntegration(String(userIntegration.id));
-          }
-        }}
-        onToggleTool={onToggleIntegrationTool}
-        INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
-        getIntegrationIcon={getIntegrationIcon}
-        formatToolName={formatToolName}
-        displayNameToActionName={displayNameToActionName}
-      />
+      <div>
+        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+          <Plug className="h-4 w-4" />
+          <span>INTEGRATION TOOLS</span>
+        </div>
+        <AgentIntegrationToolsSection
+          agentIntegrationTools={agentIntegrationToolsRecord}
+          integrationToolsSectionExpanded={integrationToolsSectionExpanded}
+          integrationToolsExpanded={integrationToolsExpanded}
+          onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
+          onToggleIntegrationExpanded={onToggleIntegrationExpand}
+          onOpenAddIntegrationModal={onAddIntegration}
+          onOpenEditIntegrationModal={(integrationType) => {
+            // Pass the integration type directly - the hook will handle fetching if needed
+            onEditIntegration(integrationType);
+          }}
+          onDeleteIntegration={async (integrationType) => {
+            // Find the user integration by type to get its ID
+            const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
+            if (userIntegration?.id) {
+              await onDeleteIntegration(String(userIntegration.id));
+            }
+          }}
+          onToggleTool={onToggleIntegrationTool}
+          INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
+          getIntegrationIcon={getIntegrationIcon}
+          formatToolName={formatToolName}
+          displayNameToActionName={displayNameToActionName}
+        />
+      </div>
     </div>
   );
 };

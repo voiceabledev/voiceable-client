@@ -107,6 +107,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   });
   const [behaviourConfig, setBehaviourConfig] = useState<BehaviourConfig | undefined>(undefined);
   const [template, setTemplate] = useState<AgentTemplate | null>(null);
+  const [templateSystemPrompt, setTemplateSystemPrompt] = useState<string>("");
+  const [systemPromptTemplate, setSystemPromptTemplate] = useState<string>(initialData?.systemPrompt || "");
   const [currentBehaviourId, setCurrentBehaviourId] = useState<number | undefined>(undefined);
   const [currentBehaviourName, setCurrentBehaviourName] = useState<string | undefined>(undefined);
   const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
@@ -719,6 +721,20 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             if (foundTemplate) {
               setTemplate(foundTemplate);
               
+              // Capture template's system_prompt if initialData.systemPrompt is not available
+              if (foundTemplate.system_prompt && !initialData?.systemPrompt) {
+                setTemplateSystemPrompt(foundTemplate.system_prompt);
+                setSystemPromptTemplate(foundTemplate.system_prompt);
+              } else if (foundTemplate.system_prompt && initialData?.systemPrompt) {
+                // If initialData has systemPrompt, use it, but also store template's for reference
+                setTemplateSystemPrompt(foundTemplate.system_prompt);
+                // Keep initialData.systemPrompt as the editable value
+              } else if (foundTemplate.system_prompt) {
+                // If template has system_prompt but no initialData, use template's
+                setTemplateSystemPrompt(foundTemplate.system_prompt);
+                setSystemPromptTemplate(foundTemplate.system_prompt);
+              }
+              
               // Pre-populate from template defaults if available
               const templateDefault = templateDefaults[foundTemplate.title];
               if (templateDefault) {
@@ -732,13 +748,19 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 setPhases(templateDefault.phases.map(p => ({ ...p, id: generateId() })));
                 setVoiceTone(templateDefault.voiceTone.map(v => ({ ...v, id: generateId() })));
                 
-                // Pre-populate first message if template has one and initialData doesn't override it
-                if (foundTemplate.first_message && !initialData?.firstMessage) {
+                // Pre-populate first message from template if available
+                // Always use template's first message if it exists, unless initialData explicitly provides a non-empty value
+                if (foundTemplate.first_message) {
+                  if (!initialData?.firstMessage || !initialData.firstMessage.trim()) {
+                    setFirstMessage(foundTemplate.first_message);
+                  }
+                }
+              } else if (foundTemplate.first_message) {
+                // Even without template defaults, pre-populate first message from template
+                // Always use template's first message if it exists, unless initialData explicitly provides a non-empty value
+                if (!initialData?.firstMessage || !initialData.firstMessage.trim()) {
                   setFirstMessage(foundTemplate.first_message);
                 }
-              } else if (foundTemplate.first_message && !initialData?.firstMessage) {
-                // Even without template defaults, pre-populate first message
-                setFirstMessage(foundTemplate.first_message);
               }
               
               // If template has a behaviour ID, load the full behaviour with sections
@@ -1124,9 +1146,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               }
             ]
           },
-          // Save the template prompt if provided (from template selection)
-          ...(initialData?.systemPrompt ? {
-            system_prompt_template: initialData.systemPrompt
+          // Save the template prompt if provided (from template selection, loaded template, or user edits)
+          ...(systemPromptTemplate && systemPromptTemplate.trim() ? {
+            system_prompt_template: systemPromptTemplate.trim()
           } : {}),
           // Store behaviour reference and config (either from template or default)
           ...(behaviourConfig && currentBehaviourId ? {
@@ -1654,6 +1676,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               behaviourConfig={behaviourConfig}
               onOpenSectionModal={openSectionModal}
               onDeleteSectionEntry={deleteSectionEntry}
+              systemPromptTemplate={systemPromptTemplate}
+              onSystemPromptTemplateChange={setSystemPromptTemplate}
             />
           );
         case 5: // Integrations step
@@ -1813,6 +1837,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               behaviourConfig={behaviourConfig}
               onOpenSectionModal={openSectionModal}
               onDeleteSectionEntry={deleteSectionEntry}
+              systemPromptTemplate={systemPromptTemplate}
+              onSystemPromptTemplateChange={setSystemPromptTemplate}
             />
           );
         case 5: // Integrations step

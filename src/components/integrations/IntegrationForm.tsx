@@ -328,15 +328,16 @@ export function IntegrationForm({
     }
   };
 
-  // Handle OAuth connection for Google Calendar
+  // Handle OAuth connection for OAuth-enabled integrations
   const handleOAuthConnect = async () => {
-    if (integrationType === 'google_calendar') {
+    const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
+    if (oauthIntegrations.includes(integrationType || '')) {
       setOAuthLoading(true);
       try {
         // Make authenticated API call to get OAuth URL
-        const response = await integrationsApi.getOAuthUrl('google_calendar');
+        const response = await integrationsApi.getOAuthUrl(integrationType || '');
         if (response.data?.authorization_url) {
-          // Redirect to Google OAuth consent screen
+          // Redirect to OAuth consent screen
           window.location.href = response.data.authorization_url;
         } else {
           toast({
@@ -359,7 +360,8 @@ export function IntegrationForm({
   };
 
   // Check if this is an OAuth integration
-  const isOAuthIntegration = schema.auth_type === 'oauth' || integrationType === 'google_calendar';
+  const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
+  const isOAuthIntegration = schema.auth_type === 'oauth' || oauthIntegrations.includes(integrationType || '');
   const hasOAuthToken = initialConfig?.api_key || initialConfig?.access_token;
 
   // Render fields in order: required first, then optional
@@ -369,7 +371,23 @@ export function IntegrationForm({
   ];
 
   // For OAuth integrations, show OAuth button instead of API key field
-  const shouldShowOAuthButton = isOAuthIntegration && !hasOAuthToken && integrationType === 'google_calendar';
+  const shouldShowOAuthButton = isOAuthIntegration && !hasOAuthToken && oauthIntegrations.includes(integrationType || '');
+
+  // Get OAuth button text and description based on integration type
+  const getOAuthButtonText = () => {
+    switch (integrationType) {
+      case 'google_calendar':
+        return { label: 'Connect with Google', button: 'Connect with Google Calendar', description: 'Click to authorize access to your Google Calendar. You\'ll be redirected to Google to sign in.' };
+      case 'calendly':
+        return { label: 'Connect with Calendly', button: 'Connect with Calendly', description: 'Click to authorize access to your Calendly account. You\'ll be redirected to Calendly to sign in.' };
+      case 'outlook_calendar':
+        return { label: 'Connect with Microsoft', button: 'Connect with Outlook Calendar', description: 'Click to authorize access to your Outlook Calendar. You\'ll be redirected to Microsoft to sign in.' };
+      default:
+        return { label: 'Connect', button: 'Connect', description: 'Click to authorize access. You\'ll be redirected to sign in.' };
+    }
+  };
+
+  const oauthButtonText = getOAuthButtonText();
 
   return (
     <form 
@@ -384,7 +402,7 @@ export function IntegrationForm({
     >
       {shouldShowOAuthButton ? (
         <div className="space-y-2">
-          <Label className="text-xs md:text-sm">Connect with Google</Label>
+          <Label className="text-xs md:text-sm">{oauthButtonText.label}</Label>
           <Button
             type="button"
             variant="default"
@@ -392,10 +410,10 @@ export function IntegrationForm({
             disabled={isLoading || oauthLoading}
             className="w-full text-xs md:text-sm"
           >
-            {oauthLoading ? "Connecting..." : "Connect with Google Calendar"}
+            {oauthLoading ? "Connecting..." : oauthButtonText.button}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Click to authorize access to your Google Calendar. You'll be redirected to Google to sign in.
+            {oauthButtonText.description}
           </p>
         </div>
       ) : (

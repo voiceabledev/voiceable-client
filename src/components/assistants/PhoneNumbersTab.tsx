@@ -217,25 +217,29 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     : [];
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6">
-      <div className="space-y-6">
-        <TabSectionCard
-          title="Phone Number"
-          description="Manage the phone number assigned to this agent. Purchase a new number or import an existing one from your account."
-          count={`${agentPhoneNumbers.length} phone number${agentPhoneNumbers.length !== 1 ? 's' : ''} assigned to this agent`}
-          actionButton={
-            agentPhoneNumbers.length === 0 ? (
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => setIsPhoneNumberModalOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Number
-              </Button>
-            ) : null
-          }
-        >
+    <div className="space-y-6">
+        <div>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+            <Phone className="h-4 w-4" />
+            <span>PHONE NUMBER</span>
+          </div>
+          <TabSectionCard
+            title="Phone Number"
+            description="Manage the phone number assigned to this agent. Purchase a new number or import an existing one from your account."
+            count={`${agentPhoneNumbers.length} phone number${agentPhoneNumbers.length !== 1 ? 's' : ''} assigned to this agent`}
+            actionButton={
+              agentPhoneNumbers.length === 0 ? (
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsPhoneNumberModalOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Number
+                </Button>
+              ) : null
+            }
+          >
           {agentPhoneNumbers.length > 0 ? (
             <div className="space-y-3">
               <div className="grid gap-3">
@@ -321,8 +325,8 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
               </Button>
             </div>
           )}
-        </TabSectionCard>
-      </div>
+          </TabSectionCard>
+        </div>
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

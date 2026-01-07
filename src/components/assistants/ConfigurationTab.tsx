@@ -55,9 +55,9 @@ export const ConfigurationTab: React.FC<ConfigurationTabProps> = ({
   setLanguageSearchQuery,
   onSetDefaultLanguage,
 }) => {
-  const [modelExpanded, setModelExpanded] = useState(true);
-  const [voiceExpanded, setVoiceExpanded] = useState(true);
-  const [languageExpanded, setLanguageExpanded] = useState(true);
+  const [modelExpanded, setModelExpanded] = useState(false);
+  const [voiceExpanded, setVoiceExpanded] = useState(false);
+  const [languageExpanded, setLanguageExpanded] = useState(false);
 
   if (!agent) {
     return null;

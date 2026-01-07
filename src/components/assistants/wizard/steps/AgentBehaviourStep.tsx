@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { SectionEntry } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
+import { AgentTemplateSection } from "@/components/assistants/sections/AgentTemplateSection";
 
 interface AgentBehaviourStepProps {
   scenarios: SectionEntry[];
@@ -11,6 +12,8 @@ interface AgentBehaviourStepProps {
   behaviourConfig?: BehaviourConfig;
   onOpenSectionModal: (type: "scenarios" | "phases" | "voiceTone", entry?: SectionEntry) => void;
   onDeleteSectionEntry: (type: "scenarios" | "phases" | "voiceTone", id: string) => void;
+  systemPromptTemplate?: string;
+  onSystemPromptTemplateChange?: (template: string) => void;
 }
 
 const getSectionConfig = (
@@ -134,7 +137,11 @@ export function AgentBehaviourStep({
   behaviourConfig,
   onOpenSectionModal,
   onDeleteSectionEntry,
+  systemPromptTemplate = "",
+  onSystemPromptTemplateChange,
 }: AgentBehaviourStepProps) {
+  const [agentTemplateExpanded, setAgentTemplateExpanded] = useState(true);
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -144,6 +151,16 @@ export function AgentBehaviourStep({
           </p>
         </div>
       </div>
+
+      {/* Agent Template Section */}
+      {onSystemPromptTemplateChange && (
+        <AgentTemplateSection
+          expanded={agentTemplateExpanded}
+          onToggleExpanded={() => setAgentTemplateExpanded(!agentTemplateExpanded)}
+          systemPromptTemplate={systemPromptTemplate}
+          setSystemPromptTemplate={onSystemPromptTemplateChange}
+        />
+      )}
       
       {renderSectionEditor(scenarios, "scenarios", behaviourConfig, onOpenSectionModal, onDeleteSectionEntry)}
       {renderSectionEditor(phases, "phases", behaviourConfig, onOpenSectionModal, onDeleteSectionEntry)}

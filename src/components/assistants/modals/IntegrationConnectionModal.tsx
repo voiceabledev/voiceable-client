@@ -438,7 +438,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                       const schema = connectingIntegrationType 
                         ? integrationSchemas[connectingIntegrationType] 
                         : null;
-                      const isOAuthIntegration = schema?.auth_type === 'oauth' || connectingIntegrationType === 'google_calendar';
+                      const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
+                      const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
                       
                       // Use IntegrationForm for OAuth integrations
                       if (isOAuthIntegration && schema) {
@@ -685,7 +686,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     const schema = connectingIntegrationType 
                       ? integrationSchemas[connectingIntegrationType] 
                       : null;
-                    const isOAuthIntegration = schema?.auth_type === 'oauth' || connectingIntegrationType === 'google_calendar';
+                    const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
+                    const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
                     const hasOAuthToken = editingIntegrationConfig?.config?.api_key || editingIntegrationConfig?.config?.access_token;
                     
                     // For OAuth integrations with existing token, show Add Integration button
@@ -728,10 +730,11 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     // For OAuth integrations without token, show OAuth connect button
                     if (isOAuthIntegration && !hasOAuthToken) {
                       const handleOAuthConnect = async () => {
-                        if (connectingIntegrationType === 'google_calendar') {
+                        const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
+                        if (oauthIntegrations.includes(connectingIntegrationType || '')) {
                           setOAuthLoading(true);
                           try {
-                            const response = await integrationsApi.getOAuthUrl('google_calendar');
+                            const response = await integrationsApi.getOAuthUrl(connectingIntegrationType || '');
                             if (response.data?.authorization_url) {
                               window.location.href = response.data.authorization_url;
                             } else {
@@ -754,6 +757,20 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         }
                       };
 
+                      // Get OAuth button text based on integration type
+                      const getOAuthButtonText = () => {
+                        switch (connectingIntegrationType) {
+                          case 'google_calendar':
+                            return 'Connect with Google';
+                          case 'calendly':
+                            return 'Connect with Calendly';
+                          case 'outlook_calendar':
+                            return 'Connect with Microsoft';
+                          default:
+                            return 'Connect';
+                        }
+                      };
+
                       return (
                         <Button 
                           type="button"
@@ -769,7 +786,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           ) : (
                             <>
                               <ShieldCheck className="h-4 w-4 mr-2" />
-                              Connect with Google
+                              {getOAuthButtonText()}
                             </>
                           )}
                         </Button>
