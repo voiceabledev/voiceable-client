@@ -386,6 +386,10 @@ export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
     "Create Event",
     "Update Event",
     "Delete Event"
+  ],
+  twilio: [
+    "Send SMS Notification",
+    "Get Form Submission"
   ]
 };
 
@@ -430,6 +434,12 @@ export const INTEGRATION_METADATA: Record<string, { name: string; icon: string; 
     name: "Outlook Calendar",
     icon: "🗓️",
     iconBg: "bg-sky-700",
+  },
+  twilio: {
+    name: "Twilio",
+    icon: "📱",
+    iconBg: "bg-red-600",
+    url: "https://www.twilio.com",
   },
 };
 
@@ -595,6 +605,10 @@ export const displayNameToActionName = (displayName: string, integrationType: st
       "Update Event": "update_event",
       "Delete Event": "delete_event",
     },
+    twilio: {
+      "Send SMS Notification": "send_sms_notification",
+      "Get Form Submission": "get_form_submission",
+    },
   };
   return mapping[integrationType]?.[displayName] || displayName.toLowerCase().replace(/\s+/g, "_");
 };
@@ -677,6 +691,10 @@ export const actionNameToDisplayName = (actionName: string, integrationType: str
       "update_event": "Update Event",
       "delete_event": "Delete Event",
     },
+    twilio: {
+      "send_sms_notification": "Send SMS Notification",
+      "get_form_submission": "Get Form Submission",
+    },
   };
   return mapping[integrationType]?.[actionName] || actionName.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 };
@@ -688,6 +706,7 @@ export const getIntegrationDescription = (integrationType: string): string => {
     hubspot: "Customer platform and CRM",
     salesforce: "Enterprise CRM and customer success",
     calcom: "Scheduling and calendar management",
+    twilio: "SMS notifications and form collection",
   };
   return descriptions[integrationType] || "Connect external tools to your assistant";
 };

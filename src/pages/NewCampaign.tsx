@@ -146,11 +146,6 @@ export default function NewCampaign() {
     setManualPhoneNumbers(prev => prev.filter((_, i) => i !== index));
   };
 
-
-
-
-
-
   const handleCreate = async () => {
     if (!selectedAgentId) {
       toast({

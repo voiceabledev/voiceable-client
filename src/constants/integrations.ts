@@ -347,7 +347,7 @@ export const telephonyProviders: IntegrationProvider[] = [
     description: "Programmable Voice and SMS for voice calls and messaging.",
     icon: "T",
     iconBg: "bg-red-600",
-    status: "upcoming",
+    status: "available",
     order: 1
   },
   {

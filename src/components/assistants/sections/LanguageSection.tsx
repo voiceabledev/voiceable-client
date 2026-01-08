@@ -71,6 +71,7 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
       <div className="bg-card border border-border rounded-lg p-4 md:p-6">
         <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
           <div className="text-left flex-1">
+            <h3 className="text-base md:text-lg font-semibold">Language</h3>
             <p className="text-xs md:text-sm text-muted-foreground">
               Select the language{selectedLanguages.length !== 1 ? 's' : ''} your agent will use for conversations.
             </p>

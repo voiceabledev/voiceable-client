@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Puzzle, 
@@ -62,6 +61,8 @@ type IntegrationConnectionModalProps = {
   saveSelectedIntegrationTools: () => Promise<void>;
   isWizardMode?: boolean; // If true, automatically add all tools without selection
   fetchUserIntegrations?: () => Promise<void>; // Function to refresh user integrations in the hook
+  onRemoveIntegration?: (integrationType: string) => Promise<void>; // Function to remove integration from agent
+  agentId?: string | number; // Agent ID for removing integration
 };
 
 export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProps> = ({
@@ -88,6 +89,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   saveSelectedIntegrationTools,
   isWizardMode = false,
   fetchUserIntegrations,
+  onRemoveIntegration,
+  agentId,
 }) => {
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -98,6 +101,24 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   const isSavingRef = useRef(false);
   const isOpeningRef = useRef(false);
   const { toast } = useToast();
+
+  // Auto-switch to tools tab for integrations with no fields (like Twilio)
+  useEffect(() => {
+    if (open && connectingIntegrationType) {
+      // Direct check for Twilio (always has no fields)
+      const isTwilio = connectingIntegrationType === 'twilio';
+      const schema = integrationSchemas[connectingIntegrationType];
+      const hasNoFields = isTwilio || (schema && 
+        schema.required.length === 0 && 
+        schema.optional.length === 0 &&
+        Object.keys(schema.fields || {}).length === 0);
+      
+      if (hasNoFields && integrationModalTab === 'credentials') {
+        // Automatically switch to tools tab for integrations with no fields
+        setIntegrationModalTab('tools');
+      }
+    }
+  }, [open, connectingIntegrationType, integrationSchemas, integrationModalTab, setIntegrationModalTab]);
 
   // Track when the open prop changes
   useEffect(() => {
@@ -136,9 +157,9 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
     }
   }, [editingIntegrationConfig]);
 
-  // Populate selected tools when switching to tools tab for existing integrations only
+  // Populate selected tools for existing integrations only
   useEffect(() => {
-    if (connectingIntegrationType && integrationModalTab === "tools") {
+    if (connectingIntegrationType) {
       // Check if this integration is already connected to the agent
       const hasIntegrationInAgent = agentIntegrationTools.some(
         tool => tool.integration_type === connectingIntegrationType
@@ -166,7 +187,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [integrationModalTab, connectingIntegrationType, agentIntegrationTools]);
+  }, [connectingIntegrationType, agentIntegrationTools]);
 
   const integrationMeta = INTEGRATION_METADATA[connectingIntegrationType || ''] || { name: 'Integration', icon: '🔌', iconBg: 'bg-gray-500' };
 
@@ -205,6 +226,20 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
       tool => tool.integration_type === connectingIntegrationType
     );
   }, [connectingIntegrationType, agentIntegrationTools]);
+
+  // Check if integration has no fields (like Twilio - uses environment variables)
+  const hasNoFields = useMemo(() => {
+    if (!connectingIntegrationType) return false;
+    
+    // Direct check for Twilio (always has no fields)
+    if (connectingIntegrationType === 'twilio') return true;
+    
+    const schema = integrationSchemas[connectingIntegrationType];
+    return schema && 
+      schema.required.length === 0 && 
+      schema.optional.length === 0 &&
+      Object.keys(schema.fields || {}).length === 0;
+  }, [connectingIntegrationType, integrationSchemas]);
 
   // Wrap onOpenChange to prevent double close and accidental closes
   const handleOpenChange = useCallback((newOpen: boolean) => {
@@ -379,7 +414,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
           </DialogHeader>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
           {integrationModalStep === "select" ? (
             <ScrollArea className="h-[600px] p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -438,33 +473,42 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
               </div>
             </ScrollArea>
           ) : (
-            <Tabs value={integrationModalTab} onValueChange={(val) => setIntegrationModalTab(val as "about" | "credentials" | "tools")} className="flex flex-col flex-1 min-h-0">
-              <div className="px-6 border-b bg-secondary/20 flex items-center justify-center flex-shrink-0">
-                <TabsList className="h-12 bg-transparent gap-6">
-                  <TabsTrigger value="credentials" className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-full px-1">
-                    Credentials
-                  </TabsTrigger>
-                  <TabsTrigger value="tools" className="bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none h-full px-1">
-                    Tools
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <div className="p-6">
-                  <TabsContent value="credentials" className="mt-0 space-y-6">
-                    {(() => {
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="p-8 space-y-8">
+                  {/* Credentials Section - Hide for integrations with no fields (like Twilio) */}
+                  {!hasNoFields && (
+                    <div className="space-y-6">
+                      <div className="flex items-start gap-3 mb-6 pb-4 border-b border-border/50">
+                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                          <ShieldCheck className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold mb-1">Credentials</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Connect your {integrationMeta.name} account to enable tools for your assistant.
+                          </p>
+                        </div>
+                      </div>
+                      {(() => {
                       const schema = connectingIntegrationType 
                         ? integrationSchemas[connectingIntegrationType] 
                         : null;
                       const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
                       const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
                       
-                      // Use IntegrationForm for OAuth integrations
-                      if (isOAuthIntegration) {
+                      // Check if integration has multiple fields (more than just api_key)
+                      const hasMultipleFields = schema && (
+                        schema.required.length > 1 || 
+                        (schema.required.length === 1 && schema.required[0] !== 'api_key') ||
+                        Object.keys(schema.fields || {}).length > 1
+                      );
+                      
+                      // Use IntegrationForm for OAuth integrations or integrations with multiple fields
+                      // Note: hasNoFields integrations skip the entire credentials section, so IntegrationForm is not rendered
+                      if (isOAuthIntegration || (schema && hasMultipleFields)) {
                         // If schema isn't loaded yet, create a minimal schema for OAuth integrations
                         // IntegrationForm can work with a minimal schema since it checks the hardcoded OAuth list
-                        const oauthSchema = schema || (isOAuthIntegration ? {
+                        const formSchema = schema || (isOAuthIntegration ? {
                           type: connectingIntegrationType || '',
                           auth_type: 'oauth' as const,
                           fields: {},
@@ -473,7 +517,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         } : null);
                         
                         // Only show loading if we're still loading and it's not a known OAuth integration
-                        if (!oauthSchema && connectingIntegrationLoading) {
+                        if (!formSchema && connectingIntegrationLoading) {
                           return (
                             <div className="flex items-center justify-center py-12">
                               <div className="flex flex-col items-center gap-3">
@@ -485,7 +529,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         }
                         
                         // If we still don't have a schema after loading, something went wrong
-                        if (!oauthSchema) {
+                        if (!formSchema) {
                           return (
                             <div className="flex items-center justify-center py-12">
                               <div className="flex flex-col items-center gap-3">
@@ -497,7 +541,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         
                         return (
                           <IntegrationForm
-                            schema={oauthSchema}
+                            schema={formSchema}
                             initialConfig={editingIntegrationConfig?.config || {}}
                             onSubmit={async (config) => {
                               try {
@@ -509,12 +553,6 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                                 
                                 // Connect the integration
                                 await handleIntegrationConnect(stringConfig);
-                                
-                                // Switch to tools tab (handleIntegrationConnect does this, but ensure it happens)
-                                setIntegrationModalTab("tools");
-                                
-                                // Wait a bit for the modal to switch to tools tab
-                                await new Promise(resolve => setTimeout(resolve, 300));
                                 
                                 // Automatically select all available tools (but don't save yet)
                                 const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
@@ -538,7 +576,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                                 // Don't re-throw - prevent any form submission
                               }
                             }}
-                            onDisconnect={async () => {
+                            onDisconnect={connectingIntegrationType === 'twilio' ? undefined : async () => {
                               if (!connectingIntegrationType || !editingIntegrationConfig) return;
                               setDisconnecting(true);
                               try {
@@ -590,25 +628,13 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                       // Use simple API key form for non-OAuth integrations
                       return (
                         <div className="space-y-6">
-                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                            <div className="flex gap-3">
-                              <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                              <div className="text-sm text-blue-900">
-                                <p className="font-medium mb-1">Secure API Connection</p>
-                                <p className="text-blue-700">
-                                  Your API key is encrypted and stored securely. It will never be exposed in logs or shared with third parties.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
                           <div className="space-y-4">
                             <div>
-                              <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+                              <h4 className="text-base font-semibold mb-3 flex items-center gap-2">
                                 <ShieldCheck className="h-4 w-4 text-primary" />
                                 Credential Type
-                              </h3>
-                              <div className="p-4 border-2 border-primary/20 rounded-xl bg-primary/5">
+                              </h4>
+                              <div className="p-4 border-2 border-primary/20 rounded-xl bg-primary/5 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex items-center gap-3">
                                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                     <ShieldCheck className="h-5 w-5 text-primary" />
@@ -620,91 +646,104 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                                 </div>
                               </div>
                             </div>
-
-                            <div className="space-y-3">
-                              <Label htmlFor="api-key" className="text-base font-semibold flex items-center gap-2">
-                                API Key
-                                {editingIntegrationConfig && (
-                                  <Badge variant="outline" className="font-normal">
-                                    Currently configured
-                                  </Badge>
-                                )}
-                              </Label>
-                              <Input
-                                id="api-key"
-                                type="text"
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                placeholder={editingIntegrationConfig ? "Enter new API key to update" : `Enter your ${integrationMeta.name} API key`}
-                                className="font-mono text-sm h-11"
-                              />
-                              <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
-                                <p className="font-medium text-foreground">Where to find your API key:</p>
-                                {connectingIntegrationType === 'calcom' && (
-                                  <p>Navigate to Settings → Developer → API Keys in your Cal.com dashboard</p>
-                                )}
-                                {connectingIntegrationType === 'pipedrive' && (
-                                  <p>Go to Settings → Personal Preferences → API in your Pipedrive account</p>
-                                )}
-                                {connectingIntegrationType === 'calendly' && (
-                                  <p>Access Integrations & Apps → API & Webhooks → Personal Access Tokens</p>
-                                )}
-                                {connectingIntegrationType === 'hubspot' && (
-                                  <p>Create a private app in Settings → Integrations → Private Apps</p>
-                                )}
-                                {!['calcom', 'pipedrive', 'calendly', 'hubspot'].includes(connectingIntegrationType || '') && (
-                                  <p>Check your {integrationMeta.name} account settings for API credentials</p>
-                                )}
+                            
+                            <div className="flex items-start gap-3 p-4 rounded-lg border-l-4 border-primary/30 bg-primary/5">
+                              <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                              <div className="text-sm">
+                                <p className="font-medium text-foreground mb-1">Secure API Connection</p>
+                                <p className="text-muted-foreground">
+                                  Your API key is encrypted and stored securely. It will never be exposed in logs or shared with third parties.
+                                </p>
                               </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label htmlFor="api-key" className="text-base font-semibold flex items-center gap-2">
+                              API Key
+                              {editingIntegrationConfig && (
+                                <Badge variant="outline" className="font-normal">
+                                  Currently configured
+                                </Badge>
+                              )}
+                            </Label>
+                            <Input
+                              id="api-key"
+                              type="text"
+                              value={apiKey}
+                              onChange={(e) => setApiKey(e.target.value)}
+                              placeholder={editingIntegrationConfig ? "Enter new API key to update" : `Enter your ${integrationMeta.name} API key`}
+                              className="font-mono text-sm h-11"
+                            />
+                            <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+                              <p className="font-medium text-foreground">Where to find your API key:</p>
+                              {connectingIntegrationType === 'calcom' && (
+                                <p>Navigate to Settings → Developer → API Keys in your Cal.com dashboard</p>
+                              )}
+                              {connectingIntegrationType === 'pipedrive' && (
+                                <p>Go to Settings → Personal Preferences → API in your Pipedrive account</p>
+                              )}
+                              {connectingIntegrationType === 'calendly' && (
+                                <p>Access Integrations & Apps → API & Webhooks → Personal Access Tokens</p>
+                              )}
+                              {connectingIntegrationType === 'hubspot' && (
+                                <p>Create a private app in Settings → Integrations → Private Apps</p>
+                              )}
+                              {!['calcom', 'pipedrive', 'calendly', 'hubspot'].includes(connectingIntegrationType || '') && (
+                                <p>Check your {integrationMeta.name} account settings for API credentials</p>
+                              )}
                             </div>
                           </div>
                         </div>
                       );
                     })()}
-                  </TabsContent>
+                    </div>
+                  )}
 
-                  <TabsContent value="tools" className="mt-0 space-y-5">
-                      <div className="space-y-5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-base font-semibold mb-1 flex items-center gap-2">
-                            <Wrench className="h-4 w-4 text-primary" />
-                            Available Tools
-                          </h3>
+                  {/* Tools Section */}
+                  <div className="space-y-5 border-t border-border/50 pt-8">
+                    <div className="flex items-start justify-between gap-4 mb-6">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                          <Wrench className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold mb-1">Available Tools</h3>
                           <p className="text-sm text-muted-foreground">
-                            {(isNewIntegration || isWizardMode)
+                            {(isNewIntegration || isWizardMode || hasNoFields)
                               ? "All tools will be added to your assistant" 
                               : "Select the tools you want to enable for your assistant"}
                           </p>
                         </div>
-                        {!(isNewIntegration || isWizardMode) && (
-                          <Badge variant="secondary" className="text-xs">
-                            {selectedIntegrationToolsForModal.length} selected
-                          </Badge>
-                        )}
-                        {(isNewIntegration || isWizardMode) && (
-                          <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                            {toolsToDisplay.length} tools
-                          </Badge>
-                        )}
                       </div>
+                      {!(isNewIntegration || isWizardMode || hasNoFields) && (
+                        <Badge variant="secondary" className="text-xs flex-shrink-0">
+                          {selectedIntegrationToolsForModal.length} selected
+                        </Badge>
+                      )}
+                      {(isNewIntegration || isWizardMode || hasNoFields) && (
+                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary flex-shrink-0">
+                          {toolsToDisplay.length} tools
+                        </Badge>
+                      )}
+                    </div>
 
                       <div className={cn(
-                        "max-h-[400px] overflow-y-auto grid gap-2",
+                        "grid gap-3",
                         (isNewIntegration || isWizardMode) 
                           ? "grid-cols-2 md:grid-cols-3" 
                           : "grid-cols-3"
                       )}>
                         {toolsToDisplay.map((toolName) => {
-                          // For new integrations or wizard mode, show as simple list (no selection)
-                          const showAsList = isNewIntegration || isWizardMode;
+                          // For new integrations, wizard mode, or integrations with no fields (like Twilio), show as simple list (no selection)
+                          const showAsList = isNewIntegration || isWizardMode || hasNoFields;
                           
                           if (showAsList) {
                             // Simple list view - no interaction, no selection state
                             return (
                               <div
                                 key={toolName}
-                                className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border"
+                                className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border shadow-sm"
                               >
                                 <div className={cn(
                                   "w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
@@ -726,9 +765,10 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                               key={toolName}
                               className={cn(
                                 "flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer",
+                                "hover:shadow-md hover:scale-[1.02]",
                                 isSelected
-                                  ? "border-primary bg-primary/5 shadow-sm"
-                                  : "border-border hover:border-primary/30 hover:bg-accent/30"
+                                  ? "border-primary bg-primary/10 shadow-sm"
+                                  : "border-border hover:border-primary/50 hover:bg-accent/50"
                               )}
                               onClick={() => toggleModalToolSelection(toolName)}
                             >
@@ -750,17 +790,20 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           );
                         })}
                         {toolsToDisplay.length === 0 && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Wrench className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No tools available for this integration</p>
+                          <div className="col-span-full flex flex-col items-center justify-center py-12 px-4 rounded-xl bg-secondary/30 border border-dashed border-border">
+                            <div className="p-4 rounded-full bg-muted mb-4">
+                              <Wrench className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                            <p className="font-medium text-foreground mb-1">No tools available</p>
+                            <p className="text-sm text-muted-foreground text-center">
+                              This integration doesn't provide any tools for your assistant.
+                            </p>
                           </div>
                         )}
-                        </div>
                       </div>
-                    </TabsContent>
-                </div>
+                  </div>
               </div>
-            </Tabs>
+            </div>
           )}
         </div>
 
@@ -768,75 +811,47 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
           <div className="flex gap-3">
             {integrationModalStep !== "select" && (
               <>
-                {integrationModalTab === "tools" ? (
-                  <Button 
-                    type="button"
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // For new integrations/wizard mode, ensure all tools are selected before saving
-                      if (isNewIntegration || isWizardMode) {
-                        const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
-                        setSelectedIntegrationToolsForModal(availableTools);
-                      }
-                      await handleSaveSelectedIntegrationTools();
-                    }}
-                    disabled={isSaving}
-                    className="min-w-32"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="h-4 w-4 mr-2" />
-                        Add Integration
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  (() => {
-                    const schema = connectingIntegrationType 
-                      ? integrationSchemas[connectingIntegrationType] 
-                      : null;
-                    const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
-                    const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
-                    
-                    // Check if integration is already connected (either via editingIntegrationConfig or in userIntegrations)
-                    const existingUserIntegration = userIntegrations.find(
-                      ui => ui.integration_type === connectingIntegrationType
-                    );
-                    const hasOAuthToken = editingIntegrationConfig?.config?.api_key || 
-                                         editingIntegrationConfig?.config?.access_token ||
-                                         existingUserIntegration?.config?.api_key ||
-                                         existingUserIntegration?.config?.access_token;
-                    
-                    // For OAuth integrations, IntegrationForm is always used (even with minimal schema)
-                    // IntegrationForm handles its own buttons (OAuth connect, disconnect, etc.), so don't show footer buttons
-                    if (isOAuthIntegration) {
-                      // IntegrationForm handles its own buttons, so return null here
-                      return null;
-                    }
-                    
-                    // For OAuth integrations with existing token (but not using IntegrationForm), show Add Integration button
-                    // This allows users to add the integration to the agent even if it's already connected to their account
-                    if (isOAuthIntegration && hasOAuthToken) {
+                {(() => {
+                  // Check if we should show the tools save button (when credentials are already connected)
+                  const schema = connectingIntegrationType 
+                    ? integrationSchemas[connectingIntegrationType] 
+                    : null;
+                  const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
+                  const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
+                  
+                  const existingUserIntegration = userIntegrations.find(
+                    ui => ui.integration_type === connectingIntegrationType
+                  );
+                  const hasOAuthToken = editingIntegrationConfig?.config?.api_key || 
+                                       editingIntegrationConfig?.config?.access_token ||
+                                       existingUserIntegration?.config?.api_key ||
+                                       existingUserIntegration?.config?.access_token;
+                  
+                  // If credentials are already connected, show tools save button
+                  const credentialsConnected = hasOAuthToken || editingIntegrationConfig || existingUserIntegration;
+                  
+                  // For integrations with no fields (like Twilio), show Add/Remove Integration button
+                  if (hasNoFields) {
+                    // If integration is already connected, show Remove button
+                    if (!isNewIntegration && onRemoveIntegration && connectingIntegrationType) {
                       return (
                         <Button 
                           type="button"
+                          variant="destructive"
                           onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            // For new integrations (not yet added to agent) or wizard mode, automatically add all tools and save
-                            if (isWizardMode || isNewIntegration) {
-                              const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
-                              setSelectedIntegrationToolsForModal(availableTools);
-                              await handleSaveSelectedIntegrationTools();
-                            } else {
-                              // For existing integrations (already added to agent), move to tools tab to select tools
-                              setIntegrationModalTab("tools");
+                            if (confirm(`Are you sure you want to remove ${connectingIntegrationType === 'twilio' ? 'Twilio' : 'this integration'} from this agent?`)) {
+                              setIsSaving(true);
+                              try {
+                                await onRemoveIntegration(connectingIntegrationType);
+                                closeIntegrationConnectionModal();
+                              } catch (error) {
+                                console.error('Error removing integration:', error);
+                                // Error is already handled by onRemoveIntegration
+                              } finally {
+                                setIsSaving(false);
+                              }
                             }
                           }}
                           disabled={isSaving}
@@ -845,17 +860,143 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           {isSaving ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Saving...
+                              Removing...
                             </>
                           ) : (
                             <>
-                              <ShieldCheck className="h-4 w-4 mr-2" />
-                              Add Integration
+                              <Wrench className="h-4 w-4 mr-2" />
+                              Remove Integration
                             </>
                           )}
                         </Button>
                       );
                     }
+                    
+                    // Otherwise show Add Integration button
+                    return (
+                      <Button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            // Ensure all tools are selected
+                            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                            setSelectedIntegrationToolsForModal(availableTools);
+                            
+                            // Connect integration first (with empty config for Twilio)
+                            if (!existingUserIntegration) {
+                              await handleIntegrationConnect({});
+                            }
+                            
+                            // Then save the tools
+                            await handleSaveSelectedIntegrationTools();
+                          } catch (error) {
+                            console.error('Error connecting Twilio integration:', error);
+                            // Error is already handled by handleIntegrationConnect
+                          }
+                        }}
+                        disabled={isSaving}
+                        className="min-w-32"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Add Integration
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
+                  
+                  // Check if user is on credentials tab and has entered a new API key to update
+                  const isUpdatingApiKey = editingIntegrationConfig && 
+                                           integrationModalTab === 'credentials' && 
+                                           apiKey && 
+                                           apiKey !== '' &&
+                                           !apiKey.includes('*'); // New API key (not masked)
+                  
+                  if (credentialsConnected && !isOAuthIntegration && !isUpdatingApiKey) {
+                    return (
+                      <Button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // For new integrations/wizard mode, ensure all tools are selected before saving
+                          if (isNewIntegration || isWizardMode) {
+                            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                            setSelectedIntegrationToolsForModal(availableTools);
+                          }
+                          await handleSaveSelectedIntegrationTools();
+                        }}
+                        disabled={isSaving}
+                        className="min-w-32"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Add Integration
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
+                  
+                  // Otherwise show credentials connection button
+                  // For OAuth integrations, IntegrationForm is always used (even with minimal schema)
+                  // IntegrationForm handles its own buttons (OAuth connect, disconnect, etc.), so don't show footer buttons
+                  if (isOAuthIntegration) {
+                    // IntegrationForm handles its own buttons, so return null here
+                    return null;
+                  }
+                  
+                  // For OAuth integrations with existing token (but not using IntegrationForm), show Add Integration button
+                  // This allows users to add the integration to the agent even if it's already connected to their account
+                  if (isOAuthIntegration && hasOAuthToken) {
+                    return (
+                      <Button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // For new integrations (not yet added to agent) or wizard mode, automatically add all tools and save
+                          if (isWizardMode || isNewIntegration) {
+                            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                            setSelectedIntegrationToolsForModal(availableTools);
+                            await handleSaveSelectedIntegrationTools();
+                          } else {
+                            // For existing integrations, just save the selected tools
+                            await handleSaveSelectedIntegrationTools();
+                          }
+                        }}
+                        disabled={isSaving}
+                        className="min-w-32"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Add Integration
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
                     
                     // For OAuth integrations without token, show OAuth connect button
                     if (isOAuthIntegration && !hasOAuthToken) {
@@ -946,19 +1087,13 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          // Save/update the API key first
+                          // Only save/update the API key - don't save tools or close modal
+                          // The modal will dynamically update to show "Add Integration" button
+                          // after handleIntegrationConnect updates editingIntegrationConfig
                           await handleIntegrationConnect({ api_key: apiKey });
-                          // In wizard mode or for new integrations, automatically add all tools and save
-                          if (isWizardMode || isNewIntegration) {
-                            // Automatically add all available tools
-                            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
-                            setSelectedIntegrationToolsForModal(availableTools);
-                            // Save and close
-                            await handleSaveSelectedIntegrationTools();
-                          } else {
-                            // For existing integrations, move to tools tab to select tools
-                            setIntegrationModalTab("tools");
-                          }
+                          // Automatically select all available tools for when user clicks "Add Integration"
+                          const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                          setSelectedIntegrationToolsForModal(availableTools);
                         }}
                         disabled={connectingIntegrationLoading || isSaving || (!apiKey && !editingIntegrationConfig)}
                         className="min-w-32"
@@ -966,18 +1101,17 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         {connectingIntegrationLoading || isSaving ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Saving...
+                            {editingIntegrationConfig ? "Updating..." : "Connecting..."}
                           </>
                         ) : (
                           <>
                             <ShieldCheck className="h-4 w-4 mr-2" />
-                            Add Integration
+                            {editingIntegrationConfig ? "Update API Key" : "Connect"}
                           </>
                         )}
                       </Button>
                     );
-                  })()
-                )}
+                  })()}
               </>
             )}
           </div>

@@ -2085,6 +2085,58 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         toggleModalToolSelection={integrationHook.toggleModalToolSelection}
         setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
         isWizardMode={true}
+        onRemoveIntegration={async (integrationType) => {
+          // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
+          if (agentId && agentId !== "new") {
+            try {
+              // Delete from backend if agent exists
+              await integrationsApi.deleteFromAgent(agentId, integrationType);
+              
+              // Remove from local state
+              const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                tool => tool.integration_type !== integrationType
+              );
+              integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+              
+              // Get the display names for tools of this integration type
+              const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+              
+              // Remove all webhook tools associated with this integration
+              const updatedWebhookTools = webhookTools.filter(
+                wt => !toolDisplayNames.includes(wt.name)
+              );
+              setWebhookTools(updatedWebhookTools);
+              
+              toast({ 
+                title: "Success", 
+                description: "Integration removed from agent. Credentials kept." 
+              });
+            } catch (error) {
+              console.error("Failed to remove integration:", error);
+              toast({ 
+                title: "Error", 
+                description: "Failed to remove integration.", 
+                variant: "destructive" 
+              });
+            }
+          } else {
+            // For new agents, just remove from local state
+            const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+              tool => tool.integration_type !== integrationType
+            );
+            integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+            
+            // Get the display names for tools of this integration type
+            const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+            
+            // Remove all webhook tools associated with this integration
+            const updatedWebhookTools = webhookTools.filter(
+              wt => !toolDisplayNames.includes(wt.name)
+            );
+            setWebhookTools(updatedWebhookTools);
+          }
+        }}
+        agentId={agentId}
         fetchUserIntegrations={integrationHook.fetchUserIntegrations}
         saveSelectedIntegrationTools={async () => {
           if (!agentId) {
