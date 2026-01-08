@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2, CreditCard, UtensilsCrossed, Store, Database } from "lucide-react";
+import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2, CreditCard, UtensilsCrossed, Store, Database, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { integrationsApi } from "@/lib/api";
+import type { UserIntegration } from "@/types/integrations";
 import {
   type IntegrationProvider,
   modelProviders,
@@ -46,6 +48,8 @@ export default function Integrations() {
   const [isDatabaseProvidersOpen, setIsDatabaseProvidersOpen] = useState(false);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
+  const [connectedIntegrations, setConnectedIntegrations] = useState<Set<string>>(new Set());
+  const [loadingIntegrations, setLoadingIntegrations] = useState(true);
 
   // Load votes from localStorage on mount
   useEffect(() => {
@@ -67,6 +71,29 @@ export default function Integrations() {
         console.error('Error loading user votes:', e);
       }
     }
+  }, []);
+
+  // Load connected integrations
+  useEffect(() => {
+    const loadConnectedIntegrations = async () => {
+      try {
+        setLoadingIntegrations(true);
+        const response = await integrationsApi.list();
+        if (response.data) {
+          const connected = new Set<string>();
+          response.data.forEach((integration: UserIntegration) => {
+            connected.add(integration.integration_type);
+          });
+          setConnectedIntegrations(connected);
+        }
+      } catch (error) {
+        console.error('Error loading connected integrations:', error);
+      } finally {
+        setLoadingIntegrations(false);
+      }
+    };
+
+    loadConnectedIntegrations();
   }, []);
 
   // Helper function to sort providers: available first (by order), then upcoming (by order)
@@ -175,6 +202,7 @@ export default function Integrations() {
               const voteCount = votes[provider.id] || 0;
               const hasVoted = userVotes.has(provider.id);
               const isAvailable = provider.status === 'available';
+              const isConnected = connectedIntegrations.has(provider.id);
 
               return (
                 <div
@@ -203,14 +231,20 @@ export default function Integrations() {
                       )}>
                         {provider.icon}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {voteCount > 0 && (
                           <div className="flex items-center gap-1.5 text-xs text-foreground bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20">
                             <ThumbsUp className="h-3 w-3 fill-primary text-primary" />
                             <span className="font-semibold">{voteCount}</span>
                           </div>
                         )}
-                        {isAvailable && (
+                        {isAvailable && isConnected && (
+                          <Badge className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            Connected
+                          </Badge>
+                        )}
+                        {isAvailable && !isConnected && (
                           <Badge className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
                             Available
                           </Badge>

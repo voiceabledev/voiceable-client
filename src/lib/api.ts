@@ -123,7 +123,15 @@ class ApiClient {
       ...options,
       headers,
       credentials: 'include',
+      redirect: options.redirect || 'follow', // Use redirect from options if provided, otherwise follow
     });
+
+    // Handle redirect responses for DELETE requests when redirect is set to 'manual'
+    // When redirect: 'manual', redirects return type 'opaqueredirect' with status 0
+    if (options.method === 'DELETE' && response.type === 'opaqueredirect') {
+      // For DELETE requests with redirects, treat as success (backend redirected after successful deletion)
+      return { data: {} as T, status: { code: 200, message: 'Deleted successfully' } };
+    }
 
     let data;
     try {
@@ -191,8 +199,8 @@ class ApiClient {
     return data;
   }
 
-  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'GET' });
+  async get<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
   async post<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -212,7 +220,10 @@ class ApiClient {
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    return this.request<T>(endpoint, { 
+      method: 'DELETE',
+      redirect: 'manual' as RequestRedirect // Prevent automatic redirect following
+    });
   }
 }
 
@@ -380,9 +391,15 @@ export const integrationsApi = {
     return response;
   },
 
-  getOAuthUrl: async (integrationType: string) => {
+  getOAuthUrl: async (integrationType: string, returnUrl?: string) => {
     // Get OAuth authorization URL for integrations that support OAuth
-    const response = await apiClient.get<{ authorization_url: string }>(`/oauth/${integrationType}/authorize`, {
+    const params = new URLSearchParams();
+    if (returnUrl) {
+      params.append('return_url', returnUrl);
+    }
+    const queryString = params.toString();
+    const url = `/oauth/${integrationType}/authorize${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get<{ authorization_url: string }>(url, {
       headers: {
         'Accept': 'application/json',
       },

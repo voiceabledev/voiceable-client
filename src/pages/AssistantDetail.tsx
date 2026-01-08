@@ -62,6 +62,7 @@ import {
   tabs,
   VALID_TABS,
   displayNameToActionName,
+  INTEGRATION_TOOLS_DISPLAY,
 } from "@/constants/assistant";
 import { getAvailableIntegrationTypes } from "@/constants/integrations";
 import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi, agentsApi, authApi } from "@/lib/api";
@@ -117,6 +118,87 @@ export default function AssistantDetail() {
   const sectionHook = useSectionEntries();
   const filesHook = useAgentFiles();
   const integrationHook = useIntegrationTools(webhookHook.webhookTools, webhookHook.setWebhookTools);
+
+  // Handle OAuth callback - keep modal open and switch to tools tab
+  const oauthHandledRef = useRef(false);
+  useEffect(() => {
+    const oauthSuccess = searchParams.get("oauth_success");
+    const integrationType = searchParams.get("integration_type");
+    
+    if (oauthSuccess === "true" && integrationType && !isNew && !oauthHandledRef.current) {
+      oauthHandledRef.current = true; // Mark as handled to prevent duplicate execution
+      
+      // Refresh user integrations and open modal
+      const handleOAuthReturn = async () => {
+        try {
+          // Refresh user integrations to get the newly connected integration
+          await integrationHook.fetchUserIntegrations();
+          
+          // Small delay to ensure integrations are loaded
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // Open the modal - selectIntegrationToAdd will load the integration
+          await integrationHook.selectIntegrationToAdd(integrationType);
+          
+          // Wait a bit more for the modal to open and integration config to be set
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Get all available tools for this integration and automatically select them
+          const availableTools = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+          if (availableTools.length > 0 && agentData.agent) {
+            integrationHook.setSelectedIntegrationToolsForModal(availableTools);
+            
+            // Wait a bit for state to update
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Automatically save the integration tools to the agent
+            await integrationHook.saveSelectedIntegrationTools(
+              agentData.agent,
+              async (updatedIntegrationTools, updatedWebhookTools) => {
+                // Save agent with updated integration tools and webhook tools
+                // Don't publish automatically - just save to avoid page refresh
+                await agentData.handleSave(
+                  updatedWebhookTools,
+                  clientHook.clientTools,
+                  updatedIntegrationTools,
+                  sectionHook.cenarios,
+                  sectionHook.etapas,
+                  sectionHook.tomDeVoz,
+                  systemTools,
+                  systemToolSettings,
+                  filesHook.attachedFiles,
+                  systemToolSettingsMap
+                );
+              },
+              undefined // Don't auto-publish to avoid page refresh
+            );
+            
+            // Close the modal after successfully adding the integration
+            integrationHook.closeIntegrationConnectionModal();
+            
+            toast({
+              title: "Success",
+              description: `Integration connected and ${availableTools.length} tool(s) added successfully.`,
+            });
+          } else {
+            // No tools available or agent not loaded, just switch to tools tab
+            integrationHook.setIntegrationModalTab("tools");
+          }
+          
+          // Remove the query parameters after modal is opened/closed
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete("oauth_success");
+          newSearchParams.delete("integration_type");
+          setSearchParams(newSearchParams, { replace: true });
+        } catch (error) {
+          console.error("Error handling OAuth return:", error);
+          oauthHandledRef.current = false; // Reset on error so it can retry
+        }
+      };
+      
+      handleOAuthReturn();
+    }
+  }, [searchParams, isNew, integrationHook, setSearchParams]);
 
   const [systemTools, setSystemTools] = useState<SystemToolsState>({
     end_call: false,
@@ -1942,14 +2024,15 @@ export default function AssistantDetail() {
         agentIntegrationTools={integrationHook.agentIntegrationTools}
         selectIntegrationToAdd={integrationHook.selectIntegrationToAdd}
         userIntegrations={integrationHook.userIntegrations}
+        setUserIntegrations={integrationHook.setUserIntegrations}
         connectingIntegrationType={integrationHook.connectingIntegrationType}
-        goBackToIntegrationSelect={integrationHook.goBackToIntegrationSelect}
         integrationSchemas={integrationHook.integrationSchemas 
           ? { [integrationHook.connectingIntegrationType || '']: integrationHook.integrationSchemas }
           : {}}
         integrationModalTab={integrationHook.integrationModalTab}
         setIntegrationModalTab={integrationHook.setIntegrationModalTab}
         editingIntegrationConfig={integrationHook.editingIntegrationConfig}
+        setEditingIntegrationConfig={integrationHook.setEditingIntegrationConfig}
         handleIntegrationConnect={integrationHook.handleIntegrationConnect}
         closeIntegrationConnectionModal={integrationHook.closeIntegrationConnectionModal}
         selectedIntegrationToolsForModal={integrationHook.selectedIntegrationToolsForModal}
@@ -1976,6 +2059,7 @@ export default function AssistantDetail() {
             agentData.handlePublish
           );
         }}
+        fetchUserIntegrations={integrationHook.fetchUserIntegrations}
       />
 
       <SectionEntryModal

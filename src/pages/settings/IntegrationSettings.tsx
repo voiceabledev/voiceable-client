@@ -308,22 +308,35 @@ export default function IntegrationSettings() {
           
           // Process config values - store password values, keep others
           const config: IntegrationConfig = {};
+          const apiConfig = integrationResponse.data.config;
+          
+          // First, copy all values from API response as-is
+          // This ensures we preserve all fields including optional ones like organization_url
+          Object.keys(apiConfig).forEach((key) => {
+            config[key] = apiConfig[key];
+          });
+          
+          // Then, ensure all schema fields are present (for fields not in API response)
           Object.keys(integrationSchema.fields).forEach((key) => {
             const fieldConfig = integrationSchema.fields[key];
-            const apiValue = integrationResponse.data.config[key];
+            const apiValue = config[key];
             
-            if (fieldConfig.type === 'password') {
+            // If field is not in config yet, initialize it
+            if (apiValue === undefined || apiValue === null) {
+              config[key] = '';
+            } else if (fieldConfig.type === 'password') {
               // Store the masked value from API (like "****1234")
               // We'll show this masked value and allow toggling visibility
               config[key] = apiValue || '';
             } else {
               // For non-password fields, use the value from API
               // Check if it's a masked value (contains asterisks) - if so, it means it was a password that got masked
-              if (apiValue && typeof apiValue === 'string' && apiValue.includes('*')) {
+              if (typeof apiValue === 'string' && apiValue.includes('*')) {
                 // This shouldn't happen for non-password fields, but just in case
                 config[key] = '';
               } else {
-                config[key] = apiValue || '';
+                // Preserve the actual value
+                config[key] = apiValue;
               }
             }
           });
@@ -522,6 +535,9 @@ export default function IntegrationSettings() {
                     schema={schema}
                     initialConfig={initialConfig}
                     onSubmit={handleSave}
+                    onDisconnect={async () => {
+                      await handleDelete();
+                    }}
                     isLoading={isSaving}
                     hasSavedValues={hasSavedIntegration}
                     submitButtonText={hasSavedIntegration ? "Save" : "Connect"}

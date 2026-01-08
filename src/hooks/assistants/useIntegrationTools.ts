@@ -502,21 +502,22 @@ export function useIntegrationTools(
   
   const { toast } = useToast();
 
+  // Fetch user integrations
+  const fetchUserIntegrations = useCallback(async () => {
+    try {
+      const response = await integrationsApi.list();
+      if (response.data) {
+        setUserIntegrations(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user integrations:", error);
+    }
+  }, []);
+
   // Fetch user integrations on mount
   useEffect(() => {
-    const fetchUserIntegrations = async () => {
-      try {
-        const response = await integrationsApi.list();
-        if (response.data) {
-          setUserIntegrations(response.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user integrations:", error);
-      }
-    };
-
     fetchUserIntegrations();
-  }, []);
+  }, [fetchUserIntegrations]);
 
   const toggleIntegrationToolsExpanded = useCallback((id: string) => {
     setIntegrationToolsExpanded(prev => ({ ...prev, [id]: !prev[id] }));
@@ -585,16 +586,28 @@ export function useIntegrationTools(
         setIntegrationSchemas(null);
       }
       
-      // Check if integration already exists - fetch latest from API
-      let existingIntegration: UserIntegration | null = null;
-      try {
-        const response = await integrationsApi.get(type);
-        if (response.data) {
-          existingIntegration = response.data;
+      // Check if integration already exists - first check userIntegrations (faster, no API call)
+      let existingIntegration: UserIntegration | null = userIntegrations.find(i => i.integration_type === type) || null;
+      
+      // If not found in userIntegrations, try fetching from API (might be newly created)
+      if (!existingIntegration) {
+        try {
+          const response = await integrationsApi.get(type);
+          if (response.data) {
+            existingIntegration = response.data;
+            // Add to userIntegrations if found
+            setUserIntegrations(prev => {
+              const exists = prev.find(i => i.integration_type === type);
+              if (!exists) {
+                return [...prev, response.data!];
+              }
+              return prev;
+            });
+          }
+        } catch (error) {
+          // Integration doesn't exist yet - this is fine, it will be created when connecting
+          console.log(`Integration ${type} not found, will be created on connect`);
         }
-      } catch (error) {
-        // Integration doesn't exist yet, check userIntegrations as fallback
-        existingIntegration = userIntegrations.find(i => i.integration_type === type) || null;
       }
       
       if (existingIntegration) {
@@ -638,6 +651,8 @@ export function useIntegrationTools(
       // Check if integration already exists
       const existingIntegration = userIntegrations.find(i => i.integration_type === connectingIntegrationType);
       
+      let updatedIntegration: UserIntegration | null = null;
+      
       if (existingIntegration) {
         // Update existing integration
         await integrationsApi.update(connectingIntegrationType, config);
@@ -645,6 +660,7 @@ export function useIntegrationTools(
         const response = await integrationsApi.list();
         if (response.data) {
           setUserIntegrations(response.data);
+          updatedIntegration = response.data.find(i => i.integration_type === connectingIntegrationType) || null;
         }
         toast({
           title: "Success",
@@ -652,7 +668,10 @@ export function useIntegrationTools(
         });
       } else {
         // Create new integration
-        await integrationsApi.create(connectingIntegrationType, config);
+        const createResponse = await integrationsApi.create(connectingIntegrationType, config);
+        if (createResponse.data) {
+          updatedIntegration = createResponse.data;
+        }
         // Refresh user integrations
         const response = await integrationsApi.list();
         if (response.data) {
@@ -663,7 +682,17 @@ export function useIntegrationTools(
           description: "Integration connected successfully.",
         });
       }
-      // Don't change step - let the button handler change the tab instead
+      
+      // Update editingIntegrationConfig with the newly connected integration
+      if (updatedIntegration) {
+        setEditingIntegrationConfig(updatedIntegration);
+      }
+      
+      // After successful connection, switch to tools tab so user can add integration tools
+      // Wait a bit to ensure integrations are refreshed
+      setTimeout(() => {
+        setIntegrationModalTab("tools");
+      }, 300);
     } catch (error) {
       console.error("Failed to connect integration:", error);
       toast({
@@ -675,7 +704,7 @@ export function useIntegrationTools(
     } finally {
       setConnectingIntegrationLoading(false);
     }
-  }, [connectingIntegrationType, userIntegrations, toast]);
+  }, [connectingIntegrationType, userIntegrations, toast, setIntegrationModalTab, setEditingIntegrationConfig]);
 
   const openEditIntegrationModal = useCallback(async (integration: UserIntegration | string): Promise<void> => {
     const integrationType = typeof integration === 'string' ? integration : integration.integration_type;
@@ -929,6 +958,7 @@ export function useIntegrationTools(
     integrationSchemas,
     connectingIntegrationLoading,
     editingIntegrationConfig,
+    setEditingIntegrationConfig,
     selectedIntegrationToolsForModal,
     setSelectedIntegrationToolsForModal,
     handleIntegrationToolToggleWithWebhook,
@@ -942,5 +972,6 @@ export function useIntegrationTools(
     handleDeleteIntegration,
     toggleModalToolSelection,
     saveSelectedIntegrationTools,
+    fetchUserIntegrations,
   };
 }

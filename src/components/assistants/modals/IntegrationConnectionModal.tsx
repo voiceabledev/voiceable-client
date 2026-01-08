@@ -47,11 +47,13 @@ type IntegrationConnectionModalProps = {
   agentIntegrationTools: AgentIntegrationTool[];
   selectIntegrationToAdd: (type: string) => void;
   userIntegrations: UserIntegration[];
+  setUserIntegrations?: (updater: (prev: UserIntegration[]) => UserIntegration[]) => void;
   connectingIntegrationType: string | null;
   integrationSchemas: Record<string, IntegrationSchema>;
   integrationModalTab: "about" | "credentials" | "tools";
   setIntegrationModalTab: (tab: "about" | "credentials" | "tools") => void;
   editingIntegrationConfig: UserIntegration | null;
+  setEditingIntegrationConfig?: (config: UserIntegration | null) => void;
   handleIntegrationConnect: (config: Record<string, string>) => void;
   closeIntegrationConnectionModal: () => void;
   selectedIntegrationToolsForModal: string[];
@@ -59,6 +61,7 @@ type IntegrationConnectionModalProps = {
   setSelectedIntegrationToolsForModal: (tools: string[]) => void;
   saveSelectedIntegrationTools: () => Promise<void>;
   isWizardMode?: boolean; // If true, automatically add all tools without selection
+  fetchUserIntegrations?: () => Promise<void>; // Function to refresh user integrations in the hook
 };
 
 export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProps> = ({
@@ -70,11 +73,13 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   agentIntegrationTools,
   selectIntegrationToAdd,
   userIntegrations,
+  setUserIntegrations,
   connectingIntegrationType,
   integrationSchemas,
   integrationModalTab,
   setIntegrationModalTab,
   editingIntegrationConfig,
+  setEditingIntegrationConfig,
   handleIntegrationConnect,
   closeIntegrationConnectionModal,
   selectedIntegrationToolsForModal,
@@ -82,10 +87,12 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   setSelectedIntegrationToolsForModal,
   saveSelectedIntegrationTools,
   isWizardMode = false,
+  fetchUserIntegrations,
 }) => {
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [oauthLoading, setOAuthLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const isClosingRef = useRef(false);
   const prevOpenRef = useRef(open);
   const isSavingRef = useRef(false);
@@ -267,7 +274,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   }, [closeIntegrationConnectionModal, open]);
 
   // Wrap saveSelectedIntegrationTools to handle closing after save
-  const handleSaveSelectedIntegrationTools = useCallback(async () => {
+  // closeAfterSave: if true, close modal after saving (for manual saves). If false, keep modal open (for auto-saves after connection)
+  const handleSaveSelectedIntegrationTools = useCallback(async (closeAfterSave: boolean = true) => {
     // Prevent duplicate saves
     if (isSavingRef.current || isSaving) {
       console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Already saving, ignoring duplicate call');
@@ -276,13 +284,16 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
 
     console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Starting save operation', {
       timestamp: new Date().toISOString(),
-      isClosingRef: isClosingRef.current
+      isClosingRef: isClosingRef.current,
+      closeAfterSave
     });
     
     // Set flags BEFORE save starts
     isSavingRef.current = true;
     setIsSaving(true);
-    isClosingRef.current = true;
+    if (closeAfterSave) {
+      isClosingRef.current = true;
+    }
     console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Set flags to true BEFORE save');
     
     try {
@@ -291,18 +302,26 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
       await saveSelectedIntegrationTools();
       console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Save completed successfully');
       
-      // Close the modal after successful save
-      // The flag is already set, so Dialog's onOpenChange will be blocked
-      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after successful save');
-      closeIntegrationConnectionModal();
-      
-      // Reset flags after a delay to allow the close to complete
-      setTimeout(() => {
-        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags to false');
-        isClosingRef.current = false;
+      // Only close the modal if closeAfterSave is true (manual save from tools tab)
+      if (closeAfterSave) {
+        // Close the modal after successful save
+        // The flag is already set, so Dialog's onOpenChange will be blocked
+        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after successful save');
+        closeIntegrationConnectionModal();
+        
+        // Reset flags after a delay to allow the close to complete
+        setTimeout(() => {
+          console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags to false');
+          isClosingRef.current = false;
+          isSavingRef.current = false;
+          setIsSaving(false);
+        }, 300);
+      } else {
+        // Keep modal open, just reset saving flag
+        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Keeping modal open after auto-save');
         isSavingRef.current = false;
         setIsSaving(false);
-      }, 300);
+      }
     } catch (error) {
       console.error('[IntegrationModal] handleSaveSelectedIntegrationTools: Error occurred', error);
       // On error, still close the modal but reset the flags
@@ -442,25 +461,121 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                       const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
                       
                       // Use IntegrationForm for OAuth integrations
-                      if (isOAuthIntegration && schema) {
+                      if (isOAuthIntegration) {
+                        // If schema isn't loaded yet, create a minimal schema for OAuth integrations
+                        // IntegrationForm can work with a minimal schema since it checks the hardcoded OAuth list
+                        const oauthSchema = schema || (isOAuthIntegration ? {
+                          type: connectingIntegrationType || '',
+                          auth_type: 'oauth' as const,
+                          fields: {},
+                          required: [],
+                          optional: [],
+                        } : null);
+                        
+                        // Only show loading if we're still loading and it's not a known OAuth integration
+                        if (!oauthSchema && connectingIntegrationLoading) {
+                          return (
+                            <div className="flex items-center justify-center py-12">
+                              <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                <p className="text-sm text-muted-foreground">Loading integration details...</p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        // If we still don't have a schema after loading, something went wrong
+                        if (!oauthSchema) {
+                          return (
+                            <div className="flex items-center justify-center py-12">
+                              <div className="flex flex-col items-center gap-3">
+                                <p className="text-sm text-destructive">Failed to load integration details. Please try again.</p>
+                              </div>
+                            </div>
+                          );
+                        }
+                        
                         return (
                           <IntegrationForm
-                            schema={schema}
+                            schema={oauthSchema}
                             initialConfig={editingIntegrationConfig?.config || {}}
                             onSubmit={async (config) => {
-                              // Convert config values to strings for handleIntegrationConnect
-                              const stringConfig: Record<string, string> = {};
-                              Object.entries(config).forEach(([key, value]) => {
-                                stringConfig[key] = String(value);
-                              });
-                              await handleIntegrationConnect(stringConfig);
-                              // In wizard mode or for new integrations, automatically add all tools and save
-                              if (isWizardMode || isNewIntegration) {
-                                const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
-                                setSelectedIntegrationToolsForModal(availableTools);
-                                await handleSaveSelectedIntegrationTools();
-                              } else {
+                              try {
+                                // Convert config values to strings for handleIntegrationConnect
+                                const stringConfig: Record<string, string> = {};
+                                Object.entries(config).forEach(([key, value]) => {
+                                  stringConfig[key] = String(value);
+                                });
+                                
+                                // Connect the integration
+                                await handleIntegrationConnect(stringConfig);
+                                
+                                // Switch to tools tab (handleIntegrationConnect does this, but ensure it happens)
                                 setIntegrationModalTab("tools");
+                                
+                                // Wait a bit for the modal to switch to tools tab
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                
+                                // Automatically select all available tools (but don't save yet)
+                                const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                                if (availableTools.length > 0) {
+                                  setSelectedIntegrationToolsForModal(availableTools);
+                                  
+                                  toast({
+                                    title: "Success",
+                                    description: `Integration connected successfully. ${availableTools.length} tool(s) selected. Click "Add Integration" to add them to your agent.`,
+                                  });
+                                } else {
+                                  toast({
+                                    title: "Success",
+                                    description: "Integration connected successfully. No tools available for this integration.",
+                                  });
+                                }
+                                // Note: Modal stays open - user must click "Add Integration" button to save
+                              } catch (error) {
+                                // Error is already handled by handleIntegrationConnect
+                                console.error('Error in onSubmit:', error);
+                                // Don't re-throw - prevent any form submission
+                              }
+                            }}
+                            onDisconnect={async () => {
+                              if (!connectingIntegrationType || !editingIntegrationConfig) return;
+                              setDisconnecting(true);
+                              try {
+                                await integrationsApi.delete(connectingIntegrationType);
+                                
+                                // Update userIntegrations to remove the disconnected integration
+                                if (setUserIntegrations) {
+                                  setUserIntegrations(prev => 
+                                    prev.filter(i => i.integration_type !== connectingIntegrationType)
+                                  );
+                                }
+                                
+                                // Refresh user integrations in the hook to ensure state is synced
+                                if (fetchUserIntegrations) {
+                                  await fetchUserIntegrations();
+                                }
+                                
+                                // Clear editingIntegrationConfig
+                                if (setEditingIntegrationConfig) {
+                                  setEditingIntegrationConfig(null);
+                                }
+                                
+                                // Close the modal after successful disconnect
+                                closeIntegrationConnectionModal();
+                                toast({
+                                  title: "Success",
+                                  description: "Integration disconnected successfully.",
+                                });
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: error instanceof Error ? error.message : "Failed to disconnect integration.",
+                                  variant: "destructive",
+                                });
+                                throw error;
+                              } finally {
+                                setDisconnecting(false);
                               }
                             }}
                             isLoading={connectingIntegrationLoading}
@@ -688,9 +803,24 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                       : null;
                     const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
                     const isOAuthIntegration = schema?.auth_type === 'oauth' || oauthIntegrations.includes(connectingIntegrationType || '');
-                    const hasOAuthToken = editingIntegrationConfig?.config?.api_key || editingIntegrationConfig?.config?.access_token;
                     
-                    // For OAuth integrations with existing token, show Add Integration button
+                    // Check if integration is already connected (either via editingIntegrationConfig or in userIntegrations)
+                    const existingUserIntegration = userIntegrations.find(
+                      ui => ui.integration_type === connectingIntegrationType
+                    );
+                    const hasOAuthToken = editingIntegrationConfig?.config?.api_key || 
+                                         editingIntegrationConfig?.config?.access_token ||
+                                         existingUserIntegration?.config?.api_key ||
+                                         existingUserIntegration?.config?.access_token;
+                    
+                    // For OAuth integrations, IntegrationForm is always used (even with minimal schema)
+                    // IntegrationForm handles its own buttons (OAuth connect, disconnect, etc.), so don't show footer buttons
+                    if (isOAuthIntegration) {
+                      // IntegrationForm handles its own buttons, so return null here
+                      return null;
+                    }
+                    
+                    // For OAuth integrations with existing token (but not using IntegrationForm), show Add Integration button
                     // This allows users to add the integration to the agent even if it's already connected to their account
                     if (isOAuthIntegration && hasOAuthToken) {
                       return (
@@ -734,7 +864,23 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         if (oauthIntegrations.includes(connectingIntegrationType || '')) {
                           setOAuthLoading(true);
                           try {
-                            const response = await integrationsApi.getOAuthUrl(connectingIntegrationType || '');
+                            // Get current page URL to redirect back after OAuth
+                            // Preserve the tab parameter so user returns to the same tab
+                            // Add oauth_success parameter to indicate modal should stay open and switch to tools tab
+                            // Use the full frontend URL (not backend URL)
+                            const currentUrl = new URL(window.location.href);
+                            const tab = currentUrl.searchParams.get('tab');
+                            // Build return URL with full frontend URL, tab parameter, and oauth_success flag
+                            let returnUrl = `${currentUrl.origin}${currentUrl.pathname}`;
+                            const params = new URLSearchParams();
+                            if (tab) {
+                              params.append('tab', tab);
+                            }
+                            params.append('oauth_success', 'true');
+                            params.append('integration_type', connectingIntegrationType || '');
+                            returnUrl += `?${params.toString()}`;
+                            
+                            const response = await integrationsApi.getOAuthUrl(connectingIntegrationType || '', returnUrl);
                             if (response.data?.authorization_url) {
                               window.location.href = response.data.authorization_url;
                             } else {
@@ -775,10 +921,10 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         <Button 
                           type="button"
                           onClick={handleOAuthConnect}
-                          disabled={oauthLoading}
+                          disabled={oauthLoading || connectingIntegrationLoading || isSaving || disconnecting}
                           className="min-w-32"
                         >
-                          {oauthLoading ? (
+                          {oauthLoading || connectingIntegrationLoading || isSaving || disconnecting ? (
                             <>
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                               Connecting...

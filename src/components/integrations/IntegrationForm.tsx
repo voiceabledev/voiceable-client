@@ -13,6 +13,7 @@ interface IntegrationFormProps {
   initialConfig?: IntegrationConfig;
   onSubmit: (config: IntegrationConfig) => Promise<void>;
   onCancel?: () => void;
+  onDisconnect?: () => Promise<void>;
   isLoading?: boolean;
   hasSavedValues?: boolean;
   submitButtonText?: string;
@@ -25,6 +26,7 @@ export function IntegrationForm({
   initialConfig = {},
   onSubmit,
   onCancel,
+  onDisconnect,
   isLoading = false,
   hasSavedValues = false,
   submitButtonText,
@@ -35,6 +37,7 @@ export function IntegrationForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [oauthLoading, setOAuthLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -120,14 +123,30 @@ export function IntegrationForm({
     e.preventDefault();
     e.stopPropagation();
     
+    // Prevent any default form behavior
+    if (e.defaultPrevented === false) {
+      e.preventDefault();
+    }
+    
     if (!validate()) {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
 
     try {
       await onSubmit(config);
+      // Don't reset form or navigate - let the parent handle the next step
+      // Explicitly prevent any form submission
+      e.preventDefault();
+      e.stopPropagation();
     } catch (error) {
       console.error('Error submitting integration:', error);
+      // Ensure we prevent default even on error
+      e.preventDefault();
+      e.stopPropagation();
+      // Re-throw so parent can handle the error
+      throw error;
     }
   };
 
@@ -334,8 +353,32 @@ export function IntegrationForm({
     if (oauthIntegrations.includes(integrationType || '')) {
       setOAuthLoading(true);
       try {
+        // Get current page URL to redirect back after OAuth
+        // Preserve the tab parameter so user returns to the same tab
+        // Also preserve step parameter for wizard mode
+        // Use the full frontend URL (not backend URL)
+        const currentUrl = new URL(window.location.href);
+        const tab = currentUrl.searchParams.get('tab');
+        const step = currentUrl.searchParams.get('step');
+        const slug = currentUrl.searchParams.get('slug');
+        // Build return URL with full frontend URL and all relevant parameters
+        let returnUrl = `${currentUrl.origin}${currentUrl.pathname}`;
+        const params = new URLSearchParams();
+        if (tab) {
+          params.append('tab', tab);
+        }
+        if (step) {
+          params.append('step', step);
+        }
+        if (slug) {
+          params.append('slug', slug);
+        }
+        if (params.toString()) {
+          returnUrl += `?${params.toString()}`;
+        }
+        
         // Make authenticated API call to get OAuth URL
-        const response = await integrationsApi.getOAuthUrl(integrationType || '');
+        const response = await integrationsApi.getOAuthUrl(integrationType || '', returnUrl);
         if (response.data?.authorization_url) {
           // Redirect to OAuth consent screen
           window.location.href = response.data.authorization_url;
@@ -362,7 +405,15 @@ export function IntegrationForm({
   // Check if this is an OAuth integration
   const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
   const isOAuthIntegration = schema.auth_type === 'oauth' || oauthIntegrations.includes(integrationType || '');
-  const hasOAuthToken = initialConfig?.api_key || initialConfig?.access_token;
+  // Check for OAuth token - could be stored as api_key, access_token, or refresh_token
+  // Masked values (like "****1234") indicate a token exists, so check for any non-empty value
+  // Also check hasSavedValues - if integration is saved and it's OAuth, assume token exists (even if masked)
+  const hasOAuthToken = Boolean(
+    (hasSavedValues && isOAuthIntegration && oauthIntegrations.includes(integrationType || '')) ||
+    (initialConfig?.api_key && String(initialConfig.api_key).trim() !== '' && String(initialConfig.api_key) !== 'undefined') ||
+    (initialConfig?.access_token && String(initialConfig.access_token).trim() !== '' && String(initialConfig.access_token) !== 'undefined') ||
+    (initialConfig?.refresh_token && String(initialConfig.refresh_token).trim() !== '' && String(initialConfig.refresh_token) !== 'undefined')
+  );
 
   // Render fields in order: required first, then optional
   const orderedFields = [
@@ -391,7 +442,17 @@ export function IntegrationForm({
 
   return (
     <form 
-      onSubmit={handleSubmit} 
+      onSubmit={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await handleSubmit(e);
+        } catch (error) {
+          // Error is already handled in handleSubmit, just prevent default form submission
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       onKeyDown={(e) => {
         // Prevent form submission on Enter if submit button is hidden
         if (e.key === 'Enter' && hideSubmitButton) {
@@ -399,6 +460,7 @@ export function IntegrationForm({
         }
       }}
       className="space-y-3 md:space-y-4"
+      noValidate
     >
       {shouldShowOAuthButton ? (
         <div className="space-y-2">
@@ -417,30 +479,61 @@ export function IntegrationForm({
           </p>
         </div>
       ) : (
-        orderedFields.map(([fieldName, fieldConfig]) => {
-          // For OAuth integrations with existing token, show read-only fields
-          if (isOAuthIntegration && (fieldName === 'api_key' || fieldName === 'access_token' || fieldName === 'refresh_token')) {
-            return (
-              <div key={fieldName} className="space-y-2">
-                <Label htmlFor={fieldName} className="text-xs md:text-sm">
-                  {fieldConfig.label}
-                </Label>
-                <Input
-                  id={fieldName}
-                  type="password"
-                  value="••••••••••••••••"
-                  readOnly
-                  disabled
-                  className="bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  OAuth token (auto-populated). Reconnect to refresh.
-                </p>
-              </div>
-            );
-          }
-          return renderField(fieldName, fieldConfig);
-        })
+        <>
+          {orderedFields.map(([fieldName, fieldConfig]) => {
+            // For OAuth integrations with existing token, show read-only fields
+            if (isOAuthIntegration && (fieldName === 'api_key' || fieldName === 'access_token' || fieldName === 'refresh_token')) {
+              return (
+                <div key={fieldName} className="space-y-2">
+                  <Label htmlFor={fieldName} className="text-xs md:text-sm">
+                    {fieldConfig.label}
+                  </Label>
+                  <Input
+                    id={fieldName}
+                    type="password"
+                    value="••••••••••••••••"
+                    readOnly
+                    disabled
+                    className="bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    OAuth token (auto-populated). Reconnect to refresh.
+                  </p>
+                </div>
+              );
+            }
+            return renderField(fieldName, fieldConfig);
+          })}
+          {/* Show disconnect button for OAuth integrations when connected */}
+          {isOAuthIntegration && hasOAuthToken && onDisconnect && (
+            <div className="space-y-2 pt-2">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to disconnect ${integrationType === 'calendly' ? 'Calendly' : integrationType === 'google_calendar' ? 'Google Calendar' : integrationType === 'outlook_calendar' ? 'Outlook Calendar' : 'this integration'}? This will remove all credentials.`)) {
+                    setDisconnecting(true);
+                    try {
+                      await onDisconnect();
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: error instanceof Error ? error.message : "Failed to disconnect integration.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setDisconnecting(false);
+                    }
+                  }
+                }}
+                disabled={isLoading || disconnecting}
+                className="w-full text-xs md:text-sm"
+              >
+                {disconnecting ? "Disconnecting..." : `Disconnect ${integrationType === 'calendly' ? 'Calendly' : integrationType === 'google_calendar' ? 'Google Calendar' : integrationType === 'outlook_calendar' ? 'Outlook Calendar' : 'Integration'}`}
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {!hideSubmitButton && (

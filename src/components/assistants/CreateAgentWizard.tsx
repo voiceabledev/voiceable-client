@@ -1006,6 +1006,41 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     fetchIntegrations();
   }, []);
 
+  // Handle OAuth callback - restore wizard step and reopen integration modal
+  useEffect(() => {
+    const oauthSuccess = searchParams.get("oauth_success");
+    const integrationType = searchParams.get("integration_type");
+    
+    if (oauthSuccess === "true" && integrationType) {
+      // Restore the step from URL (should be step 5 for integrations)
+      const stepFromUrl = searchParams.get("step");
+      if (stepFromUrl) {
+        const stepNum = parseInt(stepFromUrl, 10);
+        if (!isNaN(stepNum)) {
+          setCurrentStep(stepNum);
+        }
+      } else {
+        // Default to integrations step (step 5) if not in URL
+        setCurrentStep(5);
+      }
+      
+      // Remove OAuth query parameters after handling
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete("oauth_success");
+        newParams.delete("integration_type");
+        // Keep step and slug parameters
+        return newParams;
+      });
+      
+      // Open the integration modal and select the integration
+      // Small delay to ensure state is updated
+      setTimeout(async () => {
+        await integrationHook.selectIntegrationToAdd(integrationType);
+      }, 300);
+    }
+  }, [searchParams, setSearchParams, integrationHook]);
+
   // Fetch or create API key for widget preview
   useEffect(() => {
     const fetchOrCreateApiKey = async () => {
@@ -2050,6 +2085,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         toggleModalToolSelection={integrationHook.toggleModalToolSelection}
         setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
         isWizardMode={true}
+        fetchUserIntegrations={integrationHook.fetchUserIntegrations}
         saveSelectedIntegrationTools={async () => {
           if (!agentId) {
             toast({
