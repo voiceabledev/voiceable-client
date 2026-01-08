@@ -114,7 +114,7 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
         />
       </div>
 
-      {conversationConfig !== undefined && onUpdateConversationConfig && (
+      {false && conversationConfig !== undefined && onUpdateConversationConfig && (
         <div>
           <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
             <FileText className="h-4 w-4" />

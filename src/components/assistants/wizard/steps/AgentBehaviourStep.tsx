@@ -153,7 +153,7 @@ export function AgentBehaviourStep({
       </div>
 
       {/* Agent Template Section */}
-      {onSystemPromptTemplateChange && (
+      {false && onSystemPromptTemplateChange && (
         <AgentTemplateSection
           expanded={agentTemplateExpanded}
           onToggleExpanded={() => setAgentTemplateExpanded(!agentTemplateExpanded)}
