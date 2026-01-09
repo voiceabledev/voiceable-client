@@ -226,10 +226,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       setFailureKeywords(newFailureKeywords);
       setEscalationRuleSettings(newEscalationRuleSettings);
       
-      // Notify parent of state change for change tracking
-      if (onOutcomeStateChange) {
-        onOutcomeStateChange();
-      }
+      // Don't notify parent here - let the other useEffect handle it after state updates
 
       // Update the ref to match the loaded data so auto-save doesn't trigger
       // Note: escalation_rules are excluded from auto-save comparison
@@ -261,19 +258,22 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     // This ensures auto-save doesn't trigger from the state updates above
     setTimeout(() => {
       isLoadingData.current = false;
-      // Notify parent of state change for change tracking
-      if (onOutcomeStateChange) {
-        onOutcomeStateChange();
-      }
+      // Don't notify parent here - let the other useEffect handle it after state updates
     }, 100);
-  }, [outcomeDefinition, setEscalationRuleSettings, onOutcomeStateChange]);
+  }, [outcomeDefinition, setEscalationRuleSettings]);
 
   // Notify parent when outcome state changes (for change tracking)
+  // Use a ref to store the callback to avoid infinite loops
+  const onOutcomeStateChangeRef = useRef(onOutcomeStateChange);
   useEffect(() => {
-    if (onOutcomeStateChange && !isLoadingData.current) {
-      onOutcomeStateChange();
+    onOutcomeStateChangeRef.current = onOutcomeStateChange;
+  }, [onOutcomeStateChange]);
+
+  useEffect(() => {
+    if (onOutcomeStateChangeRef.current && !isLoadingData.current) {
+      onOutcomeStateChangeRef.current();
     }
-  }, [primaryOutcomes, successKeywords, failureKeywords, escalationRuleSettings, onOutcomeStateChange]);
+  }, [primaryOutcomes, successKeywords, failureKeywords, escalationRuleSettings]);
 
   // Track if this is the initial load to prevent auto-save on mount
   const isInitialLoad = useRef(true);
@@ -321,8 +321,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       return;
     }
 
-    // Update the ref with current data (use sorted versions for consistency)
-    previousDataRef.current = currentData;
+    // Don't update previousDataRef until AFTER successful save
+    // This allows retry if save fails
 
     // Clear any pending save
     if (saveTimeoutRef.current) {
@@ -392,6 +392,9 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           await createOutcomeDefinition(data, { silent: true }); // Silent for auto-save
         }
         
+        // Update previousDataRef AFTER successful save
+        previousDataRef.current = currentData;
+        
         // The hook already updates outcomeDefinition state, which will trigger the load useEffect
         // We set isLoadingData to prevent that from triggering another save
         // No need to refetch - the hook already updated the state
@@ -410,17 +413,11 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           description: Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage,
           variant: 'destructive',
         });
-        // Revert the ref on error so it can retry
-        // Sort arrays to ensure consistent comparison
-        const sortedPrimaryOutcomes = [...primaryOutcomes].sort();
-        const sortedSuccessKeywords = [...successKeywords].sort();
-        const sortedFailureKeywords = [...failureKeywords].sort();
+        // Clear loading flag on error
+        isLoadingData.current = false;
         
-        previousDataRef.current = JSON.stringify({
-          primary_outcomes: sortedPrimaryOutcomes,
-          success_keywords: sortedSuccessKeywords,
-          failure_keywords: sortedFailureKeywords,
-        });
+        // Don't update previousDataRef on error - this allows the save to retry
+        // The current state will be compared against the old previousDataRef
       }
     }, 500);
 
@@ -582,25 +579,32 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
                       return (
                         <div
                           key={outcome.value}
-                          className={`flex items-center space-x-3 p-2 rounded-md ${isDisabled ? 'opacity-60' : 'hover:bg-muted/50'}`}
+                          className={`flex items-center space-x-3 p-2 rounded-md ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}
+                          onClick={(e) => {
+                            // Prevent double-toggling if clicking directly on checkbox
+                            if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+                              return;
+                            }
+                            if (!isDisabled) {
+                              toggleOutcome(outcome.value);
+                            }
+                          }}
                         >
-                          <Checkbox
-                            id={`outcome-${outcome.value}`}
-                            checked={isSelected}
-                            disabled={isDisabled}
-                            onCheckedChange={() => !isDisabled && toggleOutcome(outcome.value)}
-                          />
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              id={`outcome-${outcome.value}`}
+                              checked={isSelected}
+                              disabled={isDisabled}
+                              onCheckedChange={(checked) => {
+                                if (!isDisabled) {
+                                  toggleOutcome(outcome.value);
+                                }
+                              }}
+                            />
+                          </div>
                           <label
                             htmlFor={`outcome-${outcome.value}`}
                             className={`flex-1 flex items-center gap-2 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                            onClick={(e) => {
-                              if (isDisabled) {
-                                e.preventDefault();
-                                return;
-                              }
-                              e.preventDefault();
-                              toggleOutcome(outcome.value);
-                            }}
                           >
                             <span className="text-sm font-medium">{outcome.label}</span>
                             <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
