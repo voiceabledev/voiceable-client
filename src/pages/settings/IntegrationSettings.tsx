@@ -535,7 +535,7 @@ export default function IntegrationSettings() {
                     schema={schema}
                     initialConfig={initialConfig}
                     onSubmit={handleSave}
-                    onDisconnect={async () => {
+                    onDisconnect={integrationType === 'twilio' ? undefined : async () => {
                       await handleDelete();
                     }}
                     isLoading={isSaving}
@@ -545,7 +545,7 @@ export default function IntegrationSettings() {
                     integrationType={integrationType}
                   />
                   <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-3 sm:justify-end">
-                    {hasSavedIntegration && (
+                    {hasSavedIntegration && integrationType !== 'twilio' && (
                       <Button
                         type="button"
                         variant="destructive"

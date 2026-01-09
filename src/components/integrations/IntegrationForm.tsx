@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
 import { integrationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +69,12 @@ export function IntegrationForm({
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
+
+    // If integration has no fields, validation always passes
+    if (hasNoFields) {
+      setErrors({});
+      return true;
+    }
 
     // Check required fields
     schema.required.forEach((fieldName) => {
@@ -421,6 +428,9 @@ export function IntegrationForm({
     ...schema.optional.map((name) => [name, schema.fields[name]] as const),
   ];
 
+  // Check if integration has no fields (like Twilio - uses environment variables)
+  const hasNoFields = orderedFields.length === 0;
+
   // For OAuth integrations, show OAuth button instead of API key field
   const shouldShowOAuthButton = isOAuthIntegration && !hasOAuthToken && oauthIntegrations.includes(integrationType || '');
 
@@ -467,16 +477,90 @@ export function IntegrationForm({
           <Label className="text-xs md:text-sm">{oauthButtonText.label}</Label>
           <Button
             type="button"
-            variant="default"
+            variant="outline"
             onClick={handleOAuthConnect}
             disabled={isLoading || oauthLoading}
-            className="w-full text-xs md:text-sm"
+            className={cn(
+              "w-full text-xs md:text-sm font-medium h-11 relative overflow-hidden",
+              integrationType === 'google_calendar' && "bg-white hover:bg-gray-50 border-gray-300 text-gray-700 hover:text-gray-900 shadow-sm",
+              integrationType === 'calendly' && "bg-[#0069FF] hover:bg-[#0052CC] text-white border-[#0069FF] hover:border-[#0052CC] shadow-sm",
+              integrationType === 'outlook_calendar' && "bg-[#0078D4] hover:bg-[#0064B8] text-white border-[#0078D4] hover:border-[#0064B8] shadow-sm"
+            )}
           >
-            {oauthLoading ? "Connecting..." : oauthButtonText.button}
+            {oauthLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Connecting...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-3">
+                {integrationType === 'google_calendar' && (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.99 7.28-2.69l-3.57-2.77c-.99.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                )}
+                {integrationType === 'calendly' && (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 2c5.514 0 10 4.486 10 10s-4.486 10-10 10S2 17.514 2 12 6.486 2 12 2zm-1 3v6h6V5h-6zm2 2h2v2h-2V7z"/>
+                  </svg>
+                )}
+                {integrationType === 'outlook_calendar' && (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 2v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-2V2h-2v2H9V2H7zm0 4H5v14h14V6h-2v2H7V6zm2 4v2h2v-2H9zm4 0v2h2v-2h-2zm-4 4v2h2v-2H9zm4 0v2h2v-2h-2z"/>
+                  </svg>
+                )}
+                <span>{oauthButtonText.button}</span>
+              </span>
+            )}
           </Button>
           <p className="text-xs text-muted-foreground">
             {oauthButtonText.description}
           </p>
+        </div>
+      ) : hasNoFields ? (
+        // For integrations with no fields (like Twilio using environment variables)
+        <div className="space-y-4 py-4">
+          <div className="flex items-start gap-3 p-4 rounded-lg border-l-4 border-primary/30 bg-primary/5">
+            <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-foreground mb-1">No Configuration Required</p>
+              <p className="text-muted-foreground">
+                This integration uses environment variables configured on the server. Click "Connect" to enable the integration and select available tools.
+              </p>
+            </div>
+          </div>
+          {/* Show disconnect button if already connected, but not for default integrations like Twilio */}
+          {hasSavedValues && onDisconnect && integrationType !== 'twilio' && (
+            <div className="space-y-2 pt-2">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to disconnect ${integrationType === 'twilio' ? 'Twilio' : 'this integration'}?`)) {
+                    setDisconnecting(true);
+                    try {
+                      await onDisconnect();
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: error instanceof Error ? error.message : "Failed to disconnect integration.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setDisconnecting(false);
+                    }
+                  }
+                }}
+                disabled={isLoading || disconnecting}
+                className="w-full text-xs md:text-sm"
+              >
+                {disconnecting ? "Disconnecting..." : `Disconnect ${integrationType === 'twilio' ? 'Twilio' : 'Integration'}`}
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <>

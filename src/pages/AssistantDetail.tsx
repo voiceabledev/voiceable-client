@@ -2060,6 +2060,34 @@ export default function AssistantDetail() {
           );
         }}
         fetchUserIntegrations={integrationHook.fetchUserIntegrations}
+        onRemoveIntegration={async (integrationType) => {
+          // Find the user integration for this type to get its ID
+          const userIntegration = integrationHook.userIntegrations.find(
+            i => i.integration_type === integrationType
+          );
+          const integrationId = userIntegration?.id || integrationType;
+          
+          await integrationHook.handleDeleteIntegration(
+            integrationId,
+            agentData.agent,
+            async (updatedIntegrationTools, updatedWebhookTools) => {
+              await agentData.handleSave(
+                updatedWebhookTools,
+                clientHook.clientTools,
+                updatedIntegrationTools,
+                sectionHook.cenarios,
+                sectionHook.etapas,
+                sectionHook.tomDeVoz,
+                systemTools,
+                systemToolSettings,
+                filesHook.attachedFiles,
+                systemToolSettingsMap
+              );
+            },
+            agentData.handlePublish
+          );
+        }}
+        agentId={agentData.agent?.id}
       />
 
       <SectionEntryModal

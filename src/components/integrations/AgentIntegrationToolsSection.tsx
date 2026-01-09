@@ -117,32 +117,34 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={deletingIntegrationType !== null}
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will disable all tools for this integration.`)) {
-                              setDeletingIntegrationType(integrationType);
-                              try {
-                                await onDeleteIntegration(integrationType);
-                              } finally {
-                                setDeletingIntegrationType(null);
+                        {integrationType !== 'twilio' && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={deletingIntegrationType !== null}
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will disable all tools for this integration.`)) {
+                                setDeletingIntegrationType(integrationType);
+                                try {
+                                  await onDeleteIntegration(integrationType);
+                                } finally {
+                                  setDeletingIntegrationType(null);
+                                }
                               }
-                            }
-                          }}
-                          title="Remove integration from agent"
-                        >
-                          {deletingIntegrationType === integrationType ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
+                            }}
+                            title="Remove integration from agent"
+                          >
+                            {deletingIntegrationType === integrationType ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
