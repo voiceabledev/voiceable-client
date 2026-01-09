@@ -9,10 +9,14 @@ import {
   RotateCcw,
   RotateCw,
   Loader2,
+  Phone,
+  Layout,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { conversationsApi, Conversation } from "@/lib/api";
+import { conversationsApi, Conversation, phoneNumbersApi, PhoneNumber, apiKeysApi, ApiKey } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface ConversationDisplay extends Conversation {
   date: string;
@@ -26,9 +30,18 @@ interface ConversationDisplay extends Conversation {
 interface ConversationsTabProps {
   assistantName: string;
   agentId?: string;
+  onNavigateToPhoneNumber?: () => void;
+  onNavigateToWidget?: () => void;
+  onMakeFirstCall?: () => void;
 }
 
-export default function ConversationsTab({ assistantName, agentId }: ConversationsTabProps) {
+export default function ConversationsTab({ 
+  assistantName, 
+  agentId, 
+  onNavigateToPhoneNumber, 
+  onNavigateToWidget,
+  onMakeFirstCall
+}: ConversationsTabProps) {
   const { toast } = useToast();
   const [conversations, setConversations] = useState<ConversationDisplay[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<ConversationDisplay | null>(null);
@@ -42,6 +55,8 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
+  const [hasWidgetApiKey, setHasWidgetApiKey] = useState(false);
 
   const fetchConversations = useCallback(async () => {
     if (!agentId) {
@@ -105,9 +120,45 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
     }
   }, [toast]);
 
+  const fetchPhoneNumbers = useCallback(async () => {
+    if (!agentId) {
+      setPhoneNumbers([]);
+      return;
+    }
+
+    try {
+      const response = await phoneNumbersApi.list();
+      if (response.data) {
+        setPhoneNumbers(response.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch phone numbers:", err);
+      setPhoneNumbers([]);
+    }
+  }, [agentId]);
+
+  const checkWidgetApiKey = useCallback(async () => {
+    try {
+      const response = await apiKeysApi.list();
+      if (response.data) {
+        const widgetKey = response.data.find(
+          (key: ApiKey) => key.name === 'Widget API Key'
+        );
+        setHasWidgetApiKey(!!widgetKey);
+      } else {
+        setHasWidgetApiKey(false);
+      }
+    } catch (err) {
+      console.error("Failed to fetch API keys:", err);
+      setHasWidgetApiKey(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+    fetchPhoneNumbers();
+    checkWidgetApiKey();
+  }, [fetchConversations, fetchPhoneNumbers, checkWidgetApiKey]);
 
   // Fetch conversation details when one is selected
   useEffect(() => {
@@ -347,6 +398,11 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
       conv.agent_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Check if agent has a phone number assigned
+  const hasPhoneNumber = agentId 
+    ? phoneNumbers.some((pn) => pn.agent_id?.toString() === agentId)
+    : false;
+
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* List */}
@@ -386,10 +442,57 @@ export default function ConversationsTab({ assistantName, agentId }: Conversatio
                 </tr>
               ) : filteredConversations.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground">
-                      <p className="text-sm">{searchQuery ? 'No conversations found matching your search.' : agentId ? 'No conversations found for this agent.' : 'Please select an agent to view conversations.'}</p>
-                    </div>
+                  <td colSpan={3} className="px-4 py-12">
+                    {searchQuery ? (
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <p className="text-sm">No conversations found matching your search.</p>
+                      </div>
+                    ) : !agentId ? (
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <p className="text-sm">Please select an agent to view conversations.</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-6 py-8">
+                        <div className="flex flex-col items-center gap-2 text-center">
+                          <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-2">
+                            <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-foreground">No conversations yet</h3>
+                          <p className="text-sm text-muted-foreground max-w-md">
+                            Start receiving conversations by setting up a phone number for voice calls or configuring the widget for web chat.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {onNavigateToPhoneNumber && !hasPhoneNumber && (
+                            <Button
+                              onClick={onNavigateToPhoneNumber}
+                              className="flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
+                            >
+                              <Phone className="h-4 w-4" />
+                              Buy Phone Number
+                            </Button>
+                          )}
+                          {onNavigateToWidget && !hasWidgetApiKey && (
+                            <Button
+                              onClick={onNavigateToWidget}
+                              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Layout className="h-4 w-4" />
+                              Configure Widget
+                            </Button>
+                          )}
+                          {onMakeFirstCall && hasWidgetApiKey && (
+                            <Button
+                              onClick={onMakeFirstCall}
+                              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                              <Phone className="h-4 w-4" />
+                              Talk to the Agent
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (

@@ -1475,7 +1475,7 @@ export default function AssistantDetail() {
             <>
               {activeTab === "dashboard" || activeTab === "overview" ? (
                 // <DashboardTab 
-                //   agent={agentData.agent} 
+                //   agent={agentData.agent}
                 //   agentId={agentId}
                 //   onNavigateToWidget={() => {
                 //     setActiveTab("widget");
@@ -1485,7 +1485,25 @@ export default function AssistantDetail() {
                 // />
                 <></>
               ) : activeTab === "calls" || activeTab === "conversations" ? (
-                <ConversationsTab assistantName={agentData.agent.name} agentId={agentData.agent.id} />
+                <ConversationsTab 
+                  assistantName={agentData.agent.name} 
+                  agentId={agentData.agent.id}
+                  onNavigateToPhoneNumber={() => {
+                    setActiveTab("phone-number");
+                    lastSetTabRef.current = "phone-number";
+                    setSearchParams({ tab: "phone-number" });
+                  }}
+                  onNavigateToWidget={() => {
+                    setActiveTab("widget");
+                    lastSetTabRef.current = "widget";
+                    setSearchParams({ tab: "widget" });
+                  }}
+                  onMakeFirstCall={() => {
+                    setActiveTab("phone-number");
+                    lastSetTabRef.current = "phone-number";
+                    setSearchParams({ tab: "phone-number" });
+                  }}
+                />
               ) : activeTab === "performance" || activeTab === "outcomes" ? (
                 <OutcomeConfigTab 
                   ref={outcomeConfigTabRef}
