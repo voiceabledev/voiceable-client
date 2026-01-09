@@ -3,6 +3,7 @@ import { Plus, ChevronDown, Edit, Trash2, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { GenerateBehaviourModal } from "./modals/GenerateBehaviourModal";
+import { motion } from "framer-motion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -259,15 +260,25 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
       {expanded && (
         <div className="mt-4 md:mt-6 space-y-5">
           <div className="flex items-center justify-end">
-            <Button
-              variant="outline"
-              size="sm"
+            <button
               onClick={handleGenerateClick}
-              className="flex items-center gap-2"
+              disabled={!agentId}
+              className="text-white font-medium px-4 py-2 rounded-md overflow-hidden relative transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              Generate with AI
-            </Button>
+              <Sparkles className="h-3.5 w-3.5 relative z-10" />
+              <span className="relative z-10">Generate with AI</span>
+              <motion.div
+                initial={{ left: 0 }}
+                animate={{ left: "-300%" }}
+                transition={{
+                  repeat: Infinity,
+                  repeatType: "mirror",
+                  duration: 4,
+                  ease: "linear",
+                }}
+                className="bg-[linear-gradient(to_right,#8f14e6,#e614dc,#e61453,#e68414,#e6e614)] absolute z-0 inset-0 w-[400%]"
+              />
+            </button>
           </div>
           <div className="space-y-5">
             {(() => {

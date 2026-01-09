@@ -1809,6 +1809,19 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             behaviourConfig={behaviourConfig}
             onOpenSectionModal={openSectionModal}
             onDeleteSectionEntry={deleteSectionEntry}
+            onApplyGeneratedBehaviour={(data) => {
+              // Replace existing behaviors with generated ones
+              if (data.scenarios) {
+                setScenarios(data.scenarios);
+              }
+              if (data.phases) {
+                setPhases(data.phases);
+              }
+              if (data.voiceTone) {
+                setVoiceTone(data.voiceTone);
+              }
+            }}
+            agentId={agentId || undefined}
             systemPromptTemplate={systemPromptTemplate}
             onSystemPromptTemplateChange={setSystemPromptTemplate}
           />

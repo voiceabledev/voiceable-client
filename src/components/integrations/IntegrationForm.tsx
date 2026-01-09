@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,16 +40,8 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
   integrationType,
   onValidationChange,
 }, ref) => {
-  const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
-  const [originalValues, setOriginalValues] = useState<Record<string, string>>({});
-  const [oauthLoading, setOAuthLoading] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    // Store original values and mask password fields
+  const [config, setConfig] = useState<IntegrationConfig>(() => {
+    // Initialize config only once on mount
     const maskedConfig: IntegrationConfig = { ...initialConfig };
     const originals: Record<string, string> = {};
     
@@ -94,9 +86,95 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
       }
     });
     
-    setConfig(maskedConfig);
-    setOriginalValues(originals);
-  }, [initialConfig, schema.fields]);
+    return maskedConfig;
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [originalValues, setOriginalValues] = useState<Record<string, string>>(() => {
+    // Initialize originalValues only once on mount
+    const originals: Record<string, string> = {};
+    Object.entries(initialConfig).forEach(([key, value]) => {
+      const fieldConfig = schema.fields[key];
+      if (fieldConfig?.type === 'password') {
+        const stringValue = value ? String(value).trim() : '';
+        if (stringValue !== '' && !stringValue.includes('*')) {
+          originals[key] = stringValue;
+        }
+      }
+    });
+    return originals;
+  });
+  const [oauthLoading, setOAuthLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const { toast } = useToast();
+  const onValidationChangeRef = useRef(onValidationChange);
+  const prevIntegrationTypeRef = useRef(integrationType);
+  const hasInitializedRef = useRef(false);
+  
+  // Keep ref in sync with prop
+  useEffect(() => {
+    onValidationChangeRef.current = onValidationChange;
+  }, [onValidationChange]);
+
+  // Only reset config when integration type changes (new integration selected)
+  useEffect(() => {
+    // If integration type changed, reset the form
+    if (prevIntegrationTypeRef.current !== integrationType) {
+      prevIntegrationTypeRef.current = integrationType;
+      hasInitializedRef.current = false;
+      
+      // Store original values and mask password fields
+      const maskedConfig: IntegrationConfig = { ...initialConfig };
+      const originals: Record<string, string> = {};
+      
+      // First, copy all non-password fields as-is
+      Object.entries(initialConfig).forEach(([key, value]) => {
+        const fieldConfig = schema.fields[key];
+        if (fieldConfig?.type !== 'password') {
+          maskedConfig[key] = value;
+        }
+      });
+      
+      // Then handle password fields
+      Object.entries(initialConfig).forEach(([key, value]) => {
+        const fieldConfig = schema.fields[key];
+        if (fieldConfig?.type === 'password') {
+          const stringValue = value ? String(value).trim() : '';
+          
+          if (stringValue !== '') {
+            // Check if the value is already masked (contains asterisks)
+            const isAlreadyMasked = stringValue.includes('*');
+            
+            if (isAlreadyMasked) {
+              // Value is already masked from API - we don't have the original
+              // Store the masked value as-is, but don't store an "original"
+              // This means we can't show/hide it, but we can still allow updating
+              maskedConfig[key] = stringValue;
+              // Don't store in originals - we don't have the actual value
+            } else {
+              // Value is the actual API key - mask it for display
+              // Store original value
+              originals[key] = stringValue;
+              // Mask the value (show first 4 and last 4 chars if length > 8, otherwise all asterisks)
+              const masked = stringValue.length > 8 
+                ? stringValue.substring(0, 4) + '*'.repeat(stringValue.length - 8) + stringValue.substring(stringValue.length - 4)
+                : '*'.repeat(stringValue.length);
+              maskedConfig[key] = masked;
+            }
+          } else {
+            // Empty value - keep it empty
+            maskedConfig[key] = '';
+          }
+        }
+      });
+      
+      setConfig(maskedConfig);
+      setOriginalValues(originals);
+      hasInitializedRef.current = true;
+    }
+    // Only depend on integrationType - don't reset when initialConfig changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [integrationType]);
 
   const togglePasswordVisibility = (fieldName: string) => {
     setVisiblePasswords((prev) => ({
@@ -119,6 +197,90 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
       });
     }
   };
+
+  // Validate form and notify parent when config or schema changes
+  useEffect(() => {
+    if (!onValidationChangeRef.current) return;
+
+    // Check if integration has no fields
+    const orderedFields = [
+      ...schema.required.map((name) => [name, schema.fields[name]] as const),
+      ...schema.optional
+        .map((name) => [name, schema.fields[name]] as const)
+        .filter(([, fieldConfig]) => fieldConfig !== undefined),
+    ];
+    const hasNoFields = orderedFields.length === 0;
+
+    // If integration has no fields, validation always passes
+    if (hasNoFields) {
+      onValidationChangeRef.current(true);
+      return;
+    }
+
+    // Validate required fields
+    let isValid = true;
+    schema.required.forEach((fieldName) => {
+      const value = config[fieldName];
+      // For password fields, check if we have an original value or a non-masked value
+      const fieldConfig = schema.fields[fieldName];
+      if (fieldConfig?.type === 'password') {
+        // If it's masked (contains asterisks), it means there's a saved value, so it's valid
+        const stringValue = String(value || '').trim();
+        const isMasked = stringValue.includes('*');
+        if (isMasked) {
+          // Masked value means there's a saved value, so it's valid
+          // We don't need to check originalValues because masked = previously saved
+        } else if (!stringValue) {
+          // Not masked and empty = invalid
+          isValid = false;
+        }
+        // If not masked and has a value, it's valid (user entered a new value)
+      } else {
+        if (!value || String(value).trim() === '') {
+          isValid = false;
+        }
+      }
+    });
+
+    // Validate field types for non-empty fields
+    Object.entries(schema.fields).forEach(([fieldName, fieldConfig]) => {
+      const value = config[fieldName];
+      if (!value) return;
+
+      switch (fieldConfig.type) {
+      case 'url':
+        try {
+          new URL(String(value));
+        } catch {
+          isValid = false;
+        }
+        break;
+      case 'email': {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(String(value))) {
+          isValid = false;
+        }
+        break;
+      }
+      case 'number': {
+        const numValue = Number(value);
+        if (isNaN(numValue)) {
+          isValid = false;
+        } else {
+          if (fieldConfig.min !== undefined && numValue < fieldConfig.min) {
+            isValid = false;
+          }
+          if (fieldConfig.max !== undefined && numValue > fieldConfig.max) {
+            isValid = false;
+          }
+        }
+        break;
+      }
+      }
+    });
+
+    onValidationChangeRef.current(isValid);
+  }, [config, schema, originalValues]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
