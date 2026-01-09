@@ -20,6 +20,7 @@ type SectionEntryModalProps = {
   sectionForm: Omit<SectionEntry, "id">;
   setSectionForm: React.Dispatch<React.SetStateAction<Omit<SectionEntry, "id">>>;
   onSave: () => void;
+  sectionType: SectionType | null;
 };
 
 export const SectionEntryModal: React.FC<SectionEntryModalProps> = ({
@@ -29,7 +30,34 @@ export const SectionEntryModal: React.FC<SectionEntryModalProps> = ({
   sectionForm,
   setSectionForm,
   onSave,
+  sectionType,
 }) => {
+  const getTitleAndDescription = () => {
+    switch (sectionType) {
+      case "scenarios":
+        return {
+          title: "Define a scenario for the assistant behavior.",
+          description: "List the main scenarios the assistant should cover (e.g., Catalog, Service)."
+        };
+      case "phases":
+        return {
+          title: "Define a phase for the assistant behavior.",
+          description: "Break down the stages or flow steps the assistant should follow."
+        };
+      case "voiceTone":
+        return {
+          title: "Define a voice tone for the assistant behavior.",
+          description: "Describe how the assistant should sound, including restrictions or tone preferences."
+        };
+      default:
+        return {
+          title: "Define a section for the assistant behavior.",
+          description: ""
+        };
+    }
+  };
+
+  const { title: modalTitle, description: modalDescription } = getTitleAndDescription();
   return (
     <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
       <DialogContent className="max-w-lg">
@@ -43,7 +71,15 @@ export const SectionEntryModal: React.FC<SectionEntryModalProps> = ({
                 {editingSectionEntry ? "Edit Entry" : "Add Entry"}
               </DialogTitle>
               <DialogDescription>
-                Define a section for the assistant behavior.
+                {modalTitle}
+                {modalDescription && (
+                  <>
+                    <br />
+                    <span className="text-xs text-muted-foreground mt-1 block">
+                      {modalDescription}
+                    </span>
+                  </>
+                )}
               </DialogDescription>
             </div>
           </div>

@@ -2069,6 +2069,7 @@ export default function AssistantDetail() {
         sectionForm={sectionHook.sectionForm}
         setSectionForm={sectionHook.setSectionForm}
         onSave={sectionHook.saveSectionEntry}
+        sectionType={sectionHook.editingSectionType}
       />
 
       <PromptPreviewModal
