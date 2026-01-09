@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
@@ -30,11 +30,13 @@ interface WidgetTabProps {
 export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [apiKey, setApiKey] = useState<string>('');
   const [apiKeyId, setApiKeyId] = useState<number | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(true);
   const [apiKeyRefreshing, setApiKeyRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [previewTriggered, setPreviewTriggered] = useState(false);
 
   // Fetch or create API key on mount
   const fetchOrCreateApiKey = useCallback(async (forceCreate = false) => {
@@ -266,6 +268,22 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       });
     }
   }, [agent?.elevenlabs_agent_id, agent?.widget_config, apiKey, getBackendBaseUrl, toast]);
+
+  // Auto-open preview if preview parameter is set
+  useEffect(() => {
+    const shouldPreview = searchParams.get('preview') === 'true';
+    if (shouldPreview && !previewTriggered && !apiKeyLoading && apiKey && agent?.elevenlabs_agent_id) {
+      setPreviewTriggered(true);
+      // Remove the preview parameter from URL
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('preview');
+      setSearchParams(newSearchParams, { replace: true });
+      // Trigger preview after a short delay to ensure everything is ready
+      setTimeout(() => {
+        handlePreviewWidget();
+      }, 100);
+    }
+  }, [searchParams, previewTriggered, apiKeyLoading, apiKey, agent?.elevenlabs_agent_id, handlePreviewWidget, setSearchParams]);
 
   const handleOpenDesignStudio = () => {
     if (agent?.id) {

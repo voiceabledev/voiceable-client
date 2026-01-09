@@ -654,33 +654,78 @@ export function useIntegrationTools(
       let updatedIntegration: UserIntegration | null = null;
       
       if (existingIntegration) {
-        // Update existing integration
-        await integrationsApi.update(connectingIntegrationType, config);
-        // Refresh user integrations
-        const response = await integrationsApi.list();
-        if (response.data) {
-          setUserIntegrations(response.data);
-          updatedIntegration = response.data.find(i => i.integration_type === connectingIntegrationType) || null;
+        // Try to update existing integration
+        try {
+          await integrationsApi.update(connectingIntegrationType, config);
+          // Refresh user integrations
+          const response = await integrationsApi.list();
+          if (response.data) {
+            setUserIntegrations(response.data);
+            updatedIntegration = response.data.find(i => i.integration_type === connectingIntegrationType) || null;
+          }
+          toast({
+            title: "Success",
+            description: "Integration updated successfully.",
+          });
+        } catch (updateError: any) {
+          // If update fails with 404, the integration doesn't exist on server
+          // Try to create it instead
+          if (updateError?.response?.status === 404 || updateError?.status === 404) {
+            console.log('Integration not found on server, creating new integration');
+            const createResponse = await integrationsApi.create(connectingIntegrationType, config);
+            if (createResponse.data) {
+              updatedIntegration = createResponse.data;
+            }
+            // Refresh user integrations
+            const response = await integrationsApi.list();
+            if (response.data) {
+              setUserIntegrations(response.data);
+            }
+            toast({
+              title: "Success",
+              description: "Integration connected successfully.",
+            });
+          } else {
+            // Re-throw if it's not a 404
+            throw updateError;
+          }
         }
-        toast({
-          title: "Success",
-          description: "Integration updated successfully.",
-        });
       } else {
         // Create new integration
-        const createResponse = await integrationsApi.create(connectingIntegrationType, config);
-        if (createResponse.data) {
-          updatedIntegration = createResponse.data;
+        try {
+          const createResponse = await integrationsApi.create(connectingIntegrationType, config);
+          if (createResponse.data) {
+            updatedIntegration = createResponse.data;
+          }
+          // Refresh user integrations
+          const response = await integrationsApi.list();
+          if (response.data) {
+            setUserIntegrations(response.data);
+          }
+          toast({
+            title: "Success",
+            description: "Integration connected successfully.",
+          });
+        } catch (createError: any) {
+          // If create fails with conflict (409) or the integration already exists, try update
+          if (createError?.response?.status === 409 || createError?.response?.status === 422) {
+            console.log('Integration already exists, updating instead');
+            await integrationsApi.update(connectingIntegrationType, config);
+            // Refresh user integrations
+            const response = await integrationsApi.list();
+            if (response.data) {
+              setUserIntegrations(response.data);
+              updatedIntegration = response.data.find(i => i.integration_type === connectingIntegrationType) || null;
+            }
+            toast({
+              title: "Success",
+              description: "Integration updated successfully.",
+            });
+          } else {
+            // Re-throw if it's not a conflict
+            throw createError;
+          }
         }
-        // Refresh user integrations
-        const response = await integrationsApi.list();
-        if (response.data) {
-          setUserIntegrations(response.data);
-        }
-        toast({
-          title: "Success",
-          description: "Integration connected successfully.",
-        });
       }
       
       // Update editingIntegrationConfig with the newly connected integration

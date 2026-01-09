@@ -28,6 +28,7 @@ type SystemToolSettingsPanelProps = {
   onClose: () => void;
   onSave?: () => void;
   saving?: boolean;
+  hasChanges?: boolean;
   currentAgentId?: string;
 };
 
@@ -38,6 +39,7 @@ export const SystemToolSettingsPanel: React.FC<SystemToolSettingsPanelProps> = (
   onClose,
   onSave,
   saving = false,
+  hasChanges = false,
   currentAgentId,
 }) => {
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
@@ -639,6 +641,7 @@ The reason must include a specific reference to the wording in the user message 
             }} 
             disabled={
               saving || 
+              !hasChanges ||
               (settings.transferRules || []).some(rule => !rule.condition || !rule.condition.trim()) ||
               (settings.humanTransferRules || []).some(rule => !rule.condition || !rule.condition.trim())
             }

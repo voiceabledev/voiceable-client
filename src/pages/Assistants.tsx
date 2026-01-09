@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +66,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const tabs = [
   { id: "model", label: "Model", icon: Code },
@@ -312,6 +323,7 @@ const assistantTemplates = [
 
 export default function Assistants() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [assistants, setAssistants] = useState<Agent[]>([]);
   const [selectedAssistant, setSelectedAssistant] = useState<Agent | null>(null);
   const [selectedAssistantDetails, setSelectedAssistantDetails] = useState<Agent | null>(null);
@@ -325,7 +337,48 @@ export default function Assistants() {
   const showFullContent = !isMobile || isExpanded;
   const [assistantName, setAssistantName] = useState("New Assistant");
   const [selectedTemplate, setSelectedTemplate] = useState("blank");
+  const [showBlankTemplateConfirm, setShowBlankTemplateConfirm] = useState(false);
   const [modelExpanded, setModelExpanded] = useState(true);
+
+  // Handle creating assistant - navigates to create page
+  const handleCreateAssistant = useCallback(() => {
+    if (selectedTemplate === "blank") {
+      // Navigate to create page with blank template
+      setShowCreatePanel(false);
+      setShowBlankTemplateConfirm(false);
+      navigate("/assistants/create", {
+        state: {
+          templateId: null,
+          assistantName: assistantName || "New Assistant",
+        }
+      });
+    } else {
+      // For other templates, get template data
+      const template = assistantTemplates.find(t => t.id === selectedTemplate);
+      if (template) {
+        setShowCreatePanel(false);
+        navigate("/assistants/create", {
+          state: {
+            templateId: selectedTemplate,
+            assistantName: assistantName || template.title,
+          }
+        });
+      }
+    }
+  }, [selectedTemplate, assistantName, navigate]);
+
+  // Handle blank template confirmation - sets template and navigates
+  const handleBlankTemplateConfirm = useCallback(() => {
+    setSelectedTemplate("blank");
+    setShowCreatePanel(false);
+    setShowBlankTemplateConfirm(false);
+    navigate("/assistants/create", {
+      state: {
+        templateId: null,
+        assistantName: assistantName || "New Assistant",
+      }
+    });
+  }, [assistantName, navigate]);
   const [voiceConfigExpanded, setVoiceConfigExpanded] = useState(true);
   const [additionalConfigExpanded, setAdditionalConfigExpanded] = useState(true);
   const [transcriberExpanded, setTranscriberExpanded] = useState(true);
@@ -553,7 +606,10 @@ export default function Assistants() {
               {/* Blank Template */}
               <div className="mb-6 md:mb-8">
                 <button
-                  onClick={() => setSelectedTemplate("blank")}
+                  onClick={() => {
+                    // Show confirmation dialog when clicking blank template
+                    setShowBlankTemplateConfirm(true);
+                  }}
                   className={cn(
                     "w-full p-3 md:p-4 rounded-lg border-2 transition-all text-left",
                     selectedTemplate === "blank"
@@ -635,11 +691,7 @@ export default function Assistants() {
               </Button>
               <Button
                 variant="accent"
-                onClick={() => {
-                  // Handle create assistant logic here
-                  console.log("Creating assistant:", { name: assistantName, template: selectedTemplate });
-                  setShowCreatePanel(false);
-                }}
+                onClick={handleCreateAssistant}
                 className="w-full sm:w-auto"
               >
                 Create Assistant
@@ -1871,6 +1923,26 @@ export default function Assistants() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Blank Template Confirmation Dialog */}
+      <AlertDialog open={showBlankTemplateConfirm} onOpenChange={setShowBlankTemplateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Blank Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're about to create a new assistant from a blank template. This will start with minimal configurations, and you'll need to set up all the details manually.
+              <br /><br />
+              Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlankTemplateConfirm}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

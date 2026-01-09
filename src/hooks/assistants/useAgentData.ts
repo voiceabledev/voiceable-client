@@ -34,6 +34,7 @@ export function useAgentData(
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [agentTimestamps, setAgentTimestamps] = useState<{ updated_at?: string; published_at?: string } | null>(null);
   const { toast } = useToast();
   
   // Use a ref to store the latest conversationConfig so handleSave always has the most recent value
@@ -134,6 +135,12 @@ export function useAgentData(
       };
 
       setAgent(agentData);
+      
+      // Store timestamps for undeployed changes detection
+      setAgentTimestamps({
+        updated_at: raw.updated_at as string | undefined,
+        published_at: raw.published_at as string | undefined,
+      });
 
       // Extract tools and settings
       // Parse webhook tools to handle nested properties and special value types
@@ -712,7 +719,15 @@ export function useAgentData(
           setAgent(response.data as Agent);
         }
       } else {
-        await agentsApi.update(id, payload as unknown as Parameters<typeof agentsApi.update>[1]);
+        const response = await agentsApi.update(id, payload as unknown as Parameters<typeof agentsApi.update>[1]);
+        // Update timestamps from save response
+        if (response.data) {
+          const raw = response.data as unknown as Record<string, unknown>;
+          setAgentTimestamps({
+            updated_at: raw.updated_at as string | undefined,
+            published_at: raw.published_at as string | undefined,
+          });
+        }
         // Don't refresh after save - state is already updated locally
         // This prevents double refresh when deleting integrations (handlePublish will refresh)
       }
@@ -733,7 +748,16 @@ export function useAgentData(
 
     try {
       setPublishing(true);
-      await agentsApi.publish(id);
+      const response = await agentsApi.publish(id);
+      
+      // Update timestamps from publish response
+      if (response.data) {
+        const raw = response.data as unknown as Record<string, unknown>;
+        setAgentTimestamps({
+          updated_at: raw.updated_at as string | undefined,
+          published_at: raw.published_at as string | undefined,
+        });
+      }
       
       // Refresh agent data to get updated webhook tools created by the backend
       await fetchAgentDetails();
@@ -762,6 +786,7 @@ export function useAgentData(
     loading,
     saving,
     publishing,
+    agentTimestamps,
     fetchAgentDetails,
     buildConfiguration,
     handleSave,

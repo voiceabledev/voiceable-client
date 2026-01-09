@@ -11,6 +11,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Plus, 
   Search, 
@@ -116,6 +126,7 @@ export default function AssistantsList() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [assistantName, setAssistantName] = useState("New Assistant");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showBlankTemplateConfirm, setShowBlankTemplateConfirm] = useState(false);
   const [voiceNameMap, setVoiceNameMap] = useState<Record<string, string>>({});
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
@@ -252,32 +263,37 @@ export default function AssistantsList() {
   };
 
   const handleTemplateSelect = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    const isBlank = templateId === "blank" || (template && template.title === "Blank Template");
+    
+    // If blank template is selected, show confirmation dialog
+    if (isBlank) {
+      setShowBlankTemplateConfirm(true);
+      return;
+    }
+    
+    // For other templates, proceed normally
     setSelectedTemplate(templateId);
     
-    // Auto-generate name based on template (except for blank)
-    const template = templates.find(t => t.id === templateId);
+    // Auto-generate name based on template
     if (template && template.title !== "Blank Template") {
       setAssistantName(template.title);
-    } else if (templateId === "blank") {
-      setAssistantName("New Assistant");
     } else {
       setAssistantName(getTemplateDefaultName(templateId));
     }
-    
-    // If blank template is selected, redirect to wizard
-    if (templateId === "blank" || (template && template.title === "Blank Template")) {
-      setShowCreateModal(false);
-      navigate("/assistants/create", {
-        state: {
-          templateId: null,
-          assistantName: "New Assistant",
-        }
-      });
-    } else {
-      // For other templates, store the selection but don't navigate yet
-      // User needs to click "Create Assistant" button
-    }
   };
+
+  // Handle blank template confirmation - navigates to create page
+  const handleBlankTemplateConfirm = useCallback(() => {
+    setShowCreateModal(false);
+    setShowBlankTemplateConfirm(false);
+    navigate("/assistants/create", {
+      state: {
+        templateId: null,
+        assistantName: assistantName || "New Assistant",
+      }
+    });
+  }, [assistantName, navigate]);
 
   const handleCreateFromTemplate = () => {
     if (!selectedTemplate || selectedTemplate === "blank") {
@@ -554,7 +570,12 @@ export default function AssistantsList() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  templates.map((template) => {
+                  [...templates].sort((a, b) => {
+                    // Put blank template last
+                    if (a.title === "Blank Template") return 1;
+                    if (b.title === "Blank Template") return -1;
+                    return 0;
+                  }).map((template) => {
                     const Icon = typeof template.icon === 'string' ? null : template.icon;
                     const iconUrl = typeof template.icon === 'string' ? template.icon : null;
                     const isBlank = template.title === "Blank Template";
@@ -599,14 +620,8 @@ export default function AssistantsList() {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className={cn(
-                              "font-semibold mb-1",
-                              isBlank ? "text-base" : "text-sm"
-                            )}>{template.title}</h3>
-                            <p className={cn(
-                              "text-muted-foreground",
-                              isBlank ? "text-sm" : "text-xs line-clamp-3"
-                            )}>
+                            <h3 className="font-semibold mb-1 text-sm">{template.title}</h3>
+                            <p className="text-xs text-muted-foreground line-clamp-3">
                               {template.description}
                             </p>
                           </div>
@@ -635,6 +650,26 @@ export default function AssistantsList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Blank Template Confirmation Dialog */}
+      <AlertDialog open={showBlankTemplateConfirm} onOpenChange={setShowBlankTemplateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Blank Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're about to create a new assistant from a blank template. This will start with minimal configurations, and you'll need to set up all the details manually.
+              <br /><br />
+              Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlankTemplateConfirm}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

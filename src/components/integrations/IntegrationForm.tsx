@@ -37,13 +37,60 @@ export function IntegrationForm({
   const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [originalValues, setOriginalValues] = useState<Record<string, string>>({});
   const [oauthLoading, setOAuthLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    setConfig(initialConfig);
-  }, [initialConfig]);
+    // Store original values and mask password fields
+    const maskedConfig: IntegrationConfig = { ...initialConfig };
+    const originals: Record<string, string> = {};
+    
+    // First, copy all non-password fields as-is
+    Object.entries(initialConfig).forEach(([key, value]) => {
+      const fieldConfig = schema.fields[key];
+      if (fieldConfig?.type !== 'password') {
+        maskedConfig[key] = value;
+      }
+    });
+    
+    // Then handle password fields
+    Object.entries(initialConfig).forEach(([key, value]) => {
+      const fieldConfig = schema.fields[key];
+      if (fieldConfig?.type === 'password') {
+        const stringValue = value ? String(value).trim() : '';
+        
+        if (stringValue !== '') {
+          // Check if the value is already masked (contains asterisks)
+          const isAlreadyMasked = stringValue.includes('*');
+          
+          if (isAlreadyMasked) {
+            // Value is already masked from API - we don't have the original
+            // Store the masked value as-is, but don't store an "original"
+            // This means we can't show/hide it, but we can still allow updating
+            maskedConfig[key] = stringValue;
+            // Don't store in originals - we don't have the actual value
+          } else {
+            // Value is the actual API key - mask it for display
+            // Store original value
+            originals[key] = stringValue;
+            // Mask the value (show first 4 and last 4 chars if length > 8, otherwise all asterisks)
+            const masked = stringValue.length > 8 
+              ? stringValue.substring(0, 4) + '*'.repeat(stringValue.length - 8) + stringValue.substring(stringValue.length - 4)
+              : '*'.repeat(stringValue.length);
+            maskedConfig[key] = masked;
+          }
+        } else {
+          // Empty value - keep it empty
+          maskedConfig[key] = '';
+        }
+      }
+    });
+    
+    setConfig(maskedConfig);
+    setOriginalValues(originals);
+  }, [initialConfig, schema.fields]);
 
   const togglePasswordVisibility = (fieldName: string) => {
     setVisiblePasswords((prev) => ({
@@ -142,7 +189,74 @@ export function IntegrationForm({
     }
 
     try {
-      await onSubmit(config);
+      // Convert config values to strings for API
+      // Only include fields that have actually changed from original values
+      const submitConfig: Record<string, string> = {};
+      Object.entries(config).forEach(([key, value]) => {
+        const stringValue = String(value);
+        const originalValue = originalValues[key];
+        const fieldConfig = schema.fields[key];
+        
+        // If there's an original value, only include if it's been changed
+        if (originalValue) {
+          // Check if the current value is masked (contains asterisks)
+          const isMasked = stringValue.includes('*');
+          const actualValue = isMasked ? originalValue : stringValue;
+          
+          // Only include if the value is different from original
+          if (actualValue !== originalValue) {
+            submitConfig[key] = actualValue;
+          }
+          // If value hasn't changed, don't include it (will keep existing value)
+        } else {
+          // New value - check if it's a password field that's masked (from API)
+          // If it's masked, we don't have the original, so don't send it
+          // Otherwise, include it if it has a value
+          if (fieldConfig?.type === 'password' && stringValue.includes('*')) {
+            // This is a masked value from API - we don't have the original
+            // Don't include it unless the user has typed something new
+            // (which would mean it's not masked anymore)
+            // Skip it - we can't update what we don't know
+          } else if (stringValue.trim() !== '') {
+            // Non-empty value, include it
+            submitConfig[key] = stringValue;
+          }
+        }
+      });
+      
+      // Validate that required fields are present in submitConfig
+      // If we're creating a new integration (no originalValues), all required fields must be present
+      const hasOriginalValues = Object.keys(originalValues).length > 0;
+      if (!hasOriginalValues) {
+        // Creating new integration - ensure required fields are included
+        schema.required?.forEach((fieldName) => {
+          const fieldConfig = schema.fields[fieldName];
+          if (fieldConfig && !(fieldName in submitConfig)) {
+            const currentValue = config[fieldName];
+            const stringValue = currentValue ? String(currentValue).trim() : '';
+            if (stringValue === '') {
+              throw new Error(`Required field "${fieldConfig.label || fieldName}" is missing`);
+            }
+            // If it's a password field that's masked, we can't use it - user must enter a new value
+            if (fieldConfig.type === 'password' && stringValue.includes('*')) {
+              throw new Error(`Please enter a value for "${fieldConfig.label || fieldName}"`);
+            }
+            submitConfig[fieldName] = stringValue;
+          }
+        });
+      }
+      
+      // Log submitConfig for debugging (remove in production)
+      if (Object.keys(submitConfig).length === 0 && schema.required && schema.required.length > 0) {
+        console.warn('IntegrationForm: submitConfig is empty but required fields exist', {
+          required: schema.required,
+          config,
+          originalValues,
+          hasOriginalValues
+        });
+      }
+      
+      await onSubmit(submitConfig);
       // Don't reset form or navigate - let the parent handle the next step
       // Explicitly prevent any form submission
       e.preventDefault();
@@ -158,6 +272,12 @@ export function IntegrationForm({
   };
 
   const renderField = (fieldName: string, fieldConfig: IntegrationSchema['fields'][string]) => {
+    // Guard against undefined fieldConfig
+    if (!fieldConfig) {
+      console.warn(`Field config is undefined for field: ${fieldName}`);
+      return null;
+    }
+
     const value = config[fieldName] || '';
     const error = errors[fieldName];
     const isRequired = schema.required.includes(fieldName);
@@ -165,13 +285,19 @@ export function IntegrationForm({
     switch (fieldConfig.type) {
       case 'password': {
         const isVisible = visiblePasswords[fieldName] || false;
+        const originalValue = originalValues[fieldName];
+        const hasOriginalValue = !!originalValue;
         const stringValue = String(value || '');
+        const isMasked = stringValue.includes('*');
         
         return (
           <div key={fieldName} className="space-y-2">
             <Label htmlFor={fieldName} className="text-xs md:text-sm">
               {fieldConfig.label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
+              {hasOriginalValue && (
+                <span className="text-xs text-muted-foreground font-normal ml-2">(configured)</span>
+              )}
             </Label>
             <div className="relative">
             <Input
@@ -180,7 +306,26 @@ export function IntegrationForm({
               placeholder={fieldConfig.placeholder || 'Enter your API key'}
               value={stringValue}
               onChange={(e) => {
-                handleFieldChange(fieldName, e.target.value);
+                const newValue = e.target.value;
+                
+                // If we have an original value and user is typing, they're changing it
+                if (hasOriginalValue) {
+                  // If user clears the field, reset to masked original
+                  if (newValue === '') {
+                    const masked = originalValue.length > 8 
+                      ? originalValue.substring(0, 4) + '*'.repeat(originalValue.length - 8) + originalValue.substring(originalValue.length - 4)
+                      : '*'.repeat(originalValue.length);
+                    handleFieldChange(fieldName, masked);
+                    setVisiblePasswords(prev => ({ ...prev, [fieldName]: false }));
+                  } else {
+                    // User is typing a new value
+                    handleFieldChange(fieldName, newValue);
+                    setVisiblePasswords(prev => ({ ...prev, [fieldName]: true }));
+                  }
+                } else {
+                  // New value entry
+                  handleFieldChange(fieldName, newValue);
+                }
               }}
               onKeyDown={(e) => {
                 // Prevent form submission on Enter unless it's the submit button
@@ -197,21 +342,50 @@ export function IntegrationForm({
               }`}
               disabled={isLoading}
             />
-              {stringValue && (
-                <button
-                  type="button"
-                  onClick={() => togglePasswordVisibility(fieldName)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-secondary/50"
-                  tabIndex={-1}
-                  aria-label={isVisible ? 'Hide password' : 'Show password'}
-                >
-                  {isVisible ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              )}
+                              {(hasOriginalValue || isMasked) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!hasOriginalValue) {
+                                      // No original value (API returned masked value) - can't show/hide
+                                      // Just toggle visibility of the masked value
+                                      setVisiblePasswords(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
+                                      return;
+                                    }
+                                    
+                                    const currentlyMasked = stringValue.includes('*');
+                                    if (currentlyMasked) {
+                                      // Show: display actual key
+                                      handleFieldChange(fieldName, originalValue);
+                                      setVisiblePasswords(prev => ({ ...prev, [fieldName]: true }));
+                                    } else {
+                                      // Hide: check if value has been modified
+                                      if (stringValue === originalValue) {
+                                        // Not modified, just hide it
+                                        const masked = originalValue.length > 8 
+                                          ? originalValue.substring(0, 4) + '*'.repeat(originalValue.length - 8) + originalValue.substring(originalValue.length - 4)
+                                          : '*'.repeat(originalValue.length);
+                                        handleFieldChange(fieldName, masked);
+                                        setVisiblePasswords(prev => ({ ...prev, [fieldName]: false }));
+                                      } else {
+                                        // User has modified it, keep showing the modified value
+                                        setVisiblePasswords(prev => ({ ...prev, [fieldName]: true }));
+                                      }
+                                    }
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-secondary/50"
+                                  tabIndex={-1}
+                                  aria-label={isVisible && (!hasOriginalValue || stringValue === originalValue) ? 'Hide password' : 'Show password'}
+                                  disabled={!hasOriginalValue}
+                                  title={!hasOriginalValue ? 'Original value not available (masked from API)' : undefined}
+                                >
+                                  {isVisible && (!hasOriginalValue || stringValue === originalValue) ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </button>
+                              )}
             </div>
             {fieldConfig.description && (
               <p className="text-xs text-muted-foreground">{fieldConfig.description}</p>
@@ -423,9 +597,14 @@ export function IntegrationForm({
   );
 
   // Render fields in order: required first, then optional
+  // Filter out any fields that don't exist in schema.fields to prevent undefined errors
   const orderedFields = [
-    ...schema.required.map((name) => [name, schema.fields[name]] as const),
-    ...schema.optional.map((name) => [name, schema.fields[name]] as const),
+    ...schema.required
+      .map((name) => [name, schema.fields[name]] as const)
+      .filter(([, fieldConfig]) => fieldConfig !== undefined),
+    ...schema.optional
+      .map((name) => [name, schema.fields[name]] as const)
+      .filter(([, fieldConfig]) => fieldConfig !== undefined),
   ];
 
   // Check if integration has no fields (like Twilio - uses environment variables)

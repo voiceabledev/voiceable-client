@@ -17,7 +17,9 @@ import {
   ShieldCheck, 
   Wrench,
   Info,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -93,6 +95,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   agentId,
 }) => {
   const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [originalApiKey, setOriginalApiKey] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [oauthLoading, setOAuthLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -143,19 +147,39 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
     }
   }, [open]);
 
-  // Load API key when editing (mask it)
+  // Load API key when editing (store original, show masked)
+  // Check both editingIntegrationConfig and userIntegrations
   useEffect(() => {
+    // First check editingIntegrationConfig
+    let apiKeyValue: string | null = null;
+    
     if (editingIntegrationConfig?.config?.api_key) {
-      // Mask the API key for security
-      const key = String(editingIntegrationConfig.config.api_key);
-      const masked = key.length > 8 
-        ? key.substring(0, 4) + '*'.repeat(key.length - 8) + key.substring(key.length - 4)
-        : '*'.repeat(key.length);
+      apiKeyValue = String(editingIntegrationConfig.config.api_key);
+    } else if (connectingIntegrationType) {
+      // If not in editingIntegrationConfig, check userIntegrations
+      const existingIntegration = userIntegrations.find(
+        ui => ui.integration_type === connectingIntegrationType
+      );
+      if (existingIntegration?.config?.api_key) {
+        apiKeyValue = String(existingIntegration.config.api_key);
+      }
+    }
+    
+    if (apiKeyValue) {
+      // Store the original API key
+      setOriginalApiKey(apiKeyValue);
+      // Show masked version by default
+      const masked = apiKeyValue.length > 8 
+        ? apiKeyValue.substring(0, 4) + '*'.repeat(apiKeyValue.length - 8) + apiKeyValue.substring(apiKeyValue.length - 4)
+        : '*'.repeat(apiKeyValue.length);
       setApiKey(masked);
+      setShowApiKey(false);
     } else {
       setApiKey("");
+      setOriginalApiKey(null);
+      setShowApiKey(false);
     }
-  }, [editingIntegrationConfig]);
+  }, [editingIntegrationConfig, userIntegrations, connectingIntegrationType]);
 
   // Populate selected tools for existing integrations only
   useEffect(() => {
@@ -661,20 +685,77 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           <div className="space-y-3">
                             <Label htmlFor="api-key" className="text-base font-semibold flex items-center gap-2">
                               API Key
-                              {editingIntegrationConfig && (
+                              {originalApiKey && (
                                 <Badge variant="outline" className="font-normal">
                                   Currently configured
                                 </Badge>
                               )}
                             </Label>
-                            <Input
-                              id="api-key"
-                              type="text"
-                              value={apiKey}
-                              onChange={(e) => setApiKey(e.target.value)}
-                              placeholder={editingIntegrationConfig ? "Enter new API key to update" : `Enter your ${integrationMeta.name} API key`}
-                              className="font-mono text-sm h-11"
-                            />
+                            <div className="relative">
+                              <Input
+                                id="api-key"
+                                type={showApiKey ? "text" : "password"}
+                                value={apiKey}
+                                onChange={(e) => {
+                                  const newValue = e.target.value;
+                                  // If we have an original API key and user is typing, they're changing it
+                                  if (originalApiKey) {
+                                    // If user starts typing, they're modifying the key
+                                    setApiKey(newValue);
+                                    // If they clear it completely, reset to masked original
+                                    if (newValue === "") {
+                                      const masked = originalApiKey.length > 8 
+                                        ? originalApiKey.substring(0, 4) + '*'.repeat(originalApiKey.length - 8) + originalApiKey.substring(originalApiKey.length - 4)
+                                        : '*'.repeat(originalApiKey.length);
+                                      setApiKey(masked);
+                                      setShowApiKey(false);
+                                    } else {
+                                      // User is typing a new value, keep it visible
+                                      setShowApiKey(true);
+                                    }
+                                  } else {
+                                    // New API key entry
+                                    setApiKey(newValue);
+                                  }
+                                }}
+                                placeholder={originalApiKey ? "Enter new API key to update" : `Enter your ${integrationMeta.name} API key`}
+                                className="font-mono text-sm h-11 pr-10"
+                              />
+                              {originalApiKey && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const isCurrentlyMasked = apiKey.includes('*');
+                                    if (isCurrentlyMasked) {
+                                      // Currently showing masked, switch to actual key
+                                      setApiKey(originalApiKey);
+                                      setShowApiKey(true);
+                                    } else {
+                                      // Currently showing actual key, check if it's been modified
+                                      if (apiKey === originalApiKey) {
+                                        // Not modified, just hide it
+                                        const masked = originalApiKey.length > 8 
+                                          ? originalApiKey.substring(0, 4) + '*'.repeat(originalApiKey.length - 8) + originalApiKey.substring(originalApiKey.length - 4)
+                                          : '*'.repeat(originalApiKey.length);
+                                        setApiKey(masked);
+                                        setShowApiKey(false);
+                                      } else {
+                                        // User has modified it, keep showing the modified value
+                                        setShowApiKey(true);
+                                      }
+                                    }
+                                  }}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                                >
+                                  {showApiKey && apiKey === originalApiKey ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
                             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
                               <p className="font-medium text-foreground">Where to find your API key:</p>
                               {connectingIntegrationType === 'calcom' && (
@@ -830,6 +911,9 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                   // If credentials are already connected, show tools save button
                   const credentialsConnected = hasOAuthToken || editingIntegrationConfig || existingUserIntegration;
                   
+                  // Check if integration actually exists (not just in local state)
+                  const actuallyHasIntegration = !!existingUserIntegration || !!editingIntegrationConfig;
+                  
                   // For integrations with no fields (like Twilio), show Add/Remove Integration button
                   if (hasNoFields) {
                     // If integration is already connected, show Remove button
@@ -915,13 +999,15 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                   }
                   
                   // Check if user is on credentials tab and has entered a new API key to update
-                  const isUpdatingApiKey = editingIntegrationConfig && 
+                  // Only update if the API key is different from the original (user actually changed it)
+                  const isUpdatingApiKey = originalApiKey && 
                                            integrationModalTab === 'credentials' && 
                                            apiKey && 
                                            apiKey !== '' &&
-                                           !apiKey.includes('*'); // New API key (not masked)
+                                           apiKey !== originalApiKey && // Different from original
+                                           !apiKey.includes('*'); // Not masked (contains actual value)
                   
-                  if (credentialsConnected && !isOAuthIntegration && !isUpdatingApiKey) {
+                  if (credentialsConnected && !isOAuthIntegration && !isUpdatingApiKey && actuallyHasIntegration) {
                     return (
                       <Button 
                         type="button"
@@ -947,6 +1033,48 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           <>
                             <ShieldCheck className="h-4 w-4 mr-2" />
                             Add Integration
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
+                  
+                  // If credentials are connected but integration doesn't actually exist, 
+                  // we need to create it first (this handles the case where originalApiKey exists 
+                  // but integration was deleted or doesn't exist on server)
+                  if (credentialsConnected && !isOAuthIntegration && !isUpdatingApiKey && !actuallyHasIntegration && originalApiKey) {
+                    // Show connect button to create the integration
+                    return (
+                      <Button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Determine the actual API key value to use
+                          let actualApiKey = apiKey;
+                          if (apiKey.includes('*')) {
+                            actualApiKey = originalApiKey;
+                          }
+                          
+                          // Create the integration with the API key
+                          await handleIntegrationConnect({ api_key: actualApiKey });
+                          // Automatically select all available tools
+                          const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                          setSelectedIntegrationToolsForModal(availableTools);
+                        }}
+                        disabled={connectingIntegrationLoading || isSaving || !apiKey}
+                        className="min-w-32"
+                      >
+                        {connectingIntegrationLoading || isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Connect
                           </>
                         )}
                       </Button>
@@ -1087,13 +1215,59 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          // Only save/update the API key - don't save tools or close modal
-                          // The modal will dynamically update to show "Add Integration" button
-                          // after handleIntegrationConnect updates editingIntegrationConfig
-                          await handleIntegrationConnect({ api_key: apiKey });
-                          // Automatically select all available tools for when user clicks "Add Integration"
-                          const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
-                          setSelectedIntegrationToolsForModal(availableTools);
+                          
+                          // Determine the actual API key value to use
+                          let actualApiKey = apiKey;
+                          
+                          // If API key is masked, use original (check both editingIntegrationConfig and userIntegrations)
+                          if (originalApiKey && apiKey.includes('*')) {
+                            actualApiKey = originalApiKey;
+                          }
+                          
+                          // Validate API key is not empty
+                          if (!actualApiKey || actualApiKey.trim() === '') {
+                            toast({
+                              title: "Validation Error",
+                              description: "Please enter an API key.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          
+                          // Check if API key hasn't changed (only if we have an original to compare)
+                          if (originalApiKey) {
+                            if (actualApiKey === originalApiKey) {
+                              // No change, just show a message
+                              toast({
+                                title: "No changes",
+                                description: "The API key hasn't been changed.",
+                                variant: "default",
+                              });
+                              return;
+                            }
+                          }
+                          
+                          try {
+                            // Only save/update the API key - don't save tools or close modal
+                            // The modal will dynamically update to show "Add Integration" button
+                            // after handleIntegrationConnect updates editingIntegrationConfig
+                            await handleIntegrationConnect({ api_key: actualApiKey });
+                            // Automatically select all available tools for when user clicks "Add Integration"
+                            const availableTools = INTEGRATION_TOOLS_DISPLAY[connectingIntegrationType || ''] || [];
+                            setSelectedIntegrationToolsForModal(availableTools);
+                          } catch (error: any) {
+                            // Error is already handled by handleIntegrationConnect, but log for debugging
+                            console.error('Error connecting integration:', error);
+                            // If it's a 404, it might mean the integration doesn't exist
+                            // The handleIntegrationConnect should handle this, but just in case
+                            if (error?.response?.status === 404) {
+                              toast({
+                                title: "Integration not found",
+                                description: "The integration was not found. Please try connecting again.",
+                                variant: "destructive",
+                              });
+                            }
+                          }
                         }}
                         disabled={connectingIntegrationLoading || isSaving || (!apiKey && !editingIntegrationConfig)}
                         className="min-w-32"

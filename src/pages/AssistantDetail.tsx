@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { compareValues } from "@/utils/changeTracker";
 
 // Components
 import WidgetTab from "@/components/assistants/WidgetTab";
@@ -56,6 +57,7 @@ import { useIntegrationTools } from "@/hooks/assistants/useIntegrationTools";
 import { useSectionEntries } from "@/hooks/assistants/useSectionEntries";
 import { useAgentFiles } from "@/hooks/assistants/useAgentFiles";
 import { useAgentData } from "@/hooks/assistants/useAgentData";
+import { useChangeTracker, type OutcomeState } from "@/hooks/assistants/useChangeTracker";
 
 // Constants/Types/Utils
 import {
@@ -95,6 +97,9 @@ export default function AssistantDetail() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const lastSetTabRef = useRef<string | null>(null);
   const outcomeConfigTabRef = useRef<OutcomeConfigTabRef>(null);
+  
+  // Track if there are undeployed changes (saved but not deployed)
+  const [hasUndeployedChanges, setHasUndeployedChanges] = useState(false);
 
   // Sync activeTab with URL
   useEffect(() => {
@@ -217,7 +222,10 @@ export default function AssistantDetail() {
   const [systemToolSettingsMap, setSystemToolSettingsMap] = useState<Record<string, SystemToolSetting>>({});
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [selectedSystemTool, setSelectedSystemTool] = useState<string | null>(null);
+  const [initialSystemToolSettings, setInitialSystemToolSettings] = useState<SystemToolSetting | null>(null);
+  const initialSystemToolSettingsToolRef = useRef<string | null>(null);
   const [showEscalationPanel, setShowEscalationPanel] = useState(false);
+  const panelClosingRef = useRef(false);
   const [escalationRuleSettings, setEscalationRuleSettings] = useState<EscalationRuleSettings>({
     name: 'transfer_to_number',
     description: '',
@@ -225,6 +233,7 @@ export default function AssistantDetail() {
     humanTransferRules: [],
     escalation_keywords: [],
   });
+  const [outcomeStateUpdateTrigger, setOutcomeStateUpdateTrigger] = useState(0);
   const [behaviourConfig, setBehaviourConfig] = useState<BehaviourConfig | undefined>(undefined);
   const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
   const [loadingBehaviours, setLoadingBehaviours] = useState(false);
@@ -288,6 +297,241 @@ export default function AssistantDetail() {
   );
 
   const { fetchAgentDetails } = agentData;
+
+  // Change tracking
+  const { hasChanges, updateBaseline, setTrackedState } = useChangeTracker();
+
+  // Debounce timer for auto-save
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track baseline initialization status (moved earlier for auto-save access)
+  const baselineInitializedRef = useRef(false);
+
+  // Update tracked state whenever relevant state changes
+  useEffect(() => {
+    // Get outcome state from OutcomeConfigTab ref
+    const outcomeState = outcomeConfigTabRef.current?.getOutcomeState();
+    
+    const trackedState = {
+      webhookTools: webhookHook.webhookTools,
+      clientTools: clientHook.clientTools,
+      agentIntegrationTools: integrationHook.agentIntegrationTools,
+      scenarios: sectionHook.cenarios,
+      phases: sectionHook.etapas,
+      voiceTone: sectionHook.tomDeVoz,
+      systemTools,
+      systemToolSettings,
+      systemToolSettingsMap,
+      attachedFiles: filesHook.attachedFiles,
+      agent: agentData.agent,
+      conversationConfig: agentData.conversationConfig,
+      outcomeState: outcomeState ? {
+        primaryOutcomes: outcomeState.primaryOutcomes,
+        successKeywords: outcomeState.successKeywords,
+        failureKeywords: outcomeState.failureKeywords,
+        escalationRuleSettings: outcomeState.escalationRuleSettings,
+      } : null,
+    };
+    
+    setTrackedState(trackedState);
+  }, [
+    webhookHook.webhookTools,
+    clientHook.clientTools,
+    integrationHook.agentIntegrationTools,
+    sectionHook.cenarios,
+    sectionHook.etapas,
+    sectionHook.tomDeVoz,
+    systemTools,
+    systemToolSettings,
+    systemToolSettingsMap,
+    filesHook.attachedFiles,
+    agentData.agent,
+    agentData.conversationConfig, // Track conversation config changes (system prompt template, etc.)
+    escalationRuleSettings, // Track escalation rule settings changes
+    outcomeStateUpdateTrigger, // Trigger update when outcome state changes
+    setTrackedState,
+  ]);
+
+  // Check for undeployed changes on page load by comparing updated_at and published_at
+  useEffect(() => {
+    if (!agentData.agentTimestamps || agentData.loading) {
+      return;
+    }
+
+    const { updated_at, published_at } = agentData.agentTimestamps;
+    
+    // If no updated_at, no changes to deploy
+    if (!updated_at) {
+      setHasUndeployedChanges(false);
+      return;
+    }
+
+    // If never published, there are undeployed changes
+    if (!published_at) {
+      setHasUndeployedChanges(true);
+      return;
+    }
+
+    // Compare timestamps: if updated_at is after published_at, there are undeployed changes
+    const updatedAt = new Date(updated_at).getTime();
+    const publishedAt = new Date(published_at).getTime();
+    
+    // If published_at is equal to or after updated_at, all changes are deployed
+    // Only show undeployed changes if updated_at is strictly after published_at
+    // (with a small buffer of 2 seconds to account for timing differences in API responses)
+    const timeDifference = updatedAt - publishedAt;
+    // If updated_at is more than 2 seconds after published_at, there are undeployed changes
+    setHasUndeployedChanges(timeDifference > 2000);
+  }, [agentData.agentTimestamps, agentData.loading]);
+
+  // Reset baseline when agent data is first loaded (only on agent ID change, not on every load)
+  const previousAgentIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const currentAgentId = agentData.agent?.id;
+    // Only reset baseline if agent ID actually changed (new agent loaded) and we haven't initialized yet
+    if (currentAgentId && currentAgentId !== previousAgentIdRef.current && !agentData.loading && !baselineInitializedRef.current) {
+      previousAgentIdRef.current = currentAgentId;
+      baselineInitializedRef.current = true;
+      // Small delay to ensure all state is initialized (especially outcome state from ref)
+      const timer = setTimeout(() => {
+        updateBaseline();
+      }, 300);
+      return () => clearTimeout(timer);
+    } else if (currentAgentId && currentAgentId !== previousAgentIdRef.current) {
+      // Agent ID changed - reset the initialization flag
+      previousAgentIdRef.current = currentAgentId;
+      baselineInitializedRef.current = false;
+    }
+  }, [agentData.agent?.id, agentData.loading, updateBaseline]);
+
+  // Core save function that performs the actual save
+  const performSave = useCallback(async (showToast = true, toastMessage?: string) => {
+    // Only save if there are changes
+    if (!hasChanges) {
+      return;
+    }
+
+    try {
+      await agentData.handleSave(
+        webhookHook.webhookTools,
+        clientHook.clientTools,
+        integrationHook.agentIntegrationTools,
+        sectionHook.cenarios,
+        sectionHook.etapas,
+        sectionHook.tomDeVoz,
+        systemTools,
+        systemToolSettings,
+        filesHook.attachedFiles,
+        systemToolSettingsMap
+      );
+      // Update baseline after successful save
+      updateBaseline();
+      // Mark that there are undeployed changes
+      setHasUndeployedChanges(true);
+      
+      if (showToast) {
+        toast({
+          title: "Saved",
+          description: toastMessage || "Your changes have been saved automatically.",
+        });
+      }
+    } catch (error) {
+      console.error("Save failed:", error);
+      if (showToast) {
+        toast({
+          title: "Save failed",
+          description: "Failed to save changes.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [
+    hasChanges,
+    agentData,
+    webhookHook.webhookTools,
+    clientHook.clientTools,
+    integrationHook.agentIntegrationTools,
+    sectionHook.cenarios,
+    sectionHook.etapas,
+    sectionHook.tomDeVoz,
+    systemTools,
+    systemToolSettings,
+    filesHook.attachedFiles,
+    systemToolSettingsMap,
+    updateBaseline,
+    toast,
+  ]);
+
+  // Auto-save function that triggers on user interactions
+  const autoSave = useCallback(async (showToast = true) => {
+    // Don't auto-save if system tool settings panel is open (it has its own save button)
+    if (selectedSystemTool) {
+      return;
+    }
+
+    // Don't auto-save if escalation rules panel is open (it has its own save button)
+    if (showEscalationPanel) {
+      return;
+    }
+
+    await performSave(showToast, "Your changes have been saved automatically.");
+  }, [selectedSystemTool, showEscalationPanel, performSave]);
+
+  // Manual save function (for the Save button) - bypasses panel checks
+  const handleSaveWithBaselineUpdate = useCallback(async () => {
+    await performSave(true, "Your changes have been saved.");
+  }, [performSave]);
+
+  // Auto-save when changes are detected (debounced)
+  useEffect(() => {
+    // Don't auto-save if:
+    // - No changes detected
+    // - Already saving
+    // - Baseline not initialized yet (wait for baseline to be set)
+    // - System tool settings panel is open (it has its own save button)
+    // - Escalation rules panel is open (it has its own save button)
+    // - Panel is currently closing (to prevent auto-save during panel close operations)
+    if (!hasChanges || agentData.saving || !baselineInitializedRef.current || selectedSystemTool || showEscalationPanel || panelClosingRef.current) {
+      // Clear timer if conditions aren't met
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Clear existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    // Set new timer to auto-save after 1 second of no changes
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSave(true);
+    }, 1000);
+
+    // Cleanup timer on unmount or when dependencies change
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [hasChanges, agentData.saving, selectedSystemTool, showEscalationPanel, autoSave]);
+
+  // Handle publish with undeployed changes tracking
+  const handlePublishWithTracking = useCallback(async () => {
+    try {
+      await agentData.handlePublish();
+      // Clear undeployed changes flag after successful deploy
+      // The timestamps will be updated in handlePublish, which will trigger the useEffect
+      // But we also set it here immediately to ensure the message disappears right away
+      setHasUndeployedChanges(false);
+    } catch (error) {
+      // If publish fails, keep the undeployed changes flag
+      console.error("Failed to publish:", error);
+    }
+  }, [agentData]);
 
   // Fetch available behaviours
   useEffect(() => {
@@ -1065,23 +1309,53 @@ export default function AssistantDetail() {
     if (!systemTools[key]) {
       // Only set selected tool if it's one that has settings
       if (toolsWithSettings.includes(key)) {
+        // Set flag to prevent auto-save during panel open
+        panelClosingRef.current = true;
+        
         // Close escalation panel if open
         if (showEscalationPanel) {
           setShowEscalationPanel(false);
         }
         setSelectedSystemTool(key);
+        // Reset the ref so initial settings will be stored when settings are loaded
+        initialSystemToolSettingsToolRef.current = null;
+        setInitialSystemToolSettings(null);
+        
+        // Clear the flag after a delay to allow state updates to complete
+        setTimeout(() => {
+          panelClosingRef.current = false;
+        }, 300);
       }
     } else if (selectedSystemTool === key) {
+      // Set flag to prevent auto-save during panel close
+      panelClosingRef.current = true;
       setSelectedSystemTool(null);
+      setInitialSystemToolSettings(null);
+      initialSystemToolSettingsToolRef.current = null;
+      // Clear the flag after a delay to allow state updates to complete
+      setTimeout(() => {
+        panelClosingRef.current = false;
+      }, 300);
     }
   };
 
   const handleOpenSystemToolSettings = (key: keyof SystemToolsState) => {
+    // Set flag to prevent auto-save during panel open
+    panelClosingRef.current = true;
+    
     // Close escalation panel if open
     if (showEscalationPanel) {
       setShowEscalationPanel(false);
     }
     setSelectedSystemTool(key);
+    // Reset the ref so initial settings will be stored when settings are loaded
+    initialSystemToolSettingsToolRef.current = null;
+    setInitialSystemToolSettings(null);
+    
+    // Clear the flag after a delay to allow state updates to complete
+    setTimeout(() => {
+      panelClosingRef.current = false;
+    }, 300);
   };
 
   // Load all tool settings into map when agent data is loaded
@@ -1129,11 +1403,23 @@ export default function AssistantDetail() {
     const toolKey = selectedSystemTool as keyof SystemToolsState;
     const systemToolsData = agentData.agent.system_tools;
     
+    // Set flag to prevent auto-save during settings loading
+    panelClosingRef.current = true;
+    
     // Check if we already have settings for this tool in the map
     // If map has settings, use them (they're the most up-to-date, including unsaved changes)
     const existingSettings = systemToolSettingsMap[toolKey];
     if (existingSettings) {
       setSystemToolSettings(existingSettings);
+      // Store initial settings for change tracking when panel opens (only once per tool)
+      if (initialSystemToolSettingsToolRef.current !== toolKey) {
+        setInitialSystemToolSettings(JSON.parse(JSON.stringify(existingSettings)));
+        initialSystemToolSettingsToolRef.current = toolKey;
+      }
+      // Clear flag after settings are loaded
+      setTimeout(() => {
+        panelClosingRef.current = false;
+      }, 200);
       return;
     }
     
@@ -1184,6 +1470,13 @@ export default function AssistantDetail() {
     }
 
     setSystemToolSettings(newSettings);
+    // Store initial settings for change tracking when panel opens (only once per tool, after settings are fully loaded)
+    if (initialSystemToolSettingsToolRef.current !== toolKey) {
+      // Wait for settings to be fully constructed before storing
+      const finalSettings = { ...newSettings };
+      setInitialSystemToolSettings(JSON.parse(JSON.stringify(finalSettings)));
+      initialSystemToolSettingsToolRef.current = toolKey;
+    }
   }, [selectedSystemTool, agentData.agent?.system_tools, systemToolSettingsMap]);
 
 
@@ -1383,34 +1676,23 @@ export default function AssistantDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* <Button
-              variant="outline"
-              size="sm"
-              onClick={() => sectionHook.setShowPromptPreviewModal(true)}
-              className="h-8 md:h-9 text-xs md:text-sm"
-            >
-              <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-              Preview Prompt
-            </Button> */}
+          <div className="flex flex-col gap-2">
+            {/* Row 1: Save and Deploy Changes buttons */}
+            <div className="flex items-center justify-end gap-2">
+              {/* <Button
+                variant="outline"
+                size="sm"
+                onClick={() => sectionHook.setShowPromptPreviewModal(true)}
+                className="h-8 md:h-9 text-xs md:text-sm"
+              >
+                <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                Preview Prompt
+              </Button> */}
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                agentData.handleSave(
-                  webhookHook.webhookTools,
-                  clientHook.clientTools,
-                  integrationHook.agentIntegrationTools,
-                  sectionHook.cenarios,
-                  sectionHook.etapas,
-                  sectionHook.tomDeVoz,
-                  systemTools,
-                  systemToolSettings,
-                  filesHook.attachedFiles,
-                  systemToolSettingsMap
-                )
-              }
-              disabled={agentData.saving}
+              onClick={() => handleSaveWithBaselineUpdate()}
+              disabled={agentData.saving || !hasChanges}
               className="h-8 md:h-9 text-xs md:text-sm"
             >
               {agentData.saving ? (
@@ -1418,25 +1700,37 @@ export default function AssistantDetail() {
                   <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2 animate-spin" />
                   Saving...
                 </>
-              ) : (
+              ) : hasChanges ? (
                 "Save"
-              )}
-            </Button>
-            <Button
-              size="sm"
-              onClick={agentData.handlePublish}
-              disabled={agentData.publishing || isNew}
-              className="h-8 md:h-9 text-xs md:text-sm"
-            >
-              {agentData.publishing ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2 animate-spin" />
-                  Deploying...
-                </>
               ) : (
-                "Deploy Changes"
+                "Saved"
               )}
             </Button>
+              <Button
+                size="sm"
+                onClick={handlePublishWithTracking}
+                disabled={agentData.publishing || isNew}
+                className="h-8 md:h-9 text-xs md:text-sm"
+              >
+                {agentData.publishing ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2 animate-spin" />
+                    Deploying...
+                  </>
+                ) : (
+                  "Deploy Changes"
+                )}
+              </Button>
+            </div>
+            {/* Row 2: Undeployed Changes Message - aligned to the right */}
+            {hasUndeployedChanges && (
+              <div className="flex justify-end animate-fade-in">
+                <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>You have undeployed changes. Click "Deploy Changes" to release them.</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1499,9 +1793,9 @@ export default function AssistantDetail() {
                     setSearchParams({ tab: "widget" });
                   }}
                   onMakeFirstCall={() => {
-                    setActiveTab("phone-number");
-                    lastSetTabRef.current = "phone-number";
-                    setSearchParams({ tab: "phone-number" });
+                    setActiveTab("widget");
+                    lastSetTabRef.current = "widget";
+                    setSearchParams({ tab: "widget", preview: "true" });
                   }}
                 />
               ) : activeTab === "performance" || activeTab === "outcomes" ? (
@@ -1509,6 +1803,10 @@ export default function AssistantDetail() {
                   ref={outcomeConfigTabRef}
                   agentId={agentId} 
                   onAgentDataChange={fetchAgentDetails}
+                  onOutcomeStateChange={() => {
+                    // Trigger tracked state update by incrementing trigger
+                    setOutcomeStateUpdateTrigger(prev => prev + 1);
+                  }}
                   onOpenEscalationPanel={() => {
                     if (selectedSystemTool) {
                       setSelectedSystemTool(null);
@@ -1745,7 +2043,7 @@ export default function AssistantDetail() {
                           systemToolSettingsMap
                         );
                       },
-                      agentData.handlePublish
+                      handlePublishWithTracking
                     );
                   }}
                 />
@@ -1790,21 +2088,18 @@ export default function AssistantDetail() {
                   setEscalationRuleSettings(updatedEscalationSettings);
                 }
                 
-                await agentData.handleSave(
-                  webhookHook.webhookTools,
-                  clientHook.clientTools,
-                  integrationHook.agentIntegrationTools,
-                  sectionHook.cenarios,
-                  sectionHook.etapas,
-                  sectionHook.tomDeVoz,
-                  systemTools,
-                  systemToolSettings,
-                  filesHook.attachedFiles,
-                  systemToolSettingsMap
-                );
+                // Manual save - bypasses panel checks
+                await handleSaveWithBaselineUpdate();
+                // Reset initial settings after save to reflect the new baseline
+                const currentSettings = systemToolSettingsMap[selectedSystemTool] || systemToolSettings;
+                setInitialSystemToolSettings(JSON.parse(JSON.stringify(currentSettings)));
               }}
               saving={agentData.saving}
+              hasChanges={initialSystemToolSettings ? !compareValues(systemToolSettings, initialSystemToolSettings) : false}
               onClose={() => {
+                // Set flag to prevent auto-save during panel close
+                panelClosingRef.current = true;
+                
                 // If user closes the panel without adding any info for transfer tools, toggle them off.
                 // If there is already configuration (rules), keep the toggle on.
                 if (selectedSystemTool === "transfer_to_agent") {
@@ -1827,6 +2122,13 @@ export default function AssistantDetail() {
                   }
                 }
                 setSelectedSystemTool(null);
+                setInitialSystemToolSettings(null);
+                initialSystemToolSettingsToolRef.current = null;
+                
+                // Clear the flag after a short delay to allow state updates to complete
+                setTimeout(() => {
+                  panelClosingRef.current = false;
+                }, 100);
               }}
             />
           </div>
@@ -1841,7 +2143,13 @@ export default function AssistantDetail() {
                 setEscalationRuleSettings(prev => ({ ...prev, ...updates }));
               }}
               onClose={() => {
+                // Set flag to prevent auto-save during panel close
+                panelClosingRef.current = true;
                 setShowEscalationPanel(false);
+                // Clear the flag after a delay to allow state updates to complete
+                setTimeout(() => {
+                  panelClosingRef.current = false;
+                }, 300);
               }}
               onSave={async () => {
                 try {
@@ -2074,7 +2382,7 @@ export default function AssistantDetail() {
                 systemToolSettingsMap
               );
             },
-            agentData.handlePublish
+                    handlePublishWithTracking
           );
         }}
         fetchUserIntegrations={integrationHook.fetchUserIntegrations}
@@ -2102,7 +2410,7 @@ export default function AssistantDetail() {
                 systemToolSettingsMap
               );
             },
-            agentData.handlePublish
+                    handlePublishWithTracking
           );
         }}
         agentId={agentData.agent?.id}

@@ -25,6 +25,12 @@ import { PRIMARY_OUTCOMES } from '@/constants/outcomes';
 
 export interface OutcomeConfigTabRef {
   saveEscalationRules: (settings: EscalationRuleSettings) => Promise<void>;
+  getOutcomeState: () => {
+    primaryOutcomes: string[];
+    successKeywords: string[];
+    failureKeywords: string[];
+    escalationRuleSettings: EscalationRuleSettings;
+  } | null;
 }
 
 interface OutcomeConfigTabProps {
@@ -36,6 +42,7 @@ interface OutcomeConfigTabProps {
   onSaveEscalationRules?: (settings: EscalationRuleSettings) => Promise<void>;
   onEnableTransferToNumber?: (settings: EscalationRuleSettings) => void;
   outcomeCategory?: 'retail' | 'scheduling' | 'recruitment' | 'all'; // Filter outcomes by category
+  onOutcomeStateChange?: () => void; // Callback to notify parent when outcome state changes
 }
 
 const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({ 
@@ -47,6 +54,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
   onSaveEscalationRules,
   onEnableTransferToNumber,
   outcomeCategory = 'all',
+  onOutcomeStateChange,
 }, ref) => {
   const { toast } = useToast();
   const {
@@ -153,10 +161,18 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     toast,
   ]);
 
-  // Expose save function to parent via ref
+  // Expose save function and state getter to parent via ref
   useImperativeHandle(ref, () => ({
     saveEscalationRules: saveEscalationRulesToOutcomeDefinition,
-  }), [saveEscalationRulesToOutcomeDefinition]);
+    getOutcomeState: () => {
+      return {
+        primaryOutcomes,
+        successKeywords,
+        failureKeywords,
+        escalationRuleSettings,
+      };
+    },
+  }), [saveEscalationRulesToOutcomeDefinition, primaryOutcomes, successKeywords, failureKeywords, escalationRuleSettings]);
 
   useEffect(() => {
     // Set loading flag to prevent auto-save during data load
@@ -209,6 +225,11 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       setSuccessKeywords(newSuccessKeywords);
       setFailureKeywords(newFailureKeywords);
       setEscalationRuleSettings(newEscalationRuleSettings);
+      
+      // Notify parent of state change for change tracking
+      if (onOutcomeStateChange) {
+        onOutcomeStateChange();
+      }
 
       // Update the ref to match the loaded data so auto-save doesn't trigger
       // Note: escalation_rules are excluded from auto-save comparison
@@ -240,8 +261,19 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
     // This ensures auto-save doesn't trigger from the state updates above
     setTimeout(() => {
       isLoadingData.current = false;
+      // Notify parent of state change for change tracking
+      if (onOutcomeStateChange) {
+        onOutcomeStateChange();
+      }
     }, 100);
-  }, [outcomeDefinition, setEscalationRuleSettings]);
+  }, [outcomeDefinition, setEscalationRuleSettings, onOutcomeStateChange]);
+
+  // Notify parent when outcome state changes (for change tracking)
+  useEffect(() => {
+    if (onOutcomeStateChange && !isLoadingData.current) {
+      onOutcomeStateChange();
+    }
+  }, [primaryOutcomes, successKeywords, failureKeywords, escalationRuleSettings, onOutcomeStateChange]);
 
   // Track if this is the initial load to prevent auto-save on mount
   const isInitialLoad = useRef(true);
