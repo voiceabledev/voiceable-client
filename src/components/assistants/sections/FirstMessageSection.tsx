@@ -55,9 +55,9 @@ export const FirstMessageSection: React.FC<FirstMessageSectionProps> = ({
               <SelectContent>
                 <SelectItem value="assistant-speaks-first">Assistant speaks first</SelectItem>
                 <SelectItem value="assistant-waits-for-user">Assistant waits for user</SelectItem>
-                <SelectItem value="assistant-speaks-first-model-generated">
+                {/* <SelectItem value="assistant-speaks-first-model-generated">
                   Assistant speaks first with model generated message
-                </SelectItem>
+                </SelectItem> */}
               </SelectContent>
             </Select>
           </div>

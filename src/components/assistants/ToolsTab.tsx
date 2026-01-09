@@ -38,6 +38,7 @@ type ToolsTabProps = {
   onAddIntegration: () => void;
   onEditIntegration: (integration: UserIntegration | string) => void;
   onDeleteIntegration: (id: string) => Promise<void>;
+  agentId?: string;
 };
 
 export const ToolsTab: React.FC<ToolsTabProps> = ({
@@ -61,6 +62,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   onAddIntegration,
   onEditIntegration,
   onDeleteIntegration,
+  agentId,
 }) => {
   const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(false);
   const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(false);
@@ -100,30 +102,6 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
           onToggleExpanded={() => setSystemToolsSectionExpanded(prev => !prev)}
         />
       </div>
-      
-      <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Globe className="h-4 w-4" />
-          <span>EXTERNAL TOOLS</span>
-        </div>
-        <ExternalToolsSection
-          webhooks={webhookTools}
-          clientTools={clientTools}
-          onAddWebhook={onAddWebhook}
-          onEditWebhook={(id) => {
-            const tool = webhookTools.find(t => t.id === id);
-            if (tool) onEditWebhook(tool);
-          }}
-          onDeleteWebhook={onDeleteWebhook}
-          onEditClientTool={(id) => {
-            const tool = clientTools.find(t => t.id === id);
-            if (tool) onEditClientTool(tool);
-          }}
-          onDeleteClientTool={onDeleteClientTool}
-          expanded={externalToolsSectionExpanded}
-          onToggleExpanded={() => setExternalToolsSectionExpanded(prev => !prev)}
-        />
-      </div>
 
       <div>
         <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
@@ -153,6 +131,32 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
           getIntegrationIcon={getIntegrationIcon}
           formatToolName={formatToolName}
           displayNameToActionName={displayNameToActionName}
+          userIntegrations={userIntegrations}
+          agentId={agentId}
+        />
+      </div>
+      
+      <div>
+        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+          <Globe className="h-4 w-4" />
+          <span>EXTERNAL TOOLS</span>
+        </div>
+        <ExternalToolsSection
+          webhooks={webhookTools}
+          clientTools={clientTools}
+          onAddWebhook={onAddWebhook}
+          onEditWebhook={(id) => {
+            const tool = webhookTools.find(t => t.id === id);
+            if (tool) onEditWebhook(tool);
+          }}
+          onDeleteWebhook={onDeleteWebhook}
+          onEditClientTool={(id) => {
+            const tool = clientTools.find(t => t.id === id);
+            if (tool) onEditClientTool(tool);
+          }}
+          onDeleteClientTool={onDeleteClientTool}
+          expanded={externalToolsSectionExpanded}
+          onToggleExpanded={() => setExternalToolsSectionExpanded(prev => !prev)}
         />
       </div>
     </div>

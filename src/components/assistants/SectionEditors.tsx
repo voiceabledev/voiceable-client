@@ -1,7 +1,9 @@
-import React from "react";
-import { Plus, ChevronDown, Edit, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, ChevronDown, Edit, Trash2, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
+import { GenerateBehaviourModal } from "./modals/GenerateBehaviourModal";
+import { generateSectionEntryId } from "@/utils/assistantHelpers";
 
 export type SectionEntry = {
   id: string;
@@ -49,6 +51,11 @@ type SectionEditorsProps = {
   onAddEntry: (type: SectionType) => void;
   onEditEntry: (type: SectionType, entryId: string) => void;
   onRemoveEntry: (type: SectionType, id: string) => void;
+  onApplyGeneratedBehaviour?: (data: {
+    scenarios?: SectionEntry[];
+    phases?: SectionEntry[];
+    voiceTone?: SectionEntry[];
+  }) => void;
   behaviourConfig?: BehaviourConfig;
 };
 
@@ -61,8 +68,10 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
   onAddEntry,
   onEditEntry,
   onRemoveEntry,
+  onApplyGeneratedBehaviour,
   behaviourConfig,
 }) => {
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   // Default configurations (fallback)
   const defaultConfigs = {
     scenarios: {
@@ -191,25 +200,100 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
     </div>
   );
 
+  const handleGenerate = async (prompt: string): Promise<{
+    scenarios?: SectionEntry[];
+    phases?: SectionEntry[];
+    voiceTone?: SectionEntry[];
+  }> => {
+    // TODO: Replace with actual API call
+    // For now, return mock data based on the prompt
+    // This should call an API endpoint that uses AI to generate behavior
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Mock response - in production, this would come from an API
+    return {
+      scenarios: [
+        {
+          id: generateSectionEntryId(),
+          title: "Main Inquiry",
+          description: "Handle general questions and inquiries from users",
+        },
+        {
+          id: generateSectionEntryId(),
+          title: "Support Request",
+          description: "Assist users with support-related issues and troubleshooting",
+        },
+      ],
+      phases: [
+        {
+          id: generateSectionEntryId(),
+          title: "Greeting",
+          description: "Welcome the user and introduce the assistant",
+        },
+        {
+          id: generateSectionEntryId(),
+          title: "Information Gathering",
+          description: "Collect necessary details to understand the user's needs",
+        },
+        {
+          id: generateSectionEntryId(),
+          title: "Resolution",
+          description: "Provide solutions or answers to the user's request",
+        },
+      ],
+      voiceTone: [
+        {
+          id: generateSectionEntryId(),
+          title: "Professional and Friendly",
+          description: "Maintain a professional yet approachable tone throughout the conversation",
+        },
+      ],
+    };
+  };
+
+  const handleApply = (data: {
+    scenarios?: SectionEntry[];
+    phases?: SectionEntry[];
+    voiceTone?: SectionEntry[];
+  }) => {
+    if (onApplyGeneratedBehaviour) {
+      onApplyGeneratedBehaviour(data);
+    }
+  };
+
   return (
-    <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-      <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
-        <div className="text-left flex-1">
-          <h3 className="text-base md:text-lg font-semibold">Agent Behaviour</h3>
-          <p className="text-xs md:text-sm text-muted-foreground">
-            Define how the assistant should behave by describing the scenarios, stages, and voice tone it must handle.
-          </p>
-        </div>
-        <ChevronDown
-          className={cn(
-            "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-            expanded && "rotate-180"
-          )}
-        />
-      </button>
+    <>
+      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+        <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
+          <div className="text-left flex-1">
+            <h3 className="text-base md:text-lg font-semibold">Agent Behaviour</h3>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Define how the assistant should behave by describing the scenarios, stages, and voice tone it must handle.
+            </p>
+          </div>
+          <ChevronDown
+            className={cn(
+              "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
+              expanded && "rotate-180"
+            )}
+          />
+        </button>
 
       {expanded && (
         <div className="mt-4 md:mt-6 space-y-5">
+          <div className="flex items-center justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowGenerateModal(true)}
+              className="flex items-center gap-2"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Generate with AI
+            </Button>
+          </div>
           <div className="space-y-5">
             {(() => {
               const config = getSectionConfig("scenarios");
@@ -256,6 +340,13 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
           </div>
         </div>
       )}
+      <GenerateBehaviourModal
+        open={showGenerateModal}
+        onOpenChange={setShowGenerateModal}
+        onGenerate={handleGenerate}
+        onApply={handleApply}
+      />
     </div>
+    </>
   );
 };

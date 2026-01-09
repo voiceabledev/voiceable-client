@@ -11,6 +11,7 @@ import type {
   SalesDashboardData,
   FailureBreakdownData,
 } from '@/types/outcomes';
+import type { Function, AgentFunction, FunctionsByIntegration } from '@/types/functions';
 
 /**
  * Determines the API base URL at runtime.
@@ -519,6 +520,45 @@ export const agentsApi = {
 
   delete: async (id: string) => {
     const response = await apiClient.delete(`/agents/${id}`);
+    return response;
+  },
+};
+
+// Functions API
+export const functionsApi = {
+  list: async (integrationType?: string) => {
+    const params = new URLSearchParams();
+    if (integrationType) params.append('integration_type', integrationType);
+    
+    const queryString = params.toString();
+    const endpoint = `/functions${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await apiClient.get<Function[]>(endpoint);
+    return response;
+  },
+
+  listByIntegration: async (integrationType: string) => {
+    const response = await apiClient.get<Function[]>(`/integrations/${integrationType}/functions`);
+    return response;
+  },
+};
+
+export const agentFunctionsApi = {
+  list: async (agentId: string) => {
+    const response = await apiClient.get<FunctionsByIntegration[]>(`/agents/${agentId}/agent_functions`);
+    return response;
+  },
+
+  enable: async (agentId: string, functionId: number, enabled: boolean = true) => {
+    const response = await apiClient.post<AgentFunction>(`/agents/${agentId}/agent_functions`, {
+      function_id: functionId,
+      enabled,
+    });
+    return response;
+  },
+
+  disable: async (agentId: string, agentFunctionId: number) => {
+    const response = await apiClient.delete(`/agents/${agentId}/agent_functions/${agentFunctionId}`);
     return response;
   },
 };

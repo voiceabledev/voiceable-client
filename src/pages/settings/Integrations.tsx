@@ -358,121 +358,121 @@ export default function Integrations() {
           )}
 
           {/* E-commerce Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "E-commerce Providers",
             <ShoppingCart className="h-4 w-4" />,
             isEcommerceProvidersOpen,
             setIsEcommerceProvidersOpen,
             filteredEcommerceProviders
-          )}
+          )} */}
 
           {/* POS Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "POS Systems",
             <Store className="h-4 w-4" />,
             isPosProvidersOpen,
             setIsPosProvidersOpen,
             filteredPosProviders
-          )}
+          )} */}
 
           {/* ATS Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "ATS Providers",
             <Users className="h-4 w-4" />,
             isAtsProvidersOpen,
             setIsAtsProvidersOpen,
             filteredAtsProviders
-          )}
+          )} */}
 
           {/* Restaurant Reservations Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Restaurant Reservations",
             <UtensilsCrossed className="h-4 w-4" />,
             isRestaurantReservationProvidersOpen,
             setIsRestaurantReservationProvidersOpen,
             filteredRestaurantReservationProviders
-          )}
+          )} */}
 
           {/* Telephony Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Telephony Providers",
             <Phone className="h-4 w-4" />,
             isTelephonyProvidersOpen,
             setIsTelephonyProvidersOpen,
             filteredTelephonyProviders
-          )}
+          )} */}
 
           {/* Payment Processing Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Payment Processing Providers",
             <CreditCard className="h-4 w-4" />,
             isPaymentProcessingProvidersOpen,
             setIsPaymentProcessingProvidersOpen,
             filteredPaymentProcessingProviders
-          )}
+          )} */}
 
           {/* Communication Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Communication Providers",
             <MessageSquare className="h-4 w-4" />,
             isCommunicationProvidersOpen,
             setIsCommunicationProvidersOpen,
             filteredCommunicationProviders
-          )}
+          )} */}
 
           {/* Model Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Model Providers",
             <Brain className="h-4 w-4" />,
             isModelProvidersOpen,
             setIsModelProvidersOpen,
             filteredModelProviders
-          )}
+          )} */}
 
           {/* Transcriber Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Transcriber Providers",
             <Mic className="h-4 w-4 text-primary" />,
             isTranscriberProvidersOpen,
             setIsTranscriberProvidersOpen,
             filteredTranscriberProviders
-          )}
+          )} */}
 
           {/* Voice Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Voice Providers",
             <Volume2 className="h-4 w-4 text-primary" />,
             isVoiceProvidersOpen,
             setIsVoiceProvidersOpen,
             filteredVoiceProviders
-          )}
+          )} */}
 
           {/* Customer Support Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Customer Support Providers",
             <Headphones className="h-4 w-4" />,
             isCustomerSupportProvidersOpen,
             setIsCustomerSupportProvidersOpen,
             filteredCustomerSupportProviders
-          )}
+          )} */}
 
           {/* Cloud Storage Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Cloud Storage Providers",
             <Cloud className="h-4 w-4" />,
             isCloudStorageProvidersOpen,
             setIsCloudStorageProvidersOpen,
             filteredCloudStorageProviders
-          )}
+          )} */}
 
           {/* Database Providers Section */}
-          {renderProviderSection(
+          {/* {renderProviderSection(
             "Database Providers",
             <Database className="h-4 w-4" />,
             isDatabaseProvidersOpen,
             setIsDatabaseProvidersOpen,
             filteredDatabaseProviders
-          )}
+          )} */}
         </div>
       </div>
     </div>

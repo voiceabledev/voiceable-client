@@ -15,6 +15,11 @@ type PromptLogicTabProps = {
   onAddSectionEntry: (type: SectionType) => void;
   onEditSectionEntry: (type: SectionType, entry: SectionEntry) => void;
   onRemoveSectionEntry: (type: SectionType, id: string) => void;
+  onApplyGeneratedBehaviour?: (data: {
+    scenarios?: SectionEntry[];
+    phases?: SectionEntry[];
+    voiceTone?: SectionEntry[];
+  }) => void;
   attachedFiles: AgentFile[];
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>, agentId?: string) => Promise<void>;
   onFileDelete: (fileId: string) => Promise<void>;
@@ -40,6 +45,7 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
   onAddSectionEntry,
   onEditSectionEntry,
   onRemoveSectionEntry,
+  onApplyGeneratedBehaviour,
   attachedFiles,
   onFileUpload,
   onFileDelete,
@@ -149,6 +155,7 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
             if (entry) onEditSectionEntry(type, entry);
           }}
           onRemoveEntry={onRemoveSectionEntry}
+          onApplyGeneratedBehaviour={onApplyGeneratedBehaviour}
           behaviourConfig={behaviourConfig}
         />
       </div>

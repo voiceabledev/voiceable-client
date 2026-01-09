@@ -1932,6 +1932,35 @@ export default function AssistantDetail() {
                   onAddSectionEntry={sectionHook.addSectionEntry}
                   onEditSectionEntry={sectionHook.openSectionModal}
                   onRemoveSectionEntry={sectionHook.removeSectionEntryById}
+                  onApplyGeneratedBehaviour={(data) => {
+                    // Apply generated scenarios
+                    if (data.scenarios && data.scenarios.length > 0) {
+                      sectionHook.setCenarios((prev) => [
+                        ...prev,
+                        ...data.scenarios!.filter(
+                          (newScenario) => !prev.some((s) => s.title === newScenario.title)
+                        ),
+                      ]);
+                    }
+                    // Apply generated phases
+                    if (data.phases && data.phases.length > 0) {
+                      sectionHook.setEtapas((prev) => [
+                        ...prev,
+                        ...data.phases!.filter(
+                          (newPhase) => !prev.some((p) => p.title === newPhase.title)
+                        ),
+                      ]);
+                    }
+                    // Apply generated voice tone
+                    if (data.voiceTone && data.voiceTone.length > 0) {
+                      sectionHook.setTomDeVoz((prev) => [
+                        ...prev,
+                        ...data.voiceTone!.filter(
+                          (newTone) => !prev.some((t) => t.title === newTone.title)
+                        ),
+                      ]);
+                    }
+                  }}
                   attachedFiles={filesHook.attachedFiles}
                   onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
                   onFileDelete={filesHook.handleFileDelete}
@@ -2056,6 +2085,7 @@ export default function AssistantDetail() {
                       handlePublishWithTracking
                     );
                   }}
+                  agentId={agentData.agent?.id}
                 />
               ) : activeTab === "advanced" ? (
                 <AdvancedTab

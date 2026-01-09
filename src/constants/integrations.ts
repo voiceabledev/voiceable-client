@@ -278,7 +278,7 @@ export const crmProviders: IntegrationProvider[] = [
     description: "Keep leads and pipelines in sync with Pipedrive CRM.",
     icon: "PD",
     iconBg: "bg-emerald-600",
-    status: "upcoming",
+    status: "available",
     order: 3
   },
   {
@@ -600,21 +600,21 @@ export const databaseProviders: IntegrationProvider[] = [
  */
 export const getAllIntegrationProviders = (): IntegrationProvider[] => {
   return [
-    ...modelProviders,
-    ...transcriberProviders,
-    ...voiceProviders,
+    // ...modelProviders,
+    // ...transcriberProviders,
+    // ...voiceProviders,
     ...crmProviders,
     ...schedulingProviders,
-    ...telephonyProviders,
-    ...customerSupportProviders,
-    ...cloudStorageProviders,
-    ...communicationProviders,
-    ...ecommerceProviders,
-    ...atsProviders,
-    ...paymentProcessingProviders,
-    ...restaurantReservationProviders,
-    ...posProviders,
-    ...databaseProviders,
+    // ...telephonyProviders,
+    // ...customerSupportProviders,
+    // ...cloudStorageProviders,
+    // ...communicationProviders,
+    // ...ecommerceProviders,
+    // ...atsProviders,
+    // ...paymentProcessingProviders,
+    // ...restaurantReservationProviders,
+    // ...posProviders,
+    // ...databaseProviders,
   ];
 };
 
