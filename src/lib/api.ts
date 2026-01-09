@@ -518,6 +518,15 @@ export const agentsApi = {
     return response;
   },
 
+  generateBehaviour: async (id: string, prompt: string) => {
+    const response = await apiClient.post<{
+      scenarios?: Array<{ title: string; description: string }>;
+      phases?: Array<{ title: string; description: string }>;
+      voiceTone?: Array<{ title: string; description: string }>;
+    }>(`/agents/${id}/generate_behaviour`, { prompt });
+    return response;
+  },
+
   delete: async (id: string) => {
     const response = await apiClient.delete(`/agents/${id}`);
     return response;

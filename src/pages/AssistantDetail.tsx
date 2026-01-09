@@ -1933,32 +1933,15 @@ export default function AssistantDetail() {
                   onEditSectionEntry={sectionHook.openSectionModal}
                   onRemoveSectionEntry={sectionHook.removeSectionEntryById}
                   onApplyGeneratedBehaviour={(data) => {
-                    // Apply generated scenarios
-                    if (data.scenarios && data.scenarios.length > 0) {
-                      sectionHook.setCenarios((prev) => [
-                        ...prev,
-                        ...data.scenarios!.filter(
-                          (newScenario) => !prev.some((s) => s.title === newScenario.title)
-                        ),
-                      ]);
+                    // Replace existing behaviors with generated ones
+                    if (data.scenarios) {
+                      sectionHook.setCenarios(data.scenarios);
                     }
-                    // Apply generated phases
-                    if (data.phases && data.phases.length > 0) {
-                      sectionHook.setEtapas((prev) => [
-                        ...prev,
-                        ...data.phases!.filter(
-                          (newPhase) => !prev.some((p) => p.title === newPhase.title)
-                        ),
-                      ]);
+                    if (data.phases) {
+                      sectionHook.setEtapas(data.phases);
                     }
-                    // Apply generated voice tone
-                    if (data.voiceTone && data.voiceTone.length > 0) {
-                      sectionHook.setTomDeVoz((prev) => [
-                        ...prev,
-                        ...data.voiceTone!.filter(
-                          (newTone) => !prev.some((t) => t.title === newTone.title)
-                        ),
-                      ]);
+                    if (data.voiceTone) {
+                      sectionHook.setTomDeVoz(data.voiceTone);
                     }
                   }}
                   attachedFiles={filesHook.attachedFiles}

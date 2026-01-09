@@ -156,6 +156,7 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
           }}
           onRemoveEntry={onRemoveSectionEntry}
           onApplyGeneratedBehaviour={onApplyGeneratedBehaviour}
+          agentId={agent?.id}
           behaviourConfig={behaviourConfig}
         />
       </div>

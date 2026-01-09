@@ -3,7 +3,16 @@ import { Plus, ChevronDown, Edit, Trash2, Sparkles } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { GenerateBehaviourModal } from "./modals/GenerateBehaviourModal";
-import { generateSectionEntryId } from "@/utils/assistantHelpers";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type SectionEntry = {
   id: string;
@@ -56,6 +65,7 @@ type SectionEditorsProps = {
     phases?: SectionEntry[];
     voiceTone?: SectionEntry[];
   }) => void;
+  agentId?: string;
   behaviourConfig?: BehaviourConfig;
 };
 
@@ -69,9 +79,27 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
   onEditEntry,
   onRemoveEntry,
   onApplyGeneratedBehaviour,
+  agentId,
   behaviourConfig,
 }) => {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  // Check if there are existing behaviors
+  const hasExistingBehaviors = cenarios.length > 0 || etapas.length > 0 || tomDeVoz.length > 0;
+
+  const handleGenerateClick = () => {
+    if (hasExistingBehaviors) {
+      setShowConfirmDialog(true);
+    } else {
+      setShowGenerateModal(true);
+    }
+  };
+
+  const handleConfirmGenerate = () => {
+    setShowConfirmDialog(false);
+    setShowGenerateModal(true);
+  };
   // Default configurations (fallback)
   const defaultConfigs = {
     scenarios: {
@@ -200,59 +228,6 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
     </div>
   );
 
-  const handleGenerate = async (prompt: string): Promise<{
-    scenarios?: SectionEntry[];
-    phases?: SectionEntry[];
-    voiceTone?: SectionEntry[];
-  }> => {
-    // TODO: Replace with actual API call
-    // For now, return mock data based on the prompt
-    // This should call an API endpoint that uses AI to generate behavior
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock response - in production, this would come from an API
-    return {
-      scenarios: [
-        {
-          id: generateSectionEntryId(),
-          title: "Main Inquiry",
-          description: "Handle general questions and inquiries from users",
-        },
-        {
-          id: generateSectionEntryId(),
-          title: "Support Request",
-          description: "Assist users with support-related issues and troubleshooting",
-        },
-      ],
-      phases: [
-        {
-          id: generateSectionEntryId(),
-          title: "Greeting",
-          description: "Welcome the user and introduce the assistant",
-        },
-        {
-          id: generateSectionEntryId(),
-          title: "Information Gathering",
-          description: "Collect necessary details to understand the user's needs",
-        },
-        {
-          id: generateSectionEntryId(),
-          title: "Resolution",
-          description: "Provide solutions or answers to the user's request",
-        },
-      ],
-      voiceTone: [
-        {
-          id: generateSectionEntryId(),
-          title: "Professional and Friendly",
-          description: "Maintain a professional yet approachable tone throughout the conversation",
-        },
-      ],
-    };
-  };
-
   const handleApply = (data: {
     scenarios?: SectionEntry[];
     phases?: SectionEntry[];
@@ -287,7 +262,7 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowGenerateModal(true)}
+              onClick={handleGenerateClick}
               className="flex items-center gap-2"
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -340,12 +315,32 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
           </div>
         </div>
       )}
-      <GenerateBehaviourModal
-        open={showGenerateModal}
-        onOpenChange={setShowGenerateModal}
-        onGenerate={handleGenerate}
-        onApply={handleApply}
-      />
+      {agentId && (
+        <>
+          <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Replace Existing Behaviors?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You have existing behaviors configured. Generating new behaviors will replace all current scenarios, phases, and voice tones. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmGenerate}>
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <GenerateBehaviourModal
+            open={showGenerateModal}
+            onOpenChange={setShowGenerateModal}
+            agentId={agentId}
+            onApply={handleApply}
+          />
+        </>
+      )}
     </div>
     </>
   );
