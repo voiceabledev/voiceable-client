@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,9 +20,14 @@ interface IntegrationFormProps {
   submitButtonText?: string;
   hideSubmitButton?: boolean;
   integrationType?: string;
+  onValidationChange?: (isValid: boolean) => void; // Callback to notify parent when form validity changes
 }
 
-export function IntegrationForm({
+export interface IntegrationFormRef {
+  submit: () => Promise<void>;
+}
+
+export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormProps>(({
   schema,
   initialConfig = {},
   onSubmit,
@@ -33,7 +38,8 @@ export function IntegrationForm({
   submitButtonText,
   hideSubmitButton = false,
   integrationType,
-}: IntegrationFormProps) {
+  onValidationChange,
+}, ref) => {
   const [config, setConfig] = useState<IntegrationConfig>(initialConfig);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
@@ -629,6 +635,20 @@ export function IntegrationForm({
 
   const oauthButtonText = getOAuthButtonText();
 
+  // Expose submit method to parent via ref
+  useImperativeHandle(ref, () => ({
+    submit: async () => {
+      // Create a synthetic event for handleSubmit
+      const syntheticEvent = {
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        defaultPrevented: false,
+      } as React.FormEvent<HTMLFormElement>;
+      
+      await handleSubmit(syntheticEvent);
+    },
+  }));
+
   return (
     <form 
       onSubmit={async (e) => {
@@ -813,4 +833,6 @@ export function IntegrationForm({
       )}
     </form>
   );
-}
+});
+
+IntegrationForm.displayName = "IntegrationForm";

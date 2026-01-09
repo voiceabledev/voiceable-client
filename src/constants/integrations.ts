@@ -278,7 +278,7 @@ export const crmProviders: IntegrationProvider[] = [
     description: "Keep leads and pipelines in sync with Pipedrive CRM.",
     icon: "PD",
     iconBg: "bg-emerald-600",
-    status: "available",
+    status: "upcoming",
     order: 3
   },
   {

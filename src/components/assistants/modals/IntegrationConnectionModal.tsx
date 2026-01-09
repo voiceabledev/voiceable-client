@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import type { AgentIntegrationTool } from "@/types/assistant";
 import type { UserIntegration, IntegrationSchema } from "@/types/integrations";
 import { INTEGRATION_TOOLS_DISPLAY, INTEGRATION_METADATA, actionNameToDisplayName } from "@/constants/assistant";
-import { IntegrationForm } from "@/components/integrations/IntegrationForm";
+import { IntegrationForm, type IntegrationFormRef } from "@/components/integrations/IntegrationForm";
 import { integrationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,10 +100,12 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   const [isSaving, setIsSaving] = useState(false);
   const [oauthLoading, setOAuthLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [isIntegrationFormValid, setIsIntegrationFormValid] = useState(false);
   const isClosingRef = useRef(false);
   const prevOpenRef = useRef(open);
   const isSavingRef = useRef(false);
   const isOpeningRef = useRef(false);
+  const integrationFormRef = useRef<IntegrationFormRef | null>(null);
   const { toast } = useToast();
 
   // Auto-switch to tools tab for integrations with no fields (like Twilio)
@@ -251,6 +253,15 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
     );
   }, [connectingIntegrationType, agentIntegrationTools]);
 
+  // Check if integration actually exists (not just in local state)
+  const actuallyHasIntegration = useMemo(() => {
+    if (!connectingIntegrationType) return false;
+    const existingUserIntegration = userIntegrations.find(
+      ui => ui.integration_type === connectingIntegrationType
+    );
+    return !!existingUserIntegration || !!editingIntegrationConfig;
+  }, [connectingIntegrationType, userIntegrations, editingIntegrationConfig]);
+
   // Check if integration has no fields (like Twilio - uses environment variables)
   const hasNoFields = useMemo(() => {
     if (!connectingIntegrationType) return false;
@@ -361,37 +372,36 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
       await saveSelectedIntegrationTools();
       console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Save completed successfully');
       
+      // Reset saving flags immediately after successful save
+      // This prevents the button from showing "Removing..." if the state changes
+      isSavingRef.current = false;
+      setIsSaving(false);
+      
       // Only close the modal if closeAfterSave is true (manual save from tools tab)
       if (closeAfterSave) {
         // Close the modal after successful save
-        // The flag is already set, so Dialog's onOpenChange will be blocked
         console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after successful save');
+        // Set closing flag before closing
+        isClosingRef.current = true;
         closeIntegrationConnectionModal();
         
-        // Reset flags after a delay to allow the close to complete
+        // Reset closing flag after a delay to allow the close to complete
         setTimeout(() => {
-          console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags to false');
+          console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting closing flag to false');
           isClosingRef.current = false;
-          isSavingRef.current = false;
-          setIsSaving(false);
         }, 300);
       } else {
-        // Keep modal open, just reset saving flag
+        // Keep modal open, just reset saving flag (already done above)
         console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Keeping modal open after auto-save');
-        isSavingRef.current = false;
-        setIsSaving(false);
       }
     } catch (error) {
       console.error('[IntegrationModal] handleSaveSelectedIntegrationTools: Error occurred', error);
-      // On error, still close the modal but reset the flags
-      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after error');
+      // On error, reset flags immediately and close the modal
+      console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags and closing modal after error');
+      isClosingRef.current = false;
+      isSavingRef.current = false;
+      setIsSaving(false);
       closeIntegrationConnectionModal();
-      setTimeout(() => {
-        console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Resetting flags to false (error case)');
-        isClosingRef.current = false;
-        isSavingRef.current = false;
-        setIsSaving(false);
-      }, 300);
       // Don't re-throw - we've already closed the modal and shown an error toast
     }
   }, [saveSelectedIntegrationTools, closeIntegrationConnectionModal, isSaving]);
@@ -499,8 +509,9 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="p-8 space-y-8">
-                  {/* Credentials Section - Hide for integrations with no fields (like Twilio) */}
-                  {!hasNoFields && (
+                  {/* Credentials Section - Hide for integrations with no fields (like Twilio) or when already connected to agent */}
+                  {/* Show API key field when adding integration to agent, even if it exists in userIntegrations */}
+                  {!hasNoFields && isNewIntegration && (
                     <div className="space-y-6">
                       <div className="flex items-start gap-3 mb-6 pb-4 border-b border-border/50">
                         <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
@@ -565,8 +576,10 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                         
                         return (
                           <IntegrationForm
+                            ref={integrationFormRef}
                             schema={formSchema}
                             initialConfig={editingIntegrationConfig?.config || {}}
+                            onValidationChange={setIsIntegrationFormValid}
                             onSubmit={async (config) => {
                               try {
                                 // Convert config values to strings for handleIntegrationConnect
@@ -911,8 +924,50 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                   // If credentials are already connected, show tools save button
                   const credentialsConnected = hasOAuthToken || editingIntegrationConfig || existingUserIntegration;
                   
-                  // Check if integration actually exists (not just in local state)
-                  const actuallyHasIntegration = !!existingUserIntegration || !!editingIntegrationConfig;
+                  // If integration is connected to the agent, show Remove Integration button
+                  // Check if integration is already connected to the agent (not just in userIntegrations)
+                  if (!isNewIntegration && onRemoveIntegration && connectingIntegrationType) {
+                    return (
+                      <Button 
+                        type="button"
+                        variant="destructive"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (confirm(`Are you sure you want to remove ${integrationMeta.name} from this agent?`)) {
+                            setIsSaving(true);
+                            try {
+                              await onRemoveIntegration(connectingIntegrationType);
+                              closeIntegrationConnectionModal();
+                              toast({
+                                title: "Success",
+                                description: `${integrationMeta.name} has been removed from this agent.`,
+                              });
+                            } catch (error) {
+                              console.error('Error removing integration:', error);
+                              // Error is already handled by onRemoveIntegration
+                            } finally {
+                              setIsSaving(false);
+                            }
+                          }
+                        }}
+                        disabled={isSaving}
+                        className="min-w-32"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Removing...
+                          </>
+                        ) : (
+                          <>
+                            <Wrench className="h-4 w-4 mr-2" />
+                            Remove Integration
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
                   
                   // For integrations with no fields (like Twilio), show Add/Remove Integration button
                   if (hasNoFields) {
@@ -1007,7 +1062,9 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                                            apiKey !== originalApiKey && // Different from original
                                            !apiKey.includes('*'); // Not masked (contains actual value)
                   
-                  if (credentialsConnected && !isOAuthIntegration && !isUpdatingApiKey && actuallyHasIntegration) {
+                  // Show Add Integration button when credentials are connected but integration not yet added to agent
+                  // This handles the case where integration exists in userIntegrations but hasn't been added to the agent yet
+                  if (credentialsConnected && !isOAuthIntegration && !isUpdatingApiKey && actuallyHasIntegration && isNewIntegration) {
                     return (
                       <Button 
                         type="button"
@@ -1126,8 +1183,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     );
                   }
                     
-                    // For OAuth integrations without token, show OAuth connect button
-                    if (isOAuthIntegration && !hasOAuthToken) {
+                  // For OAuth integrations without token, show OAuth connect button
+                  if (isOAuthIntegration && !hasOAuthToken) {
                       const handleOAuthConnect = async () => {
                         const oauthIntegrations = ['google_calendar', 'calendly', 'outlook_calendar'];
                         if (oauthIntegrations.includes(connectingIntegrationType || '')) {
@@ -1209,12 +1266,42 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     }
                     
                     // For non-OAuth integrations, show the API key submit button
+                    // Check if this integration uses IntegrationForm (multiple fields)
+                    const formSchemaForButton = connectingIntegrationType 
+                      ? integrationSchemas[connectingIntegrationType] 
+                      : null;
+                    const hasMultipleFieldsForButton = formSchemaForButton && (
+                      formSchemaForButton.required.length > 1 || 
+                      (formSchemaForButton.required.length === 1 && formSchemaForButton.required[0] !== 'api_key') ||
+                      Object.keys(formSchemaForButton.fields || {}).length > 1
+                    );
+                    const usesIntegrationFormForButton = isOAuthIntegration || (formSchemaForButton && hasMultipleFieldsForButton);
+                    
+                    // If using IntegrationForm (multiple fields), check form validity instead of apiKey
+                    const isButtonDisabled = connectingIntegrationLoading || isSaving || 
+                      (usesIntegrationFormForButton 
+                        ? !isIntegrationFormValid 
+                        : (!apiKey && !editingIntegrationConfig));
+                    
                     return (
                       <Button 
                         type="button"
                         onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          
+                          // For IntegrationForm, trigger form submission via ref
+                          if (usesIntegrationFormForButton) {
+                            if (integrationFormRef.current) {
+                              try {
+                                await integrationFormRef.current.submit();
+                              } catch (error) {
+                                // Error is already handled by the form's onSubmit
+                                console.error('Error submitting integration form:', error);
+                              }
+                            }
+                            return;
+                          }
                           
                           // Determine the actual API key value to use
                           let actualApiKey = apiKey;
@@ -1269,7 +1356,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                             }
                           }
                         }}
-                        disabled={connectingIntegrationLoading || isSaving || (!apiKey && !editingIntegrationConfig)}
+                        disabled={isButtonDisabled}
                         className="min-w-32"
                       >
                         {connectingIntegrationLoading || isSaving ? (

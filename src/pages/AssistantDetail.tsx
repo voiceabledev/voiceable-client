@@ -482,6 +482,10 @@ export default function AssistantDetail() {
     await performSave(true, "Your changes have been saved.");
   }, [performSave]);
 
+  // Track last toast time to prevent too many notifications
+  const lastToastTimeRef = useRef<number>(0);
+  const TOAST_COOLDOWN_MS = 3000; // Don't show another toast within 3 seconds
+
   // Auto-save when changes are detected (debounced)
   useEffect(() => {
     // Don't auto-save if:
@@ -506,8 +510,14 @@ export default function AssistantDetail() {
     }
 
     // Set new timer to auto-save after 1 second of no changes
+    // Only show toast if enough time has passed since last toast
     autoSaveTimerRef.current = setTimeout(() => {
-      autoSave(true);
+      const now = Date.now();
+      const showToast = now - lastToastTimeRef.current > TOAST_COOLDOWN_MS;
+      if (showToast) {
+        lastToastTimeRef.current = now;
+      }
+      autoSave(showToast);
     }, 1000);
 
     // Cleanup timer on unmount or when dependencies change
@@ -2284,6 +2294,9 @@ export default function AssistantDetail() {
           try {
             // Wait a tick to ensure handleUpdate has processed
             await new Promise(resolve => setTimeout(resolve, 0));
+            
+            // Update last toast time to prevent auto-save from showing toast immediately after
+            lastToastTimeRef.current = Date.now();
             
             await agentData.handleSave(
               webhookHook.webhookTools,

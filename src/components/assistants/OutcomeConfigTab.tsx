@@ -95,7 +95,13 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
   }, [agentId, fetchOutcomeDefinition]);
 
   // Function to save escalation rules to outcome definition
+  const savingEscalationRulesRef = useRef(false);
   const saveEscalationRulesToOutcomeDefinition = useCallback(async (settings: EscalationRuleSettings) => {
+    // Prevent duplicate saves
+    if (savingEscalationRulesRef.current) {
+      return;
+    }
+
     if (primaryOutcomes.length === 0) {
       toast({
         title: 'Error',
@@ -104,6 +110,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       });
       return;
     }
+
+    savingEscalationRulesRef.current = true;
 
     // First goal goes to primary_outcome, rest to secondary_outcomes
     const data = {
@@ -126,9 +134,11 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
 
     try {
       if (outcomeDefinition) {
-        await updateOutcomeDefinition(data);
+        // Use silent option to prevent duplicate toast from updateOutcomeDefinition
+        await updateOutcomeDefinition(data, { silent: true });
       } else {
-        await createOutcomeDefinition(data);
+        // Use silent option to prevent duplicate toast from createOutcomeDefinition
+        await createOutcomeDefinition(data, { silent: true });
       }
       
       toast({
@@ -149,6 +159,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
         variant: 'destructive',
       });
       throw error;
+    } finally {
+      savingEscalationRulesRef.current = false;
     }
   }, [
     primaryOutcomes,

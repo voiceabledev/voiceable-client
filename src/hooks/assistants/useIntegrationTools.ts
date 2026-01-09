@@ -604,9 +604,14 @@ export function useIntegrationTools(
               return prev;
             });
           }
-        } catch (error) {
+        } catch (error: any) {
           // Integration doesn't exist yet - this is fine, it will be created when connecting
-          console.log(`Integration ${type} not found, will be created on connect`);
+          // Only log if it's not a 404 (expected) or if it's a different error
+          const is404 = error?.response?.status === 404;
+          if (!is404) {
+            console.warn(`Error checking for integration ${type}:`, error);
+          }
+          // Silently handle 404 - integration will be created when connecting
         }
       }
       
