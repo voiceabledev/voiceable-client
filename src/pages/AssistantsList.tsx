@@ -24,96 +24,16 @@ import {
 import { 
   Plus, 
   Search, 
-  ExternalLink,
   Edit,
   Trash2,
   Loader2,
-  Heart,
-  Star,
-  Calendar,
-  FileText,
-  MessageCircle,
-  Target,
-  ClipboardList,
-  UserCheck,
-  ShoppingBag,
-  UtensilsCrossed,
-  Phone
+  Bot
 } from "lucide-react";
-import { agentsApi, Agent, voicesApi, Voice, agentTemplatesApi, AgentTemplate } from "@/lib/api";
+import { agentsApi, Agent, voicesApi, Voice } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-interface Template {
-  id: string;
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }> | string;
-  systemPrompt?: string;
-  firstMessage?: string;
-}
-
-// Icon mapping for built-in icons
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  'plus': Plus,
-  'heart': Heart,
-  'star': Star,
-  'calendar': Calendar,
-  'message-circle': MessageCircle,
-  'target': Target,
-  'clipboard-list': ClipboardList,
-  'user-check': UserCheck,
-  'shopping-bag': ShoppingBag,
-  'utensils-crossed': UtensilsCrossed,
-  'phone': Phone,
-};
-
-// Template to integration tools mapping
-// Maps template titles to integration types and their enabled tools
-const getTemplateIntegrationTools = (templateTitle: string): Record<string, { enabled: boolean; enabled_tools: string[] }> => {
-  const mapping: Record<string, Record<string, string[]>> = {
-    "Appointment Scheduler": {
-      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
-      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
-    },
-    "Scheduler": {
-      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
-      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
-    },
-    "Receptionist": {
-      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
-      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
-    },
-    "Recruiters": {
-      hubspot: ["get_contact", "create_contact", "update_contact", "search_contacts", "get_company", "create_company", "search_companies"],
-      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
-    },
-    "Leads Reviver": {
-      hubspot: ["get_contact", "create_contact", "update_contact", "search_contacts", "get_deal", "update_deal", "search_deals"],
-      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
-    },
-    "Care Coordinator": {
-      calcom: ["get_event_types", "get_available_slots", "create_booking", "list_bookings", "get_booking", "reschedule_booking", "cancel_booking"],
-      pipedrive: ["get_person", "create_person", "get_deal", "create_deal", "search_deals"],
-    },
-  };
-
-  const tools = mapping[templateTitle];
-  if (!tools) {
-    return {};
-  }
-
-  // Convert to the format expected by the API
-  const result: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
-  Object.entries(tools).forEach(([integrationType, toolActions]) => {
-    result[integrationType] = {
-      enabled: true,
-      enabled_tools: toolActions,
-    };
-  });
-
-  return result;
-};
+// Template-related code moved to wizard
 
 
 export default function AssistantsList() {
@@ -123,13 +43,7 @@ export default function AssistantsList() {
   const [assistants, setAssistants] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [assistantName, setAssistantName] = useState("New Assistant");
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [showBlankTemplateConfirm, setShowBlankTemplateConfirm] = useState(false);
   const [voiceNameMap, setVoiceNameMap] = useState<Record<string, string>>({});
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(true);
 
   const fetchAgents = useCallback(async () => {
     setLoading(true);
@@ -170,61 +84,10 @@ export default function AssistantsList() {
     }
   }, []);
 
-  const fetchTemplates = useCallback(async () => {
-    setTemplatesLoading(true);
-    try {
-      const response = await agentTemplatesApi.list();
-      if (response.data && Array.isArray(response.data)) {
-        const mappedTemplates: Template[] = response.data.map((template: AgentTemplate) => {
-          // Map icon_name to React component or use icon_url
-          let icon: React.ComponentType<{ className?: string }> | string = Plus; // default
-          if (template.icon_name && iconMap[template.icon_name]) {
-            icon = iconMap[template.icon_name];
-          } else if (template.icon_url) {
-            icon = template.icon_url;
-          }
-
-          return {
-            id: template.id.toString(),
-            title: template.title,
-            description: template.description,
-            icon: icon,
-            systemPrompt: template.system_prompt || undefined,
-            firstMessage: template.first_message || undefined,
-          };
-        });
-        setTemplates(mappedTemplates);
-      } else {
-        setTemplates([]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch templates:', err);
-      setTemplates([]);
-      toast({
-        title: 'Error',
-        description: 'Failed to load templates. Please try again later.',
-        variant: 'destructive',
-      });
-    } finally {
-      setTemplatesLoading(false);
-    }
-  }, [toast]);
-
   useEffect(() => {
     fetchAgents();
     fetchVoices();
-    fetchTemplates();
-  }, [fetchAgents, fetchVoices, fetchTemplates]);
-
-  // Open modal automatically if create=true in query params (e.g., after sign up)
-  useEffect(() => {
-    if (searchParams.get('create') === 'true') {
-      setShowCreateModal(true);
-      // Remove the query parameter from URL
-      searchParams.delete('create');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+  }, [fetchAgents, fetchVoices]);
 
   const filteredAssistants = assistants.filter((assistant) =>
     (assistant.name || 'Unnamed Agent').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -238,89 +101,16 @@ export default function AssistantsList() {
   };
 
   const handleCreateAssistant = () => {
-    setShowCreateModal(true);
-    setAssistantName("New Assistant");
-    setSelectedTemplate(null);
-  };
-
-  const getTemplateDefaultName = (templateId: string): string => {
-    // Try to find template by ID and use its title
-    const template = templates.find(t => t.id === templateId);
-    if (template && template.title !== "Blank Template") {
-      return template.title;
-    }
-    
-    // Fallback to legacy mapping for backwards compatibility
-    const nameMap: Record<string, string> = {
-      "care-coordinator": "Care Coordinator Assistant",
-      "customer-support": "Customer Support Assistant",
-      "lead-qualification": "Lead Qualification Assistant",
-      "appointment-scheduler": "Appointment Scheduler",
-      "info-collector": "Info Collector Assistant",
-      "feedback-gatherer": "Feedback Collection Assistant",
-    };
-    return nameMap[templateId] || "New Assistant";
-  };
-
-  const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
-    const isBlank = templateId === "blank" || (template && template.title === "Blank Template");
-    
-    // If blank template is selected, show confirmation dialog
-    if (isBlank) {
-      setShowBlankTemplateConfirm(true);
-      return;
-    }
-    
-    // For other templates, proceed normally
-    setSelectedTemplate(templateId);
-    
-    // Auto-generate name based on template
-    if (template && template.title !== "Blank Template") {
-      setAssistantName(template.title);
-    } else {
-      setAssistantName(getTemplateDefaultName(templateId));
-    }
-  };
-
-  // Handle blank template confirmation - navigates to create page
-  const handleBlankTemplateConfirm = useCallback(() => {
-    setShowCreateModal(false);
-    setShowBlankTemplateConfirm(false);
+    // Navigate directly to wizard instead of showing modal
     navigate("/assistants/create", {
       state: {
         templateId: null,
-        assistantName: assistantName || "New Assistant",
-      }
-    });
-  }, [assistantName, navigate]);
-
-  const handleCreateFromTemplate = () => {
-    if (!selectedTemplate || selectedTemplate === "blank") {
-      return;
-    }
-    
-    const template = templates.find(t => t.id === selectedTemplate);
-    if (!template) {
-      return;
-    }
-    
-    // Get integration tools for this template
-    const integrationTools = getTemplateIntegrationTools(template.title);
-    
-    // Navigate to wizard with template data, skipping name step since we already have a name
-    setShowCreateModal(false);
-    navigate("/assistants/create", {
-      state: {
-        templateId: selectedTemplate,
-        assistantName: assistantName,
-        systemPrompt: template.systemPrompt,
-        firstMessage: template.firstMessage,
-        skipNameStep: true, // Skip name step since we already have a name
-        integrationTools: integrationTools, // Pass integration tools to be created automatically
+        assistantName: "New Assistant",
       }
     });
   };
+
+  // Template selection and modal logic removed - now handled in wizard
 
   const handleDeleteAssistant = async (assistant: Agent, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -354,7 +144,7 @@ export default function AssistantsList() {
         <div className="flex items-center justify-between mb-4 md:mb-6">
           <div className="flex items-center gap-2">
             <h1 className="text-xl md:text-2xl font-semibold">Assistants</h1>
-            <a 
+            {/* <a 
               href="https://docs.voiceable.dev/" 
               className="text-muted-foreground hover:text-foreground"
               target="_blank"
@@ -363,28 +153,32 @@ export default function AssistantsList() {
               <span className="flex items-center gap-1 text-xs">
                 Docs <ExternalLink className="h-3 w-3" />
               </span>
-            </a>
+            </a> */}
           </div>
-          <Button 
-            variant="default" 
-            className="gap-2"
-            onClick={handleCreateAssistant}
-          >
-            <Plus className="h-4 w-4" />
-            Create Assistant
-          </Button>
+          {assistants.length > 0 && (
+            <Button 
+              variant="default" 
+              className="gap-2"
+              onClick={handleCreateAssistant}
+            >
+              <Plus className="h-4 w-4" />
+              Create Assistant
+            </Button>
+          )}
         </div>
         
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search Assistants" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-secondary/50 border-border"
-          />
-        </div>
+        {/* Search - Only show when there are assistants */}
+        {assistants.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search Assistants" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-secondary/50 border-border"
+            />
+          </div>
+        )}
       </div>
 
       {/* Assistants List */}
@@ -395,19 +189,40 @@ export default function AssistantsList() {
             <p className="text-sm text-muted-foreground">Loading agents...</p>
           </div>
         ) : filteredAssistants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
-              <Search className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No assistants found</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {searchQuery ? "Try adjusting your search query" : "Get started by creating your first assistant"}
-            </p>
-            {!searchQuery && (
-              <Button onClick={handleCreateAssistant}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Assistant
-              </Button>
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            {searchQuery ? (
+              // Search results empty state
+              <>
+                <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+                  <Search className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No assistants found</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Try adjusting your search query
+                </p>
+              </>
+            ) : (
+              // No assistants empty state
+              <>
+                <div className="w-24 h-24 rounded-full bg-secondary/50 flex items-center justify-center mb-6">
+                  <Bot className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-semibold mb-4">Assistants</h2>
+                <p className="text-sm md:text-base text-muted-foreground mb-2 max-w-md">
+                  Assistants are voice AI chat bots used for phone calls and widget integrations.
+                </p>
+                <p className="text-sm md:text-base text-muted-foreground mb-6 max-w-md">
+                  You can fully configure them to your business's needs, and we support all major models and providers.
+                </p>
+                <Button 
+                  onClick={handleCreateAssistant}
+                  size="lg"
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Assistant
+                </Button>
+              </>
             )}
           </div>
         ) : (
@@ -528,148 +343,7 @@ export default function AssistantsList() {
         )}
       </div>
 
-      {/* Create Assistant Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                <Plus className="h-4 w-4 text-primary" />
-              </div>
-              <DialogTitle>Create Assistant</DialogTitle>
-            </div>
-            <DialogDescription className="text-left pt-2">
-              Choose a template
-            </DialogDescription>
-            <p className="text-sm text-muted-foreground text-left pt-1">
-              Here's a few templates to get you started, or you can create your own template and use it to create a new assistant.
-            </p>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            {/* Assistant Name Input */}
-            <div className="space-y-2">
-              <Label htmlFor="assistant-name">Assistant Name</Label>
-              <p className="text-xs text-muted-foreground">
-                (This can be adjusted at any time after creation.)
-              </p>
-              <Input
-                id="assistant-name"
-                value={assistantName}
-                onChange={(e) => setAssistantName(e.target.value)}
-                placeholder="New Assistant"
-                className="bg-secondary/50 border-border"
-              />
-            </div>
-
-            {/* Templates List */}
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {templatesLoading ? (
-                  <div className="col-span-2 flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  [...templates].sort((a, b) => {
-                    // Put blank template last
-                    if (a.title === "Blank Template") return 1;
-                    if (b.title === "Blank Template") return -1;
-                    return 0;
-                  }).map((template) => {
-                    const Icon = typeof template.icon === 'string' ? null : template.icon;
-                    const iconUrl = typeof template.icon === 'string' ? template.icon : null;
-                    const isBlank = template.title === "Blank Template";
-                    
-                    return (
-                      <button
-                        key={template.id}
-                        onClick={() => handleTemplateSelect(template.id)}
-                        className={cn(
-                          "w-full p-4 rounded-lg border-2 transition-all text-left",
-                          selectedTemplate === template.id
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50 bg-card"
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={cn(
-                            isBlank ? "w-12 h-12 rounded-full" : "w-10 h-10 rounded-md",
-                            "flex items-center justify-center flex-shrink-0",
-                            selectedTemplate === template.id ? "bg-primary/10" : "bg-secondary/50"
-                          )}>
-                            {Icon ? (
-                              <Icon className={cn(
-                                isBlank ? "h-6 w-6" : "h-5 w-5",
-                                selectedTemplate === template.id ? "text-primary" : "text-muted-foreground"
-                              )} />
-                            ) : iconUrl ? (
-                              <img 
-                                src={iconUrl} 
-                                alt={template.title}
-                                className={cn(
-                                  isBlank ? "h-6 w-6" : "h-5 w-5",
-                                  "object-contain",
-                                  selectedTemplate === template.id ? "opacity-100" : "opacity-70"
-                                )}
-                              />
-                            ) : (
-                              <Plus className={cn(
-                                isBlank ? "h-6 w-6" : "h-5 w-5",
-                                selectedTemplate === template.id ? "text-primary" : "text-muted-foreground"
-                              )} />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold mb-1 text-sm">{template.title}</h3>
-                            <p className="text-xs text-muted-foreground line-clamp-3">
-                              {template.description}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCreateModal(false)}
-            >
-              Close
-            </Button>
-            <Button
-              onClick={handleCreateFromTemplate}
-              disabled={!selectedTemplate || selectedTemplate === "blank" || templatesLoading}
-            >
-              Create Assistant
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Blank Template Confirmation Dialog */}
-      <AlertDialog open={showBlankTemplateConfirm} onOpenChange={setShowBlankTemplateConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Create Blank Template?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You're about to create a new assistant from a blank template. This will start with minimal configurations, and you'll need to set up all the details manually.
-              <br /><br />
-              Are you sure you want to proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBlankTemplateConfirm}>
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Modal and confirmation dialogs removed - template selection now happens in wizard */}
     </div>
   );
 }

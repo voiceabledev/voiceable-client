@@ -7,6 +7,7 @@ import {
   Sparkles,
   Plug,
   Target,
+  FileText,
 } from "lucide-react";
 import { SectionEntry } from "@/types/assistant";
 import type { StepType } from "./types";
@@ -101,7 +102,7 @@ export const WIDGET_SIZES = {
 };
 
 export const steps: StepType[] = [
-  { id: 1, label: "Name", icon: User },
+  { id: 1, label: "Template", icon: FileText },
   { id: 2, label: "Model", icon: Code },
   { id: 3, label: "Voice & Language", icon: AudioLines },
   { id: 4, label: "Call Outcomes", icon: Target },

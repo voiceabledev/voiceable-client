@@ -5,6 +5,17 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Heart,
+  Star,
+  Calendar,
+  MessageCircle,
+  Target,
+  ClipboardList,
+  UserCheck,
+  ShoppingBag,
+  UtensilsCrossed,
+  Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi, outcomeDefinitionsApi } from "@/lib/api";
@@ -35,6 +46,7 @@ import { useWizardState } from "./wizard/hooks/useWizardState";
 import { useVoicePreview } from "./wizard/hooks/useVoicePreview";
 import { useTemplateDefaults } from "./wizard/hooks/useTemplateDefaults";
 import { NameStep } from "./wizard/steps/NameStep";
+import { TemplateStep } from "./wizard/steps/TemplateStep";
 import { ModelStep } from "./wizard/steps/ModelStep";
 import { CallOutcomesStep } from "./wizard/steps/CallOutcomesStep";
 import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
@@ -56,17 +68,123 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const urlAgentSlug = searchParams.get('slug');
   const savedStep = searchParams.get('step');
   
-  // Skip name step if name is already provided
-  const shouldSkipNameStep = initialData?.skipNameStep && initialData?.assistantName;
-  const initialStep = savedStep ? parseInt(savedStep, 10) : (shouldSkipNameStep ? 1 : 0);
+  // Start at template step (step 0)
+  const initialStep = savedStep ? parseInt(savedStep, 10) : 0;
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [saving, setSaving] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [agentSlug, setAgentSlug] = useState<string | null>(urlAgentSlug || null);
   const [loadingAgent, setLoadingAgent] = useState(!!urlAgentSlug);
 
-  // Step 1: Name
+  // Step 0: Template & Name
   const [name, setName] = useState(initialData?.assistantName || "");
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(initialData?.templateId || null);
+  const [templates, setTemplates] = useState<Array<{
+    id: string;
+    title: string;
+    description: string;
+    icon: React.ComponentType<{ className?: string }> | string;
+    systemPrompt?: string;
+    firstMessage?: string;
+  }>>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  
+  // Icon mapping for templates
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    'plus': Plus,
+    'heart': Heart,
+    'star': Star,
+    'calendar': Calendar,
+    'message-circle': MessageCircle,
+    'target': Target,
+    'clipboard-list': ClipboardList,
+    'user-check': UserCheck,
+    'shopping-bag': ShoppingBag,
+    'utensils-crossed': UtensilsCrossed,
+    'phone': Phone,
+  };
+  
+  // Fetch templates
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setTemplatesLoading(true);
+      try {
+        const response = await agentTemplatesApi.list();
+        if (response.data && Array.isArray(response.data)) {
+          const mappedTemplates = response.data.map((template: AgentTemplate) => {
+            let icon: React.ComponentType<{ className?: string }> | string = Plus;
+            if (template.icon_name && iconMap[template.icon_name]) {
+              icon = iconMap[template.icon_name];
+            } else if (template.icon_url) {
+              icon = template.icon_url;
+            }
+            return {
+              id: template.id.toString(),
+              title: template.title,
+              description: template.description,
+              icon: icon,
+              systemPrompt: template.system_prompt || undefined,
+              firstMessage: template.first_message || undefined,
+            };
+          });
+          setTemplates(mappedTemplates);
+        } else {
+          setTemplates([]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch templates:', err);
+        setTemplates([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load templates. Please try again later.',
+          variant: 'destructive',
+        });
+      } finally {
+        setTemplatesLoading(false);
+      }
+    };
+    fetchTemplates();
+  }, [toast]);
+  
+  // Handle template selection
+  const handleTemplateSelect = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    setSelectedTemplate(templateId);
+    
+    // Auto-generate name based on template
+    if (template && template.title !== "Blank Template") {
+      setName(template.title);
+    }
+    
+    // Apply template defaults if available
+    if (template) {
+      const templateDefault = templateDefaults[template.title];
+      if (templateDefault) {
+        // Pre-populate model
+        setSelectedProvider(templateDefault.provider);
+        setSelectedModel(templateDefault.model);
+        
+        // Pre-populate scenarios, phases, and voice tone with fresh IDs
+        const generateId = () => `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setScenarios(templateDefault.scenarios.map(s => ({ ...s, id: generateId() })));
+        setPhases(templateDefault.phases.map(p => ({ ...p, id: generateId() })));
+        setVoiceTone(templateDefault.voiceTone.map(v => ({ ...v, id: generateId() })));
+        
+        // Pre-populate first message if template has one
+        if (template.firstMessage && !firstMessage) {
+          setFirstMessage(template.firstMessage);
+        }
+        
+        // Pre-populate system prompt if template has one
+        if (template.systemPrompt && !systemPromptTemplate) {
+          setSystemPromptTemplate(template.systemPrompt);
+        }
+      } else if (template.firstMessage && !firstMessage) {
+        // Even without template defaults, pre-populate first message
+        setFirstMessage(template.firstMessage);
+      }
+    }
+  };
 
   // Step 2: Model
   const [selectedProvider, setSelectedProvider] = useState("openai");
@@ -1131,8 +1249,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   };
 
   const handleSetStep = (direction: -1 | 1) => {
-    const minStep = shouldSkipNameStep ? 1 : 0;
-    const maxStep = 5; // Integrations step is the last step (after merging Voice & Language)
+    const minStep = 0; // Template step is first
+    const maxStep = 5; // Integrations step is the last step
     
     if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
@@ -1567,204 +1685,156 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   };
 
   const isStepValid = () => {
-    // If name step is skipped, currentStep 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
-    if (shouldSkipNameStep) {
-      switch (currentStep) {
-        case 1: // Model step
-          return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
-        case 2: // Voice & Language step
-          return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
-        case 3: { // Call Outcomes step
-          // At least one primary outcome is required
-          if (!primaryOutcomes || primaryOutcomes.length === 0) {
-            return false;
-          }
-          // Validate escalation rules if any exist
-          const hasEscalationRules = escalationRuleSettings.humanTransferRules && escalationRuleSettings.humanTransferRules.length > 0;
-          if (hasEscalationRules) {
-            return escalationRuleSettings.humanTransferRules.every(rule => 
-              rule.phoneNumber.trim() !== "" && rule.condition.trim() !== ""
-            );
-          }
-          return true;
-        }
-        case 4: // Agent Behaviour step (optional - can skip)
-          return true; // Agent behaviour is optional
-        case 5: // Integrations step
-          return true; // Integrations step is always valid (optional to connect)
-        default:
+    // Step 0 = Template, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
+    switch (currentStep) {
+      case 0: // Template step
+        return name.trim() !== "";
+      case 1: // Model step
+        return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
+      case 2: // Voice & Language step
+        return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
+      case 3: { // Call Outcomes step
+        // At least one primary outcome is required
+        if (!primaryOutcomes || primaryOutcomes.length === 0) {
           return false;
-      }
-    } else {
-      switch (currentStep) {
-        case 0:
-          return name.trim() !== "" && name.trim() !== "Enter a name for your assistant.";
-        case 1:
-          return selectedModel.trim() !== "" && systemPrompt.trim() !== "";
-        case 2: // Voice & Language step
-          return selectedVoiceIds.length > 0 && selectedLanguages.length > 0;
-        case 3: { // Call Outcomes step
-          // At least one primary outcome is required
-          if (!primaryOutcomes || primaryOutcomes.length === 0) {
-            return false;
-          }
-          // Validate escalation rules if any exist
-          const hasEscalationRulesNormal = escalationRuleSettings.humanTransferRules && escalationRuleSettings.humanTransferRules.length > 0;
-          if (hasEscalationRulesNormal) {
-            return escalationRuleSettings.humanTransferRules.every(rule => 
-              rule.phoneNumber.trim() !== "" && rule.condition.trim() !== ""
-            );
-          }
-          return true;
         }
-        case 4: // Agent Behaviour step (optional - can skip)
-          return true; // Agent behaviour is optional
-        case 5: // Integrations step
-          return true; // Integrations step is always valid (optional to connect)
-        default:
-          return false;
+        // Validate escalation rules if any exist
+        const hasEscalationRules = escalationRuleSettings.humanTransferRules && escalationRuleSettings.humanTransferRules.length > 0;
+        if (hasEscalationRules) {
+          return escalationRuleSettings.humanTransferRules.every(rule => 
+            rule.phoneNumber.trim() !== "" && rule.condition.trim() !== ""
+          );
+        }
+        return true;
       }
+      case 4: // Agent Behaviour step (optional - can skip)
+        return true; // Agent behaviour is optional
+      case 5: // Integrations step
+        return true; // Integrations step is always valid (optional to connect)
+      default:
+        return false;
     }
   };
 
   const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
 
   const renderStepContent = () => {
-    // If name step is skipped, currentStep 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
-    // If name step is not skipped, currentStep 0 = Name, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
-    if (shouldSkipNameStep) {
-      switch (currentStep) {
-        case 1: // Model step
-          return (
-            <ModelStep
-              selectedProvider={selectedProvider}
-              selectedModel={selectedModel}
-              onProviderChange={setSelectedProvider}
-              onModelChange={setSelectedModel}
-            />
-          );
-        case 2: // Voice & Language step
-          return (
-            <VoiceLanguageStep
-              selectedVoiceIds={selectedVoiceIds}
-              primaryVoiceId={primaryVoiceId}
-              voices={voices}
-              loadingVoices={loadingVoices}
-              showVoiceSelector={showVoiceSelector}
-              onShowVoiceSelectorChange={setShowVoiceSelector}
-              onSelectVoices={(voiceIds) => {
-                setSelectedVoiceIds(voiceIds);
-                // If current primary voice is still in the list, keep it; otherwise use first voice
-                const newPrimary = primaryVoiceId && voiceIds.includes(primaryVoiceId)
-                  ? primaryVoiceId
-                  : (voiceIds.length > 0 ? voiceIds[0] : undefined);
-                setPrimaryVoiceId(newPrimary);
-                setShowVoiceSelector(false);
-              }}
-              onSetPrimaryVoice={(voiceId) => {
-                if (selectedVoiceIds.includes(voiceId)) {
-                  setPrimaryVoiceId(voiceId);
-                }
-              }}
-              playingVoiceId={playingVoiceId}
-              onPlayPreview={handlePlayPreview}
-              voiceSearchQuery={voiceSearchQuery}
-              onVoiceSearchChange={setVoiceSearchQuery}
-              selectedLanguages={selectedLanguages}
-              defaultLanguage={defaultLanguage}
-              showLanguageSelector={showLanguageSelector}
-              onShowLanguageSelectorChange={setShowLanguageSelector}
-              onSelectLanguages={(languages, defaultLang) => {
-                setSelectedLanguages(languages);
-                setDefaultLanguage(defaultLang);
-              }}
-              onSetDefaultLanguage={(lang) => {
-                if (selectedLanguages.some(l => normalizeLanguage(l) === lang)) {
-                  setDefaultLanguage(lang);
-                }
-              }}
-              languageSearchQuery={languageSearchQuery}
-              onLanguageSearchChange={setLanguageSearchQuery}
-            />
-          );
-        case 3: // Call Outcomes step
-          return (
-            <CallOutcomesStep
-              primaryOutcomes={primaryOutcomes}
-              onPrimaryOutcomesChange={setPrimaryOutcomes}
-              escalationRuleSettings={escalationRuleSettings}
-              onEscalationRuleSettingsChange={setEscalationRuleSettings}
-              successKeywords={successKeywords}
-              onSuccessKeywordsChange={setSuccessKeywords}
-              failureKeywords={failureKeywords}
-              onFailureKeywordsChange={setFailureKeywords}
-              showValidationErrors={showCallOutcomesValidation}
-            />
-          );
-        case 4: // Agent Behaviour step
-          return (
-            <AgentBehaviourStep
-              scenarios={scenarios}
-              phases={phases}
-              voiceTone={voiceTone}
-              behaviourConfig={behaviourConfig}
-              onOpenSectionModal={openSectionModal}
-              onDeleteSectionEntry={deleteSectionEntry}
-              systemPromptTemplate={systemPromptTemplate}
-              onSystemPromptTemplateChange={setSystemPromptTemplate}
-            />
-          );
-        case 5: // Integrations step
-          return (
-            <IntegrationsStep
-              requiredIntegrations={requiredIntegrations}
-              userIntegrations={userIntegrations}
-              agentIntegrationTools={integrationHook.agentIntegrationTools}
-              loadingIntegrations={loadingIntegrations}
-              onConnectIntegration={async (integrationType, userIntegration) => {
-                if (userIntegration) {
-                  await integrationHook.openEditIntegrationModal(userIntegration);
-                } else {
-                  await integrationHook.selectIntegrationToAdd(integrationType);
-                }
-              }}
-              onRemoveIntegration={async (integrationType) => {
-                // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
-                if (agentId && agentId !== "new") {
-                  try {
-                    // Delete from backend if agent exists
-                    await integrationsApi.deleteFromAgent(agentId, integrationType);
-                    
-                    // Remove from local state
-                    const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
-                      tool => tool.integration_type !== integrationType
-                    );
-                    integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-                    
-                    // Get the display names for tools of this integration type
-                    const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-                    
-                    // Remove all webhook tools associated with this integration
-                    const updatedWebhookTools = webhookTools.filter(
-                      wt => !toolDisplayNames.includes(wt.name)
-                    );
-                    setWebhookTools(updatedWebhookTools);
-                    
-                    toast({ 
-                      title: "Success", 
-                      description: "Integration removed from agent. Credentials kept." 
-                    });
-                  } catch (error) {
-                    console.error("Failed to remove integration:", error);
-                    toast({ 
-                      title: "Error", 
-                      description: "Failed to remove integration.", 
-                      variant: "destructive" 
-                    });
-                  }
-                } else {
-                  // For new agents, just remove from local state
+    // Step 0 = Template, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
+    switch (currentStep) {
+      case 0: // Template step
+        return (
+          <TemplateStep
+            assistantName={name}
+            onAssistantNameChange={setName}
+            selectedTemplate={selectedTemplate}
+            onTemplateSelect={handleTemplateSelect}
+            templates={templates}
+            templatesLoading={templatesLoading}
+            iconMap={iconMap}
+          />
+        );
+      case 1: // Model step
+        return (
+          <ModelStep
+            selectedProvider={selectedProvider}
+            selectedModel={selectedModel}
+            onProviderChange={setSelectedProvider}
+            onModelChange={setSelectedModel}
+          />
+        );
+      case 2: // Voice & Language step
+        return (
+          <VoiceLanguageStep
+            selectedVoiceIds={selectedVoiceIds}
+            primaryVoiceId={primaryVoiceId}
+            voices={voices}
+            loadingVoices={loadingVoices}
+            showVoiceSelector={showVoiceSelector}
+            onShowVoiceSelectorChange={setShowVoiceSelector}
+            onSelectVoices={(voiceIds) => {
+              setSelectedVoiceIds(voiceIds);
+              // If current primary voice is still in the list, keep it; otherwise use first voice
+              const newPrimary = primaryVoiceId && voiceIds.includes(primaryVoiceId)
+                ? primaryVoiceId
+                : (voiceIds.length > 0 ? voiceIds[0] : undefined);
+              setPrimaryVoiceId(newPrimary);
+              setShowVoiceSelector(false);
+            }}
+            onSetPrimaryVoice={(voiceId) => {
+              if (selectedVoiceIds.includes(voiceId)) {
+                setPrimaryVoiceId(voiceId);
+              }
+            }}
+            playingVoiceId={playingVoiceId}
+            onPlayPreview={handlePlayPreview}
+            voiceSearchQuery={voiceSearchQuery}
+            onVoiceSearchChange={setVoiceSearchQuery}
+            selectedLanguages={selectedLanguages}
+            defaultLanguage={defaultLanguage}
+            showLanguageSelector={showLanguageSelector}
+            onShowLanguageSelectorChange={setShowLanguageSelector}
+            onSelectLanguages={(languages, defaultLang) => {
+              setSelectedLanguages(languages);
+              setDefaultLanguage(defaultLang);
+            }}
+            onSetDefaultLanguage={(lang) => {
+              if (selectedLanguages.some(l => normalizeLanguage(l) === lang)) {
+                setDefaultLanguage(lang);
+              }
+            }}
+            languageSearchQuery={languageSearchQuery}
+            onLanguageSearchChange={setLanguageSearchQuery}
+          />
+        );
+      case 3: // Call Outcomes step
+        return (
+          <CallOutcomesStep
+            primaryOutcomes={primaryOutcomes}
+            onPrimaryOutcomesChange={setPrimaryOutcomes}
+            escalationRuleSettings={escalationRuleSettings}
+            onEscalationRuleSettingsChange={setEscalationRuleSettings}
+            successKeywords={successKeywords}
+            onSuccessKeywordsChange={setSuccessKeywords}
+            failureKeywords={failureKeywords}
+            onFailureKeywordsChange={setFailureKeywords}
+            showValidationErrors={showCallOutcomesValidation}
+          />
+        );
+      case 4: // Agent Behaviour step
+        return (
+          <AgentBehaviourStep
+            scenarios={scenarios}
+            phases={phases}
+            voiceTone={voiceTone}
+            behaviourConfig={behaviourConfig}
+            onOpenSectionModal={openSectionModal}
+            onDeleteSectionEntry={deleteSectionEntry}
+            systemPromptTemplate={systemPromptTemplate}
+            onSystemPromptTemplateChange={setSystemPromptTemplate}
+          />
+        );
+      case 5: // Integrations step
+        return (
+          <IntegrationsStep
+            requiredIntegrations={requiredIntegrations}
+            userIntegrations={userIntegrations}
+            agentIntegrationTools={integrationHook.agentIntegrationTools}
+            loadingIntegrations={loadingIntegrations}
+            onConnectIntegration={async (integrationType, userIntegration) => {
+              if (userIntegration) {
+                await integrationHook.openEditIntegrationModal(userIntegration);
+              } else {
+                await integrationHook.selectIntegrationToAdd(integrationType);
+              }
+            }}
+            onRemoveIntegration={async (integrationType) => {
+              // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
+              if (agentId && agentId !== "new") {
+                try {
+                  // Delete from backend if agent exists
+                  await integrationsApi.deleteFromAgent(agentId, integrationType);
+                  
+                  // Remove from local state
                   const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
                     tool => tool.integration_type !== integrationType
                   );
@@ -1781,177 +1851,42 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   
                   toast({ 
                     title: "Success", 
-                    description: "Integration removed from agent." 
+                    description: "Integration removed from agent. Credentials kept." 
                   });
-                }
-              }}
-            />
-          );
-        // Preview step removed - redirect to assistant details after integrations
-        default:
-          return null;
-      }
-    } else {
-      // Normal flow with name step
-      switch (currentStep) {
-        case 0:
-          return <NameStep name={name} onNameChange={setName} />;
-        case 1:
-          return (
-            <ModelStep
-              selectedProvider={selectedProvider}
-              selectedModel={selectedModel}
-              onProviderChange={setSelectedProvider}
-              onModelChange={setSelectedModel}
-            />
-          );
-        case 2: // Voice & Language step
-          return (
-            <VoiceLanguageStep
-              selectedVoiceIds={selectedVoiceIds}
-              primaryVoiceId={primaryVoiceId}
-              voices={voices}
-              loadingVoices={loadingVoices}
-              showVoiceSelector={showVoiceSelector}
-              onShowVoiceSelectorChange={setShowVoiceSelector}
-              onSelectVoices={(voiceIds) => {
-                setSelectedVoiceIds(voiceIds);
-                // If current primary voice is still in the list, keep it; otherwise use first voice
-                const newPrimary = primaryVoiceId && voiceIds.includes(primaryVoiceId)
-                  ? primaryVoiceId
-                  : (voiceIds.length > 0 ? voiceIds[0] : undefined);
-                setPrimaryVoiceId(newPrimary);
-                setShowVoiceSelector(false);
-              }}
-              onSetPrimaryVoice={(voiceId) => {
-                if (selectedVoiceIds.includes(voiceId)) {
-                  setPrimaryVoiceId(voiceId);
-                }
-              }}
-              playingVoiceId={playingVoiceId}
-              onPlayPreview={handlePlayPreview}
-              voiceSearchQuery={voiceSearchQuery}
-              onVoiceSearchChange={setVoiceSearchQuery}
-              selectedLanguages={selectedLanguages}
-              defaultLanguage={defaultLanguage}
-              showLanguageSelector={showLanguageSelector}
-              onShowLanguageSelectorChange={setShowLanguageSelector}
-              onSelectLanguages={(languages, defaultLang) => {
-                setSelectedLanguages(languages);
-                setDefaultLanguage(defaultLang);
-              }}
-              onSetDefaultLanguage={(lang) => {
-                if (selectedLanguages.some(l => normalizeLanguage(l) === lang)) {
-                  setDefaultLanguage(lang);
-                }
-              }}
-              languageSearchQuery={languageSearchQuery}
-              onLanguageSearchChange={setLanguageSearchQuery}
-            />
-          );
-        case 3: // Call Outcomes step
-          return (
-            <CallOutcomesStep
-              primaryOutcomes={primaryOutcomes}
-              onPrimaryOutcomesChange={setPrimaryOutcomes}
-              escalationRuleSettings={escalationRuleSettings}
-              onEscalationRuleSettingsChange={setEscalationRuleSettings}
-              successKeywords={successKeywords}
-              onSuccessKeywordsChange={setSuccessKeywords}
-              failureKeywords={failureKeywords}
-              onFailureKeywordsChange={setFailureKeywords}
-              showValidationErrors={showCallOutcomesValidation}
-            />
-          );
-        case 4: // Agent Behaviour step
-          return (
-            <AgentBehaviourStep
-              scenarios={scenarios}
-              phases={phases}
-              voiceTone={voiceTone}
-              behaviourConfig={behaviourConfig}
-              onOpenSectionModal={openSectionModal}
-              onDeleteSectionEntry={deleteSectionEntry}
-              systemPromptTemplate={systemPromptTemplate}
-              onSystemPromptTemplateChange={setSystemPromptTemplate}
-            />
-          );
-        case 5: // Integrations step
-          return (
-            <IntegrationsStep
-              requiredIntegrations={requiredIntegrations}
-              userIntegrations={userIntegrations}
-              agentIntegrationTools={integrationHook.agentIntegrationTools}
-              loadingIntegrations={loadingIntegrations}
-              onConnectIntegration={async (integrationType, userIntegration) => {
-                if (userIntegration) {
-                  await integrationHook.openEditIntegrationModal(userIntegration);
-                } else {
-                  await integrationHook.selectIntegrationToAdd(integrationType);
-                }
-              }}
-              onRemoveIntegration={async (integrationType) => {
-                // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
-                if (agentId && agentId !== "new") {
-                  try {
-                    // Delete from backend if agent exists
-                    await integrationsApi.deleteFromAgent(agentId, integrationType);
-                    
-                    // Remove from local state
-                    const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
-                      tool => tool.integration_type !== integrationType
-                    );
-                    integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-                    
-                    // Get the display names for tools of this integration type
-                    const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-                    
-                    // Remove all webhook tools associated with this integration
-                    const updatedWebhookTools = webhookTools.filter(
-                      wt => !toolDisplayNames.includes(wt.name)
-                    );
-                    setWebhookTools(updatedWebhookTools);
-                    
-                    toast({ 
-                      title: "Success", 
-                      description: "Integration removed from agent. Credentials kept." 
-                    });
-                  } catch (error) {
-                    console.error("Failed to remove integration:", error);
-                    toast({ 
-                      title: "Error", 
-                      description: "Failed to remove integration.", 
-                      variant: "destructive" 
-                    });
-                  }
-                } else {
-                  // For new agents, just remove from local state
-                  const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
-                    tool => tool.integration_type !== integrationType
-                  );
-                  integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-                  
-                  // Get the display names for tools of this integration type
-                  const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-                  
-                  // Remove all webhook tools associated with this integration
-                  const updatedWebhookTools = webhookTools.filter(
-                    wt => !toolDisplayNames.includes(wt.name)
-                  );
-                  setWebhookTools(updatedWebhookTools);
-                  
+                } catch (error) {
+                  console.error("Failed to remove integration:", error);
                   toast({ 
-                    title: "Success", 
-                    description: "Integration removed from agent." 
+                    title: "Error", 
+                    description: "Failed to remove integration.", 
+                    variant: "destructive" 
                   });
                 }
-              }}
-            />
-          );
-        // Preview step removed - redirect to assistant details after integrations
-        default:
-          return null;
-      }
+              } else {
+                // For new agents, just remove from local state
+                const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                  tool => tool.integration_type !== integrationType
+                );
+                integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+                
+                // Get the display names for tools of this integration type
+                const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+                
+                // Remove all webhook tools associated with this integration
+                const updatedWebhookTools = webhookTools.filter(
+                  wt => !toolDisplayNames.includes(wt.name)
+                );
+                setWebhookTools(updatedWebhookTools);
+                
+                toast({ 
+                  title: "Success", 
+                  description: "Integration removed from agent." 
+                });
+              }
+            }}
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -1972,7 +1907,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       <div className="p-6 md:p-8 bg-card border-b border-border">
         <Steps 
           numSteps={steps.length} 
-          currentStep={shouldSkipNameStep ? currentStep : currentStep}
+          currentStep={currentStep}
           steps={steps} 
         />
       </div>
@@ -1981,29 +1916,17 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-2">
-              {shouldSkipNameStep 
-                ? steps[currentStep]?.label
-                : steps[currentStep]?.label
-              }
+              {steps[currentStep]?.label}
             </h2>
             <p className="text-muted-foreground">
               {(() => {
-                if (shouldSkipNameStep) {
-                  if (currentStep === 1) return "Configure the AI model for your assistant.";
-                  if (currentStep === 2) return "Select a voice and language for your assistant.";
-                  if (currentStep === 3) return "Define what success means for your agent's calls.";
-                  if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
-                  if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
-                  return "";
-                } else {
-                  if (currentStep === 0) return "Give your assistant a name to identify it.";
-                  if (currentStep === 1) return "Configure the AI model for your assistant.";
-                  if (currentStep === 2) return "Select a voice and language for your assistant.";
-                  if (currentStep === 3) return "Define what success means for your agent's calls.";
-                  if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
-                  if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
-                  return "";
-                }
+                if (currentStep === 0) return "Choose a template and name your assistant.";
+                if (currentStep === 1) return "Configure the AI model for your assistant.";
+                if (currentStep === 2) return "Select a voice and language for your assistant.";
+                if (currentStep === 3) return "Define what success means for your agent's calls.";
+                if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
+                if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
+                return "";
               })()}
             </p>
           </div>
@@ -2018,7 +1941,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           <Button
             variant="outline"
             onClick={() => handleSetStep(-1)}
-            disabled={(shouldSkipNameStep ? currentStep === 1 : currentStep === 0) || saving}
+            disabled={currentStep === 0 || saving}
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -2034,7 +1957,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               </>
             ) : (
               <>
-                {(shouldSkipNameStep ? currentStep === steps.length - 1 : currentStep === steps.length - 1) ? "Complete" : "Save & Continue"}
+                {currentStep === steps.length - 1 ? "Complete" : "Save & Continue"}
                 <ChevronRight className="h-4 w-4 ml-2" />
               </>
             )}
@@ -2065,7 +1988,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         selectIntegrationToAdd={integrationHook.selectIntegrationToAdd}
         userIntegrations={userIntegrations}
         connectingIntegrationType={integrationHook.connectingIntegrationType}
-        goBackToIntegrationSelect={integrationHook.goBackToIntegrationSelect}
         integrationSchemas={integrationHook.integrationSchemas 
           ? { [integrationHook.connectingIntegrationType || '']: integrationHook.integrationSchemas }
           : {}}
