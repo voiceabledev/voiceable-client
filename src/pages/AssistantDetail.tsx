@@ -392,10 +392,11 @@ export default function AssistantDetail() {
     // Only reset baseline if agent ID actually changed (new agent loaded) and we haven't initialized yet
     if (currentAgentId && currentAgentId !== previousAgentIdRef.current && !agentData.loading && !baselineInitializedRef.current) {
       previousAgentIdRef.current = currentAgentId;
-      baselineInitializedRef.current = true;
       // Small delay to ensure all state is initialized (especially outcome state from ref)
       const timer = setTimeout(() => {
         updateBaseline();
+        // Only mark as initialized AFTER baseline is set to prevent premature auto-save
+        baselineInitializedRef.current = true;
       }, 300);
       return () => clearTimeout(timer);
     } else if (currentAgentId && currentAgentId !== previousAgentIdRef.current) {

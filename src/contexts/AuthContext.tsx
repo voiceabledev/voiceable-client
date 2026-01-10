@@ -2,10 +2,13 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { authApi, apiClient } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
+export type MembershipStatus = 'trial' | 'active' | 'expired' | 'cancelled' | 'suspended' | 'free';
+
 export interface User {
   id: number;
   email: string;
   role?: 'user' | 'admin' | 'enterprise';
+  membership_status?: MembershipStatus;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: userData.id as number,
               email: userData.email as string,
               role,
+              membership_status: (userData.membership_status as MembershipStatus) || 'free',
               created_at: userData.created_at as string,
               updated_at: userData.updated_at as string,
             };
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: userData.id as number,
           email: userData.email as string,
           role: (userData.role as 'user' | 'admin' | 'enterprise') || 'user',
+          membership_status: (userData.membership_status as MembershipStatus) || 'free',
           created_at: userData.created_at as string,
           updated_at: userData.updated_at as string,
         };
@@ -115,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: userData.id as number,
           email: userData.email as string,
           role: (userData.role as 'user' | 'admin' | 'enterprise') || 'user',
+          membership_status: (userData.membership_status as MembershipStatus) || 'free',
           created_at: userData.created_at as string,
           updated_at: userData.updated_at as string,
         };
@@ -205,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: userData.id as number,
           email: userData.email as string,
           role,
+          membership_status: (userData.membership_status as MembershipStatus) || 'free',
           created_at: userData.created_at as string,
           updated_at: userData.updated_at as string,
         };

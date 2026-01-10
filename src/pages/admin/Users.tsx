@@ -24,7 +24,7 @@ import {
   RotateCcw,
   AlertTriangle,
 } from "lucide-react";
-import { adminApi, AdminUser } from "@/lib/api";
+import { adminApi, AdminUser, MembershipStatus } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -60,6 +60,7 @@ export default function AdminUsers() {
   });
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<'user' | 'admin' | 'enterprise'>('user');
+  const [selectedMembershipStatus, setSelectedMembershipStatus] = useState<MembershipStatus>('free');
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -109,16 +110,20 @@ export default function AdminUsers() {
   const handleEdit = (user: AdminUser) => {
     setEditingUser(user);
     setSelectedRole(user.role || 'user');
+    setSelectedMembershipStatus(user.membership_status || 'free');
   };
 
   const handleSaveRole = async () => {
     if (!editingUser) return;
 
     try {
-      await adminApi.users.update(editingUser.id, { role: selectedRole });
+      await adminApi.users.update(editingUser.id, { 
+        role: selectedRole,
+        membership_status: selectedMembershipStatus
+      });
       toast({
         title: "Success",
-        description: "User role updated successfully.",
+        description: "User updated successfully.",
       });
       setEditingUser(null);
       fetchUsers();
@@ -126,7 +131,7 @@ export default function AdminUsers() {
       console.error("Error updating user:", error);
       toast({
         title: "Error",
-        description: "Failed to update user role.",
+        description: "Failed to update user.",
         variant: "destructive",
       });
     }
@@ -237,6 +242,24 @@ export default function AdminUsers() {
     }
   };
 
+  const getMembershipStatusBadge = (status?: MembershipStatus) => {
+    switch (status) {
+      case 'trial':
+        return <Badge variant="default" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Trial</Badge>;
+      case 'active':
+        return <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">Active</Badge>;
+      case 'expired':
+        return <Badge variant="default" className="bg-orange-500/10 text-orange-600 border-orange-500/20">Expired</Badge>;
+      case 'cancelled':
+        return <Badge variant="default" className="bg-red-500/10 text-red-600 border-red-500/20">Cancelled</Badge>;
+      case 'suspended':
+        return <Badge variant="default" className="bg-red-600/10 text-red-700 border-red-600/20">Suspended</Badge>;
+      case 'free':
+      default:
+        return <Badge variant="secondary" className="bg-gray-500/10 text-gray-600 border-gray-500/20">Free</Badge>;
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -297,6 +320,7 @@ export default function AdminUsers() {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Subscription</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Total Credits</TableHead>
                     <TableHead>Total Spent</TableHead>
@@ -307,7 +331,7 @@ export default function AdminUsers() {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         No users found
                       </TableCell>
                     </TableRow>
@@ -329,6 +353,7 @@ export default function AdminUsers() {
                               </Badge>
                             )}
                           </TableCell>
+                          <TableCell>{getMembershipStatusBadge(user.membership_status)}</TableCell>
                           <TableCell>{getRoleBadge(user.role)}</TableCell>
                           <TableCell>
                             ${((user.total_credits || 0) / 100).toFixed(2)}
@@ -423,13 +448,13 @@ export default function AdminUsers() {
         </div>
       </div>
 
-      {/* Edit Role Dialog */}
+      {/* Edit User Dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="max-w-[95vw] md:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit User Role</DialogTitle>
+            <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Change the role for {editingUser?.email}
+              Change the role and membership status for {editingUser?.email}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -443,6 +468,22 @@ export default function AdminUsers() {
                   <SelectItem value="user">User</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="enterprise">Enterprise</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Membership Status</label>
+              <Select value={selectedMembershipStatus} onValueChange={(value: MembershipStatus) => setSelectedMembershipStatus(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="trial">Trial</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
             </div>

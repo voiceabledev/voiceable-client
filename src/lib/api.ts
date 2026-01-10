@@ -416,6 +416,14 @@ export interface AgentFilters {
   sort_direction?: 'asc' | 'desc';
   sort_by?: 'name' | 'created_at';
   cursor?: string;
+  offset?: number;
+}
+
+export interface PaginatedAgentsResponse {
+  data: Agent[];
+  total_count: number;
+  has_more: boolean;
+  next_offset?: number;
 }
 
 export interface WidgetConfig {
@@ -481,11 +489,12 @@ export const agentsApi = {
     if (filters?.sort_direction) params.append('sort_direction', filters.sort_direction);
     if (filters?.sort_by) params.append('sort_by', filters.sort_by);
     if (filters?.cursor) params.append('cursor', filters.cursor);
+    if (filters?.offset !== undefined) params.append('offset', filters.offset.toString());
 
     const queryString = params.toString();
     const endpoint = `/agents${queryString ? `?${queryString}` : ''}`;
     
-    const response = await apiClient.get<Agent[]>(endpoint);
+    const response = await apiClient.get<PaginatedAgentsResponse>(endpoint);
     return response;
   },
 
@@ -1369,10 +1378,13 @@ export const secretsApi = {
 };
 
 // Admin API types
+export type MembershipStatus = 'trial' | 'active' | 'expired' | 'cancelled' | 'suspended' | 'free';
+
 export interface AdminUser {
   id: number;
   email: string;
   role: 'user' | 'admin' | 'enterprise';
+  membership_status?: MembershipStatus;
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
@@ -1474,7 +1486,7 @@ export const adminApi = {
       const response = await apiClient.get<{ data: AdminUser }>(`/admin/users/${id}`);
       return response;
     },
-    update: async (id: number, data: { role?: 'user' | 'admin' | 'enterprise'; email?: string }) => {
+    update: async (id: number, data: { role?: 'user' | 'admin' | 'enterprise'; email?: string; membership_status?: MembershipStatus }) => {
       const response = await apiClient.put<{ data: AdminUser }>(`/admin/users/${id}`, {
         user: data,
       });

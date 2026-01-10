@@ -21,6 +21,14 @@ import { Agent, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
 import { toFullConfig } from "@/utils/widgetConfig";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Building2 } from "lucide-react";
 
 interface WidgetTabProps {
   agent?: Agent | null;
@@ -29,6 +37,7 @@ interface WidgetTabProps {
 
 export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [apiKey, setApiKey] = useState<string>('');
@@ -37,6 +46,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const [apiKeyRefreshing, setApiKeyRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [previewTriggered, setPreviewTriggered] = useState(false);
+  const [showContactSalesModal, setShowContactSalesModal] = useState(false);
 
   // Fetch or create API key on mount
   const fetchOrCreateApiKey = useCallback(async (forceCreate = false) => {
@@ -292,6 +302,75 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       navigate(`/assistants/${agentId}/widget/design`);
     }
   };
+
+  // Check membership status
+  const membershipStatus = user?.membership_status || 'free';
+
+  // Show status page for cancelled or suspended users
+  if (authLoading) {
+    return (
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (membershipStatus === 'cancelled' || membershipStatus === 'suspended') {
+    const title = membershipStatus === 'cancelled' 
+      ? 'Widget Access Unavailable' 
+      : 'Account Suspended';
+    const description = membershipStatus === 'cancelled'
+      ? 'Your membership has been cancelled. Please contact support to reactivate your account and restore widget access.'
+      : 'Your account has been suspended. Please contact support for assistance with your account.';
+
+    return (
+      <>
+        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
+          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
+            <div className="flex justify-center mb-4 md:mb-6">
+              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
+                <Layout className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">{title}</h2>
+            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
+              {description}
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => setShowContactSalesModal(true)}
+                className="w-full sm:w-auto text-sm sm:text-base"
+              >
+                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Contact Support
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Sales Modal */}
+        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <div className="space-y-6">

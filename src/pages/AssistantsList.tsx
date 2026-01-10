@@ -215,24 +215,85 @@ export default function AssistantsList() {
   const { toast } = useToast();
   const [assistants, setAssistants] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [voiceNameMap, setVoiceNameMap] = useState<Record<string, string>>({});
   const [prompt, setPrompt] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Pagination state
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 10;
+  
+  // Ref for intersection observer sentinel
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchAgents = useCallback(async () => {
-    setLoading(true);
+  const searchQueryRef = useRef(searchQuery);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
+  const fetchAgents = useCallback(async (append: boolean = false, currentOffset?: number) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+    
     try {
-      const response = await agentsApi.list();
+      const offsetToUse = currentOffset !== undefined ? currentOffset : (append ? offset : 0);
+      const response = await agentsApi.list({
+        page_size: PAGE_SIZE,
+        offset: offsetToUse,
+        search: searchQueryRef.current || undefined,
+      });
       
-      if (response.data && Array.isArray(response.data)) {
-        setAssistants(response.data);
+      // Backend returns: { status: {...}, data: Agent[], total_count: number, has_more: boolean, next_offset?: number }
+      // API client returns the parsed JSON directly, so response has: { status, data, total_count, has_more, next_offset }
+      const responseData = response as any;
+      
+      // Agents array is in response.data
+      const agentsData = Array.isArray(response.data) ? response.data : [];
+      
+      if (append) {
+        setAssistants(prev => [...prev, ...agentsData]);
       } else {
-        setAssistants([]);
+        setAssistants(agentsData);
+      }
+      
+      // Pagination metadata is at the top level of the response
+      const totalCount = responseData.total_count;
+      const hasMore = responseData.has_more;
+      const nextOffset = responseData.next_offset;
+      
+      if (totalCount !== undefined) {
+        setTotalCount(totalCount);
+        setHasMore(hasMore || false);
+        if (nextOffset !== undefined) {
+          setOffset(nextOffset);
+        } else if (hasMore) {
+          setOffset(offsetToUse + PAGE_SIZE);
+        } else {
+          setOffset(offsetToUse);
+        }
+      } else {
+        // Fallback: infer from data length
+        setHasMore(agentsData.length === PAGE_SIZE);
+        if (append) {
+          setOffset(prev => prev + PAGE_SIZE);
+        } else {
+          setOffset(agentsData.length);
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch agents';
-      setAssistants([]);
+      if (!append) {
+        setAssistants([]);
+      }
       toast({
         title: 'Error loading agents',
         description: errorMessage,
@@ -240,8 +301,9 @@ export default function AssistantsList() {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [toast]);
+  }, [toast, offset]);
 
   const fetchVoices = useCallback(async () => {
     try {
@@ -259,16 +321,95 @@ export default function AssistantsList() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchAgents();
-    fetchVoices();
-  }, [fetchAgents, fetchVoices]);
+  // Track if initial load has happened
+  const initialLoadRef = useRef(false);
 
-  const filteredAssistants = assistants.filter((assistant) =>
-    (assistant.name || 'Unnamed Agent').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    assistant.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    assistant.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Initial load on mount
+  useEffect(() => {
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      fetchAgents(false, 0);
+      fetchVoices();
+    }
+  }, []); // Only run on mount
+
+  // Debounce search query to avoid too many API calls
+  useEffect(() => {
+    // Skip on initial mount (handled by the effect above)
+    if (!initialLoadRef.current) return;
+    
+    const timer = setTimeout(() => {
+      setOffset(0);
+      setAssistants([]);
+      // Use the ref to get current search query and call fetch directly
+      const fetchWithSearch = async () => {
+        setLoading(true);
+        try {
+          const response = await agentsApi.list({
+            page_size: PAGE_SIZE,
+            offset: 0,
+            search: searchQueryRef.current || undefined,
+          });
+          
+          const responseData = response as any;
+          const agentsData = Array.isArray(response.data) ? response.data : [];
+          
+          setAssistants(agentsData);
+          
+          const totalCount = responseData.total_count;
+          const hasMore = responseData.has_more;
+          const nextOffset = responseData.next_offset;
+          
+          if (totalCount !== undefined) {
+            setTotalCount(totalCount);
+            setHasMore(hasMore || false);
+            if (nextOffset !== undefined) {
+              setOffset(nextOffset);
+            } else if (hasMore) {
+              setOffset(PAGE_SIZE);
+            } else {
+              setOffset(0);
+            }
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch agents';
+          setAssistants([]);
+          toast({
+            title: 'Error loading agents',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchWithSearch();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, toast]);
+
+  // Infinite scroll with intersection observer
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || loading || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          fetchAgents(true, offset);
+        }
+      },
+      {
+        rootMargin: '100px', // Start loading 100px before reaching the bottom
+      }
+    );
+
+    observer.observe(sentinelRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loading, loadingMore, offset, fetchAgents]);
 
   const handleAssistantClick = (assistant: Agent) => {
     const identifier = assistant.slug || assistant.id;
@@ -640,8 +781,10 @@ export default function AssistantsList() {
         title: 'Success',
         description: 'Agent deleted successfully.',
       });
-      // Refresh the list
-      fetchAgents();
+      // Refresh the list from the beginning
+      setOffset(0);
+      setAssistants([]);
+      fetchAgents(false);
     } catch (err) {
       toast({
         title: 'Error',
@@ -684,7 +827,7 @@ export default function AssistantsList() {
             <Loader2 className="h-8 w-8 animate-spin text-emerald-300 mb-4" />
             <p className="text-sm text-neutral-400">Loading agents...</p>
           </div>
-        ) : filteredAssistants.length === 0 ? (
+        ) : assistants.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center px-4">
             {searchQuery ? (
               // Search results empty state
@@ -715,8 +858,8 @@ export default function AssistantsList() {
             {(() => {
               // Group assistants into rows of 3
               const rows: Agent[][] = [];
-              for (let i = 0; i < filteredAssistants.length; i += 3) {
-                rows.push(filteredAssistants.slice(i, i + 3));
+              for (let i = 0; i < assistants.length; i += 3) {
+                rows.push(assistants.slice(i, i + 3));
               }
               
               return rows.map((row, rowIndex) => {
@@ -778,6 +921,24 @@ export default function AssistantsList() {
                 );
               });
             })()}
+            
+            {/* Infinite scroll sentinel and loading indicator */}
+            <div ref={sentinelRef} className="h-1 w-full" />
+            
+            {loadingMore && (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-300 mb-2" />
+                <p className="text-sm text-neutral-400">Loading more agents...</p>
+              </div>
+            )}
+            
+            {!hasMore && assistants.length > 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <p className="text-sm text-neutral-400">
+                  {totalCount > 0 ? `Showing all ${totalCount} agent${totalCount !== 1 ? 's' : ''}` : 'No more agents to load'}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

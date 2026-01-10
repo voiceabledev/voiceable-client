@@ -18,10 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Phone, Plus, Trash2, Edit, Loader2, User, Building2, CreditCard } from "lucide-react";
-import { phoneNumbersApi, PhoneNumber, Agent, agentsApi, UpdatePhoneNumberParams, paymentsApi, Payment } from "@/lib/api";
+import { phoneNumbersApi, PhoneNumber, Agent, agentsApi, UpdatePhoneNumberParams } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
 import { TabSectionCard } from "@/components/assistants/TabSectionCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PhoneNumbersTabProps {
   agent: Agent | null;
@@ -31,6 +32,7 @@ interface PhoneNumbersTabProps {
 export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,8 +41,6 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   const [isPhoneNumberModalOpen, setIsPhoneNumberModalOpen] = useState(false);
   const [showContactSalesModal, setShowContactSalesModal] = useState(false);
   const [editingPhoneNumber, setEditingPhoneNumber] = useState<PhoneNumber | null>(null);
-  const [hasMadePurchase, setHasMadePurchase] = useState<boolean | null>(null);
-  const [checkingPurchase, setCheckingPurchase] = useState(true);
   const [formData, setFormData] = useState({
     phone_number: "",
     label: "",
@@ -73,7 +73,11 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     try {
       const response = await agentsApi.list();
       if (response.data) {
-        setAgents(response.data);
+        // Handle paginated response structure
+        const agentsData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data as any).data || [];
+        setAgents(agentsData);
       }
     } catch (err) {
       toast({
@@ -86,26 +90,6 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     }
   }, [toast]);
 
-  useEffect(() => {
-    const checkPurchaseStatus = async () => {
-      setCheckingPurchase(true);
-      try {
-        const response = await paymentsApi.list();
-        if (response.data) {
-          const hasPurchase = response.data.some((payment: Payment) => payment.status === 'succeeded');
-          setHasMadePurchase(hasPurchase);
-        } else {
-          setHasMadePurchase(false);
-        }
-      } catch (error) {
-        console.error('Error checking purchase status:', error);
-        setHasMadePurchase(false);
-      } finally {
-        setCheckingPurchase(false);
-      }
-    };
-    checkPurchaseStatus();
-  }, []);
 
   useEffect(() => {
     if (agentId) {
@@ -227,7 +211,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     }
   };
 
-  if (checkingPurchase || loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="flex items-center justify-center h-64">
@@ -237,8 +221,136 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     );
   }
 
-  // Show purchase required message if user hasn't made a purchase
-  if (hasMadePurchase === false) {
+  // Filter to only show phone numbers assigned to the current agent
+  const agentPhoneNumbers = agentId 
+    ? phoneNumbers.filter((pn) => pn.agent_id?.toString() === agentId)
+    : [];
+
+  // Determine membership status
+  const membershipStatus = user?.membership_status || 'free';
+
+  // Helper function to render status message
+  const renderStatusMessage = (title: string, description: string, primaryButtonText: string | null = null, primaryButtonAction: (() => void) | null = null) => {
+    return (
+      <>
+        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
+          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
+            <div className="flex justify-center mb-4 md:mb-6">
+              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
+                <Phone className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">{title}</h2>
+            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
+              {description}
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              {primaryButtonText && primaryButtonAction && (
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={primaryButtonAction}
+                  className="w-full sm:w-auto text-sm sm:text-base"
+                >
+                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                  {primaryButtonText}
+                </Button>
+              )}
+              <Button
+                variant={primaryButtonText ? "outline" : "default"}
+                size="lg"
+                onClick={() => setShowContactSalesModal(true)}
+                className="w-full sm:w-auto text-sm sm:text-base"
+              >
+                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Contact Support
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Sales Modal */}
+        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  };
+
+  // Block cancelled or suspended users from seeing phone numbers
+  if (membershipStatus === 'cancelled' || membershipStatus === 'suspended') {
+    const title = membershipStatus === 'cancelled' 
+      ? 'Phone Number Access Unavailable' 
+      : 'Account Suspended';
+    const description = membershipStatus === 'cancelled'
+      ? 'Your membership has been cancelled. Please contact support to reactivate your account and restore phone number access.'
+      : 'Your account has been suspended. Please contact support for assistance with your account.';
+
+    return (
+      <>
+        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
+          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
+            <div className="flex justify-center mb-4 md:mb-6">
+              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
+                <Phone className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">{title}</h2>
+            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
+              {description}
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => setShowContactSalesModal(true)}
+                className="w-full sm:w-auto text-sm sm:text-base"
+              >
+                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Contact Support
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Sales Modal */}
+        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  // If user has phone numbers, show them (for active, trial, expired, free users)
+  if (agentPhoneNumbers.length > 0) {
+    // Will show phone numbers UI below
+  }
+  // Show membership required message only for trial and free users
+  else if (membershipStatus === 'trial' || membershipStatus === 'free') {
     return (
       <>
         <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
@@ -296,11 +408,33 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
       </>
     );
   }
-
-  // Filter to only show phone numbers assigned to the current agent
-  const agentPhoneNumbers = agentId 
-    ? phoneNumbers.filter((pn) => pn.agent_id?.toString() === agentId)
-    : [];
+  // Show expired membership message
+  else if (membershipStatus === 'expired') {
+    return renderStatusMessage(
+      "Membership Expired",
+      "Your membership has expired. Please renew your membership to purchase new phone numbers. You can still use the widget to test your agent.",
+      "Renew Membership",
+      () => navigate("/settings/billing")
+    );
+  }
+  // Show cancelled membership message
+  else if (membershipStatus === 'cancelled') {
+    return renderStatusMessage(
+      "Membership Cancelled",
+      "Your membership has been cancelled. Please contact support to reactivate your account and unlock phone number functionality.",
+      null,
+      null
+    );
+  }
+  // Show suspended account message
+  else if (membershipStatus === 'suspended') {
+    return renderStatusMessage(
+      "Account Suspended",
+      "Your account has been suspended. Please contact support for assistance with your account.",
+      null,
+      null
+    );
+  }
 
   return (
     <div className="space-y-6">
