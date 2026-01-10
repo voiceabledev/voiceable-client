@@ -117,10 +117,22 @@ export default function AdminUsers() {
     if (!editingUser) return;
 
     try {
-      await adminApi.users.update(editingUser.id, { 
+      const response = await adminApi.users.update(editingUser.id, { 
         role: selectedRole,
         membership_status: selectedMembershipStatus
       });
+      
+      // Update local state immediately with the response data
+      if (response.data?.data) {
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === editingUser.id 
+              ? { ...user, ...response.data.data }
+              : user
+          )
+        );
+      }
+      
       toast({
         title: "Success",
         description: "User updated successfully.",
