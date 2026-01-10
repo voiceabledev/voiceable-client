@@ -1,4 +1,5 @@
 import React from "react";
+import type { AgentTypeConfig } from "@/constants/agentTypeConfigs";
 
 export interface CreateAgentWizardProps {
   onComplete: (agentId: string) => void;
@@ -11,6 +12,11 @@ export interface CreateAgentWizardProps {
     firstMessage?: string;
     skipNameStep?: boolean;
     integrationTools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
+    agentType?: string;
+    agentTypeConfig?: AgentTypeConfig;
+    autoGenerateBehavior?: boolean;
+    preSelectedVoices?: string[];
+    preSelectedGoals?: string[];
   };
 }
 

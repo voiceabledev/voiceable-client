@@ -14,9 +14,10 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { conversationsApi, Conversation, phoneNumbersApi, PhoneNumber, apiKeysApi, ApiKey } from "@/lib/api";
+import { conversationsApi, Conversation, phoneNumbersApi, PhoneNumber, apiKeysApi, ApiKey, paymentsApi, Payment } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ConversationDisplay extends Conversation {
   date: string;
@@ -57,6 +58,7 @@ export default function ConversationsTab({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [hasWidgetApiKey, setHasWidgetApiKey] = useState(false);
+  const [hasMadePurchase, setHasMadePurchase] = useState<boolean | null>(null);
 
   const fetchConversations = useCallback(async () => {
     if (!agentId) {

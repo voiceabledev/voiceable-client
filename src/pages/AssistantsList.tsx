@@ -43,6 +43,8 @@ import { agentsApi, Agent, voicesApi, Voice } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { generateSectionEntryId } from "@/utils/assistantHelpers";
+import { detectAgentType } from "@/utils/agentTypeDetection";
+import { getAgentTypeConfig } from "@/constants/agentTypeConfigs";
 import {
   animate,
   useMotionTemplate,
@@ -287,18 +289,89 @@ export default function AssistantsList() {
     e?.preventDefault();
     if (!prompt.trim() || isCreating) return;
 
-    // Extract name from prompt (first few words or default)
-    const promptWords = prompt.trim().split(/\s+/);
-    const assistantName = promptWords.slice(0, 4).join(" ") || "New Assistant";
-
-    // Navigate to wizard at step 1 (second step) with the prompt data
-    navigate("/assistants/create?step=1", {
-      state: {
-        assistantName: assistantName,
+    setIsCreating(true);
+    try {
+      // Detect agent type from description
+      const detectionResult = await detectAgentType(prompt.trim());
+      
+      let initialData: {
+        assistantName: string;
+        systemPrompt: string;
+        skipNameStep: boolean;
+        agentType?: string;
+        agentTypeConfig?: import("@/constants/agentTypeConfigs").AgentTypeConfig;
+        autoGenerateBehavior?: boolean;
+        preSelectedVoices?: string[];
+        preSelectedGoals?: string[];
+      } = {
+        assistantName: "New Assistant",
         systemPrompt: prompt.trim(),
         skipNameStep: true,
+      };
+
+      if (detectionResult) {
+        const config = getAgentTypeConfig(detectionResult.type);
+        
+        // Fetch available voices to populate recommendedVoiceIds
+        let availableVoices: Voice[] = [];
+        try {
+          const voicesResponse = await voicesApi.list();
+          if (voicesResponse.data && Array.isArray(voicesResponse.data)) {
+            availableVoices = voicesResponse.data;
+          }
+        } catch (err) {
+          console.error('Failed to fetch voices for agent type detection:', err);
+        }
+
+        // Select voices - for now, we'll use the first available voice as fallback
+        // In the future, we could have voice recommendations per agent type
+        const selectedVoiceIds = availableVoices.length > 0 
+          ? [availableVoices[0].id] 
+          : [];
+
+        initialData = {
+          assistantName: config.name,
+          systemPrompt: prompt.trim(),
+          skipNameStep: true,
+          agentType: detectionResult.type,
+          agentTypeConfig: {
+            ...config,
+            recommendedVoiceIds: selectedVoiceIds,
+          },
+          autoGenerateBehavior: true,
+          preSelectedVoices: selectedVoiceIds,
+          preSelectedGoals: config.primaryGoals,
+        };
+      } else {
+        // If detection fails, extract name from prompt
+        const promptWords = prompt.trim().split(/\s+/);
+        initialData.assistantName = promptWords.slice(0, 4).join(" ") || "New Assistant";
       }
-    });
+
+      // Navigate to wizard at step 1 (second step) with the prompt data
+      navigate("/assistants/create?step=1", {
+        state: initialData,
+      });
+    } catch (error) {
+      console.error('Error in handleCreateFromPrompt:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to process your request. Please try again.',
+        variant: 'destructive',
+      });
+      // Fallback: navigate with basic data
+      const promptWords = prompt.trim().split(/\s+/);
+      const assistantName = promptWords.slice(0, 4).join(" ") || "New Assistant";
+      navigate("/assistants/create?step=1", {
+        state: {
+          assistantName: assistantName,
+          systemPrompt: prompt.trim(),
+          skipNameStep: true,
+        }
+      });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleSuggestedClick = (suggestedPrompt: string) => {

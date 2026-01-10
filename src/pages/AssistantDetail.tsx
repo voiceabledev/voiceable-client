@@ -1576,6 +1576,11 @@ export default function AssistantDetail() {
       firstMessage?: string;
       skipNameStep?: boolean;
       integrationTools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
+      agentType?: string;
+      agentTypeConfig?: import("@/constants/agentTypeConfigs").AgentTypeConfig;
+      autoGenerateBehavior?: boolean;
+      preSelectedVoices?: string[];
+      preSelectedGoals?: string[];
     } | null;
     return (
       <CreateAgentWizard
@@ -1595,6 +1600,11 @@ export default function AssistantDetail() {
           firstMessage: locationState?.firstMessage,
           skipNameStep: locationState?.skipNameStep ?? !!locationState?.assistantName,
           integrationTools: locationState?.integrationTools,
+          agentType: locationState?.agentType,
+          agentTypeConfig: locationState?.agentTypeConfig,
+          autoGenerateBehavior: locationState?.autoGenerateBehavior,
+          preSelectedVoices: locationState?.preSelectedVoices,
+          preSelectedGoals: locationState?.preSelectedGoals,
         }}
       />
     );

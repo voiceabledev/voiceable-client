@@ -486,6 +486,9 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
     };
   }, [wizardContext, agentId, integrationFlowPhase, connectedIntegrations, currentIntegrationForFunctions, functionsToAsk, currentFunctionIndex, crmSkipped, schedulingSkipped]);
 
+  // Ref to store handleStep5ChatGPTMessage function to avoid dependency order issues
+  const handleStep5ChatGPTMessageRef = useRef<((userInput: string, isButtonClick?: boolean) => Promise<void>) | null>(null);
+
   // Handle function enablement responses
   const handleFunctionEnablementResponse = useCallback(async (userMessage: string, integrationType: string) => {
     const lowerMessage = userMessage.toLowerCase().trim();
@@ -496,7 +499,39 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
       return;
     }
 
-    // Mark this function as asked
+    // Check if user is asking a question instead of answering yes/no
+    const isQuestion = !lowerMessage.match(/^(yes|no|y|n)$/) && 
+                       (lowerMessage.includes('?') || 
+                        lowerMessage.match(/\b(how|what|when|where|why|can|could|would|does|do|is|are|will|explain|tell|describe)\b/i));
+
+    if (isQuestion) {
+      // Route question to ChatGPT for answer
+      if (handleStep5ChatGPTMessageRef.current) {
+        await handleStep5ChatGPTMessageRef.current(userMessage);
+      }
+      
+      // After answering, re-ask the original function enablement question
+      setTimeout(() => {
+        const messageId = `msg-${Date.now()}-${Math.random()}`;
+        let messageText = '';
+        if (integrationType === 'pipedrive') {
+          messageText = `Would you like to enable "Manage info on CRM"?`;
+        } else if (integrationType === 'calcom') {
+          messageText = `Would you like to enable "${currentFunction.name}"?`;
+        } else {
+          messageText = `Would you like to enable "${currentFunction.name}"? ${currentFunction.description}`;
+        }
+
+        addSystemMessage(messageText, messageId, [
+          { label: "Yes", value: "yes" },
+          { label: "No", value: "no" }
+        ]);
+      }, 500);
+      
+      return; // Don't process as yes/no response
+    }
+
+    // Mark this function as asked (only when actually answering yes/no)
     setFunctionsAsked(prev => new Set(prev).add(currentFunction.id));
 
     if (lowerMessage === 'yes' || lowerMessage.includes('yes')) {
@@ -666,6 +701,11 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
       setWaitingForUser(false);
     }
   }, [messages, buildWizardContext, addSystemMessage]);
+
+  // Update ref when handleStep5ChatGPTMessage changes
+  useEffect(() => {
+    handleStep5ChatGPTMessageRef.current = handleStep5ChatGPTMessage;
+  }, [handleStep5ChatGPTMessage]);
 
   // Execute Step 5 specific actions from ChatGPT
   const executeStep5Action = useCallback(async (action: WizardAction): Promise<void> => {

@@ -703,7 +703,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               phases?: SectionPayload[];
               voiceTone?: SectionPayload[];
             };
-            if (sections.scenarios) {
+            if (sections.scenarios && sections.scenarios.length > 0) {
               setScenarios(sections.scenarios.map((s, idx) => ({
                 id: `restored_scenario_${idx}_${Date.now()}`,
                 title: s.title || "",
@@ -711,7 +711,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 notes: s.notes || "",
               })));
             }
-            if (sections.phases) {
+            if (sections.phases && sections.phases.length > 0) {
               setPhases(sections.phases.map((s, idx) => ({
                 id: `restored_phase_${idx}_${Date.now()}`,
                 title: s.title || "",
@@ -719,13 +719,23 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 notes: s.notes || "",
               })));
             }
-            if (sections.voiceTone) {
+            if (sections.voiceTone && sections.voiceTone.length > 0) {
               setVoiceTone(sections.voiceTone.map((s, idx) => ({
                 id: `restored_tone_${idx}_${Date.now()}`,
                 title: s.title || "",
                 description: s.description || "",
                 notes: s.notes || "",
               })));
+            }
+          }
+          
+          // If no behavior sections were loaded and we have auto-generation config, trigger generation
+          const hasNoBehavior = scenarios.length === 0 && phases.length === 0 && voiceTone.length === 0;
+          if (hasNoBehavior && agent.id) {
+            const storageKey = `agent_auto_generate_${agent.id}`;
+            const stored = sessionStorage.getItem(storageKey);
+            if (stored) {
+              console.log("[Behavior Generation] Agent loaded with no behavior, will generate when on step 4");
             }
           }
           
@@ -1120,6 +1130,205 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       }
     }
   }, [template, voices, selectedVoiceIds.length]);
+
+  // Handle pre-selected voices from agent type detection
+  useEffect(() => {
+    if (initialData?.preSelectedVoices && voices.length > 0 && selectedVoiceIds.length === 0) {
+      // Filter available voices by pre-selected IDs
+      const availablePreSelectedVoices = voices.filter(v => 
+        initialData.preSelectedVoices!.includes(v.id)
+      );
+      
+      if (availablePreSelectedVoices.length > 0) {
+        setSelectedVoiceIds(availablePreSelectedVoices.map(v => v.id));
+        setPrimaryVoiceId(availablePreSelectedVoices[0].id);
+      } else if (voices.length > 0) {
+        // Fallback: use first available voice if pre-selected voices don't exist
+        setSelectedVoiceIds([voices[0].id]);
+        setPrimaryVoiceId(voices[0].id);
+      }
+    }
+  }, [initialData?.preSelectedVoices, voices, selectedVoiceIds.length]);
+
+  // Handle pre-selected primary goals from agent type detection
+  useEffect(() => {
+    if (initialData?.preSelectedGoals && initialData.preSelectedGoals.length > 0 && primaryOutcomes.length === 0) {
+      setPrimaryOutcomes(initialData.preSelectedGoals);
+    }
+  }, [initialData?.preSelectedGoals, primaryOutcomes.length]);
+
+  // Handle auto-generation of behavior when agent is created
+  const [isGeneratingBehavior, setIsGeneratingBehavior] = useState(false);
+  const behaviorGeneratedRef = React.useRef(false);
+
+  // Store auto-generation config in sessionStorage when initialData is available
+  useEffect(() => {
+    if (initialData?.autoGenerateBehavior && initialData?.agentTypeConfig) {
+      // Store with a pending key first, then update when agentId is available
+      const pendingKey = 'agent_auto_generate_pending';
+      sessionStorage.setItem(pendingKey, JSON.stringify({
+        autoGenerateBehavior: true,
+        agentTypeConfig: initialData.agentTypeConfig,
+      }));
+    }
+  }, [initialData?.autoGenerateBehavior, initialData?.agentTypeConfig]);
+
+  // Move pending config to agent-specific key when agentId is set
+  useEffect(() => {
+    if (agentId && agentId !== "new") {
+      const pendingKey = 'agent_auto_generate_pending';
+      const pending = sessionStorage.getItem(pendingKey);
+      if (pending) {
+        const storageKey = `agent_auto_generate_${agentId}`;
+        sessionStorage.setItem(storageKey, pending);
+        sessionStorage.removeItem(pendingKey);
+      }
+    }
+  }, [agentId]);
+
+  // Force behavior generation check when navigating to step 4
+  const [forceBehaviorCheck, setForceBehaviorCheck] = useState(0);
+  
+  useEffect(() => {
+    if (currentStep === 4 && agentId && agentId !== "new") {
+      // Check if we should generate behavior
+      const storageKey = `agent_auto_generate_${agentId}`;
+      const stored = sessionStorage.getItem(storageKey);
+      const shouldGenerate = stored && scenarios.length === 0 && phases.length === 0 && voiceTone.length === 0 && !behaviorGeneratedRef.current && !isGeneratingBehavior;
+      
+      if (shouldGenerate) {
+        console.log("[Behavior Generation] Step 4 detected, forcing behavior check...");
+        setForceBehaviorCheck(prev => prev + 1);
+      }
+    }
+  }, [currentStep, agentId, scenarios.length, phases.length, voiceTone.length, isGeneratingBehavior]);
+
+  useEffect(() => {
+    const generateBehavior = async () => {
+      // Get auto-generation config from initialData or sessionStorage
+      let autoGenerateBehavior = initialData?.autoGenerateBehavior;
+      let agentTypeConfig = initialData?.agentTypeConfig;
+
+      // If not in initialData, try to get from sessionStorage
+      if (!autoGenerateBehavior && agentId) {
+        const storageKey = `agent_auto_generate_${agentId}`;
+        const stored = sessionStorage.getItem(storageKey);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            autoGenerateBehavior = parsed.autoGenerateBehavior;
+            agentTypeConfig = parsed.agentTypeConfig;
+          } catch (e) {
+            console.error("[Behavior Generation] Failed to parse stored config:", e);
+          }
+        }
+      }
+
+      console.log("[Behavior Generation] Checking conditions:", {
+        agentId,
+        autoGenerateBehavior,
+        hasAgentTypeConfig: !!agentTypeConfig,
+        behaviorGeneratedRef: behaviorGeneratedRef.current,
+        isGeneratingBehavior,
+        hasExistingBehaviors: scenarios.length > 0 || phases.length > 0 || voiceTone.length > 0,
+        currentStep,
+      });
+
+      if (
+        !agentId ||
+        agentId === "new" ||
+        !autoGenerateBehavior ||
+        !agentTypeConfig ||
+        behaviorGeneratedRef.current ||
+        isGeneratingBehavior
+      ) {
+        console.log("[Behavior Generation] Skipping - conditions not met");
+        return;
+      }
+
+      // Only generate if we don't have existing behaviors
+      if (scenarios.length > 0 || phases.length > 0 || voiceTone.length > 0) {
+        console.log("[Behavior Generation] Skipping - existing behaviors found");
+        return;
+      }
+
+      // Generate when on step 4 OR if agent was just created (no behaviors exist)
+      const shouldGenerate = currentStep === 4 || (scenarios.length === 0 && phases.length === 0 && voiceTone.length === 0);
+      
+      if (!shouldGenerate) {
+        console.log("[Behavior Generation] Skipping - not on step 4 and behaviors exist");
+        return;
+      }
+
+      console.log("[Behavior Generation] Starting behavior generation...");
+      behaviorGeneratedRef.current = true;
+      setIsGeneratingBehavior(true);
+
+      try {
+        const behaviorPrompt = agentTypeConfig.behaviorPrompt;
+        console.log("[Behavior Generation] Calling generateBehaviour with:", { agentId, behaviorPrompt });
+        const response = await agentsApi.generateBehaviour(agentId, behaviorPrompt);
+
+        console.log("[Behavior Generation] Response received:", response);
+
+        if (response.data) {
+          // Add IDs to each entry
+          const generatedData = {
+            scenarios: response.data.scenarios?.map((s) => ({
+              ...s,
+              id: generateSectionEntryId(),
+            })) || [],
+            phases: response.data.phases?.map((p) => ({
+              ...p,
+              id: generateSectionEntryId(),
+            })) || [],
+            voiceTone: response.data.voiceTone?.map((v) => ({
+              ...v,
+              id: generateSectionEntryId(),
+            })) || [],
+          };
+
+          console.log("[Behavior Generation] Generated data:", generatedData);
+
+          // Apply generated behavior
+          if (generatedData.scenarios.length > 0) {
+            setScenarios(generatedData.scenarios);
+          }
+          if (generatedData.phases.length > 0) {
+            setPhases(generatedData.phases);
+          }
+          if (generatedData.voiceTone.length > 0) {
+            setVoiceTone(generatedData.voiceTone);
+          }
+
+          // Clear the stored config after successful generation
+          if (agentId) {
+            const storageKey = `agent_auto_generate_${agentId}`;
+            sessionStorage.removeItem(storageKey);
+          }
+
+          toast({
+            title: "Success",
+            description: "Agent behavior generated successfully!",
+          });
+        } else {
+          console.warn("[Behavior Generation] No data in response");
+        }
+      } catch (error: any) {
+        console.error("[Behavior Generation] Error generating behavior:", error);
+        behaviorGeneratedRef.current = false; // Allow retry on error
+        toast({
+          title: "Error",
+          description: error?.response?.data?.status?.message || "Failed to generate behavior. You can generate it manually later.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGeneratingBehavior(false);
+      }
+    };
+
+    generateBehavior();
+  }, [agentId, initialData?.autoGenerateBehavior, initialData?.agentTypeConfig, scenarios.length, phases.length, voiceTone.length, isGeneratingBehavior, currentStep, forceBehaviorCheck, toast]);
 
   // Fetch user integrations
   useEffect(() => {
@@ -1858,29 +2067,37 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         );
       case 4: // Agent Behaviour step
         return (
-          <AgentBehaviourStep
-            scenarios={scenarios}
-            phases={phases}
-            voiceTone={voiceTone}
-            behaviourConfig={behaviourConfig}
-            onOpenSectionModal={openSectionModal}
-            onDeleteSectionEntry={deleteSectionEntry}
-            onApplyGeneratedBehaviour={(data) => {
-              // Replace existing behaviors with generated ones
-              if (data.scenarios) {
-                setScenarios(data.scenarios);
-              }
-              if (data.phases) {
-                setPhases(data.phases);
-              }
-              if (data.voiceTone) {
-                setVoiceTone(data.voiceTone);
-              }
-            }}
-            agentId={agentId || undefined}
-            systemPromptTemplate={systemPromptTemplate}
-            onSystemPromptTemplateChange={setSystemPromptTemplate}
-          />
+          <>
+            {isGeneratingBehavior && (
+              <div className="flex items-center justify-center py-8 mb-4 bg-primary/5 rounded-lg border border-primary/20">
+                <Loader2 className="h-5 w-5 animate-spin text-primary mr-3" />
+                <span className="text-sm text-muted-foreground">Generating agent behavior...</span>
+              </div>
+            )}
+            <AgentBehaviourStep
+              scenarios={scenarios}
+              phases={phases}
+              voiceTone={voiceTone}
+              behaviourConfig={behaviourConfig}
+              onOpenSectionModal={openSectionModal}
+              onDeleteSectionEntry={deleteSectionEntry}
+              onApplyGeneratedBehaviour={(data) => {
+                // Replace existing behaviors with generated ones
+                if (data.scenarios) {
+                  setScenarios(data.scenarios);
+                }
+                if (data.phases) {
+                  setPhases(data.phases);
+                }
+                if (data.voiceTone) {
+                  setVoiceTone(data.voiceTone);
+                }
+              }}
+              agentId={agentId || undefined}
+              systemPromptTemplate={systemPromptTemplate}
+              onSystemPromptTemplateChange={setSystemPromptTemplate}
+            />
+          </>
         );
       case 5: // Integrations step
         return (

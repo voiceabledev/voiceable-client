@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,8 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Phone, Plus, Trash2, Edit, Loader2, User } from "lucide-react";
-import { phoneNumbersApi, PhoneNumber, Agent, agentsApi, UpdatePhoneNumberParams } from "@/lib/api";
+import { Phone, Plus, Trash2, Edit, Loader2, User, Building2, CreditCard } from "lucide-react";
+import { phoneNumbersApi, PhoneNumber, Agent, agentsApi, UpdatePhoneNumberParams, paymentsApi, Payment } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
 import { TabSectionCard } from "@/components/assistants/TabSectionCard";
@@ -28,6 +29,7 @@ interface PhoneNumbersTabProps {
 }
 
 export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -35,7 +37,10 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPhoneNumberModalOpen, setIsPhoneNumberModalOpen] = useState(false);
+  const [showContactSalesModal, setShowContactSalesModal] = useState(false);
   const [editingPhoneNumber, setEditingPhoneNumber] = useState<PhoneNumber | null>(null);
+  const [hasMadePurchase, setHasMadePurchase] = useState<boolean | null>(null);
+  const [checkingPurchase, setCheckingPurchase] = useState(true);
   const [formData, setFormData] = useState({
     phone_number: "",
     label: "",
@@ -80,6 +85,27 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
       setLoadingAgents(false);
     }
   }, [toast]);
+
+  useEffect(() => {
+    const checkPurchaseStatus = async () => {
+      setCheckingPurchase(true);
+      try {
+        const response = await paymentsApi.list();
+        if (response.data) {
+          const hasPurchase = response.data.some((payment: Payment) => payment.status === 'succeeded');
+          setHasMadePurchase(hasPurchase);
+        } else {
+          setHasMadePurchase(false);
+        }
+      } catch (error) {
+        console.error('Error checking purchase status:', error);
+        setHasMadePurchase(false);
+      } finally {
+        setCheckingPurchase(false);
+      }
+    };
+    checkPurchaseStatus();
+  }, []);
 
   useEffect(() => {
     if (agentId) {
@@ -201,13 +227,73 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     }
   };
 
-  if (loading) {
+  if (checkingPurchase || loading) {
     return (
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
+    );
+  }
+
+  // Show purchase required message if user hasn't made a purchase
+  if (hasMadePurchase === false) {
+    return (
+      <>
+        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
+          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
+            <div className="flex justify-center mb-4 md:mb-6">
+              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
+                <Phone className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">Phone Numbers Require Membership</h2>
+            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
+              Phone number purchases require at least one successful payment. 
+              You can use the widget to test your agent without purchasing a phone number.
+              Please make a purchase to unlock phone number functionality.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => navigate("/settings/billing")}
+                className="w-full sm:w-auto text-sm sm:text-base"
+              >
+                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Buy Credits
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setShowContactSalesModal(true)}
+                className="w-full sm:w-auto text-sm sm:text-base"
+              >
+                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Contact Support
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Sales Modal */}
+        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
+          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <iframe
+                src="https://calendly.com/imvitoroliveira"
+                className="w-full h-full border-0"
+                title="Calendly Scheduling"
+                allow="camera; microphone; geolocation"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
