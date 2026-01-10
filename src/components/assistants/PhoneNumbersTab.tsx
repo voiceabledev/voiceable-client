@@ -417,24 +417,6 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
       () => navigate("/settings/billing")
     );
   }
-  // Show cancelled membership message
-  else if (membershipStatus === 'cancelled') {
-    return renderStatusMessage(
-      "Membership Cancelled",
-      "Your membership has been cancelled. Please contact support to reactivate your account and unlock phone number functionality.",
-      null,
-      null
-    );
-  }
-  // Show suspended account message
-  else if (membershipStatus === 'suspended') {
-    return renderStatusMessage(
-      "Account Suspended",
-      "Your account has been suspended. Please contact support for assistance with your account.",
-      null,
-      null
-    );
-  }
 
   return (
     <div className="space-y-6">

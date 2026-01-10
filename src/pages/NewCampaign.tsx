@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -22,7 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { 
+import {
   ArrowLeft,
   Clock,
   Calendar as CalendarIcon,
@@ -37,7 +39,14 @@ import {
   BarChart3,
   Plus,
   X,
-  Globe
+  Globe,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  PhoneOutgoing,
+  Bot,
+  FileText,
+  Send
 } from "lucide-react";
 import { phoneNumbersApi, PhoneNumber, agentsApi, Agent, campaignsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -46,19 +55,65 @@ import { cn } from "@/lib/utils";
 import { AddPhoneNumberModal } from "@/components/AddPhoneNumberModal";
 
 const LANGUAGES = [
-  { value: "en", label: "English" },
-  { value: "es", label: "Spanish" },
-  { value: "fr", label: "French" },
-  { value: "de", label: "German" },
-  { value: "it", label: "Italian" },
-  { value: "pt", label: "Portuguese" },
-  { value: "zh", label: "Chinese" },
-  { value: "ja", label: "Japanese" },
-  { value: "ko", label: "Korean" },
-  { value: "ar", label: "Arabic" },
-  { value: "hi", label: "Hindi" },
-  { value: "ru", label: "Russian" },
+  { value: "en", label: "English", flag: "🇺🇸" },
+  { value: "es", label: "Spanish", flag: "🇪🇸" },
+  { value: "fr", label: "French", flag: "🇫🇷" },
+  { value: "de", label: "German", flag: "🇩🇪" },
+  { value: "it", label: "Italian", flag: "🇮🇹" },
+  { value: "pt", label: "Portuguese", flag: "🇵🇹" },
+  { value: "zh", label: "Chinese", flag: "🇨🇳" },
+  { value: "ja", label: "Japanese", flag: "🇯🇵" },
+  { value: "ko", label: "Korean", flag: "🇰🇷" },
+  { value: "ar", label: "Arabic", flag: "🇸🇦" },
+  { value: "hi", label: "Hindi", flag: "🇮🇳" },
+  { value: "ru", label: "Russian", flag: "🇷🇺" },
 ];
+
+interface StepIndicatorProps {
+  currentStep: number;
+  steps: { label: string; icon: React.ReactNode }[];
+}
+
+function StepIndicator({ currentStep, steps }: StepIndicatorProps) {
+  return (
+    <div className="flex items-center justify-center gap-2 py-4">
+      {steps.map((step, index) => (
+        <div key={index} className="flex items-center">
+          <div
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300",
+              index < currentStep
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : index === currentStep
+                ? "bg-accent/10 text-accent border border-accent/30"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            <span className={cn(
+              "transition-transform duration-300",
+              index === currentStep && "scale-110"
+            )}>
+              {index < currentStep ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : (
+                step.icon
+              )}
+            </span>
+            <span className="hidden sm:inline">{step.label}</span>
+          </div>
+          {index < steps.length - 1 && (
+            <div
+              className={cn(
+                "w-8 h-0.5 mx-1 rounded-full transition-colors duration-300",
+                index < currentStep ? "bg-emerald-500/50" : "bg-border"
+              )}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function NewCampaign() {
   const navigate = useNavigate();
@@ -68,23 +123,37 @@ export default function NewCampaign() {
   const [loadingPhoneNumbers, setLoadingPhoneNumbers] = useState(false);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [creating, setCreating] = useState(false);
-  
+
   const [campaignName, setCampaignName] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [sendOption, setSendOption] = useState<"now" | "later">("now");
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [scheduleTime, setScheduleTime] = useState("");
-  
+
   const [isSpamPracticesOpen, setIsSpamPracticesOpen] = useState(false);
   const [isPhoneNumberModalOpen, setIsPhoneNumberModalOpen] = useState(false);
-  
-  // Manual phone numbers for batch calls
+
   interface ManualPhoneNumber {
     name: string;
     phone_number: string;
     language: string;
   }
   const [manualPhoneNumbers, setManualPhoneNumbers] = useState<ManualPhoneNumber[]>([]);
+
+  // Calculate current step
+  const getCurrentStep = () => {
+    if (!campaignName.trim()) return 0;
+    if (!selectedAgentId) return 1;
+    if (manualPhoneNumbers.length === 0) return 2;
+    return 3;
+  };
+
+  const steps = [
+    { label: "Name", icon: <FileText className="h-3.5 w-3.5" /> },
+    { label: "Agent", icon: <Bot className="h-3.5 w-3.5" /> },
+    { label: "Recipients", icon: <Users className="h-3.5 w-3.5" /> },
+    { label: "Schedule", icon: <Clock className="h-3.5 w-3.5" /> },
+  ];
 
   const fetchPhoneNumbers = useCallback(async () => {
     setLoadingPhoneNumbers(true);
@@ -127,7 +196,6 @@ export default function NewCampaign() {
     fetchAgents();
   }, [fetchPhoneNumbers, fetchAgents]);
 
-  // Get current date/time for default scheduling
   useEffect(() => {
     if (sendOption === "later" && !scheduleDate) {
       const now = new Date();
@@ -165,12 +233,11 @@ export default function NewCampaign() {
       return;
     }
 
-    // Get phone numbers associated with the selected agent
-    const agentPhoneNumbers = phoneNumbers.filter(phone => 
+    const agentPhoneNumbersFiltered = phoneNumbers.filter(phone =>
       phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio'
     );
 
-    if (agentPhoneNumbers.length === 0) {
+    if (agentPhoneNumbersFiltered.length === 0) {
       toast({
         title: 'Agent phone number required',
         description: 'The selected agent has no Twilio phone numbers associated. Please assign a phone number to this agent first.',
@@ -201,13 +268,11 @@ export default function NewCampaign() {
     try {
       const scheduleDateStr = scheduleDate ? scheduleDate.toISOString().split('T')[0] : undefined;
 
-      // Get phone number IDs from the agent's associated phone numbers
       const agentPhoneNumberIds = phoneNumbers
         .filter(phone => phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio')
         .map(phone => phone.id.toString());
 
-      // Create campaign with agent's phone numbers as caller IDs and manual numbers as recipients
-      const response = await campaignsApi.create({
+      await campaignsApi.create({
         name: campaignName,
         phone_number_ids: agentPhoneNumberIds,
         manual_phone_numbers: manualPhoneNumbers,
@@ -222,7 +287,6 @@ export default function NewCampaign() {
         description: `Campaign "${campaignName}" has been created and synced with ElevenLabs successfully.`,
       });
 
-      // Navigate back to outbound page
       navigate("/outbound");
     } catch (err) {
       toast({
@@ -237,316 +301,515 @@ export default function NewCampaign() {
 
   const selectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
 
-  // Get phone numbers associated with the selected agent (these will be used as caller IDs)
   const agentPhoneNumbers = selectedAgentId
-    ? phoneNumbers.filter(phone => 
+    ? phoneNumbers.filter(phone =>
         phone.agent_id?.toString() === selectedAgentId && phone.provider === 'twilio'
       )
     : [];
 
+  const isFormValid =
+    campaignName.trim() &&
+    selectedAgentId &&
+    manualPhoneNumbers.length > 0 &&
+    agentPhoneNumbers.length > 0 &&
+    (sendOption === "now" || (scheduleDate && scheduleTime.trim()));
+
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-b from-background to-muted/20">
       {/* Header */}
-      <div className="border-b border-border flex-shrink-0">
-        <div className="flex items-center justify-between p-3 md:p-4 gap-2">
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/outbound")} className="flex-shrink-0">
-              <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
-            </Button>
-            <h1 className="text-lg md:text-xl font-semibold truncate">Create a batch call</h1>
-          </div>
-          <div className="flex gap-2">
+      <div className="border-b border-border flex-shrink-0 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-4 md:p-5 gap-4">
+          <div className="flex items-center gap-3 md:gap-4 min-w-0">
             <Button
-              variant="accent"
-              size="sm"
-              onClick={handleCreate}
-              disabled={
-                creating ||
-                !selectedAgentId ||
-                manualPhoneNumbers.length === 0 ||
-                !campaignName.trim() ||
-                (sendOption === "later" && (!scheduleDate || !scheduleTime.trim()))
-              }
-              className="text-xs md:text-sm md:px-4 md:py-2"
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/outbound")}
+              className="flex-shrink-0 hover:bg-accent/10"
             >
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <span className="hidden sm:inline">Submit a Batch Call</span>
-                  <span className="sm:hidden">Submit</span>
-                </>
-              )}
+              <ArrowLeft className="h-5 w-5" />
             </Button>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-violet-light flex items-center justify-center shadow-lg shadow-accent/20">
+                <PhoneOutgoing className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg md:text-xl font-semibold">Create Batch Call</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">Set up your automated calling campaign</p>
+              </div>
+            </div>
           </div>
+          <Button
+            variant="accent"
+            onClick={handleCreate}
+            disabled={creating || !isFormValid}
+            className="shadow-lg shadow-accent/20 hover:shadow-xl hover:shadow-accent/30 transition-all"
+          >
+            {creating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <span className="hidden sm:inline">Creating...</span>
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Launch Campaign</span>
+                <span className="sm:hidden">Launch</span>
+              </>
+            )}
+          </Button>
         </div>
+
+        {/* Step Indicator */}
+        <StepIndicator currentStep={getCurrentStep()} steps={steps} />
       </div>
 
-      {/* Content - Scrollable */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-3xl mx-auto p-4 md:p-6 pr-4 md:pr-6 space-y-4 md:space-y-6">
-          {/* Campaign Name */}
-          <div className="space-y-2">
-            <Label>Campaign Name</Label>
-            <Input 
-              placeholder="Enter campaign name"
-              value={campaignName}
-              onChange={(e) => setCampaignName(e.target.value)}
-              className="bg-white"
-              disabled={creating}
-            />
-          </div>
+        <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-5">
 
-          {/* Agent Selection */}
-          <div className="space-y-2">
-            <Label>Select Agent</Label>
-            {loadingAgents ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          {/* Campaign Name Card */}
+          <Card className={cn(
+            "overflow-hidden transition-all duration-300",
+            getCurrentStep() === 0 && "ring-2 ring-accent/50 shadow-lg shadow-accent/10"
+          )}>
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
+                  campaignName.trim() ? "bg-emerald-500/10" : "bg-accent/10"
+                )}>
+                  {campaignName.trim() ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <FileText className="h-5 w-5 text-accent" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <Label className="text-sm font-semibold">Campaign Name</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Give your campaign a memorable name</p>
+                  </div>
+                  <Input
+                    placeholder="e.g., Q1 Customer Outreach, Product Launch Follow-up"
+                    value={campaignName}
+                    onChange={(e) => setCampaignName(e.target.value)}
+                    className="bg-muted/50 border-border h-11 text-base focus:ring-2 focus:ring-accent/30"
+                    disabled={creating}
+                  />
+                </div>
               </div>
-            ) : agents.length === 0 ? (
-              <div className="p-4 bg-secondary/50 rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground text-center">
-                  No agents available. Please create an agent first.
-                </p>
-              </div>
-            ) : (
-              <Select
-                value={selectedAgentId}
-                onValueChange={(value) => {
-                  setSelectedAgentId(value);
-                }}
-                disabled={creating}
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="Select an agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id.toString()}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{agent.name || `Agent ${agent.id}`}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {selectedAgent && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  Selected: {selectedAgent.name || `Agent ${selectedAgent.id}`}
-                </p>
-                {agentPhoneNumbers.length > 0 ? (
-                  <div className="mt-2 p-2 bg-secondary/50 rounded-lg border border-border">
-                    <p className="text-xs font-medium mb-1">Caller ID Phone Numbers:</p>
-                    <div className="space-y-1">
-                      {agentPhoneNumbers.map((phone) => (
-                        <div key={phone.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span>{phone.phone_number}</span>
-                          {phone.label && <span>({phone.label})</span>}
-                        </div>
-                      ))}
+            </CardContent>
+          </Card>
+
+          {/* Agent Selection Card */}
+          <Card className={cn(
+            "overflow-hidden transition-all duration-300",
+            getCurrentStep() === 1 && "ring-2 ring-accent/50 shadow-lg shadow-accent/10"
+          )}>
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
+                  selectedAgentId ? "bg-emerald-500/10" : "bg-accent/10"
+                )}>
+                  {selectedAgentId ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <Bot className="h-5 w-5 text-accent" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <Label className="text-sm font-semibold">AI Agent</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Select the agent that will handle the calls</p>
+                  </div>
+
+                  {loadingAgents ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-accent" />
                     </div>
-                  </div>
-                ) : (
-                  <div className="mt-2 p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                      This agent has no phone numbers associated. Please assign a phone number to this agent first.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Manual Phone Numbers Grid */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Recipient phone numbers {manualPhoneNumbers.length > 0 && `(${manualPhoneNumbers.length})`}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsPhoneNumberModalOpen(true)}
-                className="text-xs h-7"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Recipient
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Phone numbers that will receive the batch calls.
-            </p>
-            {manualPhoneNumbers.length === 0 ? (
-              <div className="p-4 bg-white rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground text-center">
-                  No recipient phone numbers added yet.{" "}
-                  <button
-                    type="button"
-                    onClick={() => setIsPhoneNumberModalOpen(true)}
-                    className="text-accent hover:underline font-medium"
-                  >
-                    Add a recipient phone number
-                  </button>{" "}
-                  to get started.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {manualPhoneNumbers.map((phone, index) => (
-                  <div
-                    key={index}
-                    className="p-3 bg-white rounded-lg border border-border hover:bg-secondary/50 transition-colors relative"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveManualPhoneNumber(index)}
-                      className="absolute top-2 right-2 p-1 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  ) : agents.length === 0 ? (
+                    <div className="p-4 bg-muted/50 rounded-xl border border-dashed border-border">
+                      <div className="text-center">
+                        <Bot className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No agents available</p>
+                        <p className="text-xs text-muted-foreground mt-1">Create an agent first to get started</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Select
+                      value={selectedAgentId}
+                      onValueChange={setSelectedAgentId}
                       disabled={creating}
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                    <div className="pr-6">
-                      <div className="flex items-start gap-2 mb-1">
-                        <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <SelectTrigger className="bg-muted/50 border-border h-11">
+                        <SelectValue placeholder="Choose an agent" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id.toString()}>
+                            <div className="flex items-center gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center">
+                                <Bot className="h-4 w-4 text-accent" />
+                              </div>
+                              <span className="font-medium">{agent.name || `Agent ${agent.id}`}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Selected Agent Info */}
+                  {selectedAgent && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border border-border">
+                        <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-accent" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{phone.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{phone.phone_number}</p>
+                          <p className="text-sm font-medium truncate">{selectedAgent.name || `Agent ${selectedAgent.id}`}</p>
+                          <p className="text-xs text-muted-foreground">Selected agent</p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">Active</Badge>
+                      </div>
+
+                      {agentPhoneNumbers.length > 0 ? (
+                        <div className="p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Phone className="h-4 w-4 text-emerald-500" />
+                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Caller ID Numbers</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {agentPhoneNumbers.map((phone) => (
+                              <div key={phone.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                <span className="font-mono">{phone.phone_number}</span>
+                                {phone.label && <span className="text-muted-foreground/60">({phone.label})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-amber-500/5 rounded-lg border border-amber-500/20">
+                          <div className="flex items-center gap-2">
+                            <Info className="h-4 w-4 text-amber-500" />
+                            <span className="text-xs text-amber-600 dark:text-amber-400">
+                              This agent has no phone numbers. Assign one to proceed.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recipients Card */}
+          <Card className={cn(
+            "overflow-hidden transition-all duration-300",
+            getCurrentStep() === 2 && "ring-2 ring-accent/50 shadow-lg shadow-accent/10"
+          )}>
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
+                  manualPhoneNumbers.length > 0 ? "bg-emerald-500/10" : "bg-accent/10"
+                )}>
+                  {manualPhoneNumbers.length > 0 ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <Users className="h-5 w-5 text-accent" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-semibold">Recipients</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Add the phone numbers to call</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsPhoneNumberModalOpen(true)}
+                      className="h-8 text-xs hover:bg-accent/10 hover:text-accent hover:border-accent/50 transition-colors"
+                      disabled={creating}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      Add Recipient
+                    </Button>
+                  </div>
+
+                  {manualPhoneNumbers.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPhoneNumberModalOpen(true)}
+                      className="w-full p-6 bg-muted/30 rounded-xl border-2 border-dashed border-border hover:border-accent/50 hover:bg-accent/5 transition-all group"
+                      disabled={creating}
+                    >
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Plus className="h-6 w-6 text-accent" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-foreground">Add your first recipient</p>
+                          <p className="text-xs text-muted-foreground mt-1">Click to add phone numbers to your batch call</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 mt-2">
-                        <Globe className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {LANGUAGES.find(l => l.value === phone.language)?.label || phone.language}
-                        </span>
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-accent/10 text-accent">
+                          {manualPhoneNumbers.length} recipient{manualPhoneNumbers.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {manualPhoneNumbers.map((phone, index) => {
+                          const langInfo = LANGUAGES.find(l => l.value === phone.language);
+                          return (
+                            <div
+                              key={index}
+                              className="group relative p-3 bg-muted/30 rounded-xl border border-border hover:border-accent/30 hover:bg-muted/50 transition-all animate-in slide-in-from-bottom-2 duration-200"
+                              style={{ animationDelay: `${index * 50}ms` }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveManualPhoneNumber(index)}
+                                className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-destructive transition-all shadow-lg"
+                                disabled={creating}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                                  <Phone className="h-4 w-4 text-accent" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{phone.name}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">{phone.phone_number}</p>
+                                </div>
+                                <div className="text-lg" title={langInfo?.label}>
+                                  {langInfo?.flag || "🌐"}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Best Practices Alert */}
-          <div className="flex items-start gap-2 md:gap-3 p-3 md:p-4 rounded-lg bg-secondary/50 border border-border">
-            <Info className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs md:text-sm font-medium mb-1">Best Practices</p>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Learn how to avoid spam flagging and optimize your calling strategy for better success rates.{" "}
-                <button
-                  type="button"
-                  onClick={() => setIsSpamPracticesOpen(true)}
-                  className="text-accent hover:underline cursor-pointer"
-                >
-                  Spam flagging best practices
-                </button>
-              </p>
-            </div>
-          </div>
-
-          {/* Timing Section */}
-          <div className="space-y-4">
-            <Label>Timing</Label>
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
-              <button
-                type="button"
-                className={`p-3 md:p-4 rounded-lg border text-center transition-colors text-sm md:text-base ${
-                  sendOption === "now"
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "border-border bg-secondary/50 text-muted-foreground hover:border-muted-foreground"
-                }`}
-                onClick={() => setSendOption("now")}
-                disabled={creating}
-              >
-                Send immediately
-              </button>
-              <button
-                type="button"
-                className={`p-3 md:p-4 rounded-lg border text-center transition-colors text-sm md:text-base ${
-                  sendOption === "later"
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "border-border bg-secondary/50 text-muted-foreground hover:border-muted-foreground"
-                }`}
-                onClick={() => setSendOption("later")}
-                disabled={creating}
-              >
-                Schedule for later
-              </button>
-            </div>
-            {sendOption === "later" && (
-              <div className="space-y-3 pt-2">
-                <Label className="text-sm font-medium">Start at:</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                  {/* Date Picker */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-foreground">Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal h-10 bg-secondary/50 border-border hover:bg-secondary hover:border-muted-foreground transition-colors",
-                            !scheduleDate && "text-muted-foreground"
-                          )}
-                          disabled={creating}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {scheduleDate ? (
-                            format(scheduleDate, "PPP")
-                          ) : (
-                            <span className="text-muted-foreground">Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={scheduleDate}
-                          onSelect={setScheduleDate}
-                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+          {/* Timing Card */}
+          <Card className={cn(
+            "overflow-hidden transition-all duration-300",
+            getCurrentStep() === 3 && "ring-2 ring-accent/50 shadow-lg shadow-accent/10"
+          )}>
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                  <Clock className="h-5 w-5 text-accent" />
+                </div>
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <Label className="text-sm font-semibold">When to Send</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Choose when to launch your campaign</p>
                   </div>
-                  
-                  {/* Time Picker */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-foreground">Time</Label>
-                    <div className="relative group">
-                      <Input
-                        type="time"
-                        value={scheduleTime}
-                        onChange={(e) => setScheduleTime(e.target.value)}
-                        className="bg-secondary/50 border-border h-10 pr-11 hover:bg-secondary hover:border-muted-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:pointer-events-none"
-                        disabled={creating}
-                        style={{ paddingRight: '2.75rem' }}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-                        <Clock className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      className={cn(
+                        "relative p-4 rounded-xl border-2 text-left transition-all duration-200 group",
+                        sendOption === "now"
+                          ? "border-accent bg-accent/5 shadow-lg shadow-accent/10"
+                          : "border-border bg-muted/30 hover:border-muted-foreground hover:bg-muted/50"
+                      )}
+                      onClick={() => setSendOption("now")}
+                      disabled={creating}
+                    >
+                      {sendOption === "now" && (
+                        <div className="absolute -top-1.5 -right-1.5">
+                          <div className="h-5 w-5 rounded-full bg-accent flex items-center justify-center">
+                            <CheckCircle2 className="h-3 w-3 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "h-10 w-10 rounded-xl flex items-center justify-center transition-colors",
+                          sendOption === "now" ? "bg-accent/20" : "bg-muted"
+                        )}>
+                          <Zap className={cn(
+                            "h-5 w-5 transition-colors",
+                            sendOption === "now" ? "text-accent" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className={cn(
+                            "font-medium text-sm transition-colors",
+                            sendOption === "now" ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            Send Now
+                          </p>
+                          <p className="text-xs text-muted-foreground">Start immediately</p>
+                        </div>
                       </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={cn(
+                        "relative p-4 rounded-xl border-2 text-left transition-all duration-200 group",
+                        sendOption === "later"
+                          ? "border-accent bg-accent/5 shadow-lg shadow-accent/10"
+                          : "border-border bg-muted/30 hover:border-muted-foreground hover:bg-muted/50"
+                      )}
+                      onClick={() => setSendOption("later")}
+                      disabled={creating}
+                    >
+                      {sendOption === "later" && (
+                        <div className="absolute -top-1.5 -right-1.5">
+                          <div className="h-5 w-5 rounded-full bg-accent flex items-center justify-center">
+                            <CheckCircle2 className="h-3 w-3 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "h-10 w-10 rounded-xl flex items-center justify-center transition-colors",
+                          sendOption === "later" ? "bg-accent/20" : "bg-muted"
+                        )}>
+                          <CalendarIcon className={cn(
+                            "h-5 w-5 transition-colors",
+                            sendOption === "later" ? "text-accent" : "text-muted-foreground"
+                          )} />
+                        </div>
+                        <div>
+                          <p className={cn(
+                            "font-medium text-sm transition-colors",
+                            sendOption === "later" ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            Schedule
+                          </p>
+                          <p className="text-xs text-muted-foreground">Pick date & time</p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  {sendOption === "later" && (
+                    <div className="space-y-3 pt-2 animate-in slide-in-from-top-2 duration-300">
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Schedule Details
+                      </Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal h-11 bg-muted/50 border-border hover:bg-muted hover:border-accent/50 transition-all",
+                                  !scheduleDate && "text-muted-foreground"
+                                )}
+                                disabled={creating}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4 text-accent" />
+                                {scheduleDate ? (
+                                  format(scheduleDate, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={scheduleDate}
+                                onSelect={setScheduleDate}
+                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground">Time</Label>
+                          <div className="relative">
+                            <Input
+                              type="time"
+                              value={scheduleTime}
+                              onChange={(e) => setScheduleTime(e.target.value)}
+                              className="bg-muted/50 border-border h-11 pr-11 hover:bg-muted hover:border-accent/50 transition-all focus:ring-2 focus:ring-accent/30 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                              disabled={creating}
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              <Clock className="h-4 w-4 text-accent" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {scheduleDate && scheduleTime && (
+                        <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-lg border border-accent/20 animate-in fade-in duration-300">
+                          <Sparkles className="h-4 w-4 text-accent" />
+                          <p className="text-sm">
+                            <span className="text-muted-foreground">Campaign will launch on </span>
+                            <span className="font-semibold text-foreground">
+                              {format(scheduleDate, "MMMM d, yyyy")}
+                            </span>
+                            <span className="text-muted-foreground"> at </span>
+                            <span className="font-semibold text-foreground">
+                              {format(new Date(`2000-01-01T${scheduleTime}`), "h:mm a")}
+                            </span>
+                          </p>
+                        </div>
+                      )}
                     </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Best Practices Card */}
+          <Card className="overflow-hidden bg-gradient-to-br from-blue-500/5 to-violet-500/5 border-blue-500/20">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <Info className="h-5 w-5 text-blue-500" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">Best Practices</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Maximize success rates and avoid spam flagging
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsSpamPracticesOpen(true)}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                    >
+                      View Guide
+                    </Button>
                   </div>
                 </div>
-                {scheduleDate && scheduleTime && (
-                  <div className="pt-2">
-                    <p className="text-xs text-muted-foreground">
-                      Scheduled for: <span className="font-medium text-foreground">
-                        {format(scheduleDate, "PPP")} at {format(new Date(`2000-01-01T${scheduleTime}`), "h:mm a")}
-                      </span>
-                    </p>
-                  </div>
-                )}
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -554,192 +817,120 @@ export default function NewCampaign() {
       <Dialog open={isSpamPracticesOpen} onOpenChange={setIsSpamPracticesOpen}>
         <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Spam Flagging Best Practices</DialogTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Follow these guidelines to avoid spam flagging and optimize your calling strategy for better success rates.
+            <DialogTitle className="text-xl font-semibold flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-blue-500" />
+              </div>
+              Spam Flagging Best Practices
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Follow these guidelines to optimize your calling strategy for better success rates.
             </p>
           </DialogHeader>
-          
-          <div className="space-y-6 mt-6">
-            {/* Call Volume Management */}
-            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
-                  <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <h3 className="font-semibold text-base text-foreground">Call Volume Management</h3>
-                  <ul className="space-y-2.5">
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                      <span>Start with low call volumes and gradually increase over time</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                      <span>Avoid sending large batches of calls all at once</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                      <span>Spread calls throughout the day rather than in concentrated bursts</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                      <span>Monitor call completion rates and adjust volume accordingly</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
 
-            {/* Call Timing */}
-            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 flex-shrink-0">
-                  <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <h3 className="font-semibold text-base text-foreground">Call Timing</h3>
-                  <ul className="space-y-2.5">
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                      <span>Respect local time zones and calling hours (typically 8 AM - 9 PM)</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                      <span>Avoid calling during holidays and weekends unless necessary</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                      <span>Space out calls to the same recipient over multiple days</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-purple-600 dark:text-purple-400 mt-0.5">•</span>
-                      <span>Consider time-of-day patterns for your target audience</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+          <div className="space-y-4 mt-6">
+            {[
+              {
+                icon: TrendingUp,
+                title: "Call Volume Management",
+                color: "blue",
+                items: [
+                  "Start with low call volumes and gradually increase over time",
+                  "Avoid sending large batches of calls all at once",
+                  "Spread calls throughout the day rather than in concentrated bursts",
+                  "Monitor call completion rates and adjust volume accordingly"
+                ]
+              },
+              {
+                icon: Clock,
+                title: "Call Timing",
+                color: "purple",
+                items: [
+                  "Respect local time zones and calling hours (typically 8 AM - 9 PM)",
+                  "Avoid calling during holidays and weekends unless necessary",
+                  "Space out calls to the same recipient over multiple days",
+                  "Consider time-of-day patterns for your target audience"
+                ]
+              },
+              {
+                icon: Users,
+                title: "Recipient Management",
+                color: "green",
+                items: [
+                  "Only call recipients who have opted in or have an existing relationship",
+                  "Maintain a \"Do Not Call\" list and respect opt-outs immediately",
+                  "Verify phone numbers before calling to reduce invalid number attempts",
+                  "Remove duplicate entries and invalid numbers from your list"
+                ]
+              },
+              {
+                icon: MessageSquare,
+                title: "Call Quality & Content",
+                color: "orange",
+                items: [
+                  "Ensure your agent provides clear, valuable information",
+                  "Allow recipients to easily opt-out or end the call",
+                  "Avoid aggressive or misleading messaging",
+                  "Personalize calls when possible using recipient data"
+                ]
+              },
+              {
+                icon: Shield,
+                title: "Compliance",
+                color: "red",
+                items: [
+                  "Comply with TCPA (Telephone Consumer Protection Act) regulations",
+                  "Obtain proper consent before making calls",
+                  "Identify your business clearly at the start of calls",
+                  "Maintain records of consent and call logs for compliance"
+                ]
+              },
+              {
+                icon: BarChart3,
+                title: "Monitoring & Optimization",
+                color: "indigo",
+                items: [
+                  "Track call success rates, answer rates, and completion rates",
+                  "Monitor for patterns that might trigger spam flags",
+                  "Adjust your strategy based on performance metrics",
+                  "Test different approaches and measure results"
+                ]
+              }
+            ].map((section, index) => {
+              const Icon = section.icon;
+              const colorClasses = {
+                blue: "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400",
+                purple: "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400",
+                green: "bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400",
+                orange: "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400",
+                red: "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400",
+                indigo: "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+              }[section.color];
 
-            {/* Recipient Management */}
-            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 flex-shrink-0">
-                  <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+              return (
+                <div
+                  key={index}
+                  className="p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-all"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`p-2.5 rounded-xl border flex-shrink-0 ${colorClasses}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <h3 className="font-semibold text-base">{section.title}</h3>
+                      <ul className="space-y-2">
+                        {section.items.map((item, i) => (
+                          <li key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                            <div className={`h-1.5 w-1.5 rounded-full mt-2 ${colorClasses?.split(' ')[0]?.replace('/10', '')}`} />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 space-y-3">
-                  <h3 className="font-semibold text-base text-foreground">Recipient Management</h3>
-                  <ul className="space-y-2.5">
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
-                      <span>Only call recipients who have opted in or have an existing relationship</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
-                      <span>Maintain a "Do Not Call" list and respect opt-outs immediately</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
-                      <span>Verify phone numbers before calling to reduce invalid number attempts</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-green-600 dark:text-green-400 mt-0.5">•</span>
-                      <span>Remove duplicate entries and invalid numbers from your list</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Call Quality & Content */}
-            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20 flex-shrink-0">
-                  <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <h3 className="font-semibold text-base text-foreground">Call Quality & Content</h3>
-                  <ul className="space-y-2.5">
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
-                      <span>Ensure your agent provides clear, valuable information</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
-                      <span>Allow recipients to easily opt-out or end the call</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
-                      <span>Avoid aggressive or misleading messaging</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-orange-600 dark:text-orange-400 mt-0.5">•</span>
-                      <span>Personalize calls when possible using recipient data</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Compliance */}
-            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 flex-shrink-0">
-                  <Shield className="h-5 w-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <h3 className="font-semibold text-base text-foreground">Compliance</h3>
-                  <ul className="space-y-2.5">
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
-                      <span>Comply with TCPA (Telephone Consumer Protection Act) regulations</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
-                      <span>Obtain proper consent before making calls</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
-                      <span>Identify your business clearly at the start of calls</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-red-600 dark:text-red-400 mt-0.5">•</span>
-                      <span>Maintain records of consent and call logs for compliance</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Monitoring & Optimization */}
-            <div className="p-4 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
-              <div className="flex items-start gap-4">
-                <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex-shrink-0">
-                  <BarChart3 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div className="flex-1 space-y-3">
-                  <h3 className="font-semibold text-base text-foreground">Monitoring & Optimization</h3>
-                  <ul className="space-y-2.5">
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
-                      <span>Track call success rates, answer rates, and completion rates</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
-                      <span>Monitor for patterns that might trigger spam flags</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
-                      <span>Adjust your strategy based on performance metrics</span>
-                    </li>
-                    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <span className="text-indigo-600 dark:text-indigo-400 mt-0.5">•</span>
-                      <span>Test different approaches and measure results</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
@@ -747,9 +938,7 @@ export default function NewCampaign() {
       {/* Add Phone Number Modal */}
       <AddPhoneNumberModal
         open={isPhoneNumberModalOpen}
-        onOpenChange={(open) => {
-          setIsPhoneNumberModalOpen(open);
-        }}
+        onOpenChange={setIsPhoneNumberModalOpen}
         onAdd={handleAddManualPhoneNumber}
       />
     </div>

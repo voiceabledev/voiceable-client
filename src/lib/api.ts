@@ -226,6 +226,13 @@ class ApiClient {
       redirect: 'manual' as RequestRedirect // Prevent automatic redirect following
     });
   }
+
+  async patch<T>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
@@ -802,7 +809,7 @@ export interface Conversation {
     time_in_call_secs?: number;
   }>;
   metadata?: Record<string, unknown>;
-  outcome?: import('./types/outcomes').ConversationOutcome | null;
+  outcome?: import('@/types/outcomes').ConversationOutcome | null;
   cost?: {
     amount_cents: number;
     amount_dollars: number;

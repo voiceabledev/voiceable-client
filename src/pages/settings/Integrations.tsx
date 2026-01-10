@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Link2, Search, ChevronDown, ArrowLeft, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2, CreditCard, UtensilsCrossed, Store, Database, CheckCircle } from "lucide-react";
+import { Link2, Search, ChevronDown, ThumbsUp, Brain, Mic, CalendarDays, Users, Phone, Headphones, Cloud, MessageSquare, ShoppingCart, Volume2, CreditCard, UtensilsCrossed, Store, Database, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { integrationsApi } from "@/lib/api";
@@ -304,14 +304,6 @@ export default function Integrations() {
       <div className="p-4 md:p-6 border-b border-border/50 bg-gradient-to-b from-background to-background/95 backdrop-blur-sm flex-shrink-0 sticky top-0 z-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3 md:gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/settings")}
-              className="flex-shrink-0 hover:bg-secondary"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <Link2 className="h-5 w-5" />

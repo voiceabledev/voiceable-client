@@ -276,7 +276,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
       <div className={cn("p-3 border-t border-sidebar-border space-y-2", !showFullContent && "px-2")}>
         {showFullContent && (
           <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-xs bg-secondary px-2 py-1 rounded font-medium text-muted-foreground">PAYG</span>
+            <span className="text-xs bg-secondary px-2 py-1 rounded font-medium text-muted-foreground">WALLET</span>
             <span className="text-sm text-foreground">
               {isLoadingBalance ? (
                 <span className="text-muted-foreground">Loading...</span>
