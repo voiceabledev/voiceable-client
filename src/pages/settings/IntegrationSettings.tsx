@@ -455,60 +455,60 @@ export default function IntegrationSettings() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border flex-shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+      <div className="p-4 sm:p-6 border-b border-border flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/settings/integrations")}
-              className="flex-shrink-0"
+              className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className={cn("w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0", metadata.iconBg)}>
+            <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base md:text-lg flex-shrink-0", metadata.iconBg)}>
               {metadata.icon}
             </div>
-            <h1 className="text-lg md:text-xl font-semibold">{metadata.name}</h1>
+            <h1 className="text-base sm:text-lg md:text-xl font-semibold truncate">{metadata.name}</h1>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/settings/integrations")}
-            className="flex-shrink-0"
+            className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10 self-start sm:self-auto"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-1/2">
-          <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 w-full justify-start">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-1/2">
+          <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 w-full justify-start overflow-x-auto">
             <TabsTrigger 
               value="credentials" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap"
             >
               Credentials
             </TabsTrigger>
             {integrationTools.length > 0 && (
               <TabsTrigger 
                 value="tools" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap"
               >
                 Tools
               </TabsTrigger>
             )}
             <TabsTrigger 
               value="about" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap"
             >
               About
             </TabsTrigger>
           </TabsList>
 
           {/* Credentials Tab */}
-          <TabsContent value="credentials" className="mt-6">
-            <div className="space-y-6">
+          <TabsContent value="credentials" className="mt-4 sm:mt-6">
+            <div className="space-y-4 sm:space-y-6">
               {isLoading ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Loading...
@@ -517,7 +517,7 @@ export default function IntegrationSettings() {
                 <>
                   {INTEGRATION_CREDENTIAL_TYPES[integrationType] && (
                     <div className="space-y-2">
-                      <h2 className="text-sm font-medium">Credential type</h2>
+                      <h2 className="text-xs sm:text-sm font-medium">Credential type</h2>
                       {/* <p className="text-xs text-muted-foreground mb-3">
                         Select a credential to use for this integration.
                       </p> */}
@@ -525,7 +525,7 @@ export default function IntegrationSettings() {
                         <input
                           type="text"
                           readOnly
-                          className="w-full bg-secondary/50 border border-border rounded-md px-3 py-2 text-sm cursor-default"
+                          className="w-full bg-secondary/50 border border-border rounded-md px-3 py-2 text-xs sm:text-sm cursor-default"
                           value={INTEGRATION_CREDENTIAL_TYPES[integrationType].label}
                         />
                       </div>
@@ -551,7 +551,7 @@ export default function IntegrationSettings() {
                         variant="destructive"
                         onClick={handleDelete}
                         disabled={isDeleting || isSaving}
-                        className="w-full sm:w-auto text-xs md:text-sm"
+                        className="w-full sm:w-auto text-xs sm:text-sm"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         {isDeleting ? 'Deleting...' : 'Delete'}
@@ -567,7 +567,7 @@ export default function IntegrationSettings() {
                         }
                       }}
                       disabled={isSaving || isDeleting}
-                      className="w-full sm:w-auto min-w-[120px] text-xs md:text-sm"
+                      className="w-full sm:w-auto min-w-[120px] text-xs sm:text-sm"
                     >
                       {isSaving ? (hasSavedIntegration ? 'Saving...' : 'Connecting...') : (hasSavedIntegration ? 'Save' : 'Connect')}
                     </Button>
@@ -583,24 +583,24 @@ export default function IntegrationSettings() {
 
           {/* Tools Tab */}
           {integrationTools.length > 0 && (
-            <TabsContent value="tools" className="mt-6">
-              <div className="space-y-4">
-                <div className="space-y-2 mb-4">
-                  <h2 className="text-sm font-medium">Tools</h2>
+            <TabsContent value="tools" className="mt-4 sm:mt-6">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-2 mb-3 sm:mb-4">
+                  <h2 className="text-xs sm:text-sm font-medium">Tools</h2>
                   <p className="text-xs text-muted-foreground">
                     Tools available through your {metadata.name} integration.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {integrationTools.map((tool) => (
                     <div
                       key={tool}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
+                      className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border border-border bg-card"
                     >
-                      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0", metadata.iconBg)}>
+                      <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0", metadata.iconBg)}>
                         {metadata.icon}
                       </div>
-                      <span className="text-sm font-medium">{tool}</span>
+                      <span className="text-xs sm:text-sm font-medium">{tool}</span>
                     </div>
                   ))}
                 </div>
@@ -609,22 +609,22 @@ export default function IntegrationSettings() {
           )}
 
           {/* About Tab */}
-          <TabsContent value="about" className="mt-6">
-            <div className="space-y-4">
+          <TabsContent value="about" className="mt-4 sm:mt-6">
+            <div className="space-y-3 sm:space-y-4">
               <div className="space-y-2">
-                <h2 className="text-sm font-medium">About</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <h2 className="text-xs sm:text-sm font-medium">About</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   {integrationDescription}
                 </p>
               </div>
               {metadata.url && (
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-xs sm:text-sm"
                   onClick={() => window.open(metadata.url, '_blank', 'noopener,noreferrer')}
                 >
                   Learn more
-                  <ExternalLink className="h-3.5 w-3.5 ml-2" />
+                  <ExternalLink className="h-3 w-3 sm:h-3.5 sm:w-3.5 ml-2" />
                 </Button>
               )}
             </div>

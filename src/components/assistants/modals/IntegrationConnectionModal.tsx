@@ -409,27 +409,27 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0">
-        <div className="px-6 py-5 border-b bg-gradient-to-r from-background to-secondary/10 flex-shrink-0">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b bg-gradient-to-r from-background to-secondary/10 flex-shrink-0">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 {integrationModalStep === "select" ? (
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                    <Puzzle className="h-6 w-6" />
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary flex-shrink-0">
+                    <Puzzle className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                 ) : (
                   <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-semibold shadow-md",
+                    "w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-white text-base sm:text-lg font-semibold shadow-md flex-shrink-0",
                     integrationMeta.iconBg
                   )}>
                     {integrationMeta.icon}
                   </div>
                 )}
-                <div>
-                  <DialogTitle className="text-xl">
+                <div className="min-w-0 flex-1">
+                  <DialogTitle className="text-lg sm:text-xl truncate">
                     {integrationModalStep === "select" ? "Add Integration" : integrationMeta.name}
                   </DialogTitle>
-                  <DialogDescription className="text-sm mt-0.5">
+                  <DialogDescription className="text-xs sm:text-sm mt-0.5 line-clamp-1">
                     {integrationModalStep === "select" 
                       ? "Connect your assistant to external services" 
                       : editingIntegrationConfig 
@@ -439,7 +439,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                 </div>
               </div>
               {editingIntegrationConfig && (
-                <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
+                <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 self-start sm:self-auto flex-shrink-0">
                   <ShieldCheck className="h-3 w-3 mr-1" />
                   Connected
                 </Badge>
@@ -508,18 +508,18 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
             </ScrollArea>
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="p-8 space-y-8">
+              <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
                   {/* Credentials Section - Hide for integrations with no fields (like Twilio) or when already connected to agent */}
                   {/* Show API key field when adding integration to agent, even if it exists in userIntegrations */}
                   {!hasNoFields && isNewIntegration && (
                     <div className="space-y-6">
-                      <div className="flex items-start gap-3 mb-6 pb-4 border-b border-border/50">
-                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                          <ShieldCheck className="h-5 w-5 text-primary" />
+                      <div className="flex items-start gap-2 sm:gap-3 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-border/50">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                          <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold mb-1">Credentials</h3>
-                          <p className="text-sm text-muted-foreground">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg sm:text-xl font-semibold mb-1">Credentials</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             Connect your {integrationMeta.name} account to enable tools for your assistant.
                           </p>
                         </div>
@@ -797,13 +797,13 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                   {/* Tools Section */}
                   <div className="space-y-5 border-t border-border/50 pt-8">
                     <div className="flex items-start justify-between gap-4 mb-6">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                          <Wrench className="h-5 w-5 text-primary" />
+                      <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                          <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold mb-1">Available Tools</h3>
-                          <p className="text-sm text-muted-foreground">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg sm:text-xl font-semibold mb-1">Available Tools</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {(isNewIntegration || isWizardMode || hasNoFields)
                               ? "All tools will be added to your assistant" 
                               : "Select the tools you want to enable for your assistant"}
@@ -823,10 +823,10 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                     </div>
 
                       <div className={cn(
-                        "grid gap-3",
+                        "grid gap-2 sm:gap-3",
                         (isNewIntegration || isWizardMode) 
-                          ? "grid-cols-2 md:grid-cols-3" 
-                          : "grid-cols-3"
+                          ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" 
+                          : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
                       )}>
                         {toolsToDisplay.map((toolName) => {
                           // For new integrations, wizard mode, or integrations with no fields (like Twilio), show as simple list (no selection)
@@ -901,8 +901,8 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
           )}
         </div>
 
-        <div className="px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-end items-center flex-shrink-0">
-          <div className="flex gap-3">
+        <div className="px-4 sm:px-6 py-4 border-t bg-gradient-to-r from-background to-secondary/5 flex justify-end items-center flex-shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             {integrationModalStep !== "select" && (
               <>
                 {(() => {
@@ -952,7 +952,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           }
                         }}
                         disabled={isSaving}
-                        className="min-w-32"
+                        className="w-full sm:w-auto min-w-32"
                       >
                         {isSaving ? (
                           <>
@@ -994,7 +994,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                             }
                           }}
                           disabled={isSaving}
-                          className="min-w-32"
+                          className="w-full sm:w-auto min-w-32"
                         >
                           {isSaving ? (
                             <>
@@ -1036,7 +1036,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           }
                         }}
                         disabled={isSaving}
-                        className="min-w-32"
+                        className="w-full sm:w-auto min-w-32"
                       >
                         {isSaving ? (
                           <>
@@ -1079,7 +1079,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           await handleSaveSelectedIntegrationTools();
                         }}
                         disabled={isSaving}
-                        className="min-w-32"
+                        className="w-full sm:w-auto min-w-32"
                       >
                         {isSaving ? (
                           <>
@@ -1121,7 +1121,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           setSelectedIntegrationToolsForModal(availableTools);
                         }}
                         disabled={connectingIntegrationLoading || isSaving || !apiKey}
-                        className="min-w-32"
+                        className="w-full sm:w-auto min-w-32"
                       >
                         {connectingIntegrationLoading || isSaving ? (
                           <>
@@ -1166,7 +1166,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           }
                         }}
                         disabled={isSaving}
-                        className="min-w-32"
+                        className="w-full sm:w-auto min-w-32"
                       >
                         {isSaving ? (
                           <>
@@ -1248,7 +1248,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           type="button"
                           onClick={handleOAuthConnect}
                           disabled={oauthLoading || connectingIntegrationLoading || isSaving || disconnecting}
-                          className="min-w-32"
+                          className="w-full sm:w-auto min-w-32"
                         >
                           {oauthLoading || connectingIntegrationLoading || isSaving || disconnecting ? (
                             <>
@@ -1357,7 +1357,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
                           }
                         }}
                         disabled={isButtonDisabled}
-                        className="min-w-32"
+                        className="w-full sm:w-auto min-w-32"
                       >
                         {connectingIntegrationLoading || isSaving ? (
                           <>

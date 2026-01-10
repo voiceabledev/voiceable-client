@@ -404,162 +404,212 @@ export default function ConversationsTab({
     : false;
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
       {/* List */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={cn(
+        "flex-1 flex flex-col overflow-hidden",
+        selectedConversation && "hidden md:flex"
+      )}>
         {/* Search */}
-        <div className="p-4 border-b border-border">
+        <div className="p-3 sm:p-4 border-b border-border">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-secondary/50 border-border"
+              className="pl-9 bg-secondary/50 border-border text-sm"
             />
           </div>
         </div>
 
-        {/* Table */}
+        {/* Conversations List */}
         <div className="flex-1 overflow-auto">
-          <table className="w-full">
-            <thead className="sticky top-0 bg-background">
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Date & Time</th>
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Duration</th>
-                <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      <span className="text-sm text-muted-foreground">Loading conversations...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredConversations.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-12">
-                    {searchQuery ? (
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <p className="text-sm">No conversations found matching your search.</p>
-                      </div>
-                    ) : !agentId ? (
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <p className="text-sm">Please select an agent to view conversations.</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-6 py-8">
-                        <div className="flex flex-col items-center gap-2 text-center">
-                          <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-2">
-                            <MessageSquare className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-foreground">No conversations yet</h3>
-                          <p className="text-sm text-muted-foreground max-w-md">
-                            Start receiving conversations by setting up a phone number for voice calls or configuring the widget for web chat.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          {onNavigateToPhoneNumber && !hasPhoneNumber && (
-                            <Button
-                              onClick={onNavigateToPhoneNumber}
-                              className="flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
-                            >
-                              <Phone className="h-4 w-4" />
-                              Buy Phone Number
-                            </Button>
-                          )}
-                          {onNavigateToWidget && !hasWidgetApiKey && (
-                            <Button
-                              onClick={onNavigateToWidget}
-                              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                            >
-                              <Layout className="h-4 w-4" />
-                              Configure Widget
-                            </Button>
-                          )}
-                          {onMakeFirstCall && hasWidgetApiKey && (
-                            <Button
-                              onClick={onMakeFirstCall}
-                              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                            >
-                              <Phone className="h-4 w-4" />
-                              Talk to the Agent
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                </tr>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Loading conversations...</span>
+              </div>
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="px-4 py-8 sm:py-12">
+              {searchQuery ? (
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                  <p className="text-sm">No conversations found matching your search.</p>
+                </div>
+              ) : !agentId ? (
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                  <p className="text-sm">Please select an agent to view conversations.</p>
+                </div>
               ) : (
-                filteredConversations.map((conv) => {
-                  // Use cost from backend if available, otherwise show N/A
+                <div className="flex flex-col items-center justify-center gap-4 sm:gap-6 py-4 sm:py-8">
+                  <div className="flex flex-col items-center gap-2 text-center px-4">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-2">
+                      <MessageSquare className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground">No conversations yet</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground max-w-md">
+                      Start receiving conversations by setting up a phone number for voice calls or configuring the widget for web chat.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto px-4 sm:px-0">
+                    {onNavigateToPhoneNumber && !hasPhoneNumber && (
+                      <Button
+                        onClick={onNavigateToPhoneNumber}
+                        className="flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 w-full sm:w-auto"
+                      >
+                        <Phone className="h-4 w-4" />
+                        Buy Phone Number
+                      </Button>
+                    )}
+                    {onNavigateToWidget && !hasWidgetApiKey && (
+                      <Button
+                        onClick={onNavigateToWidget}
+                        className="flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto"
+                      >
+                        <Layout className="h-4 w-4" />
+                        Configure Widget
+                      </Button>
+                    )}
+                    {onMakeFirstCall && hasWidgetApiKey && (
+                      <Button
+                        onClick={onMakeFirstCall}
+                        className="flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto"
+                      >
+                        <Phone className="h-4 w-4" />
+                        Talk to the Agent
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Mobile Card Layout */}
+              <div className="md:hidden space-y-2 p-4">
+                {filteredConversations.map((conv) => {
                   const costDisplay = conv.cost?.formatted 
                     || (conv.cost?.amount_dollars !== undefined ? `$${conv.cost.amount_dollars.toFixed(2)}` : 'N/A');
                   
                   return (
-                    <tr
+                    <div
                       key={conv.id}
                       onClick={() => setSelectedConversation(conv)}
                       className={cn(
-                        "border-b border-border cursor-pointer transition-colors",
+                        "border border-border rounded-lg p-4 cursor-pointer transition-colors",
                         selectedConversation?.id === conv.id
-                          ? "bg-sidebar-accent"
-                          : "hover:bg-secondary/30"
+                          ? "bg-sidebar-accent border-primary"
+                          : "bg-card hover:bg-secondary/30"
                       )}
                     >
-                      <td className="px-4 py-3 text-sm">
-                        <div>{conv.date || 'N/A'}</div>
-                        {conv.userId && conv.userId !== 'Unknown User' && (
-                          <div className="text-xs text-muted-foreground mt-1">Caller: {conv.userId}</div>
-                        )}
-                        {conv.summary && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{conv.summary}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex items-center gap-1">
-                          <span className="text-muted-foreground">💰</span>
-                          <span>{costDisplay}</span>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm mb-1">{conv.date || 'N/A'}</div>
+                          {conv.summary && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">{conv.summary}</p>
+                          )}
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 mt-3 pt-3 border-t border-border">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>Duration: {conv.duration || '0:00'}</span>
+                          <span className="flex items-center gap-1">
+                            <span>💰</span>
+                            {costDisplay}
+                          </span>
+                        </div>
+                        {conv.userId && conv.userId !== 'Unknown User' && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {conv.userId}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-background z-10">
+                      <tr className="border-b border-border text-left">
+                        <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Date & Time</th>
+                        <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Duration</th>
+                        <th className="px-4 py-3 text-sm font-medium text-muted-foreground">Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredConversations.map((conv) => {
+                        const costDisplay = conv.cost?.formatted 
+                          || (conv.cost?.amount_dollars !== undefined ? `$${conv.cost.amount_dollars.toFixed(2)}` : 'N/A');
+                        
+                        return (
+                          <tr
+                            key={conv.id}
+                            onClick={() => setSelectedConversation(conv)}
+                            className={cn(
+                              "border-b border-border cursor-pointer transition-colors",
+                              selectedConversation?.id === conv.id
+                                ? "bg-sidebar-accent"
+                                : "hover:bg-secondary/30"
+                            )}
+                          >
+                            <td className="px-4 py-3 text-sm">
+                              <div className="font-medium">{conv.date || 'N/A'}</div>
+                              {conv.userId && conv.userId !== 'Unknown User' && (
+                                <div className="text-xs text-muted-foreground mt-1">Caller: {conv.userId}</div>
+                              )}
+                              {conv.summary && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{conv.summary}</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm">{conv.duration || '0:00'}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">💰</span>
+                                <span>{costDisplay}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Detail Panel */}
       {selectedConversation && (
-        <div className="w-[400px] border-l border-border flex flex-col bg-card">
+        <div className="w-full md:w-[400px] border-t md:border-l md:border-t-0 border-border flex flex-col bg-card fixed md:relative inset-0 md:inset-auto z-50 md:z-auto">
           {/* Header */}
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-border flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base font-semibold">
+              <h2 className="text-sm sm:text-base font-semibold pr-2">
                 Conversation with {assistantName}
               </h2>
               <button
                 onClick={() => setSelectedConversation(null)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                aria-label="Close conversation details"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-xs text-muted-foreground font-mono">
+            <p className="text-xs text-muted-foreground font-mono break-all">
               {selectedConversation.id}
             </p>
           </div>
 
           {/* Audio Player */}
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-border flex-shrink-0">
             <div className="bg-secondary/30 rounded-lg p-3">
               {/* Waveform */}
               <div className="h-10 flex items-center gap-0.5 mb-3">
@@ -674,7 +724,7 @@ export default function ConversationsTab({
           </div>
 
           {/* Tabs */}
-          <div className="px-4 pt-3">
+          <div className="px-4 pt-3 flex-shrink-0">
             <div className="flex gap-4 border-b border-border">
               {(["overview", "transcription"] as const).map((tab) => (
                 <button

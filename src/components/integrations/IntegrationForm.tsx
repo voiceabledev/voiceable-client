@@ -460,11 +460,11 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
         
         return (
           <div key={fieldName} className="space-y-2">
-            <Label htmlFor={fieldName} className="text-xs md:text-sm">
+            <Label htmlFor={fieldName} className="text-xs sm:text-sm">
               {fieldConfig.label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
               {hasOriginalValue && (
-                <span className="text-xs text-muted-foreground font-normal ml-2">(configured)</span>
+                <span className="text-xs text-muted-foreground font-normal ml-1 sm:ml-2">(configured)</span>
               )}
             </Label>
             <div className="relative">
@@ -505,7 +505,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
                   e.preventDefault();
                 }
               }}
-              className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm pr-10 ${
+              className={`bg-secondary/50 border-border h-9 sm:h-10 text-xs sm:text-sm pr-10 ${
                 error ? 'border-destructive' : ''
               }`}
               disabled={isLoading}
@@ -566,7 +566,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
       case 'select': {
         return (
           <div key={fieldName} className="space-y-2">
-            <Label htmlFor={fieldName} className="text-xs md:text-sm">
+            <Label htmlFor={fieldName} className="text-xs sm:text-sm">
               {fieldConfig.label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
@@ -576,7 +576,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
               disabled={isLoading}
             >
               <SelectTrigger
-                className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
+                className={`bg-secondary/50 border-border h-9 sm:h-10 text-xs sm:text-sm ${
                   error ? 'border-destructive' : ''
                 }`}
               >
@@ -601,7 +601,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
       case 'url':
         return (
           <div key={fieldName} className="space-y-2">
-            <Label htmlFor={fieldName} className="text-xs md:text-sm">
+            <Label htmlFor={fieldName} className="text-xs sm:text-sm">
               {fieldConfig.label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
@@ -617,7 +617,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
                   e.preventDefault();
                 }
               }}
-              className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
+              className={`bg-secondary/50 border-border h-9 sm:h-10 text-xs sm:text-sm ${
                 error ? 'border-destructive' : ''
               }`}
               disabled={isLoading}
@@ -632,7 +632,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
       case 'number': {
         return (
           <div key={fieldName} className="space-y-2">
-            <Label htmlFor={fieldName} className="text-xs md:text-sm">
+            <Label htmlFor={fieldName} className="text-xs sm:text-sm">
               {fieldConfig.label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
@@ -650,7 +650,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
               }}
               min={fieldConfig.min}
               max={fieldConfig.max}
-              className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
+              className={`bg-secondary/50 border-border h-9 sm:h-10 text-xs sm:text-sm ${
                 error ? 'border-destructive' : ''
               }`}
               disabled={isLoading}
@@ -666,7 +666,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
       default:
         return (
           <div key={fieldName} className="space-y-2">
-            <Label htmlFor={fieldName} className="text-xs md:text-sm">
+            <Label htmlFor={fieldName} className="text-xs sm:text-sm">
               {fieldConfig.label}
               {isRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
@@ -682,7 +682,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
                   e.preventDefault();
                 }
               }}
-              className={`bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm ${
+              className={`bg-secondary/50 border-border h-9 sm:h-10 text-xs sm:text-sm ${
                 error ? 'border-destructive' : ''
               }`}
               disabled={isLoading}
@@ -830,19 +830,19 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
           e.preventDefault();
         }
       }}
-      className="space-y-3 md:space-y-4"
+      className="space-y-3 sm:space-y-4"
       noValidate
     >
       {shouldShowOAuthButton ? (
         <div className="space-y-2">
-          <Label className="text-xs md:text-sm">{oauthButtonText.label}</Label>
+          <Label className="text-xs sm:text-sm">{oauthButtonText.label}</Label>
           <Button
             type="button"
             variant="outline"
             onClick={handleOAuthConnect}
             disabled={isLoading || oauthLoading}
             className={cn(
-              "w-full text-xs md:text-sm font-medium h-11 relative overflow-hidden",
+              "w-full text-xs sm:text-sm font-medium h-10 sm:h-11 relative overflow-hidden",
               integrationType === 'google_calendar' && "bg-white hover:bg-gray-50 border-gray-300 text-gray-700 hover:text-gray-900 shadow-sm",
               integrationType === 'calendly' && "bg-[#0069FF] hover:bg-[#0052CC] text-white border-[#0069FF] hover:border-[#0052CC] shadow-sm",
               integrationType === 'outlook_calendar' && "bg-[#0078D4] hover:bg-[#0064B8] text-white border-[#0078D4] hover:border-[#0064B8] shadow-sm"
@@ -883,10 +883,10 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
         </div>
       ) : hasNoFields ? (
         // For integrations with no fields (like Twilio using environment variables)
-        <div className="space-y-4 py-4">
-          <div className="flex items-start gap-3 p-4 rounded-lg border-l-4 border-primary/30 bg-primary/5">
+        <div className="space-y-3 sm:space-y-4 py-3 sm:py-4">
+          <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border-l-4 border-primary/30 bg-primary/5">
             <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <div className="text-sm">
+            <div className="text-xs sm:text-sm min-w-0">
               <p className="font-medium text-foreground mb-1">No Configuration Required</p>
               <p className="text-muted-foreground">
                 This integration uses environment variables configured on the server. Click "Connect" to enable the integration and select available tools.
@@ -916,7 +916,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
                   }
                 }}
                 disabled={isLoading || disconnecting}
-                className="w-full text-xs md:text-sm"
+                className="w-full text-xs sm:text-sm"
               >
                 {disconnecting ? "Disconnecting..." : `Disconnect ${integrationType === 'twilio' ? 'Twilio' : 'Integration'}`}
               </Button>
@@ -930,7 +930,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
             if (isOAuthIntegration && (fieldName === 'api_key' || fieldName === 'access_token' || fieldName === 'refresh_token')) {
               return (
                 <div key={fieldName} className="space-y-2">
-                  <Label htmlFor={fieldName} className="text-xs md:text-sm">
+                  <Label htmlFor={fieldName} className="text-xs sm:text-sm">
                     {fieldConfig.label}
                   </Label>
                   <Input
@@ -939,7 +939,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
                     value="••••••••••••••••"
                     readOnly
                     disabled
-                    className="bg-secondary/50 border-border h-9 md:h-10 text-xs md:text-sm"
+                    className="bg-secondary/50 border-border h-9 sm:h-10 text-xs sm:text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
                     OAuth token (auto-populated). Reconnect to refresh.
@@ -972,7 +972,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
                   }
                 }}
                 disabled={isLoading || disconnecting}
-                className="w-full text-xs md:text-sm"
+                className="w-full text-xs sm:text-sm"
               >
                 {disconnecting ? "Disconnecting..." : `Disconnect ${integrationType === 'calendly' ? 'Calendly' : integrationType === 'google_calendar' ? 'Google Calendar' : integrationType === 'outlook_calendar' ? 'Outlook Calendar' : 'Integration'}`}
               </Button>
@@ -987,7 +987,7 @@ export const IntegrationForm = forwardRef<IntegrationFormRef, IntegrationFormPro
             type="submit"
             variant="default"
             disabled={isLoading}
-            className="w-full sm:w-auto min-w-[120px] text-xs md:text-sm"
+            className="w-full sm:w-auto min-w-[120px] text-xs sm:text-sm"
           >
             {isLoading ? (hasSavedValues ? 'Saving...' : 'Connecting...') : (submitButtonText || (hasSavedValues ? 'Save' : 'Connect'))}
           </Button>

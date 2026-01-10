@@ -384,19 +384,19 @@ export default function AssistantsList() {
     return (
       <div
         onClick={onClick}
-        className="group relative flex h-56 flex-col justify-end overflow-hidden p-6 transition-colors hover:bg-neutral-600 md:h-80 md:p-9 cursor-pointer"
+        className="group relative flex h-48 sm:h-56 md:h-72 lg:h-80 flex-col justify-end overflow-hidden p-4 sm:p-6 md:p-8 lg:p-9 transition-colors hover:bg-neutral-600 cursor-pointer"
       >
-        <div className="absolute left-3 top-5 z-10 flex items-center gap-1.5 text-xs uppercase text-neutral-400 transition-colors duration-500 group-hover:text-neutral-50">
-          <FiWatch className="text-base" />
+        <div className="absolute left-3 top-5 z-10 flex items-center gap-1.5 text-xs sm:text-sm uppercase text-neutral-400 transition-colors duration-500 group-hover:text-neutral-50">
+          <FiWatch className="text-sm sm:text-base" />
           <span>{modelInfo}</span>
         </div>
         
-        <h2 className="relative z-10 text-3xl leading-tight text-neutral-50 transition-transform duration-500 group-hover:-translate-y-3">
+        <h2 className="relative z-10 text-xl sm:text-2xl md:text-3xl leading-tight text-neutral-50 transition-transform duration-500 group-hover:-translate-y-3 line-clamp-2">
           {assistant.name || 'Unnamed Agent'}
         </h2>
 
         {tags && (
-          <p className="relative z-10 text-sm text-neutral-400 mt-2 transition-colors duration-500 group-hover:text-neutral-300">
+          <p className="relative z-10 text-xs sm:text-sm text-neutral-400 mt-2 transition-colors duration-500 group-hover:text-neutral-300 line-clamp-1">
             {tags}
           </p>
         )}
@@ -405,7 +405,7 @@ export default function AssistantsList() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-neutral-400 hover:text-neutral-50"
+            className="h-9 w-9 sm:h-8 sm:w-8 text-neutral-400 hover:text-neutral-50"
             onClick={onEdit}
             title="Edit"
           >
@@ -414,7 +414,7 @@ export default function AssistantsList() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-neutral-400 hover:text-destructive"
+            className="h-9 w-9 sm:h-8 sm:w-8 text-neutral-400 hover:text-destructive"
             onClick={onDelete}
             title="Delete"
           >
@@ -523,7 +523,7 @@ export default function AssistantsList() {
           type="submit"
           disabled={!prompt.trim() || isCreating}
           className={cn(
-            "flex shrink-0 items-center justify-center rounded-full bg-[#2A66FF] size-9 p-2 transition-all active:scale-[0.985] self-end mb-1",
+            "flex shrink-0 items-center justify-center rounded-full bg-[#2A66FF] size-8 sm:size-9 p-2 transition-all active:scale-[0.985] self-end mb-1",
             prompt.trim() 
               ? "opacity-100 hover:opacity-90" 
               : "opacity-50 hover:opacity-70",
@@ -582,13 +582,13 @@ export default function AssistantsList() {
     <div className="min-h-screen flex flex-col">
 
       {/* Prompt Input Section - 70% of viewport height */}
-      <div className="relative flex items-center justify-center h-[70vh] p-4 md:p-6 border-b border-border bg-neutral-50 overflow-hidden">
+      <div className="relative flex items-center justify-center min-h-[50vh] md:h-[70vh] p-4 sm:p-6 md:p-8 border-b border-border bg-neutral-50 overflow-hidden">
         <BGGrid />
         <div className="relative z-10 w-full max-w-6xl space-y-4">
           <BeamInput />
 
         <div className="space-y-3 mt-4 flex flex-col items-center justify-center">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 w-full">
             {SUGGESTED_BEHAVIORS.map((behavior, index) => (
               <BehaviorCard
                 key={index}
@@ -605,7 +605,7 @@ export default function AssistantsList() {
       </div>
 
       {/* Assistants List Section - starts at 70% of viewport */}
-      <div className="p-4 md:p-12 bg-neutral-500 text-neutral-50">
+      <div className="p-4 sm:p-6 md:p-8 lg:p-12 bg-neutral-500 text-neutral-50">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-300 mb-4" />
@@ -616,10 +616,10 @@ export default function AssistantsList() {
             {searchQuery ? (
               // Search results empty state
               <>
-                <div className="w-16 h-16 rounded-full bg-neutral-600 flex items-center justify-center mb-4">
-                  <Search className="h-8 w-8 text-neutral-200" />
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-neutral-600 flex items-center justify-center mb-4">
+                  <Search className="h-6 w-6 sm:h-8 sm:w-8 text-neutral-200" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-neutral-50">No assistants found</h3>
+                <h3 className="text-base sm:text-lg font-semibold mb-2 text-neutral-50">No assistants found</h3>
                 <p className="text-sm text-neutral-200 mb-4">
                   Try adjusting your search query
                 </p>
@@ -627,10 +627,10 @@ export default function AssistantsList() {
             ) : (
               // Simple empty state message
               <>
-                <div className="w-16 h-16 rounded-full bg-neutral-600 flex items-center justify-center mb-4">
-                  <Bot className="h-8 w-8 text-neutral-200" />
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-neutral-600 flex items-center justify-center mb-4">
+                  <Bot className="h-6 w-6 sm:h-8 sm:w-8 text-neutral-200" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-neutral-50">No assistants yet</h3>
+                <h3 className="text-base sm:text-lg font-semibold mb-2 text-neutral-50">No assistants yet</h3>
                 <p className="text-sm text-neutral-200">
                   Create your first assistant using the prompt above
                 </p>
@@ -638,7 +638,7 @@ export default function AssistantsList() {
             )}
           </div>
         ) : (
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
             {(() => {
               // Group assistants into rows of 3
               const rows: Agent[][] = [];
@@ -656,7 +656,7 @@ export default function AssistantsList() {
                   <div 
                     key={rowIndex}
                     className={cn(
-                      "grid grid-cols-1 divide-y divide-neutral-400 md:grid-cols-3 md:divide-x md:divide-y-0",
+                      "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y divide-neutral-400 sm:divide-x sm:divide-y-0",
                       borderClasses
                     )}
                   >
