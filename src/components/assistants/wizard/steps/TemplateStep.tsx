@@ -47,6 +47,7 @@ export function TemplateStep({
           onChange={(e) => onAssistantNameChange(e.target.value)}
           placeholder="New Assistant"
           className="bg-secondary/50 border-border"
+          data-wizard-field="name"
         />
       </div>
 
@@ -84,6 +85,8 @@ export function TemplateStep({
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50 bg-card"
                   )}
+                  data-wizard-action="select-template"
+                  data-wizard-value={template.id}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(

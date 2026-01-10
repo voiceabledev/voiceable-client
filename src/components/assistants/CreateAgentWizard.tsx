@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { useIntegrationTools } from "@/hooks/assistants/useIntegrationTools";
 import { IntegrationConnectionModal } from "@/components/assistants/modals/IntegrationConnectionModal";
-import { INTEGRATION_TOOLS_DISPLAY } from "@/constants/assistant";
+import { INTEGRATION_TOOLS_DISPLAY, getIntegrationIcon, formatToolName, displayNameToActionName } from "@/constants/assistant";
 import { getAvailableIntegrationTypes } from "@/constants/integrations";
 import type { AgentIntegrationTool, WebhookTool } from "@/types/assistant";
 import type { UserIntegration as IntegrationUserIntegration } from "@/types/integrations";
@@ -45,13 +46,15 @@ import { SectionEntryModal } from "./wizard/SectionEntryModal";
 import { useWizardState } from "./wizard/hooks/useWizardState";
 import { useVoicePreview } from "./wizard/hooks/useVoicePreview";
 import { useTemplateDefaults } from "./wizard/hooks/useTemplateDefaults";
+import { GuidedSetupChat } from "./GuidedSetupChat";
+import { WizardContextProvider, WizardContextValue } from "./wizard/WizardContextProvider";
 import { NameStep } from "./wizard/steps/NameStep";
 import { TemplateStep } from "./wizard/steps/TemplateStep";
 import { ModelStep } from "./wizard/steps/ModelStep";
 import { CallOutcomesStep } from "./wizard/steps/CallOutcomesStep";
 import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
 import { VoiceLanguageStep } from "./wizard/steps/VoiceLanguageStep";
-import { IntegrationsStep } from "./wizard/steps/IntegrationsStep";
+import { AgentIntegrationToolsSection } from "@/components/integrations/AgentIntegrationToolsSection";
 import type { EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { normalizeLanguage } from "@/constants/languages";
 
@@ -237,6 +240,18 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const integrationHook = useIntegrationTools(webhookTools, setWebhookTools);
   const [userIntegrations, setUserIntegrations] = useState<IntegrationUserIntegration[]>([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(false);
+  const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(true);
+  const [integrationToolsExpanded, setIntegrationToolsExpanded] = useState<Record<string, boolean>>({});
+  const previousIntegrationToolsRef = React.useRef<Set<string>>(new Set());
+  const [agentFunctionsRefreshKey, setAgentFunctionsRefreshKey] = useState(0);
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
+  
+  // Ensure chat is open when entering step 5
+  useEffect(() => {
+    if (currentStep === 5) {
+      setIsChatMinimized(false);
+    }
+  }, [currentStep]);
   
   // Widget preview and phone number modals
   const [showWidgetPreview, setShowWidgetPreview] = useState(false);
@@ -1718,6 +1733,47 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   const selectedVoices = voices.filter(v => selectedVoiceIds.includes(v.id));
 
+  // Transform agentIntegrationTools array to Record format for AgentIntegrationToolsSection
+  const agentIntegrationToolsRecord = React.useMemo(() => {
+    const record: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
+    
+    integrationHook.agentIntegrationTools.forEach(tool => {
+      if (!record[tool.integration_type]) {
+        record[tool.integration_type] = {
+          enabled: true,
+          enabledTools: [],
+        };
+      }
+      if (tool.enabled) {
+        record[tool.integration_type].enabledTools.push(tool.tool_name);
+      }
+    });
+    
+    return record;
+  }, [integrationHook.agentIntegrationTools]);
+
+  // Auto-expand newly added integrations
+  React.useEffect(() => {
+    const currentIntegrationTypes = new Set(Object.keys(agentIntegrationToolsRecord));
+    const previousIntegrationTypes = previousIntegrationToolsRef.current;
+    
+    // Find newly added integrations
+    currentIntegrationTypes.forEach(integrationType => {
+      if (!previousIntegrationTypes.has(integrationType)) {
+        // New integration added, expand it
+        setIntegrationToolsExpanded(prev => ({
+          ...prev,
+          [integrationType]: true
+        }));
+        // Also ensure the section is expanded
+        setIntegrationToolsSectionExpanded(true);
+      }
+    });
+    
+    // Update ref for next comparison
+    previousIntegrationToolsRef.current = currentIntegrationTypes;
+  }, [agentIntegrationToolsRecord]);
+
   const renderStepContent = () => {
     // Step 0 = Template, 1 = Model, 2 = Voice & Language, 3 = Call Outcomes, 4 = Agent Behaviour, 5 = Integrations
     switch (currentStep) {
@@ -1828,19 +1884,45 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         );
       case 5: // Integrations step
         return (
-          <IntegrationsStep
-            requiredIntegrations={requiredIntegrations}
-            userIntegrations={userIntegrations}
-            agentIntegrationTools={integrationHook.agentIntegrationTools}
-            loadingIntegrations={loadingIntegrations}
-            onConnectIntegration={async (integrationType, userIntegration) => {
+          <AgentIntegrationToolsSection
+            agentIntegrationTools={agentIntegrationToolsRecord}
+            integrationToolsSectionExpanded={integrationToolsSectionExpanded}
+            integrationToolsExpanded={integrationToolsExpanded}
+            agentFunctionsRefreshKey={agentFunctionsRefreshKey}
+            onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
+            onToggleIntegrationExpanded={(integrationType) => {
+              setIntegrationToolsExpanded(prev => ({
+                ...prev,
+                [integrationType]: !prev[integrationType]
+              }));
+            }}
+            onOpenAddIntegrationModal={async () => {
+              // Open integration connection modal - this will show the integration selection
+              // The IntegrationConnectionModal will handle showing available integrations
+              // For now, we can trigger it by selecting a common integration type
+              // The modal will show all available options
+              const availableTypes = getAvailableIntegrationTypes();
+              if (availableTypes.length > 0) {
+                // Open with the first available type - the modal will show all options
+                await integrationHook.selectIntegrationToAdd(availableTypes[0].id);
+              } else {
+                toast({
+                  title: "No integrations available",
+                  description: "Please check your integration settings.",
+                  variant: "default",
+                });
+              }
+            }}
+            onOpenEditIntegrationModal={async (integrationType) => {
+              const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
               if (userIntegration) {
                 await integrationHook.openEditIntegrationModal(userIntegration);
               } else {
+                // If integration doesn't exist, open add modal
                 await integrationHook.selectIntegrationToAdd(integrationType);
               }
             }}
-            onRemoveIntegration={async (integrationType) => {
+            onDeleteIntegration={async (integrationType) => {
               // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
               if (agentId && agentId !== "new") {
                 try {
@@ -1896,6 +1978,59 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 });
               }
             }}
+            onToggleTool={async (integrationType, displayName, enabled) => {
+              // Toggle tool enable/disable
+              const actionName = displayNameToActionName(displayName, integrationType);
+              const updatedTools = integrationHook.agentIntegrationTools.map(tool => {
+                if (tool.integration_type === integrationType && tool.tool_name === actionName) {
+                  return { ...tool, enabled };
+                }
+                return tool;
+              });
+              
+              // If tool doesn't exist, add it
+              const existingTool = updatedTools.find(
+                t => t.integration_type === integrationType && t.tool_name === actionName
+              );
+              
+              if (!existingTool) {
+                updatedTools.push({
+                  integration_type: integrationType,
+                  tool_name: actionName,
+                  enabled: true,
+                });
+              }
+              
+              integrationHook.setAgentIntegrationTools(updatedTools);
+              
+              // Update webhook tools if agent exists
+              if (agentId && agentId !== "new") {
+                // Save to backend
+                const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+                updatedTools.forEach(tool => {
+                  if (tool.enabled) {
+                    if (!integrationToolsPayload[tool.integration_type]) {
+                      integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
+                    }
+                    integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
+                  }
+                });
+                
+                try {
+                  await agentsApi.update(agentId, {
+                    integration_tools: integrationToolsPayload,
+                  } as any);
+                } catch (error) {
+                  console.error("Failed to update integration tools:", error);
+                }
+              }
+            }}
+            INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
+            getIntegrationIcon={getIntegrationIcon}
+            formatToolName={formatToolName}
+            displayNameToActionName={displayNameToActionName}
+            userIntegrations={userIntegrations as any}
+            agentId={agentId || undefined}
           />
         );
       default:
@@ -1915,8 +2050,141 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     );
   }
 
+  // Build wizard context value
+  const wizardContextValue: WizardContextValue = {
+    currentStep,
+    formValues: {
+      name,
+      templateId: selectedTemplate,
+      provider: selectedProvider,
+      model: selectedModel,
+      voiceIds: selectedVoiceIds,
+      languages: selectedLanguages,
+      scenarios,
+      phases,
+      voiceTone,
+      callOutcomes: primaryOutcomes,
+      integrationTools: integrationHook.agentIntegrationTools.reduce((acc, tool) => {
+        if (!acc[tool.integration_type]) {
+          acc[tool.integration_type] = { enabled: tool.enabled, enabled_tools: [] };
+        }
+        if (tool.enabled) {
+          acc[tool.integration_type].enabled_tools.push(tool.tool_name);
+        }
+        return acc;
+      }, {} as Record<string, { enabled: boolean; enabled_tools: string[] }>),
+    },
+    isAgentCreated: !!agentId && agentId !== "new",
+    agentId: agentId || null,
+    agentSlug: agentSlug || null,
+    availableActions: (() => {
+      const actions = ["back", "save"];
+      if (currentStep === 0) {
+        actions.push("select-template", "name");
+      } else if (currentStep === 1) {
+        actions.push("provider", "model");
+      } else if (currentStep === 2) {
+        actions.push("voice", "language");
+      } else if (currentStep === 5) {
+        actions.push("open-integration-modal", "integration_modal");
+      }
+      return actions;
+    })(),
+    navigateToStep: (step: number) => {
+      if (step >= 0 && step < steps.length) {
+        setCurrentStep(step);
+      }
+    },
+    goToNextStep: () => handleSetStep(1),
+    goToPreviousStep: () => handleSetStep(-1),
+    updateFormValue: (key: string, value: any) => {
+      switch (key) {
+        case "name":
+          setName(value);
+          break;
+        case "templateId":
+          setSelectedTemplate(value);
+          break;
+        case "provider":
+          setSelectedProvider(value);
+          break;
+        case "model":
+          setSelectedModel(value);
+          break;
+        // Add more cases as needed
+      }
+    },
+    updateFormValues: (values: any) => {
+      Object.entries(values).forEach(([key, value]) => {
+        wizardContextValue.updateFormValue(key, value);
+      });
+    },
+    clickButton: async (buttonId: string) => {
+      if (buttonId === "back") {
+        handleSetStep(-1);
+      } else if (buttonId === "save" || buttonId === "next") {
+        await handleSaveStep();
+      } else {
+        // Try to find and click button via DOM
+        const button = document.querySelector(`[data-wizard-action="${buttonId}"]`) as HTMLElement;
+        if (button) {
+          button.click();
+        }
+      }
+    },
+    fillField: async (fieldId: string, value: any) => {
+      wizardContextValue.updateFormValue(fieldId, value);
+      // Also trigger DOM update
+      const field = document.querySelector(`[data-wizard-field="${fieldId}"]`) as HTMLInputElement;
+      if (field) {
+        field.value = String(value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    },
+    selectOption: async (fieldId: string, value: any) => {
+      wizardContextValue.updateFormValue(fieldId, value);
+      // Also trigger DOM update
+      const select = document.querySelector(`[data-wizard-field="${fieldId}"]`) as HTMLSelectElement;
+      if (select) {
+        select.value = String(value);
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      } else {
+        // Try button selection
+        const button = document.querySelector(`[data-wizard-action="${fieldId}"][data-wizard-value="${value}"]`) as HTMLElement;
+        if (button) {
+          button.click();
+        }
+      }
+    },
+    openIntegrationModal: async (integrationType: string) => {
+      // Check if integration already exists
+      const existingIntegration = userIntegrations.find(i => i.integration_type === integrationType);
+      if (existingIntegration) {
+        // Open edit modal for existing integration
+        await integrationHook.openEditIntegrationModal(existingIntegration);
+      } else {
+        // Open add modal for new integration
+        await integrationHook.selectIntegrationToAdd(integrationType);
+      }
+    },
+    getStepName: (step: number) => steps[step]?.label || "Unknown",
+    getAvailableActionsForStep: (step: number) => {
+      const actions = ["back", "save"];
+      if (step === 0) {
+        actions.push("select-template", "name");
+      } else if (step === 1) {
+        actions.push("provider", "model");
+      } else if (step === 2) {
+        actions.push("voice", "language");
+      }
+      return actions;
+    },
+  };
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <WizardContextProvider value={wizardContextValue}>
+      <div className="flex-1 flex flex-col overflow-hidden">
       <div className="p-6 md:p-8 bg-card border-b border-border">
         <Steps 
           numSteps={steps.length} 
@@ -1926,35 +2194,99 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2">
-              {steps[currentStep]?.label}
-            </h2>
-            <p className="text-muted-foreground">
-              {(() => {
-                if (currentStep === 0) return "Choose a template and name your assistant.";
-                if (currentStep === 1) return "Configure the AI model for your assistant.";
-                if (currentStep === 2) return "Select a voice and language for your assistant.";
-                if (currentStep === 3) return "Define what success means for your agent's calls.";
-                if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
-                if (currentStep === 5) return "Connect integrations to enable additional features for your assistant.";
-                return "";
-              })()}
-            </p>
+        {currentStep === 5 ? (
+          // Main content with right padding to prevent overlap with fixed chat (only when chat is expanded on desktop)
+          <div className={cn(
+            "w-full mx-auto",
+            !isChatMinimized && "lg:pr-[420px]"
+          )}>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-2">
+                {steps[currentStep]?.label}
+              </h2>
+              <p className="text-muted-foreground">
+                Connect integrations to enable additional features for your assistant.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-6">
+              {renderStepContent()}
+            </div>
           </div>
-          <div className="bg-card border border-border rounded-lg p-6">
-            {renderStepContent()}
+        ) : (
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-2">
+                {steps[currentStep]?.label}
+              </h2>
+              <p className="text-muted-foreground">
+                {(() => {
+                  if (currentStep === 0) return "Choose a template and name your assistant.";
+                  if (currentStep === 1) return "Configure the AI model for your assistant.";
+                  if (currentStep === 2) return "Select a voice and language for your assistant.";
+                  if (currentStep === 3) return "Define what success means for your agent's calls.";
+                  if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
+                  return "";
+                })()}
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-6">
+              {renderStepContent()}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="border-t border-border p-6 md:p-8">
+      {/* Fixed Floating Chat Widget - Only visible on step 5 */}
+      {currentStep === 5 && (
+        <div className="block">
+          <GuidedSetupChat
+            agentId={agentId || undefined}
+            agent={agentData}
+            wizardContext={wizardContextValue}
+            renderMode="inline"
+            startMinimized={false}
+            disableInput={false}
+            onMinimizedChange={(minimized) => setIsChatMinimized(minimized)}
+            onFunctionEnabled={() => setAgentFunctionsRefreshKey(prev => prev + 1)}
+            onComplete={async () => {
+              if (!agentId) return;
+              
+              // Refresh agent data to show new integrations
+              try {
+                const agentResponse = await agentsApi.get(agentId);
+                if (agentResponse.data) {
+                  setAgentData(agentResponse.data);
+                  if (agentResponse.data.slug) {
+                    setAgentSlug(agentResponse.data.slug);
+                  }
+                }
+              } catch (err) {
+                console.error('Failed to fetch agent data after setup:', err);
+              }
+              
+              toast({
+                title: "Success",
+                description: "Assistant setup completed!",
+              });
+            }}
+            onClose={() => {
+              // Chat can be minimized, no action needed on close
+            }}
+          />
+        </div>
+      )}
+
+      <div className={cn(
+        "sticky bottom-0 border-t border-border p-6 md:p-8 bg-background shadow-lg z-40",
+        currentStep === 5 && !isChatMinimized ? "lg:pr-[420px]" : ""
+      )}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <Button
             variant="outline"
             onClick={() => handleSetStep(-1)}
             disabled={currentStep === 0 || saving}
+            data-wizard-action="back"
+            id="wizard-back-button"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -1962,6 +2294,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           <Button
             onClick={handleSaveStep}
             disabled={!isStepValid() || saving}
+            data-wizard-action="save"
+            id="wizard-save-button"
           >
             {saving ? (
               <>
@@ -2184,6 +2518,43 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         onOpenChange={setShowPhoneNumberModal}
         defaultAgentId={agentId || undefined}
       />
-    </div>
+
+      {/* Guided Setup Chat - Show minimized on other steps, inline on step 5 */}
+      {currentStep !== 5 && (
+        <GuidedSetupChat
+          agentId={agentId || undefined}
+          agent={agentData}
+          wizardContext={wizardContextValue}
+          renderMode="portal"
+          startMinimized={true}
+          onFunctionEnabled={() => setAgentFunctionsRefreshKey(prev => prev + 1)}
+          onComplete={async () => {
+            if (!agentId) return;
+            
+            // Refresh agent data to show new integrations
+            try {
+              const agentResponse = await agentsApi.get(agentId);
+              if (agentResponse.data) {
+                setAgentData(agentResponse.data);
+                if (agentResponse.data.slug) {
+                  setAgentSlug(agentResponse.data.slug);
+                }
+              }
+            } catch (err) {
+              console.error('Failed to fetch agent data after setup:', err);
+            }
+            
+            toast({
+              title: "Success",
+              description: "Assistant setup completed!",
+            });
+          }}
+          onClose={() => {
+            // Chat can be minimized, no action needed on close
+          }}
+        />
+      )}
+      </div>
+    </WizardContextProvider>
   );
 }

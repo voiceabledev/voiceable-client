@@ -40,6 +40,7 @@ import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab, { type OutcomeConfigTabRef } from "@/components/assistants/OutcomeConfigTab";
 import { DashboardTab } from "@/components/assistants/DashboardTab";
 import { AssistantDetailTour, type TourStep } from "@/components/assistants/AssistantDetailTour";
+import { GuidedSetupChat } from "@/components/assistants/GuidedSetupChat";
 
 // Modals
 import { WebhookToolModal } from "@/components/assistants/modals/WebhookToolModal";
@@ -2544,6 +2545,40 @@ export default function AssistantDetail() {
           onClose={handleTourComplete}
           onComplete={handleTourComplete}
           steps={tourSteps}
+        />
+      )}
+
+      {/* Guided Setup Chat - Show on all tabs */}
+      {agentData.agent && !isNew && (
+        <GuidedSetupChat
+          agentId={agentId}
+          agent={agentData.agent}
+          renderMode="inline"
+          startMinimized={true}
+          onComplete={async () => {
+            // Remove setup parameter from URL if it exists
+            if (searchParams.get("setup") === "true") {
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.delete("setup");
+              setSearchParams(newSearchParams, { replace: true });
+            }
+            
+            // Refresh agent data to show new integrations
+            await agentData.fetchAgentDetails();
+            
+            toast({
+              title: "Success",
+              description: "Assistant setup completed!",
+            });
+          }}
+          onClose={() => {
+            // Remove setup parameter from URL if it exists
+            if (searchParams.get("setup") === "true") {
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.delete("setup");
+              setSearchParams(newSearchParams, { replace: true });
+            }
+          }}
         />
       )}
     </div>

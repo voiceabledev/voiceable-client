@@ -33,6 +33,7 @@ type AgentIntegrationToolsSectionProps = {
   displayNameToActionName: (displayName: string, integrationType: string) => string;
   userIntegrations: UserIntegration[];
   agentId?: string;
+  agentFunctionsRefreshKey?: number; // When this changes, refresh agent functions
 };
 
 export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSectionProps> = ({
@@ -51,6 +52,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   displayNameToActionName,
   userIntegrations,
   agentId,
+  agentFunctionsRefreshKey,
 }) => {
   const connectedCount = Object.keys(agentIntegrationTools).length;
   const [deletingIntegrationType, setDeletingIntegrationType] = useState<string | null>(null);
@@ -138,12 +140,12 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
     });
   }, [integrationToolsExpanded, loadFunctionsForIntegration]);
 
-  // Load agent functions on mount and when agentId changes
+  // Load agent functions on mount and when agentId changes or refresh key changes
   useEffect(() => {
     if (agentId) {
       loadAgentFunctions();
     }
-  }, [agentId, loadAgentFunctions]);
+  }, [agentId, agentFunctionsRefreshKey, loadAgentFunctions]);
 
   // Handle function toggle
   const handleFunctionToggle = async (functionId: number, enabled: boolean) => {

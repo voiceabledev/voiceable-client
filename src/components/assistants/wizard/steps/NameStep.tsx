@@ -16,6 +16,8 @@ export function NameStep({ name, onNameChange }: NameStepProps) {
           onChange={(e) => onNameChange(e.target.value)}
           placeholder="Enter a name for your assistant"
           className="w-full bg-white"
+          data-wizard-field="name"
+          id="wizard-name-input"
         />
       </div>
     </div>
