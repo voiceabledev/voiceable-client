@@ -29,13 +29,11 @@ export const modelsByProvider: Record<string, { value: string; label: string }[]
   elevenlabs: [
     { value: "glm-45-air-fp8", label: "GLM-4.5-Air" },
     { value: "qwen3-30b-a3b", label: "Qwen3-30B-A3B" },
-    { value: "qwen3-4b", label: "Qwen3-4B" },
     { value: "gpt-oss-120b", label: "GPT-OSS-120B" },
-    { value: "gpt-oss-20b", label: "GPT-OSS-20B" },
-    { value: "custom-llm", label: "Custom LLM" },
   ],
   google: [
     { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+    { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
     { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
@@ -46,6 +44,7 @@ export const modelsByProvider: Record<string, { value: string; label: string }[]
   openai: [
     { value: "gpt-5", label: "GPT-5" },
     { value: "gpt-5.1", label: "GPT-5.1" },
+    { value: "gpt-5.2", label: "GPT-5.2" },
     { value: "gpt-5-mini", label: "GPT-5 Mini" },
     { value: "gpt-5-nano", label: "GPT-5 Nano" },
     { value: "gpt-4.1", label: "GPT-4.1" },
@@ -55,8 +54,6 @@ export const modelsByProvider: Record<string, { value: string; label: string }[]
     { value: "gpt-4o-mini", label: "GPT-4o Mini" },
     { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
     { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-    { value: "gpt-4o-cluster", label: "GPT 4o Cluster" },
-    { value: "gpt-4", label: "GPT-4" },
   ],
   anthropic: [
     { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },

@@ -1384,6 +1384,37 @@ export const secretsApi = {
   },
 };
 
+// Public Pricing Settings API
+export interface PricingSetting {
+  id: number;
+  category: 'llm' | 'tts' | 'stt' | 'transport' | 'hosting';
+  provider: string;
+  model_id?: string;
+  name: string;
+  cost_per_minute?: number;
+  cost_per_million_tokens?: number;
+  active: boolean;
+  display_order?: number;
+}
+
+export const pricingSettingsApi = {
+  list: async (params?: { category?: string; provider?: string }): Promise<ApiResponse<PricingSetting[]>> => {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.provider) queryParams.append('provider', params.provider);
+    const queryString = queryParams.toString();
+    const endpoint = `/pricing_settings${queryString ? `?${queryString}` : ''}`;
+    // The backend returns { status: {...}, data: [...] }
+    // apiClient.get<T> expects T to be the type of the 'data' field in the response
+    const response = await apiClient.get<PricingSetting[]>(endpoint);
+    return response;
+  },
+  getCommissionMarkup: async (): Promise<ApiResponse<{ commission_markup: number }>> => {
+    const response = await apiClient.get<{ commission_markup: number }>('/pricing_settings/commission_markup');
+    return response;
+  },
+};
+
 // Admin API types
 export type MembershipStatus = 'trial' | 'active' | 'expired' | 'cancelled' | 'suspended' | 'free';
 
@@ -1463,6 +1494,20 @@ export interface AdminApiKey {
   user_email?: string;
   key_type: string;
   name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminPricingSetting {
+  id: number;
+  category: 'llm' | 'tts' | 'stt' | 'transport' | 'hosting';
+  provider: string;
+  model_id?: string;
+  name: string;
+  cost_per_minute?: number;
+  cost_per_million_tokens?: number;
+  active: boolean;
+  display_order?: number;
   created_at: string;
   updated_at: string;
 }
@@ -1748,6 +1793,56 @@ export const adminApi = {
     },
     destroy: async (id: number) => {
       const response = await apiClient.delete(`/admin/agent_behaviours/${id}`);
+      return response;
+    },
+  },
+  pricingSettings: {
+    list: async (params?: { category?: string; provider?: string; active?: boolean }): Promise<ApiResponse<AdminPricingSetting[]>> => {
+      const queryParams = new URLSearchParams();
+      if (params?.category) queryParams.append('category', params.category);
+      if (params?.provider) queryParams.append('provider', params.provider);
+      if (params?.active !== undefined) queryParams.append('active', params.active.toString());
+      const queryString = queryParams.toString();
+      const endpoint = `/admin/pricing_settings${queryString ? `?${queryString}` : ''}`;
+      // The backend returns { status: {...}, data: [...] }
+      // apiClient.get<T> expects T to be the type of the 'data' field in the response
+      const response = await apiClient.get<AdminPricingSetting[]>(endpoint);
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminPricingSetting }>(`/admin/pricing_settings/${id}`);
+      return response;
+    },
+    create: async (data: Partial<AdminPricingSetting>) => {
+      const response = await apiClient.post<{ data: AdminPricingSetting }>('/admin/pricing_settings', {
+        pricing_setting: data,
+      });
+      return response;
+    },
+    update: async (id: number, data: Partial<AdminPricingSetting>) => {
+      const response = await apiClient.put<{ data: AdminPricingSetting }>(`/admin/pricing_settings/${id}`, {
+        pricing_setting: data,
+      });
+      return response;
+    },
+    destroy: async (id: number) => {
+      const response = await apiClient.delete(`/admin/pricing_settings/${id}`);
+      return response;
+    },
+    bulkUpdate: async (updates: Array<{ id: number; data: Partial<AdminPricingSetting> }>) => {
+      const response = await apiClient.post<{ data: { results: Array<{ id: number; status: string }>; errors?: Array<{ id: number; errors: string[] }> } }>('/admin/pricing_settings/bulk_update', {
+        updates: updates,
+      });
+      return response;
+    },
+    getCommissionMarkup: async () => {
+      const response = await apiClient.get<{ commission_markup: number }>('/admin/pricing_settings/commission_markup');
+      return response;
+    },
+    updateCommissionMarkup: async (markup: number) => {
+      const response = await apiClient.put<{ commission_markup: number }>('/admin/pricing_settings/commission_markup', {
+        commission_markup: markup,
+      });
       return response;
     },
   },

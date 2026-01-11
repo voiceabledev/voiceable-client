@@ -39,7 +39,7 @@ const Header = () => {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
           >
-            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" fetchPriority="high" />
+            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" fetchpriority="high" />
           </button>
 
           {/* Desktop Navigation */}

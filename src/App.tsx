@@ -64,6 +64,7 @@ const AdminApiKeys = lazy(() => import("@/pages/admin/ApiKeys"));
 const AdminFinancialSimulation = lazy(() => import("@/pages/admin/FinancialSimulation"));
 const AdminTemplates = lazy(() => import("@/pages/admin/Templates"));
 const AdminBehaviours = lazy(() => import("@/pages/admin/Behaviours"));
+const AdminPricingSettings = lazy(() => import("@/pages/admin/PricingSettings"));
 
 // Loading component for lazy routes
 const LoadingFallback = () => (
@@ -148,6 +149,7 @@ const App = () => (
                   <Route path="payments" element={<Suspense fallback={<LoadingFallback />}><AdminPayments /></Suspense>} />
                   <Route path="conversation-spending" element={<Suspense fallback={<LoadingFallback />}><AdminConversationSpending /></Suspense>} />
                   <Route path="financial-simulation" element={<Suspense fallback={<LoadingFallback />}><AdminFinancialSimulation /></Suspense>} />
+                  <Route path="pricing-settings" element={<Suspense fallback={<LoadingFallback />}><AdminPricingSettings /></Suspense>} />
                 </Route>
                 
                 <Route path="*" element={<NotFound />} />

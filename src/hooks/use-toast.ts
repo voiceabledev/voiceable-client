@@ -3,7 +3,7 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 3000; // 3 seconds - time before toast auto-dismisses
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -142,7 +142,16 @@ function toast({ ...props }: Toast) {
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     });
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+  
+  const dismiss = () => {
+    // Clear the auto-dismiss timeout if it exists
+    const timeoutId = toastTimeouts.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      toastTimeouts.delete(id);
+    }
+    dispatch({ type: "DISMISS_TOAST", toastId: id });
+  };
 
   // Dispatch to new notification system
   const notificationEvent = new CustomEvent("show-notification", {
@@ -162,8 +171,11 @@ function toast({ ...props }: Toast) {
       ...props,
       id,
       open: true,
+      duration: TOAST_REMOVE_DELAY,
       onOpenChange: (open) => {
-        if (!open) dismiss();
+        if (!open) {
+          dismiss();
+        }
       },
     },
   });

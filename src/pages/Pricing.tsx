@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { pricingSettingsApi, PricingSetting } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,111 +40,145 @@ import {
 import Header from "@/components/landing-page/Header";
 import Footer from "@/components/landing-page/Footer";
 
-// LLM Options organized by provider
-const llmOptions = {
-  OpenAI: [
-    { id: "gpt-4.1", name: "GPT-4.1", cost: 0.06 },
-    { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", cost: 0.01 },
-    { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", cost: 0.01 },
-    { id: "gpt-4.5-preview", name: "GPT-4.5 Preview", cost: 2.12 },
-    { id: "gpt-4o-mini", name: "GPT-4o Mini", cost: 0.01 },
-    { id: "gpt-4o", name: "GPT-4o", cost: 0.07 },
-    { id: "chatgpt-4o", name: "ChatGPT-4o (Latest)", cost: 0.14 },
-    { id: "gpt-4o-realtime-preview", name: "GPT-4o Mini Realtime Preview", cost: 0.28 },
-    { id: "gpt-4o-realtime", name: "GPT-4o Realtime Preview", cost: 1.14 },
-    { id: "o3", name: "O3", cost: 0.28 },
-    { id: "o3-mini", name: "O3 Mini", cost: 0.03 },
-    { id: "o4-mini", name: "O4 Mini", cost: 0.04 },
-    { id: "o1-preview", name: "O1 Preview", cost: 0.43 },
-    { id: "o1-mini", name: "O1 Mini", cost: 0.03 },
-  ],
-  Anthropic: [
-    { id: "claude-3-opus", name: "Claude 3 Opus", cost: 0.09 },
-    { id: "claude-3.5-sonnet", name: "Claude 3.5 Sonnet", cost: 0.09 },
-    { id: "claude-3.5-haiku", name: "Claude 3.5 Haiku", cost: 0.09 },
-    { id: "claude-3.7-sonnet", name: "Claude 3.7 Sonnet", cost: 0.09 },
-  ],
-  XAI: [
-    { id: "grok-beta", name: "Grok Beta", cost: 0.14 },
-    { id: "grok-2", name: "Grok 2", cost: 0.06 },
-    { id: "grok-3", name: "Grok 3", cost: 0.06 },
-  ],
-  Mistral: [
-    { id: "mistral-large", name: "Mistral Large", cost: 0.002 },
-    { id: "pixtral-large", name: "Pixtral Large", cost: 0.002 },
-    { id: "mistral-small", name: "Mistral Small", cost: 0.0001 },
-  ],
-  Google: [
-    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", cost: 0.09 },
-    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", cost: 0.09 },
-    { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro", cost: 0.09 },
-    { id: "gemini-2.0-flash-thinking", name: "Gemini 2.0 Flash Thinking (Experimental)", cost: 0.09 },
-    { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite Preview", cost: 0.09 },
-    { id: "gemini-2.0-pro", name: "Gemini 2.0 Pro", cost: 0.09 },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", cost: 0.09 },
-    { id: "gemma-3", name: "Gemma-3 via OpenRouter", cost: 0.09 },
-  ],
-  "Inflection AI": [
-    { id: "inflection-3-pi", name: "Inflection 3 Pi", cost: 0.01 },
-  ],
-  "Together AI": [
-    { id: "together-default", name: "Default", cost: 0.0009 },
-  ],
-  Anyscale: [
-    { id: "anyscale-default", name: "Default", cost: 0.001 },
-  ],
-  OpenRouter: [
-    { id: "openrouter-default", name: "Default", cost: 0.0005 },
-  ],
-  "Perplexity AI": [
-    { id: "perplexity-default", name: "Default", cost: 0.001 },
-  ],
-  DeepInfra: [
-    { id: "deepinfra-default", name: "Default", cost: 0.0007 },
-  ],
-  Groq: [
-    { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", cost: 0.001 },
-    { id: "llama3-8b-8192", name: "Llama3 8B 8192", cost: 0.001 },
-    { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B 32768", cost: 0.01 },
-    { id: "gemma2-9b-it", name: "Gemma2 9B IT", cost: 0.01 },
-    { id: "deepseek-r1-distill-llama-70b", name: "Deepseek R1 Distill Llama 70B", cost: 0.02 },
-    { id: "llama-3.3-70b-versatile", name: "Llama-3.3 70B Versatile", cost: 0.02 },
-    { id: "llama-3.1-70b-versatile", name: "Llama-3.1 70B Versatile", cost: 0.02 },
-  ],
-  DeepSeek: [
-    { id: "deepseek-v3", name: "DeepSeek V3", cost: 0.01 },
-    { id: "deepseek-r1", name: "DeepSeek R1", cost: 0.02 },
-  ],
-  Cerebras: [
-    { id: "llama-3.3-70b", name: "Llama 3.3 70B", cost: 0.02 },
-    { id: "llama-3.1-8b", name: "Llama 3.1 8B", cost: 0.0001 },
-  ],
-};
-
-// Transport options
-const transportOptions = [
-  { id: "twilio-inbound", name: "Inbound", cost: 0.008 },
-  { id: "twilio-outbound", name: "Outbound", cost: 0.014 },
-];
-
 // Constants
-const HOSTING_COST_PER_MIN = 0.05;
-const TTS_COST_PER_MIN = 0.036; // ElevenLabs default
-const STT_COST_PER_MIN = 0.00667; // ElevenLabs default
 const TOKENS_PER_MINUTE = 4066.667; // Average tokens per minute of conversation
+
+// Default fallback values (used if API fails)
+const DEFAULT_HOSTING_COST_PER_MIN = 0.05;
+const DEFAULT_TTS_COST_PER_MIN = 0.036;
+const DEFAULT_STT_COST_PER_MIN = 0.00667;
+const DEFAULT_TRANSPORT_COSTS: Record<string, number> = {
+  "twilio-inbound": 0.008,
+  "twilio-outbound": 0.014,
+};
 
 const Pricing = () => {
   const navigate = useNavigate();
   const [callsPerMonth, setCallsPerMonth] = useState("100");
   const [callLength, setCallLength] = useState("10");
   const [promptTokens, setPromptTokens] = useState("1000");
+  const [commissionMarkup, setCommissionMarkup] = useState<number>(0.70); // Default fallback
   const [selectedTransport, setSelectedTransport] = useState("twilio-inbound");
-  const [selectedLLM, setSelectedLLM] = useState("gpt-4.1");
+  const [selectedLLM, setSelectedLLM] = useState<string>("gpt-4.1");
   const [showContactSalesModal, setShowContactSalesModal] = useState(false);
   
   // Collapsible sections state
   const [isTransportOpen, setIsTransportOpen] = useState(true);
   const [isLLMOpen, setIsLLMOpen] = useState(true);
+
+  // Pricing settings from API
+  const [pricingSettings, setPricingSettings] = useState<PricingSetting[]>([]);
+  const [loadingPricing, setLoadingPricing] = useState(true);
+
+  // Fetch pricing settings
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const response = await pricingSettingsApi.list();
+        if (response.data) {
+          const settings = response.data || [];
+          console.log("Response:", response);
+          console.log("Fetched pricing settings:", settings.length, "items");
+          console.log("LLM settings:", settings.filter(s => s.category === 'llm').length);
+          setPricingSettings(settings);
+        }
+      } catch (error) {
+        console.error("Error fetching pricing settings:", error);
+        // Continue with default values if API fails
+      } finally {
+        setLoadingPricing(false);
+      }
+    };
+    fetchPricing();
+  }, []);
+
+  // Fetch commission markup
+  useEffect(() => {
+    const fetchCommissionMarkup = async () => {
+      try {
+        const response = await pricingSettingsApi.getCommissionMarkup();
+        if (response.data?.commission_markup !== undefined) {
+          setCommissionMarkup(response.data.commission_markup);
+        }
+      } catch (error) {
+        console.error("Error fetching commission markup:", error);
+        // Fallback to default 0.70 if API fails
+        setCommissionMarkup(0.70);
+      }
+    };
+    fetchCommissionMarkup();
+  }, []);
+
+  // Organize pricing settings by category and provider
+  const organizePricingSettings = () => {
+    const organized: {
+      llm: Record<string, Array<{ id: string; name: string; cost: number }>>;
+      transport: Array<{ id: string; name: string; cost: number }>;
+      hosting: number;
+      tts: number;
+      stt: number;
+    } = {
+      llm: {},
+      transport: [],
+      hosting: DEFAULT_HOSTING_COST_PER_MIN,
+      tts: DEFAULT_TTS_COST_PER_MIN,
+      stt: DEFAULT_STT_COST_PER_MIN,
+    };
+
+    pricingSettings.forEach((setting) => {
+      if (!setting.active) return;
+
+      if (setting.category === 'llm' && setting.model_id && setting.cost_per_million_tokens !== null && setting.cost_per_million_tokens !== undefined) {
+        // Capitalize provider name properly (e.g., "elevenlabs" -> "ElevenLabs", "openai" -> "OpenAI")
+        const providerName = setting.provider;
+        const provider = providerName === 'elevenlabs' ? 'ElevenLabs' :
+                        providerName === 'openai' ? 'OpenAI' :
+                        providerName === 'anthropic' ? 'Anthropic' :
+                        providerName === 'google' ? 'Google' :
+                        providerName === 'meta' ? 'Meta' :
+                        providerName === 'mistral' ? 'Mistral' :
+                        providerName === 'cohere' ? 'Cohere' :
+                        providerName === 'groq' ? 'Groq' :
+                        providerName === 'perplexity' ? 'Perplexity' :
+                        providerName.charAt(0).toUpperCase() + providerName.slice(1);
+        if (!organized.llm[provider]) {
+          organized.llm[provider] = [];
+        }
+        organized.llm[provider].push({
+          id: setting.model_id,
+          name: setting.name,
+          cost: setting.cost_per_million_tokens,
+        });
+      } else if (setting.category === 'transport' && setting.cost_per_minute) {
+        organized.transport.push({
+          id: setting.model_id || setting.provider,
+          name: setting.name,
+          cost: setting.cost_per_minute,
+        });
+      } else if (setting.category === 'hosting' && setting.cost_per_minute) {
+        organized.hosting = setting.cost_per_minute;
+      } else if (setting.category === 'tts' && setting.cost_per_minute) {
+        organized.tts = setting.cost_per_minute;
+      } else if (setting.category === 'stt' && setting.cost_per_minute) {
+        organized.stt = setting.cost_per_minute;
+      }
+    });
+
+    return organized;
+  };
+
+  const pricingData = organizePricingSettings();
+  
+  // Debug logging
+  useEffect(() => {
+    if (pricingSettings.length > 0) {
+      console.log("Pricing data organized:", {
+        llmProviders: Object.keys(pricingData.llm),
+        llmCount: Object.values(pricingData.llm).reduce((sum, models) => sum + models.length, 0),
+        transportCount: pricingData.transport.length,
+      });
+    }
+  }, [pricingSettings, pricingData]);
 
   // Calculate costs
   const calculateCosts = () => {
@@ -153,10 +188,10 @@ const Pricing = () => {
     
     const totalMinutes = calls * length;
     
-    // Find selected LLM
-    let llmCostPerMillion = 0.06; // Default to GPT-4.1
-    for (const provider of Object.values(llmOptions)) {
-      const llm = provider.find(l => l.id === selectedLLM);
+    // Find selected LLM cost per million tokens
+    let llmCostPerMillion = 0.0057; // Default fallback
+    for (const providerModels of Object.values(pricingData.llm)) {
+      const llm = providerModels.find(l => l.id === selectedLLM);
       if (llm) {
         llmCostPerMillion = llm.cost;
         break;
@@ -164,27 +199,38 @@ const Pricing = () => {
     }
     
     // Find selected transport
-    const transport = transportOptions.find(t => t.id === selectedTransport);
-    const transportCostPerMin = transport?.cost || 0.008;
+    const transport = pricingData.transport.find(t => t.id === selectedTransport);
+    const transportCostPerMin = transport?.cost || DEFAULT_TRANSPORT_COSTS[selectedTransport] || 0.008;
     
-    // Calculate individual costs
-    const hostingCost = totalMinutes * HOSTING_COST_PER_MIN;
-    const transportCost = totalMinutes * transportCostPerMin;
-    const ttsCost = totalMinutes * TTS_COST_PER_MIN;
-    const sttCost = totalMinutes * STT_COST_PER_MIN;
+    // Base costs (at cost)
+    const hostingCost = totalMinutes * pricingData.hosting;
+    const transportCostBase = totalMinutes * transportCostPerMin;
+    const ttsCostBase = totalMinutes * pricingData.tts;
+    const sttCostBase = totalMinutes * pricingData.stt;
     
     // Calculate LLM tokens: (total minutes * tokens per minute) + (calls * prompt tokens)
     const llmTokens = (totalMinutes * TOKENS_PER_MINUTE) + (calls * tokens);
-    const llmCost = (llmTokens / 1_000_000) * llmCostPerMillion;
+    const llmCostBase = (llmTokens / 1_000_000) * llmCostPerMillion;
     
-    const totalCost = hostingCost + transportCost + ttsCost + sttCost + llmCost;
+    // Apply commission markup to provider costs
+    const providerCostsBase = transportCostBase + ttsCostBase + sttCostBase + llmCostBase;
+    const providerRevenue = providerCostsBase * (1 + commissionMarkup);
+    
+    // Total cost includes hosting (no commission) + provider revenue (with commission)
+    const totalCost = hostingCost + providerRevenue;
     
     return {
       hostingCost,
-      transportCost,
-      ttsCost,
-      sttCost,
-      llmCost,
+      transportCostBase,
+      ttsCostBase,
+      sttCostBase,
+      llmCostBase,
+      providerCostsBase,
+      providerRevenue,
+      transportCost: transportCostBase * (1 + commissionMarkup),
+      ttsCost: ttsCostBase * (1 + commissionMarkup),
+      sttCost: sttCostBase * (1 + commissionMarkup),
+      llmCost: llmCostBase * (1 + commissionMarkup),
       totalCost,
       totalMinutes,
       llmTokens,
@@ -509,7 +555,7 @@ const Pricing = () => {
                   Container hosting for your agents
                 </p>
               </div>
-              <span className="font-medium">${HOSTING_COST_PER_MIN.toFixed(2)} / min</span>
+              <span className="font-medium">${pricingData.hosting.toFixed(4)} / min</span>
             </div>
 
             {/* Transport */}
@@ -523,10 +569,14 @@ const Pricing = () => {
                   {!isTransportOpen && selectedTransport ? (
                     <div className="mt-1">
                       <p className="text-sm font-medium text-foreground">
-                        {transportOptions.find(t => t.id === selectedTransport)?.name}
+                        {pricingData.transport.find(t => t.id === selectedTransport)?.name || 'Transport'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        ${transportOptions.find(t => t.id === selectedTransport)?.cost.toFixed(3)} / min
+                        ${(() => {
+                          const transport = pricingData.transport.find(t => t.id === selectedTransport);
+                          const baseCost = transport?.cost || DEFAULT_TRANSPORT_COSTS[selectedTransport] || 0.008;
+                          return (baseCost * (1 + commissionMarkup)).toFixed(4);
+                        })()} / min (includes commission)
                 </p>
               </div>
                   ) : (
@@ -550,15 +600,34 @@ const Pricing = () => {
                   }}
                 >
                   <div className="space-y-2">
-                    {transportOptions.map((option) => (
-                      <div key={option.id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
-                        <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer flex-1">
-                          <RadioGroupItem value={option.id} id={option.id} />
-                          <span>{option.name}</span>
-                        </Label>
-                        <span className="font-medium">${option.cost.toFixed(3)} / min</span>
-                      </div>
-                    ))}
+                    {pricingData.transport.length > 0 ? (
+                      pricingData.transport.map((option) => {
+                        const priceWithCommission = option.cost * (1 + COMMISSION_MARKUP);
+                        return (
+                          <div key={option.id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
+                            <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer flex-1">
+                              <RadioGroupItem value={option.id} id={option.id} />
+                              <span>{option.name}</span>
+                            </Label>
+                            <span className="font-medium">${priceWithCommission.toFixed(4)} / min</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      // Fallback to default transport options if API data not available
+                      Object.entries(DEFAULT_TRANSPORT_COSTS).map(([id, cost]) => {
+                        const priceWithCommission = cost * (1 + COMMISSION_MARKUP);
+                        return (
+                          <div key={id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
+                            <Label htmlFor={id} className="flex items-center gap-2 cursor-pointer flex-1">
+                              <RadioGroupItem value={id} id={id} />
+                              <span>{id === 'twilio-inbound' ? 'Inbound' : 'Outbound'}</span>
+                            </Label>
+                            <span className="font-medium">${priceWithCommission.toFixed(4)} / min</span>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </RadioGroup>
               )}
@@ -576,8 +645,8 @@ const Pricing = () => {
                     <div className="mt-1">
                       <p className="text-sm font-medium text-foreground">
                         {(() => {
-                          for (const provider of Object.values(llmOptions)) {
-                            const model = provider.find(m => m.id === selectedLLM);
+                          for (const providerModels of Object.values(pricingData.llm)) {
+                            const model = providerModels.find(m => m.id === selectedLLM);
                             if (model) return model.name;
                           }
                           return "";
@@ -585,12 +654,12 @@ const Pricing = () => {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         ${(() => {
-                          for (const provider of Object.values(llmOptions)) {
-                            const model = provider.find(m => m.id === selectedLLM);
-                            if (model) return model.cost.toFixed(2);
+                          for (const providerModels of Object.values(pricingData.llm)) {
+                            const model = providerModels.find(m => m.id === selectedLLM);
+                            if (model) return (model.cost * (1 + COMMISSION_MARKUP)).toFixed(4);
                           }
                           return "0.00";
-                        })()} / 1M tokens
+                        })()} / 1M tokens (includes commission)
                       </p>
                     </div>
                   ) : (
@@ -614,27 +683,36 @@ const Pricing = () => {
                   }}
                 >
                   <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                    {Object.entries(llmOptions).map(([provider, models]) => (
-                      <fieldset key={provider} className="border-0 p-0 m-0">
-                        <legend className="text-sm font-semibold text-muted-foreground mb-2 pl-1">
-                          {provider}
-                        </legend>
-                        <div className="space-y-2 ml-4">
-                          {models.map((model) => (
-                            <div
-                              key={model.id}
-                              className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors"
-                            >
-                              <Label htmlFor={model.id} className="flex items-center gap-2 cursor-pointer flex-1">
-                                <RadioGroupItem value={model.id} id={model.id} />
-                                <span>{model.name}</span>
-                              </Label>
-                              <span className="font-medium">${model.cost.toFixed(2)} / 1M tokens</span>
-                            </div>
-                          ))}
-                        </div>
-                      </fieldset>
-                    ))}
+                    {Object.keys(pricingData.llm).length > 0 ? (
+                      Object.entries(pricingData.llm).map(([provider, models]) => (
+                        <fieldset key={provider} className="border-0 p-0 m-0">
+                          <legend className="text-sm font-semibold text-muted-foreground mb-2 pl-1">
+                            {provider}
+                          </legend>
+                          <div className="space-y-2 ml-4">
+                            {models.map((model) => {
+                              const priceWithCommission = model.cost * (1 + commissionMarkup);
+                              return (
+                                <div
+                                  key={model.id}
+                                  className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors"
+                                >
+                                  <Label htmlFor={model.id} className="flex items-center gap-2 cursor-pointer flex-1">
+                                    <RadioGroupItem value={model.id} id={model.id} />
+                                    <span>{model.name}</span>
+                                  </Label>
+                                  <span className="font-medium">${priceWithCommission.toFixed(4)} / 1M tokens</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        {loadingPricing ? "Loading pricing..." : "No LLM models available. Please configure pricing in admin settings."}
+                      </div>
+                    )}
               </div>
                 </RadioGroup>
               )}
@@ -648,7 +726,7 @@ const Pricing = () => {
                   Natural, high-quality speech synthesis
                 </p>
               </div>
-              <span className="font-medium">${TTS_COST_PER_MIN.toFixed(3)} / min</span>
+              <span className="font-medium">${(pricingData.tts * (1 + COMMISSION_MARKUP)).toFixed(4)} / min</span>
             </div>
 
             {/* STT */}
@@ -659,7 +737,7 @@ const Pricing = () => {
                   Accurate, high-speed speech recognition
                 </p>
               </div>
-              <span className="font-medium">${STT_COST_PER_MIN.toFixed(5)} / min</span>
+              <span className="font-medium">${(pricingData.stt * (1 + commissionMarkup)).toFixed(4)} / min</span>
             </div>
 
             {/* Total */}

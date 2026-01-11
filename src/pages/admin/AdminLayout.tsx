@@ -24,6 +24,7 @@ import {
   FileText,
   Settings,
   Menu,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ const adminNavCategories: NavCategory[] = [
       { icon: CreditCard, label: "Payments", path: "/admin/payments" },
       { icon: TrendingDown, label: "Conversation Spending", path: "/admin/conversation-spending" },
       { icon: Calculator, label: "Financial Simulation", path: "/admin/financial-simulation" },
+      { icon: DollarSign, label: "Pricing Settings", path: "/admin/pricing-settings" },
     ],
   },
 ];
