@@ -161,7 +161,7 @@ const HeroSection = ({
                   { name: "Slack", logo: "https://cdn.simpleicons.org/slack/4A154B", color: "#4A154B" },
                   { name: "Zapier", logo: "https://cdn.simpleicons.org/zapier/FF4A00", color: "#FF4A00" },
                   { name: "Google", logo: "https://cdn.simpleicons.org/google/4285F4", color: "#4285F4" },
-                  { name: "Microsoft", logo: "https://cdn.simpleicons.org/microsoft/00A4EF", color: "#00A4EF" },
+                  { name: "Microsoft", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/microsoft.svg", color: "#00A4EF" },
                   { name: "Stripe", logo: "https://cdn.simpleicons.org/stripe/635BFF", color: "#635BFF" },
                   { name: "Airtable", logo: "https://cdn.simpleicons.org/airtable/18BFFF", color: "#18BFFF" }
                 ].map((integration, i) => (
@@ -171,7 +171,7 @@ const HeroSection = ({
                     title={integration.name}
                   >
                     <img 
-                      src={`https://cdn.simpleicons.org/${integration.name.toLowerCase()}/${integration.color.replace('#', '')}`}
+                      src={integration.logo}
                       alt={integration.name}
                       className="w-5 h-5 object-contain"
                       onError={(e) => {
@@ -183,6 +183,7 @@ const HeroSection = ({
                           parent.style.backgroundColor = integration.color;
                         }
                       }}
+                      loading="lazy"
                     />
                   </div>
                 ))}

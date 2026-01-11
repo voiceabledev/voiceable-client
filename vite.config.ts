@@ -22,12 +22,14 @@ export default defineConfig(({ mode }) => ({
         manualChunks: (id) => {
           // Split vendor chunks
           if (id.includes('node_modules')) {
+            // Keep React, React DOM, and Radix UI together to avoid forwardRef issues
+            // Radix UI components need React.forwardRef which requires React to be in the same chunk
+            if (id.includes('react') || id.includes('react-dom') || id.includes('@radix-ui')) {
+              return 'react-vendor';
+            }
             // Separate large third-party libraries
             if (id.includes('@stripe')) {
               return 'stripe';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'radix-ui';
             }
             if (id.includes('@tanstack')) {
               return 'tanstack';
