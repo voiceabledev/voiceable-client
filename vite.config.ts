@@ -16,37 +16,12 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Enable code splitting for better performance
+    // Temporarily disable manual chunking to fix React availability issues
+    // This ensures all dependencies are available when needed
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // Split vendor chunks
-          if (id.includes('node_modules')) {
-            // Keep React, React DOM, and all React-dependent libraries together
-            // This ensures React is available when other libraries need createContext, forwardRef, etc.
-            if (
-              id.includes('react') || 
-              id.includes('react-dom') || 
-              id.includes('@radix-ui') ||
-              id.includes('react-router') ||
-              id.includes('react-hook-form') ||
-              id.includes('@tanstack/react-query') ||
-              id.includes('framer-motion') ||
-              id.includes('cmdk')
-            ) {
-              return 'react-vendor';
-            }
-            // Separate large third-party libraries that don't depend on React
-            if (id.includes('@stripe')) {
-              return 'stripe';
-            }
-            if (id.includes('recharts')) {
-              return 'recharts';
-            }
-            // All other node_modules
-            return 'vendor';
-          }
-        },
+        // Let Vite handle chunking automatically - it's better at managing dependencies
+        // manualChunks: undefined,
       },
     },
     // Optimize chunk size
