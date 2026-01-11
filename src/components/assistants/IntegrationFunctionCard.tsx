@@ -1,13 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { Switch } from "../ui/switch";
 import { ArrowRight, Bot } from "lucide-react";
 import { cn } from "../../lib/utils";
-import type { AgentFunction } from "@/types/functions";
+import type { AgentFunction, ToolInChain } from "@/types/functions";
 import { getIntegrationIcon } from "@/constants/assistant";
+import { EditableWorkflow } from "../workflows/EditableWorkflow";
+import { agentFunctionsApi } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 type IntegrationFunctionCardProps = {
   agentFunction: AgentFunction;
   onToggle: (enabled: boolean) => void;
+  agentId?: string;
+  onWorkflowUpdate?: () => void;
+  onConfigureCredentials?: (integrationType: string) => void;
 };
 
 const getToolIcon = (toolType: string): string => {
@@ -39,21 +45,36 @@ const getToolDisplayName = (tool: { type: string; role: string; method?: string 
 export const IntegrationFunctionCard: React.FC<IntegrationFunctionCardProps> = ({
   agentFunction,
   onToggle,
+  agentId,
+  onWorkflowUpdate,
+  onConfigureCredentials,
 }) => {
   const { function: func, enabled } = agentFunction;
-  const { tool_chain, name, description } = func;
+  const name = agentFunction.workflow_name || func?.name || "Unnamed Workflow";
+  const description = agentFunction.workflow_description || func?.description;
+  const { toast } = useToast();
 
-  // Sort tool chain by role order: communication -> scheduling -> crm
-  const sortedToolChain = [...tool_chain].sort((a, b) => {
-    const roleOrder: Record<string, number> = {
-      communication: 1,
-      scheduling: 2,
-      crm: 3,
-    };
-    const aOrder = roleOrder[a.role] || 99;
-    const bOrder = roleOrder[b.role] || 99;
-    return aOrder - bOrder;
-  });
+  const handleToolChainUpdate = async (newToolChain: ToolInChain[]) => {
+    if (!agentId) return;
+
+    try {
+      await agentFunctionsApi.updateToolChain(agentId, agentFunction.id, newToolChain);
+      toast({
+        title: "Workflow updated",
+        description: "Tool chain has been updated successfully.",
+      });
+      if (onWorkflowUpdate) {
+        onWorkflowUpdate();
+      }
+    } catch (error) {
+      console.error("Failed to update tool chain:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update workflow. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div
@@ -62,37 +83,22 @@ export const IntegrationFunctionCard: React.FC<IntegrationFunctionCardProps> = (
         enabled ? "bg-primary/5 border-primary/20" : "bg-secondary/30"
       )}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
-          {/* Tool Chain Visualization */}
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            {/* Always start with Agent */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-md">
-              <Bot className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-medium">Agent</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            
-            {/* Then show the sorted tool chain */}
-            {sortedToolChain.map((tool, index) => (
-              <React.Fragment key={index}>
-                <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-md">
-                  <span className="text-lg">{getToolIcon(tool.type)}</span>
-                  <span className="text-xs font-medium">
-                    {getToolDisplayName(tool)}
-                  </span>
-                </div>
-                {index < sortedToolChain.length - 1 && (
-                  <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                )}
-              </React.Fragment>
-            ))}
+          {/* Editable Tool Chain Visualization */}
+          <div>
+            <EditableWorkflow
+              agentFunction={agentFunction}
+              agentId={agentId || ""}
+              onToolChainUpdate={handleToolChainUpdate}
+              onConfigureCredentials={onConfigureCredentials}
+              readOnly={!agentId || !enabled}
+            />
           </div>
 
-          {/* Function Name and Description */}
-          <h4 className="text-sm font-semibold mb-1">{name}</h4>
+          {/* Description only (name is shown in container title) */}
           {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
+            <p className="text-xs text-muted-foreground mt-2">{description}</p>
           )}
         </div>
 

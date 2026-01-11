@@ -2,7 +2,7 @@ export type ToolInChain = {
   type: string;
   role: string;
   method?: string;
-  config?: Record<string, unknown>;
+  config?: Record<string, unknown>; // Tool-specific configuration (event_type_id, pipeline_id, stage_id, etc.)
 };
 
 export type Function = {
@@ -21,9 +21,15 @@ export type Function = {
 
 export type AgentFunction = {
   id: number;
-  function_id: number;
+  function_id: number | null;
   enabled: boolean;
-  function: Function;
+  custom_tool_chain?: ToolInChain[];
+  effective_tool_chain?: ToolInChain[];
+  workflow_name?: string;
+  workflow_description?: string;
+  is_custom_workflow?: boolean;
+  has_customization?: boolean;
+  function?: Function;
 };
 
 export type FunctionsByIntegration = {

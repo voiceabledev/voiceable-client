@@ -46,7 +46,7 @@ import { SectionEntryModal } from "./wizard/SectionEntryModal";
 import { useWizardState } from "./wizard/hooks/useWizardState";
 import { useVoicePreview } from "./wizard/hooks/useVoicePreview";
 import { useTemplateDefaults } from "./wizard/hooks/useTemplateDefaults";
-import { GuidedSetupChat } from "./GuidedSetupChat";
+import { GuidedSetupChat, type GuidedSetupChatRef } from "./GuidedSetupChat";
 import { WizardContextProvider, WizardContextValue } from "./wizard/WizardContextProvider";
 import { NameStep } from "./wizard/steps/NameStep";
 import { TemplateStep } from "./wizard/steps/TemplateStep";
@@ -245,6 +245,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const previousIntegrationToolsRef = React.useRef<Set<string>>(new Set());
   const [agentFunctionsRefreshKey, setAgentFunctionsRefreshKey] = useState(0);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const guidedSetupChatRef = React.useRef<GuidedSetupChatRef | null>(null);
   
   // Ensure chat is open when entering step 5
   useEffect(() => {
@@ -2114,18 +2115,14 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               }));
             }}
             onOpenAddIntegrationModal={async () => {
-              // Open integration connection modal - this will show the integration selection
-              // The IntegrationConnectionModal will handle showing available integrations
-              // For now, we can trigger it by selecting a common integration type
-              // The modal will show all available options
-              const availableTypes = getAvailableIntegrationTypes();
-              if (availableTypes.length > 0) {
-                // Open with the first available type - the modal will show all options
-                await integrationHook.selectIntegrationToAdd(availableTypes[0].id);
-              } else {
+              // The AgentIntegrationToolsSection now handles workflow creation internally
+              // This handler is kept for backward compatibility but workflow creation
+              // is handled by the CreateWorkflowFromScratchModal in AgentIntegrationToolsSection
+              // If agent is not saved yet, prompt user to save first
+              if (!agentId || agentId === "new") {
                 toast({
-                  title: "No integrations available",
-                  description: "Please check your integration settings.",
+                  title: "Save agent first",
+                  description: "Please save the agent before creating workflows.",
                   variant: "default",
                 });
               }
@@ -2457,6 +2454,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       {currentStep === 5 && (
         <div className="block">
           <GuidedSetupChat
+            ref={guidedSetupChatRef}
             agentId={agentId || undefined}
             agent={agentData}
             wizardContext={wizardContextValue}
@@ -2464,7 +2462,14 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             startMinimized={false}
             disableInput={false}
             onMinimizedChange={(minimized) => setIsChatMinimized(minimized)}
-            onFunctionEnabled={() => setAgentFunctionsRefreshKey(prev => prev + 1)}
+            onFunctionEnabled={() => {
+              console.log('[CreateAgentWizard] onFunctionEnabled called, incrementing refresh key');
+              setAgentFunctionsRefreshKey(prev => {
+                const newKey = prev + 1;
+                console.log('[CreateAgentWizard] Refresh key updated:', prev, '->', newKey);
+                return newKey;
+              });
+            }}
             onComplete={async () => {
               if (!agentId) return;
               
@@ -2571,6 +2576,27 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         toggleModalToolSelection={integrationHook.toggleModalToolSelection}
         setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
         isWizardMode={true}
+        onIntegrationSaved={async (integrationType: string) => {
+          // Trigger workflow update in GuidedSetupChat
+          console.log('[CreateAgentWizard] Integration saved in modal:', integrationType);
+          
+          // Call the handler in GuidedSetupChat to update workflow
+          if (guidedSetupChatRef.current) {
+            try {
+              await guidedSetupChatRef.current.handleIntegrationSaved(integrationType);
+              console.log('[CreateAgentWizard] Workflow updated via GuidedSetupChat');
+            } catch (error) {
+              console.error('[CreateAgentWizard] Error updating workflow:', error);
+            }
+          }
+          
+          // Also trigger the refresh to ensure UI updates
+          setAgentFunctionsRefreshKey(prev => {
+            const newKey = prev + 1;
+            console.log('[CreateAgentWizard] Workflow refresh key updated:', prev, '->', newKey);
+            return newKey;
+          });
+        }}
         onRemoveIntegration={async (integrationType) => {
           // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
           if (agentId && agentId !== "new") {
@@ -2744,7 +2770,14 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           wizardContext={wizardContextValue}
           renderMode="portal"
           startMinimized={true}
-          onFunctionEnabled={() => setAgentFunctionsRefreshKey(prev => prev + 1)}
+          onFunctionEnabled={() => {
+            console.log('[CreateAgentWizard] onFunctionEnabled called (second instance), incrementing refresh key');
+            setAgentFunctionsRefreshKey(prev => {
+              const newKey = prev + 1;
+              console.log('[CreateAgentWizard] Refresh key updated:', prev, '->', newKey);
+              return newKey;
+            });
+          }}
           onComplete={async () => {
             if (!agentId) return;
             

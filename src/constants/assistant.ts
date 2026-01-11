@@ -324,8 +324,8 @@ export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
     // "Create Organization",
     // "Update Organization",
     // "Search Organizations",
-    // "Create Note",
-    // "Create Activity"
+    "Create Note",
+    "Create Activity"
   ],
   calendly: [
     // "Get Event Types",
@@ -370,8 +370,6 @@ export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
     "Get Event Types",
     "Get Available Slots",
     "Create Booking",
-    "Get All Bookings",
-    "Get Booking",
     "Reschedule Booking",
     "Cancel Booking"
   ],
@@ -530,18 +528,18 @@ export const formatToolName = (toolName: string): string => {
 export const displayNameToActionName = (displayName: string, integrationType: string): string => {
   const mapping: Record<string, Record<string, string>> = {
     pipedrive: {
-      "Get Deal": "get_deal",
+      // "Get Deal": "get_deal",
       "Create Deal": "create_deal",
       "Update Deal": "update_deal",
       "Search Deals": "search_deals",
-      "Get Person": "get_contact",
+      // "Get Person": "get_contact",
       "Create Person": "create_contact",
       "Update Person": "update_contact",
       "Search Persons": "search_contacts",
-      "Get Organization": "get_company",
-      "Create Organization": "create_company",
-      "Update Organization": "update_organization",
-      "Search Organizations": "search_companies",
+      // "Get Organization": "get_company",
+      // "Create Organization": "create_company",
+      // "Update Organization": "update_organization",
+      // "Search Organizations": "search_companies",
       "Create Note": "create_note",
       "Create Activity": "create_activity",
     },
@@ -588,8 +586,8 @@ export const displayNameToActionName = (displayName: string, integrationType: st
       "Get Event Types": "get_event_types",
       "Get Available Slots": "get_available_slots",
       "Create Booking": "create_booking",
-      "Get All Bookings": "list_bookings",
-      "Get Booking": "get_booking",
+      // "Get All Bookings": "list_bookings",
+      // "Get Booking": "get_booking",
       "Reschedule Booking": "reschedule_booking",
       "Cancel Booking": "cancel_booking",
     },
@@ -673,8 +671,6 @@ export const actionNameToDisplayName = (actionName: string, integrationType: str
     calcom: {
       "get_event_types": "Get Event Types",
       "get_available_slots": "Get Available Slots",
-      "create_booking": "Create Booking",
-      "list_bookings": "Get All Bookings",
       "get_booking": "Get Booking",
       "reschedule_booking": "Reschedule Booking",
       "cancel_booking": "Cancel Booking",

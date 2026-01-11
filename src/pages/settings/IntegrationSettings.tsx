@@ -208,8 +208,8 @@ const INTEGRATION_TOOLS: Record<string, string[]> = {
     // "Create Organization",
     // "Update Organization",
     // "Search Organizations",
-    // "Create Note",
-    // "Create Activity"
+    "Create Note",
+    "Create Activity"
   ],
   calendly: [
     "Get Event Types",
@@ -239,7 +239,7 @@ const INTEGRATION_TOOLS: Record<string, string[]> = {
     "Get Event Types",
     "Get Available Slots",
     "Create Booking",
-    "Get All Bookings",
+    // "Get All Bookings",
     "Get Booking",
     "Reschedule Booking",
     "Cancel Booking"

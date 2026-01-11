@@ -11,7 +11,7 @@ import type {
   SalesDashboardData,
   FailureBreakdownData,
 } from '@/types/outcomes';
-import type { Function, AgentFunction, FunctionsByIntegration } from '@/types/functions';
+import type { Function, AgentFunction, FunctionsByIntegration, ToolInChain } from '@/types/functions';
 
 /**
  * Determines the API base URL at runtime.
@@ -570,7 +570,7 @@ export const functionsApi = {
 
 export const agentFunctionsApi = {
   list: async (agentId: string) => {
-    const response = await apiClient.get<FunctionsByIntegration[]>(`/agents/${agentId}/agent_functions`);
+    const response = await apiClient.get<AgentFunction[]>(`/agents/${agentId}/agent_functions`);
     return response;
   },
 
@@ -584,6 +584,58 @@ export const agentFunctionsApi = {
 
   disable: async (agentId: string, agentFunctionId: number) => {
     const response = await apiClient.delete(`/agents/${agentId}/agent_functions/${agentFunctionId}`);
+    return response;
+  },
+
+  updateToolChain: async (agentId: string, agentFunctionId: number, toolChain: ToolInChain[]) => {
+    const response = await apiClient.patch<AgentFunction>(
+      `/agents/${agentId}/agent_functions/${agentFunctionId}/update_tool_chain`,
+      { tool_chain: toolChain }
+    );
+    return response;
+  },
+
+  resetToolChain: async (agentId: string, agentFunctionId: number) => {
+    const response = await apiClient.patch<AgentFunction>(
+      `/agents/${agentId}/agent_functions/${agentFunctionId}/reset_tool_chain`
+    );
+    return response;
+  },
+
+  updateWorkflowConfig: async (agentId: string, agentFunctionId: number, config: { name?: string; description?: string }) => {
+    const response = await apiClient.patch<AgentFunction>(
+      `/agents/${agentId}/agent_functions/${agentFunctionId}/update_workflow_config`,
+      config
+    );
+    return response;
+  },
+};
+
+export const workflowsApi = {
+  create: async (agentId: string, data: { name: string; description?: string; tool_chain: ToolInChain[]; enabled?: boolean }) => {
+    const response = await apiClient.post<AgentFunction>(`/agents/${agentId}/workflows`, data);
+    return response;
+  },
+
+  getAvailableTools: async (agentId: string) => {
+    const response = await apiClient.get<{
+      communication: Array<{ type: string; role: string; name: string; description: string; integration_connected: boolean }>;
+      knowledge: Array<{ type: string; role: string; name: string; description: string; integration_connected: boolean }>;
+      scheduling: Array<{ type: string; role: string; name: string; description: string; integration_connected: boolean }>;
+      crm: Array<{ type: string; role: string; name: string; description: string; integration_connected: boolean }>;
+    }>(`/agents/${agentId}/workflows/available_tools`);
+    return response;
+  },
+
+  getToolOptions: async (agentId: string, toolType: string) => {
+    const response = await apiClient.get<{
+      tool_type: string;
+      event_types?: Array<{ id: number; title: string; length: number; slug?: string }>;
+      pipelines?: Array<{ id: number; name: string }>;
+      stages?: Record<string, Array<{ id: number; name: string; pipeline_id: number }>>;
+      activity_types?: Array<{ id: number; name: string }>;
+      methods?: Array<{ value: string; label: string }>;
+    }>(`/agents/${agentId}/workflows/tool_options/${toolType}`);
     return response;
   },
 };

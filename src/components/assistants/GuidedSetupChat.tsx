@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,9 @@ import { executeAction } from "@/utils/wizardActionExecutor";
 import { useWizardContext, WizardContextValue } from "./wizard/WizardContextProvider";
 import type { WizardContext, IntegrationFlowContext } from "@/utils/setupAssistantPrompts";
 import { crmProviders, schedulingProviders } from "@/constants/integrations";
-import { integrationsApi, functionsApi, agentFunctionsApi, agentsApi } from "@/lib/api";
+import { integrationsApi, agentFunctionsApi, agentsApi, workflowsApi } from "@/lib/api";
 import type { UserIntegration } from "@/types/integrations";
-import type { Function } from "@/types/functions";
+import type { ToolInChain } from "@/types/functions";
 
 type ChatButton = {
   label: string;
@@ -40,9 +40,10 @@ interface GuidedSetupChatProps {
   wizardContext?: WizardContextValue;
   renderMode?: "portal" | "inline";
   startMinimized?: boolean;
-  onFunctionEnabled?: () => void; // Callback to trigger UI refresh after function is enabled
+  onFunctionEnabled?: () => void; // Callback to trigger UI refresh (kept for backward compatibility)
   onMinimizedChange?: (minimized: boolean) => void; // Callback when minimized state changes
   disableInput?: boolean; // Hide input field and send button when true
+  onIntegrationSaved?: (integrationType: string) => void; // Callback when integration is saved to trigger workflow update
 }
 
 const STEP_NAMES = [
@@ -54,7 +55,11 @@ const STEP_NAMES = [
   "Integrations"
 ];
 
-export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
+export interface GuidedSetupChatRef {
+  handleIntegrationSaved: (integrationType: string) => Promise<void>;
+}
+
+export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatProps>(({
   agentId,
   agent,
   onComplete,
@@ -65,7 +70,8 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
   onFunctionEnabled,
   onMinimizedChange,
   disableInput = false,
-}) => {
+  onIntegrationSaved: externalOnIntegrationSaved,
+}, ref) => {
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState("");
@@ -100,13 +106,13 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
   // Track what has been asked/answered to prevent re-asking
   const [crmSkipped, setCrmSkipped] = useState(false);
   const [schedulingSkipped, setSchedulingSkipped] = useState(false);
-  // Function enablement state
-  const [currentIntegrationForFunctions, setCurrentIntegrationForFunctions] = useState<string | null>(null);
-  const [functionsToAsk, setFunctionsToAsk] = useState<Function[]>([]);
-  const [currentFunctionIndex, setCurrentFunctionIndex] = useState(0);
-  const [functionsAsked, setFunctionsAsked] = useState<Set<number>>(new Set());
+  // Workflow creation state
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<number | null>(null);
+  const [workflowTools, setWorkflowTools] = useState<Set<string>>(new Set());
   // Flag to track if we're waiting for ChatGPT response
   const [awaitingChatGPTResponse, setAwaitingChatGPTResponse] = useState(false);
+  // Track when integration is saved to trigger workflow update
+  const [savedIntegrationType, setSavedIntegrationType] = useState<string | null>(null);
   
   // Try to use wizard context if available
   let wizardContext: WizardContextValue | null = externalWizardContext || null;
@@ -227,195 +233,411 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
     }
   }, []);
 
-  // Mapping of integration types to specific functions to ask about
-  const INTEGRATION_FUNCTIONS_TO_ASK: Record<string, string[]> = {
-    'pipedrive': ['Manage info on CRM'],
-    'calcom': ['SMS Booking', 'SMS Booking with CRM Sync'],
-  };
+  // Generate workflow name based on tools
+  const generateWorkflowName = useCallback((tools: ToolInChain[]): string => {
+    const toolNames = tools.map(t => {
+      if (t.type === 'twilio') return 'SMS';
+      if (t.type === 'calcom') return 'Cal.com';
+      if (t.type === 'calendly') return 'Calendly';
+      if (t.type === 'google_calendar') return 'Google Calendar';
+      if (t.type === 'pipedrive') return 'Pipedrive';
+      if (t.type === 'hubspot') return 'HubSpot';
+      if (t.type === 'kommo') return 'Kommo';
+      return t.type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+    });
+    return toolNames.join(' + ');
+  }, []);
 
-  // Helper function to start function enablement flow
-  const startFunctionEnablementFlow = useCallback(async (integrationType: string) => {
+  // Load existing workflow if it exists
+  const loadExistingWorkflow = useCallback(async () => {
+    if (!agentId || currentWorkflowId) {
+      return false; // Already loaded or no agent
+    }
+
     try {
-      // Fetch available functions for this integration
-      const functionsResponse = await functionsApi.listByIntegration(integrationType);
-      const availableFunctions = functionsResponse.data || [];
-      
-      if (availableFunctions.length === 0) {
-        // No functions available, skip function enablement
-        return false;
-      }
-      
-      // Get the specific functions to ask about for this integration
-      const functionsToAskNames = INTEGRATION_FUNCTIONS_TO_ASK[integrationType];
-      if (!functionsToAskNames || functionsToAskNames.length === 0) {
-        // No specific functions configured for this integration, skip
-        return false;
-      }
-      
-      // Filter to only the functions we want to ask about
-      let functionsToEnable = availableFunctions.filter(func => 
-        functionsToAskNames.includes(func.name)
-      );
-      
-      // Sort functions in the order specified in INTEGRATION_FUNCTIONS_TO_ASK
-      functionsToEnable.sort((a, b) => {
-        const indexA = functionsToAskNames.indexOf(a.name);
-        const indexB = functionsToAskNames.indexOf(b.name);
-        return indexA - indexB;
-      });
-      
-      if (functionsToEnable.length === 0) {
-        // None of the specified functions found, skip
-        return false;
-      }
-      
-      // If agentId exists, filter out already enabled functions
-      if (agentId) {
-        try {
-          const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
-          const enabledFunctionIds = new Set<number>();
-          
-          if (agentFunctionsResponse.data) {
-            agentFunctionsResponse.data.forEach((group) => {
-              if (group.integration_type === integrationType) {
-                group.functions.forEach((af) => {
-                  if (af.enabled) {
-                    enabledFunctionIds.add(af.function_id);
-                  }
-                });
-              }
-            });
-          }
-          
-          // Filter out already enabled functions
-          functionsToEnable = functionsToEnable.filter(
-            (func) => !enabledFunctionIds.has(func.id)
-          );
-        } catch (error) {
-          console.error('Error fetching agent functions:', error);
-          // Continue with all functions if we can't check
+      const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
+      if (agentFunctionsResponse.data) {
+        // Find the first workflow (we'll use the first one for now)
+        const workflow = agentFunctionsResponse.data.find((af: any) => 
+          af.is_custom_workflow || af.custom_tool_chain || af.effective_tool_chain
+        );
+        
+        if (workflow) {
+          setCurrentWorkflowId(workflow.id);
+          const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
+          const tools = new Set(toolChain.map((t: ToolInChain) => t.type));
+          setWorkflowTools(tools);
+          console.log('[GuidedSetupChat] Loaded existing workflow:', workflow.id, 'with tools:', Array.from(tools));
+          return true;
         }
       }
+      return false;
+    } catch (error) {
+      console.error('[GuidedSetupChat] Error loading existing workflow:', error);
+      return false;
+    }
+  }, [agentId, currentWorkflowId]);
+
+  // Create initial workflow with SMS
+  const createInitialWorkflow = useCallback(async () => {
+    if (!agentId || currentWorkflowId) {
+      return false; // Already created or no agent
+    }
+
+    // First check if workflow already exists
+    const existing = await loadExistingWorkflow();
+    if (existing) {
+      return true; // Workflow already exists
+    }
+
+    try {
+      const smsTool: ToolInChain = {
+        type: 'twilio',
+        role: 'communication',
+        method: 'sms',
+        config: {}
+      };
       
-      if (functionsToEnable.length === 0) {
-        // All specified functions already enabled, skip
+      const workflowName = generateWorkflowName([smsTool]);
+      
+      const response = await workflowsApi.create(agentId, {
+        name: workflowName,
+        description: 'Main workflow with SMS communication',
+        tool_chain: [smsTool],
+        enabled: true
+      });
+
+      if (response.data) {
+        setCurrentWorkflowId(response.data.id);
+        setWorkflowTools(new Set(['twilio']));
+        console.log('[GuidedSetupChat] Created initial workflow with SMS:', response.data.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[GuidedSetupChat] Error creating initial workflow:', error);
+      return false;
+    }
+  }, [agentId, currentWorkflowId, generateWorkflowName, loadExistingWorkflow]);
+
+  // Map integration type to ToolInChain
+  const mapIntegrationToTool = useCallback((integrationType: string, toolName?: string): ToolInChain | null => {
+    if (integrationType === 'calcom') {
+      return {
+        type: 'calcom',
+        role: 'scheduling',
+        method: toolName || 'create_booking',
+        config: {}
+      };
+    }
+    if (integrationType === 'calendly') {
+      return {
+        type: 'calendly',
+        role: 'scheduling',
+        method: toolName || 'create_booking',
+        config: {}
+      };
+    }
+    if (integrationType === 'google_calendar') {
+      return {
+        type: 'google_calendar',
+        role: 'scheduling',
+        method: toolName || 'create_event',
+        config: {}
+      };
+    }
+    if (integrationType === 'pipedrive') {
+      return {
+        type: 'pipedrive',
+        role: 'crm',
+        method: toolName || 'create_deal',
+        config: {}
+      };
+    }
+    if (integrationType === 'hubspot') {
+      return {
+        type: 'hubspot',
+        role: 'crm',
+        method: toolName || 'create_contact',
+        config: {}
+      };
+    }
+    if (integrationType === 'kommo') {
+      return {
+        type: 'kommo',
+        role: 'crm',
+        method: toolName || 'create_contact',
+        config: {}
+      };
+    }
+    return null;
+  }, []);
+
+  // Update workflow with new tool
+  const updateWorkflowWithTool = useCallback(async (tool: ToolInChain) => {
+    if (!agentId || !currentWorkflowId) {
+      console.warn('[GuidedSetupChat] Cannot update workflow: missing agentId or workflowId');
+      return false;
+    }
+
+    try {
+      // Get current workflow to fetch existing tool chain
+      const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
+      let currentToolChain: ToolInChain[] = [];
+      
+      if (agentFunctionsResponse.data) {
+        const workflow = agentFunctionsResponse.data.find((af: any) => af.id === currentWorkflowId);
+        if (workflow?.effective_tool_chain) {
+          currentToolChain = [...workflow.effective_tool_chain];
+        } else if (workflow?.custom_tool_chain) {
+          currentToolChain = [...workflow.custom_tool_chain];
+        }
+      }
+
+      // Check if tool already exists (avoid duplicates)
+      const toolKey = `${tool.type}_${tool.method || ''}`;
+      const existingTool = currentToolChain.find(t => 
+        t.type === tool.type && t.method === tool.method
+      );
+      
+      if (existingTool) {
+        console.log('[GuidedSetupChat] Tool already in workflow, skipping:', toolKey);
         return false;
       }
+
+      // Add new tool to chain
+      const updatedToolChain = [...currentToolChain, tool];
       
-      // Set up function enablement flow
-      setCurrentIntegrationForFunctions(integrationType);
-      setFunctionsToAsk(functionsToEnable);
-      setCurrentFunctionIndex(0);
-      setFunctionsAsked(new Set());
+      // Update workflow tool chain
+      await agentFunctionsApi.updateToolChain(agentId, currentWorkflowId, updatedToolChain);
+      
+      // Update workflow name
+      const newWorkflowName = generateWorkflowName(updatedToolChain);
+      await agentFunctionsApi.updateWorkflowConfig(agentId, currentWorkflowId, {
+        name: newWorkflowName
+      });
 
-      // Use the new phase system
-      setIntegrationFlowPhase('functions');
-      previousFlowPhaseRef.current = 'functions';
-
-      // Ask about first function
-      const firstFunction = functionsToEnable[0];
-      const messageId = `msg-${Date.now()}-${Math.random()}`;
-      // Customize message based on integration type
-      let messageText = '';
-      if (integrationType === 'pipedrive') {
-        messageText = `Great! Your Pipedrive integration is connected. Would you like to enable "Manage info on CRM"? This allows your assistant to update contact information automatically.`;
-      } else if (integrationType === 'calcom') {
-        messageText = `Great! Your Cal.com integration is connected. Would you like to enable "${firstFunction.name}"?`;
+      // Update state
+      setWorkflowTools(prev => new Set([...prev, tool.type]));
+      
+      console.log('[GuidedSetupChat] Updated workflow with tool:', tool.type, 'workflowId:', currentWorkflowId);
+      
+      // Trigger workflow refresh in parent component
+      // Use a small delay to ensure backend has fully processed the update
+      if (onFunctionEnabled) {
+        console.log('[GuidedSetupChat] Scheduling workflow refresh callback');
+        // Use requestAnimationFrame to ensure DOM updates are complete, then trigger refresh
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            console.log('[GuidedSetupChat] Triggering workflow refresh now');
+            onFunctionEnabled();
+          }, 300); // Small delay to ensure backend persistence
+        });
       } else {
-        messageText = `Great! Your ${integrationType} integration is connected. Would you like to enable "${firstFunction.name}"? ${firstFunction.description}`;
+        console.warn('[GuidedSetupChat] onFunctionEnabled callback not available')
       }
+      
+      return true;
+    } catch (error) {
+      console.error('[GuidedSetupChat] Error updating workflow:', error);
+      return false;
+    }
+  }, [agentId, currentWorkflowId, generateWorkflowName, onFunctionEnabled]);
 
+
+  // Start integration flow - create workflow with SMS first, then offer scheduling and CRM
+  const startIntegrationFlowWithChatGPT = useCallback(async (loadedIntegrations: Set<string>) => {
+    // First, ensure we have the latest workflow state
+    if (agentId && !currentWorkflowId) {
+      const workflowLoaded = await loadExistingWorkflow();
+      if (!workflowLoaded) {
+        // No workflow exists, create one with SMS
+        const workflowCreated = await createInitialWorkflow();
+        if (workflowCreated) {
+          setIntegrationFlowPhase('sms_created');
+          // Offer scheduling after SMS is created
+          setTimeout(() => {
+            addSystemMessage(
+              "Great! I've created a workflow with SMS communication. Would you like to add a scheduling tool for booking appointments?",
+              undefined,
+              [
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" }
+              ]
+            );
+            setIntegrationFlowPhase('scheduling_offered');
+          }, 500);
+          return;
+        }
+      }
+    }
+
+    // Check what tools are actually in the workflow (not just connected integrations)
+    const hasScheduling = workflowTools.has('calcom') || workflowTools.has('calendly') || workflowTools.has('google_calendar');
+    const hasCrm = workflowTools.has('pipedrive') || workflowTools.has('hubspot') || workflowTools.has('kommo');
+    const hasSms = workflowTools.has('twilio');
+
+    // If workflow is complete (has SMS + scheduling + CRM), just show completion message
+    if (hasSms && hasScheduling && hasCrm) {
+      setIntegrationFlowPhase('complete');
+      addSystemMessage("Your workflow is complete!", undefined, [
+        { label: "Done", value: "done" }
+      ]);
+      return;
+    }
+
+    // If workflow already exists, check what tools are already added
+    if (hasScheduling && hasCrm) {
+      // Both already added, complete
+      setIntegrationFlowPhase('complete');
+      addSystemMessage("Your workflow is complete!", undefined, [
+        { label: "Done", value: "done" }
+      ]);
+    } else if (hasScheduling && !hasCrm) {
+      // Scheduling added, offer CRM
+      setIntegrationFlowPhase('crm_offered');
       addSystemMessage(
-        messageText,
-        messageId,
+        "Would you like to add a CRM system to manage your contacts and deals?",
+        undefined,
         [
           { label: "Yes", value: "yes" },
           { label: "No", value: "no" }
         ]
       );
-
-      return true;
-    } catch (error) {
-      console.error('Error starting function enablement flow:', error);
-      return false;
+    } else if (!hasScheduling) {
+      // Offer scheduling
+      setIntegrationFlowPhase('scheduling_offered');
+      addSystemMessage(
+        "Would you like to add a scheduling tool for booking appointments?",
+        undefined,
+        [
+          { label: "Yes", value: "yes" },
+          { label: "No", value: "no" }
+        ]
+      );
     }
-  }, [agentId, addSystemMessage]);
+  }, [agentId, currentWorkflowId, workflowTools, createInitialWorkflow, loadExistingWorkflow, addSystemMessage]);
 
-  // Start integration flow with ChatGPT - determines initial phase based on connected integrations
-  const startIntegrationFlowWithChatGPT = useCallback(async (loadedIntegrations: Set<string>) => {
-    const hasCrm = loadedIntegrations.has('pipedrive') || loadedIntegrations.has('hubspot') || loadedIntegrations.has('kommo');
-    const hasScheduling = loadedIntegrations.has('calcom') || loadedIntegrations.has('calendly') || loadedIntegrations.has('google_calendar');
-
-    // Set initial phase based on existing integrations
-    let initialPhase: IntegrationFlowPhase = 'crm';
-    let initialMessage = "Would you like to connect a CRM system to manage your contacts and deals?";
-    let initialButtons: ChatButton[] = [
-      { label: "Yes", value: "yes" },
-      { label: "No", value: "no" }
-    ];
-
-    if (hasCrm && hasScheduling) {
-      // Both connected, go to recommendations
-      initialPhase = 'recommendations';
-      initialMessage = "I see you already have both CRM and scheduling tools connected. Would you like to recommend any other tools we should support?";
-      initialButtons = [
-        { label: "Yes", value: "yes" },
-        { label: "No, I'm done", value: "no" }
-      ];
-    } else if (hasCrm) {
-      // CRM connected, check for functions then ask about scheduling
-      const crmType = Array.from(loadedIntegrations).find(type => ['pipedrive', 'hubspot', 'kommo'].includes(type));
-      if (crmType) {
-        // Try to start function enablement for CRM
-        const flowStarted = await startFunctionEnablementFlow(crmType);
-        if (flowStarted) {
-          return; // Function flow started, don't ask another question
-        }
-      }
-      initialPhase = 'scheduling';
-      initialMessage = "I see you have a CRM connected. Would you like to connect a scheduling tool for booking appointments?";
-      initialButtons = [
-        { label: "Yes", value: "yes" },
-        { label: "No", value: "no" }
-      ];
-    } else if (hasScheduling) {
-      // Scheduling connected, skip CRM and go to recommendations
-      setCrmSkipped(true);
-      initialPhase = 'recommendations';
-      initialMessage = "I see you have a scheduling tool connected. Would you like to recommend any other tools we should support?";
-      initialButtons = [
-        { label: "Yes", value: "yes" },
-        { label: "No, I'm done", value: "no" }
-      ];
-    }
-
-    setIntegrationFlowPhase(initialPhase);
-    const messageId = `msg-${Date.now()}-${Math.random()}`;
-    addSystemMessage(initialMessage, messageId, initialButtons);
-  }, [addSystemMessage, startFunctionEnablementFlow]);
-
-  // Monitor step 5 and start integration flow with ChatGPT
+  // Monitor step 5 and create workflow with SMS immediately
   useEffect(() => {
     if (wizardContext?.currentStep === 5 && !integrationFlowStartedRef.current && messages.length === 0) {
       integrationFlowStartedRef.current = true;
 
-      // Load integrations first, then start the ChatGPT-driven flow
-      loadConnectedIntegrations().then((loadedIntegrations) => {
+      // First, load existing workflow to check if it's already complete
+      const initializeFlow = async () => {
+        if (!agentId) {
+          return;
+        }
+
+        // Load existing workflow first
+        const workflowExists = await loadExistingWorkflow();
+        
+        // Wait a bit for state to update after loading workflow
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Re-check workflow tools after loading (they might have been updated)
+        // We need to fetch the workflow again to get the latest tools
+        let currentTools = new Set<string>();
+        if (currentWorkflowId) {
+          try {
+            const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
+            if (agentFunctionsResponse.data) {
+              const workflow = agentFunctionsResponse.data.find((af: any) => 
+                af.id === currentWorkflowId && (af.is_custom_workflow || af.custom_tool_chain || af.effective_tool_chain)
+              );
+              if (workflow) {
+                const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
+                currentTools = new Set(toolChain.map((t: ToolInChain) => t.type));
+                setWorkflowTools(currentTools);
+              }
+            }
+          } catch (error) {
+            console.error('[GuidedSetupChat] Error fetching workflow tools:', error);
+          }
+        } else {
+          // Use workflowTools state if we don't have a workflow ID yet
+          currentTools = workflowTools;
+        }
+        
+        // Check if workflow is already complete
+        const hasScheduling = currentTools.has('calcom') || currentTools.has('calendly') || currentTools.has('google_calendar');
+        const hasCrm = currentTools.has('pipedrive') || currentTools.has('hubspot') || currentTools.has('kommo');
+        const hasSms = currentTools.has('twilio');
+        
+        if (hasSms && hasScheduling && hasCrm) {
+          // Workflow is complete, just show completion message
+          setIntegrationFlowPhase('complete');
+          addSystemMessage("Your workflow is complete!", undefined, [
+            { label: "Done", value: "done" }
+          ]);
+          return;
+        }
+
+        // If workflow doesn't exist, create it with SMS
+        if (!workflowExists && !currentWorkflowId) {
+          const created = await createInitialWorkflow();
+          if (created) {
+            // Reload workflow to get updated tools
+            await loadExistingWorkflow();
+            // Update currentTools after creating
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (currentWorkflowId) {
+              try {
+                const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
+                if (agentFunctionsResponse.data) {
+                  const workflow = agentFunctionsResponse.data.find((af: any) => 
+                    af.id === currentWorkflowId && (af.is_custom_workflow || af.custom_tool_chain || af.effective_tool_chain)
+                  );
+                  if (workflow) {
+                    const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
+                    currentTools = new Set(toolChain.map((t: ToolInChain) => t.type));
+                    setWorkflowTools(currentTools);
+                  }
+                }
+              } catch (error) {
+                console.error('[GuidedSetupChat] Error fetching workflow tools after creation:', error);
+              }
+            }
+          }
+        }
+
+        // Load integrations and start flow
+        const loadedIntegrations = await loadConnectedIntegrations();
         setConnectedIntegrations(loadedIntegrations);
 
+        // Re-check if workflow is complete after all loading
+        const finalHasScheduling = currentTools.has('calcom') || currentTools.has('calendly') || currentTools.has('google_calendar');
+        const finalHasCrm = currentTools.has('pipedrive') || currentTools.has('hubspot') || currentTools.has('kommo');
+        const finalHasSms = currentTools.has('twilio');
+        
+        if (finalHasSms && finalHasScheduling && finalHasCrm) {
+          // Workflow is complete, just show completion message
+          setIntegrationFlowPhase('complete');
+          addSystemMessage("Your workflow is complete!", undefined, [
+            { label: "Done", value: "done" }
+          ]);
+          return;
+        }
+        
+        // Only send welcome message if workflow is not complete
         setTimeout(() => {
-          // Send welcome message
           if (!welcomeMessageSentRef.current) {
             welcomeMessageSentRef.current = true;
-            addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. Let me guide you through the process on how to integrate tools.");
+            if (currentWorkflowId) {
+              addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. I've created a workflow with SMS communication.");
+            } else {
+              addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. Let me guide you through the process on how to integrate tools.");
+            }
           }
 
-          // Start the ChatGPT-driven flow after welcome message
+          // Start the flow after welcome message
           setTimeout(() => {
             startIntegrationFlowWithChatGPT(loadedIntegrations);
           }, 800);
-        }, 500);
-      });
+        });
+      };
+
+      initializeFlow();
     } else if (wizardContext?.currentStep !== 5) {
       // Reset flow state when leaving step 5
       integrationFlowStartedRef.current = false;
@@ -423,7 +645,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
       setIntegrationFlowPhase('initial');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardContext?.currentStep, messages.length, loadConnectedIntegrations]);
+  }, [wizardContext?.currentStep, messages.length, loadConnectedIntegrations, agentId, currentWorkflowId, workflowTools, createInitialWorkflow, loadExistingWorkflow, addSystemMessage, startIntegrationFlowWithChatGPT]);
 
   const addUserMessage = useCallback((text: string) => {
     const message: ChatMessage = {
@@ -456,9 +678,9 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
     const integrationFlowContext: IntegrationFlowContext | undefined = wizardContext?.currentStep === 5 ? {
       phase: integrationFlowPhase,
       connectedIntegrations: Array.from(connectedIntegrations),
-      currentIntegration: currentIntegrationForFunctions || undefined,
-      pendingFunctions: functionsToAsk.map(f => ({ id: f.id, name: f.name, description: f.description || '' })),
-      currentFunctionIndex: currentFunctionIndex,
+      currentIntegration: undefined,
+      currentWorkflowId: currentWorkflowId || undefined,
+      workflowTools: Array.from(workflowTools),
       crmSkipped: crmSkipped,
       schedulingSkipped: schedulingSkipped,
     } : undefined;
@@ -484,134 +706,11 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
       agentId: wizardContext.agentId || undefined,
       integrationFlow: integrationFlowContext,
     };
-  }, [wizardContext, agentId, integrationFlowPhase, connectedIntegrations, currentIntegrationForFunctions, functionsToAsk, currentFunctionIndex, crmSkipped, schedulingSkipped]);
+  }, [wizardContext, agentId, integrationFlowPhase, connectedIntegrations, currentWorkflowId, workflowTools, crmSkipped, schedulingSkipped]);
 
   // Ref to store handleStep5ChatGPTMessage function to avoid dependency order issues
   const handleStep5ChatGPTMessageRef = useRef<((userInput: string, isButtonClick?: boolean) => Promise<void>) | null>(null);
 
-  // Handle function enablement responses
-  const handleFunctionEnablementResponse = useCallback(async (userMessage: string, integrationType: string) => {
-    const lowerMessage = userMessage.toLowerCase().trim();
-    const currentFunction = functionsToAsk[currentFunctionIndex];
-
-    if (!currentFunction) {
-      // No more functions, proceed to next step
-      return;
-    }
-
-    // Check if user is asking a question instead of answering yes/no
-    const isQuestion = !lowerMessage.match(/^(yes|no|y|n)$/) && 
-                       (lowerMessage.includes('?') || 
-                        lowerMessage.match(/\b(how|what|when|where|why|can|could|would|does|do|is|are|will|explain|tell|describe)\b/i));
-
-    if (isQuestion) {
-      // Route question to ChatGPT for answer
-      if (handleStep5ChatGPTMessageRef.current) {
-        await handleStep5ChatGPTMessageRef.current(userMessage);
-      }
-      
-      // After answering, re-ask the original function enablement question
-      setTimeout(() => {
-        const messageId = `msg-${Date.now()}-${Math.random()}`;
-        let messageText = '';
-        if (integrationType === 'pipedrive') {
-          messageText = `Would you like to enable "Manage info on CRM"?`;
-        } else if (integrationType === 'calcom') {
-          messageText = `Would you like to enable "${currentFunction.name}"?`;
-        } else {
-          messageText = `Would you like to enable "${currentFunction.name}"? ${currentFunction.description}`;
-        }
-
-        addSystemMessage(messageText, messageId, [
-          { label: "Yes", value: "yes" },
-          { label: "No", value: "no" }
-        ]);
-      }, 500);
-      
-      return; // Don't process as yes/no response
-    }
-
-    // Mark this function as asked (only when actually answering yes/no)
-    setFunctionsAsked(prev => new Set(prev).add(currentFunction.id));
-
-    if (lowerMessage === 'yes' || lowerMessage.includes('yes')) {
-      try {
-        if (agentId) {
-          await agentFunctionsApi.enable(agentId, currentFunction.id, true);
-          addSystemMessage(`✓ "${currentFunction.name}" has been enabled.`);
-          if (onFunctionEnabled) {
-            onFunctionEnabled();
-          }
-        } else {
-          addSystemMessage(`✓ I'll enable "${currentFunction.name}" when your agent is created.`);
-        }
-      } catch (error) {
-        console.error('Error enabling function:', error);
-        addSystemMessage(`I encountered an error enabling "${currentFunction.name}". You can enable it later from the settings.`);
-      }
-    } else if (lowerMessage === 'no' || lowerMessage.includes('no')) {
-      addSystemMessage(`Skipped "${currentFunction.name}".`);
-    }
-
-    // Move to next function
-    const nextIndex = currentFunctionIndex + 1;
-
-    if (nextIndex < functionsToAsk.length) {
-      // Ask about next function
-      setTimeout(() => {
-        const nextFunction = functionsToAsk[nextIndex];
-        setCurrentFunctionIndex(nextIndex);
-
-        const messageId = `msg-${Date.now()}-${Math.random()}`;
-        let messageText = '';
-        if (integrationType === 'pipedrive') {
-          messageText = `Would you like to enable "Manage info on CRM"?`;
-        } else if (integrationType === 'calcom') {
-          messageText = `Would you like to enable "${nextFunction.name}"?`;
-        } else {
-          messageText = `Would you like to enable "${nextFunction.name}"? ${nextFunction.description}`;
-        }
-
-        addSystemMessage(messageText, messageId, [
-          { label: "Yes", value: "yes" },
-          { label: "No", value: "no" }
-        ]);
-      }, 300);
-    } else {
-      // All functions processed - advance to next phase
-      setCurrentIntegrationForFunctions(null);
-      setFunctionsToAsk([]);
-      setCurrentFunctionIndex(0);
-      setFunctionsAsked(new Set());
-
-      const isCrm = ['pipedrive', 'hubspot', 'kommo'].includes(integrationType);
-      const hasScheduling = connectedIntegrations.has('calcom') || connectedIntegrations.has('calendly') || connectedIntegrations.has('google_calendar');
-
-      setTimeout(() => {
-        if (isCrm) {
-          if (hasScheduling || schedulingSkipped) {
-            setIntegrationFlowPhase('recommendations');
-            addSystemMessage("All done! Would you like to recommend any other tools we should support?", undefined, [
-              { label: "Yes", value: "yes" },
-              { label: "No, I'm done", value: "no" }
-            ]);
-          } else {
-            setIntegrationFlowPhase('scheduling');
-            addSystemMessage("All done! Now let's set up scheduling tools. Would you like to connect a scheduling tool?", undefined, [
-              { label: "Yes", value: "yes" },
-              { label: "No", value: "no" }
-            ]);
-          }
-        } else {
-          setIntegrationFlowPhase('recommendations');
-          addSystemMessage("All done! Would you like to recommend any other tools we should support?", undefined, [
-            { label: "Yes", value: "yes" },
-            { label: "No, I'm done", value: "no" }
-          ]);
-        }
-      }, 500);
-    }
-  }, [functionsToAsk, currentFunctionIndex, agentId, addSystemMessage, connectedIntegrations, onFunctionEnabled, schedulingSkipped]);
 
   // Handle Step 5 messages through ChatGPT
   const handleStep5ChatGPTMessage = useCallback(async (userInput: string, isButtonClick: boolean = false): Promise<void> => {
@@ -662,7 +761,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
           { label: "Kommo", value: "kommo" },
           { label: "Skip", value: "no" }
         ];
-        setIntegrationFlowPhase('crm_options');
+        setIntegrationFlowPhase('crm_offered');
       }
       // Detect if asking about scheduling options
       else if (textResponse.toLowerCase().includes('cal.com') &&
@@ -673,7 +772,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
           { label: "Google Calendar", value: "google_calendar" },
           { label: "Skip", value: "no" }
         ];
-        setIntegrationFlowPhase('scheduling_options');
+        setIntegrationFlowPhase('scheduling_offered');
       }
       // Detect yes/no questions
       else if (textResponse.toLowerCase().includes('would you like') ||
@@ -707,12 +806,30 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
     handleStep5ChatGPTMessageRef.current = handleStep5ChatGPTMessage;
   }, [handleStep5ChatGPTMessage]);
 
+  // Normalize integration type from ChatGPT (handles variations like "cal", "cal.com", "calcom")
+  const normalizeIntegrationType = useCallback((type: string): string => {
+    const normalized = type.toLowerCase().trim();
+    
+    // Map common variations to correct integration types
+    if (normalized === 'cal' || normalized === 'cal.com' || normalized === 'calcom') {
+      return 'calcom';
+    }
+    if (normalized === 'google calendar' || normalized === 'googlecalendar') {
+      return 'google_calendar';
+    }
+    if (normalized === 'outlook calendar' || normalized === 'outlookcalendar') {
+      return 'outlook_calendar';
+    }
+    
+    return normalized;
+  }, []);
+
   // Execute Step 5 specific actions from ChatGPT
   const executeStep5Action = useCallback(async (action: WizardAction): Promise<void> => {
     switch (action.type) {
       case "OPEN_INTEGRATION_MODAL":
         if (action.value && wizardContext) {
-          const integrationType = action.value.toLowerCase();
+          const integrationType = normalizeIntegrationType(action.value);
           const isCRM = ['pipedrive', 'hubspot', 'kommo'].includes(integrationType);
           const isScheduling = ['calcom', 'calendly', 'google_calendar'].includes(integrationType);
 
@@ -722,31 +839,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
             setIntegrationFlowPhase('scheduling_connecting');
           }
 
-          setCurrentIntegrationForFunctions(integrationType);
           await wizardContext.openIntegrationModal(integrationType);
-        }
-        break;
-
-      case "ENABLE_FUNCTION":
-        if (action.value && agentId) {
-          try {
-            const functionId = parseInt(action.value);
-            if (!isNaN(functionId)) {
-              await agentFunctionsApi.enable(agentId, functionId, true);
-              if (onFunctionEnabled) {
-                onFunctionEnabled();
-              }
-              // Move to next function or next phase
-              if (currentFunctionIndex < functionsToAsk.length - 1) {
-                setCurrentFunctionIndex(prev => prev + 1);
-              } else {
-                // All functions done, move to next phase
-                advanceFromFunctionsPhase();
-              }
-            }
-          } catch (error) {
-            console.error('Error enabling function:', error);
-          }
         }
         break;
 
@@ -755,12 +848,10 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
           const phase = action.value.toLowerCase();
           if (phase === 'crm') {
             setCrmSkipped(true);
-            setIntegrationFlowPhase('scheduling');
+            setIntegrationFlowPhase('scheduling_offered');
           } else if (phase === 'scheduling') {
             setSchedulingSkipped(true);
-            setIntegrationFlowPhase('recommendations');
-          } else if (phase === 'functions') {
-            advanceFromFunctionsPhase();
+            setIntegrationFlowPhase('crm_offered');
           } else if (phase === 'recommendations') {
             setIntegrationFlowPhase('complete');
           }
@@ -788,33 +879,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
           }
         }
     }
-  }, [wizardContext, agentId, onFunctionEnabled, currentFunctionIndex, functionsToAsk.length]);
-
-  // Helper to advance from functions phase
-  const advanceFromFunctionsPhase = useCallback(() => {
-    const isCRM = currentIntegrationForFunctions && ['pipedrive', 'hubspot', 'kommo'].includes(currentIntegrationForFunctions);
-    const isScheduling = currentIntegrationForFunctions && ['calcom', 'calendly', 'google_calendar'].includes(currentIntegrationForFunctions);
-
-    setCurrentIntegrationForFunctions(null);
-    setFunctionsToAsk([]);
-    setCurrentFunctionIndex(0);
-
-    if (isCRM) {
-      // Check if scheduling is already connected
-      const hasScheduling = connectedIntegrations.has('calcom') ||
-                           connectedIntegrations.has('calendly') ||
-                           connectedIntegrations.has('google_calendar');
-      if (hasScheduling || schedulingSkipped) {
-        setIntegrationFlowPhase('recommendations');
-      } else {
-        setIntegrationFlowPhase('scheduling');
-      }
-    } else if (isScheduling) {
-      setIntegrationFlowPhase('recommendations');
-    } else {
-      setIntegrationFlowPhase('recommendations');
-    }
-  }, [currentIntegrationForFunctions, connectedIntegrations, schedulingSkipped]);
+  }, [wizardContext, agentId, normalizeIntegrationType]);
 
   // Helper to advance the integration flow
   const advanceIntegrationFlow = useCallback(() => {
@@ -827,43 +892,35 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
 
     switch (integrationFlowPhase) {
       case 'initial':
-      case 'crm':
-        if (hasCRM || crmSkipped) {
-          setIntegrationFlowPhase(hasScheduling || schedulingSkipped ? 'recommendations' : 'scheduling');
+        // Should create SMS workflow first
+        if (currentWorkflowId) {
+          setIntegrationFlowPhase('sms_created');
+        }
+        break;
+      case 'sms_created':
+        if (hasScheduling || schedulingSkipped) {
+          setIntegrationFlowPhase(hasCRM || crmSkipped ? 'complete' : 'crm_offered');
         } else {
-          setIntegrationFlowPhase('crm');
+          setIntegrationFlowPhase('scheduling_offered');
         }
         break;
-      case 'crm_options':
-      case 'crm_connecting':
-        if (hasCRM) {
-          // Check if there are functions to enable
-          if (functionsToAsk.length > 0) {
-            setIntegrationFlowPhase('functions');
-          } else {
-            setIntegrationFlowPhase(hasScheduling || schedulingSkipped ? 'recommendations' : 'scheduling');
-          }
-        }
-        break;
-      case 'scheduling':
-      case 'scheduling_options':
+      case 'scheduling_offered':
       case 'scheduling_connecting':
         if (hasScheduling) {
-          if (functionsToAsk.length > 0) {
-            setIntegrationFlowPhase('functions');
-          } else {
-            setIntegrationFlowPhase('recommendations');
-          }
+          setIntegrationFlowPhase(hasCRM || crmSkipped ? 'complete' : 'crm_offered');
         }
         break;
-      case 'functions':
-        advanceFromFunctionsPhase();
+      case 'crm_offered':
+      case 'crm_connecting':
+        if (hasCRM) {
+          setIntegrationFlowPhase('complete');
+        }
         break;
-      case 'recommendations':
-        setIntegrationFlowPhase('complete');
+      case 'complete':
+        // Already complete
         break;
     }
-  }, [integrationFlowPhase, connectedIntegrations, crmSkipped, schedulingSkipped, functionsToAsk.length, advanceFromFunctionsPhase]);
+  }, [integrationFlowPhase, connectedIntegrations, crmSkipped, schedulingSkipped, currentWorkflowId]);
 
   // Handle button clicks - now routes through ChatGPT for Step 5
   const handleButtonClick = useCallback(async (buttonValue: string) => {
@@ -881,29 +938,18 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
         const schedulingIntegrations = ['calcom', 'calendly', 'google_calendar'];
 
         // If user clicks an integration button directly, open the modal
-        if (crmIntegrations.includes(lowerValue) || schedulingIntegrations.includes(lowerValue)) {
-          const isCRM = crmIntegrations.includes(lowerValue);
+        // Normalize the integration type first
+        const normalizedValue = normalizeIntegrationType(buttonValue);
+        if (crmIntegrations.includes(normalizedValue) || schedulingIntegrations.includes(normalizedValue)) {
+          const isCRM = crmIntegrations.includes(normalizedValue);
           setIntegrationFlowPhase(isCRM ? 'crm_connecting' : 'scheduling_connecting');
-          setCurrentIntegrationForFunctions(lowerValue);
           addUserMessage(buttonValue);
           if (wizardContext) {
-            await wizardContext.openIntegrationModal(lowerValue);
+            await wizardContext.openIntegrationModal(normalizedValue);
           }
           setIsProcessing(false);
           setWaitingForUser(false);
           return;
-        }
-
-        // For function enablement flow, handle yes/no directly
-        if (integrationFlowPhase === 'functions') {
-          const integrationType = currentIntegrationForFunctions;
-          if (integrationType) {
-            addUserMessage(buttonValue);
-            await handleFunctionEnablementResponse(buttonValue, integrationType);
-            setIsProcessing(false);
-            setWaitingForUser(false);
-            return;
-          }
         }
 
         // For other Step 5 interactions, route through ChatGPT
@@ -920,7 +966,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
       setIsProcessing(false);
       setWaitingForUser(false);
     }
-  }, [isProcessing, waitingForUser, wizardContext, integrationFlowPhase, addUserMessage, currentIntegrationForFunctions, handleFunctionEnablementResponse, handleStep5ChatGPTMessage]);
+  }, [isProcessing, waitingForUser, wizardContext, integrationFlowPhase, addUserMessage, handleStep5ChatGPTMessage]);
 
   // Use refs to track previous state to avoid infinite loops
   const previousConnectedIntegrationsRef = useRef<Set<string>>(new Set());
@@ -986,34 +1032,37 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
           else if (newConnected.has('hubspot')) connectedCrmType = 'hubspot';
           else if (newConnected.has('kommo')) connectedCrmType = 'kommo';
 
-          // Try to start function enablement flow
-          const functionFlowStarted = connectedCrmType && integrationFlowPhase !== 'functions'
-            ? await startFunctionEnablementFlow(connectedCrmType)
-            : false;
-
-          if (!functionFlowStarted) {
-            // No functions, move to scheduling or recommendations
-            if (hasScheduling || schedulingSkipped) {
-              setIntegrationFlowPhase('recommendations');
-              previousFlowPhaseRef.current = 'recommendations';
-              addSystemMessage("Great! Your CRM integration is connected. Would you like to recommend any other tools?", undefined, [
-                { label: "Yes", value: "yes" },
-                { label: "No, I'm done", value: "no" }
-              ]);
-            } else {
-              setIntegrationFlowPhase('scheduling');
-              previousFlowPhaseRef.current = 'scheduling';
-              addSystemMessage("Great! Your CRM integration is connected. Would you like to connect a scheduling tool?", undefined, [
-                { label: "Yes", value: "yes" },
-                { label: "No", value: "no" }
-              ]);
+          // Update workflow with CRM tool
+          if (connectedCrmType && currentWorkflowId) {
+            const tool = mapIntegrationToTool(connectedCrmType);
+            if (tool) {
+              const updated = await updateWorkflowWithTool(tool);
+              if (updated) {
+                addSystemMessage(`✓ ${connectedCrmType.charAt(0).toUpperCase() + connectedCrmType.slice(1)} added to workflow!`);
+              }
             }
+          }
+
+          // Move to complete or offer scheduling if not already added
+          if (hasScheduling || schedulingSkipped) {
+            setIntegrationFlowPhase('complete');
+            previousFlowPhaseRef.current = 'complete';
+            addSystemMessage("Your workflow is complete with SMS, scheduling, and CRM tools!", undefined, [
+              { label: "Done", value: "done" }
+            ]);
+          } else {
+            setIntegrationFlowPhase('scheduling_offered');
+            previousFlowPhaseRef.current = 'scheduling_offered';
+            addSystemMessage("Great! Your CRM has been added to the workflow. Would you like to add a scheduling tool?", undefined, [
+              { label: "Yes", value: "yes" },
+              { label: "No", value: "no" }
+            ]);
           }
           return;
         } else if (currentPhase === 'crm_connecting' && !hasCrm && previousPhase === 'crm_connecting') {
-          // CRM connection was cancelled
-          setIntegrationFlowPhase('crm_options');
-          previousFlowPhaseRef.current = 'crm_options';
+          // CRM connection was cancelled, go back to offering
+          setIntegrationFlowPhase('crm_offered');
+          previousFlowPhaseRef.current = 'crm_offered';
         } else if (currentPhase === 'scheduling_connecting' && hasScheduling && !hadScheduling) {
           // Scheduling was successfully connected
           previousConnectedIntegrationsRef.current = newConnected;
@@ -1025,24 +1074,43 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
           else if (newConnected.has('calendly')) connectedSchedulingType = 'calendly';
           else if (newConnected.has('google_calendar')) connectedSchedulingType = 'google_calendar';
 
-          // Try to start function enablement flow
-          const functionFlowStarted = connectedSchedulingType && integrationFlowPhase !== 'functions'
-            ? await startFunctionEnablementFlow(connectedSchedulingType)
-            : false;
+          // Update workflow with scheduling tool
+          if (connectedSchedulingType && currentWorkflowId) {
+            const tool = mapIntegrationToTool(connectedSchedulingType);
+            if (tool) {
+              try {
+                const updated = await updateWorkflowWithTool(tool);
+                if (updated) {
+                  addSystemMessage(`✓ ${connectedSchedulingType.charAt(0).toUpperCase() + connectedSchedulingType.slice(1)} added to workflow!`);
+                }
+              } catch (error) {
+                console.error('[GuidedSetupChat] Error updating workflow with scheduling tool:', error);
+                addSystemMessage(`Failed to add ${connectedSchedulingType} to workflow. Please try again.`);
+              }
+            }
+          }
 
-          if (!functionFlowStarted) {
-            setIntegrationFlowPhase('recommendations');
-            previousFlowPhaseRef.current = 'recommendations';
-            addSystemMessage("Excellent! Your scheduling integration is connected. Would you like to recommend any other tools?", undefined, [
+          // Move to CRM offer or complete
+          const hasCrm = newConnected.has('pipedrive') || newConnected.has('hubspot') || newConnected.has('kommo');
+          if (hasCrm || crmSkipped) {
+            setIntegrationFlowPhase('complete');
+            previousFlowPhaseRef.current = 'complete';
+            addSystemMessage("Your workflow is complete!", undefined, [
+              { label: "Done", value: "done" }
+            ]);
+          } else {
+            setIntegrationFlowPhase('crm_offered');
+            previousFlowPhaseRef.current = 'crm_offered';
+            addSystemMessage("Excellent! Your scheduling tool has been added. Would you like to add a CRM system?", undefined, [
               { label: "Yes", value: "yes" },
-              { label: "No, I'm done", value: "no" }
+              { label: "No", value: "no" }
             ]);
           }
           return;
         } else if (currentPhase === 'scheduling_connecting' && !hasScheduling && previousPhase === 'scheduling_connecting') {
-          // Scheduling connection was cancelled
-          setIntegrationFlowPhase('scheduling_options');
-          previousFlowPhaseRef.current = 'scheduling_options';
+          // Scheduling connection was cancelled, go back to offering
+          setIntegrationFlowPhase('scheduling_offered');
+          previousFlowPhaseRef.current = 'scheduling_offered';
         }
       }
 
@@ -1053,7 +1121,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
     } catch (error) {
       console.error('Error checking integration connection:', error);
     }
-  }, [integrationFlowPhase, addSystemMessage, startFunctionEnablementFlow, agentId, agent, wizardContext, schedulingSkipped]);
+  }, [integrationFlowPhase, addSystemMessage, agentId, agent, wizardContext, schedulingSkipped, currentWorkflowId, mapIntegrationToTool, updateWorkflowWithTool, crmSkipped]);
 
   // Watch for changes in wizard context integration tools (when integration is added to agent)
   useEffect(() => {
@@ -1071,70 +1139,87 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
         console.log('[GuidedSetupChat] Detected new integrations from wizard context:', newIntegrations);
 
         const currentPhase = integrationFlowPhase;
-        const isInFunctionFlow = currentPhase === 'functions';
         const newCrm = newIntegrations.find(type => ['pipedrive', 'hubspot', 'kommo'].includes(type));
         const newScheduling = newIntegrations.find(type => ['calcom', 'calendly', 'google_calendar'].includes(type));
 
-        // Don't trigger if we're already in function flow
-        if (isInFunctionFlow) {
-          previousConnectedIntegrationsRef.current = currentWizardIntegrations;
-          setConnectedIntegrations(currentWizardIntegrations);
-          return;
-        }
-
         const isConnecting = currentPhase === 'crm_connecting' || currentPhase === 'scheduling_connecting';
-        const hasFunctionQuestion = messages.some(msg => msg.text.includes("Would you like to enable"));
 
         // Handle new CRM integration
-        if (newCrm && !isInFunctionFlow && !isConnecting && !hasFunctionQuestion && currentPhase !== 'complete' && currentPhase !== 'recommendations') {
-          setIntegrationFlowPhase('crm_connecting');
-
-          // Send welcome if not sent
-          if (!welcomeMessageSentRef.current) {
-            welcomeMessageSentRef.current = true;
-            addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. Let me guide you through the process on how to integrate tools.");
-          }
-
-          // Start function flow
-          setTimeout(async () => {
-            const flowStarted = await startFunctionEnablementFlow(newCrm);
-            if (!flowStarted) {
-              const hasScheduling = currentWizardIntegrations.has('calcom') || currentWizardIntegrations.has('calendly') || currentWizardIntegrations.has('google_calendar');
-              if (hasScheduling || schedulingSkipped) {
-                setIntegrationFlowPhase('recommendations');
-                addSystemMessage("Great! Your CRM integration is connected. Would you like to recommend any other tools?", undefined, [
-                  { label: "Yes", value: "yes" },
-                  { label: "No", value: "no" }
-                ]);
-              } else {
-                setIntegrationFlowPhase('scheduling');
-                addSystemMessage("Great! Your CRM integration is connected. Would you like to connect a scheduling tool?", undefined, [
-                  { label: "Yes", value: "yes" },
-                  { label: "No", value: "no" }
-                ]);
+        if (newCrm && !isConnecting && currentPhase !== 'complete') {
+          // Update workflow with CRM tool - use async function properly
+          const handleCrmIntegration = async () => {
+            if (currentWorkflowId) {
+              const tool = mapIntegrationToTool(newCrm);
+              if (tool) {
+                try {
+                  const updated = await updateWorkflowWithTool(tool);
+                  if (updated) {
+                    addSystemMessage(`✓ ${newCrm.charAt(0).toUpperCase() + newCrm.slice(1)} added to workflow!`);
+                  }
+                } catch (error) {
+                  console.error('[GuidedSetupChat] Error updating workflow with CRM tool:', error);
+                  addSystemMessage(`Failed to add ${newCrm} to workflow. Please try again.`);
+                }
               }
             }
-          }, welcomeMessageSentRef.current ? 0 : 500);
 
-          previousConnectedIntegrationsRef.current = currentWizardIntegrations;
-          setConnectedIntegrations(currentWizardIntegrations);
-          return;
-        } else if (newScheduling && !isInFunctionFlow && currentPhase !== 'complete') {
-          setIntegrationFlowPhase('scheduling_connecting');
-
-          (async () => {
-            const flowStarted = await startFunctionEnablementFlow(newScheduling);
-            if (!flowStarted) {
-              setIntegrationFlowPhase('recommendations');
-              addSystemMessage("Excellent! Your scheduling integration is connected. Would you like to recommend any other tools?", undefined, [
+            const hasScheduling = currentWizardIntegrations.has('calcom') || currentWizardIntegrations.has('calendly') || currentWizardIntegrations.has('google_calendar');
+            if (hasScheduling || schedulingSkipped) {
+              setIntegrationFlowPhase('complete');
+              addSystemMessage("Your workflow is complete!", undefined, [
+                { label: "Done", value: "done" }
+              ]);
+            } else {
+              setIntegrationFlowPhase('scheduling_offered');
+              addSystemMessage("Great! Your CRM has been added. Would you like to add a scheduling tool?", undefined, [
                 { label: "Yes", value: "yes" },
                 { label: "No", value: "no" }
               ]);
             }
-          })();
 
-          previousConnectedIntegrationsRef.current = currentWizardIntegrations;
-          setConnectedIntegrations(currentWizardIntegrations);
+            previousConnectedIntegrationsRef.current = currentWizardIntegrations;
+            setConnectedIntegrations(currentWizardIntegrations);
+          };
+
+          handleCrmIntegration();
+          return;
+        } else if (newScheduling && !isConnecting && currentPhase !== 'complete') {
+          // Update workflow with scheduling tool - use async function properly
+          const handleSchedulingIntegration = async () => {
+            if (currentWorkflowId) {
+              const tool = mapIntegrationToTool(newScheduling);
+              if (tool) {
+                try {
+                  const updated = await updateWorkflowWithTool(tool);
+                  if (updated) {
+                    addSystemMessage(`✓ ${newScheduling.charAt(0).toUpperCase() + newScheduling.slice(1)} added to workflow!`);
+                  }
+                } catch (error) {
+                  console.error('[GuidedSetupChat] Error updating workflow with scheduling tool:', error);
+                  addSystemMessage(`Failed to add ${newScheduling} to workflow. Please try again.`);
+                }
+              }
+            }
+
+            const hasCrm = currentWizardIntegrations.has('pipedrive') || currentWizardIntegrations.has('hubspot') || currentWizardIntegrations.has('kommo');
+            if (hasCrm || crmSkipped) {
+              setIntegrationFlowPhase('complete');
+              addSystemMessage("Your workflow is complete!", undefined, [
+                { label: "Done", value: "done" }
+              ]);
+            } else {
+              setIntegrationFlowPhase('crm_offered');
+              addSystemMessage("Excellent! Your scheduling tool has been added. Would you like to add a CRM system?", undefined, [
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" }
+              ]);
+            }
+
+            previousConnectedIntegrationsRef.current = currentWizardIntegrations;
+            setConnectedIntegrations(currentWizardIntegrations);
+          };
+
+          handleSchedulingIntegration();
           return;
         }
 
@@ -1143,7 +1228,86 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardContext?.formValues?.integrationTools, wizardContext?.currentStep, integrationFlowPhase]);
+  }, [wizardContext?.formValues?.integrationTools, wizardContext?.currentStep, integrationFlowPhase, currentWorkflowId, mapIntegrationToTool, updateWorkflowWithTool, crmSkipped, schedulingSkipped, addSystemMessage]);
+
+  // Handle integration saved callback - directly update workflow when integration is saved
+  const handleIntegrationSaved = useCallback(async (integrationType: string) => {
+    console.log('[GuidedSetupChat] Integration saved callback received:', integrationType);
+    
+    if (!currentWorkflowId || !agentId) {
+      console.warn('[GuidedSetupChat] Cannot update workflow: missing workflowId or agentId');
+      return;
+    }
+
+    // Check if this integration should be added to workflow
+    const isCrm = ['pipedrive', 'hubspot', 'kommo'].includes(integrationType);
+    const isScheduling = ['calcom', 'calendly', 'google_calendar'].includes(integrationType);
+    
+    if (!isCrm && !isScheduling) {
+      console.log('[GuidedSetupChat] Integration type not relevant for workflow:', integrationType);
+      return;
+    }
+
+    // Check if integration is already in workflow
+    if (workflowTools.has(integrationType)) {
+      console.log('[GuidedSetupChat] Integration already in workflow:', integrationType);
+      return;
+    }
+
+    // Small delay to ensure backend has processed the integration save
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Update workflow with the new tool
+    const tool = mapIntegrationToTool(integrationType);
+    if (tool) {
+      try {
+        console.log('[GuidedSetupChat] Updating workflow with tool:', integrationType);
+        const updated = await updateWorkflowWithTool(tool);
+        if (updated) {
+          addSystemMessage(`✓ ${integrationType.charAt(0).toUpperCase() + integrationType.slice(1)} added to workflow!`);
+          
+          // Update phase based on what was added
+          if (isCrm) {
+            const hasScheduling = workflowTools.has('calcom') || workflowTools.has('calendly') || workflowTools.has('google_calendar');
+            if (hasScheduling || schedulingSkipped) {
+              setIntegrationFlowPhase('complete');
+              addSystemMessage("Your workflow is complete!", undefined, [
+                { label: "Done", value: "done" }
+              ]);
+            } else {
+              setIntegrationFlowPhase('scheduling_offered');
+              addSystemMessage("Great! Your CRM has been added. Would you like to add a scheduling tool?", undefined, [
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" }
+              ]);
+            }
+          } else if (isScheduling) {
+            const hasCrm = workflowTools.has('pipedrive') || workflowTools.has('hubspot') || workflowTools.has('kommo');
+            if (hasCrm || crmSkipped) {
+              setIntegrationFlowPhase('complete');
+              addSystemMessage("Your workflow is complete!", undefined, [
+                { label: "Done", value: "done" }
+              ]);
+            } else {
+              setIntegrationFlowPhase('crm_offered');
+              addSystemMessage("Excellent! Your scheduling tool has been added. Would you like to add a CRM system?", undefined, [
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" }
+              ]);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[GuidedSetupChat] Error updating workflow with saved integration:', error);
+        addSystemMessage(`Failed to add ${integrationType} to workflow. Please try again.`);
+      }
+    }
+  }, [currentWorkflowId, agentId, workflowTools, mapIntegrationToTool, updateWorkflowWithTool, addSystemMessage, schedulingSkipped, crmSkipped, setIntegrationFlowPhase]);
+
+  // Expose handleIntegrationSaved via ref using useImperativeHandle
+  useImperativeHandle(ref, () => ({
+    handleIntegrationSaved,
+  }), [handleIntegrationSaved]);
 
   // Poll for integration changes when in connecting state
   useEffect(() => {
@@ -1218,18 +1382,7 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
 
     // For Step 5, route ALL messages through ChatGPT for conversational handling
     if (wizardContext?.currentStep === 5) {
-      // Handle function enablement responses directly (for better UX with yes/no)
-      if (integrationFlowPhase === 'functions') {
-        const integrationType = currentIntegrationForFunctions;
-        if (integrationType) {
-          await handleFunctionEnablementResponse(userInput, integrationType);
-          setIsProcessing(false);
-          setWaitingForUser(false);
-          return;
-        }
-      }
-
-      // Route all other Step 5 messages through ChatGPT
+      // Route all Step 5 messages through ChatGPT
       await handleStep5ChatGPTMessage(userInput);
       return;
     }
@@ -1562,4 +1715,4 @@ export const GuidedSetupChat: React.FC<GuidedSetupChatProps> = ({
   }
 
   return createPortal(chatContent, document.body);
-};
+});

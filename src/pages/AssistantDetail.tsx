@@ -1789,7 +1789,7 @@ export default function AssistantDetail() {
               <div className="flex justify-end animate-fade-in">
                 <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
                   <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                  <span>You have undeployed changes. Click "Deploy Changes" to release them.</span>
+                  <span>You have unpublished changes</span>
                 </div>
               </div>
             )}

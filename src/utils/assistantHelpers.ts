@@ -529,18 +529,18 @@ export const getIntegrationIcon = (integrationType: string): string => {
 export const displayNameToActionName = (displayName: string, integrationType: string): string => {
   const mapping: Record<string, Record<string, string>> = {
     pipedrive: {
-      "Get Deal": "get_deal",
+      // "Get Deal": "get_deal",
       "Create Deal": "create_deal",
       "Update Deal": "update_deal",
       "Search Deals": "search_deals",
-      "Get Person": "get_contact",
+      // "Get Person": "get_contact",
       "Create Person": "create_contact",
       "Update Person": "update_contact",
       "Search Persons": "search_contacts",
-      "Get Organization": "get_company",
-      "Create Organization": "create_company",
-      "Update Organization": "update_organization",
-      "Search Organizations": "search_companies",
+      // "Get Organization": "get_company",
+      // "Create Organization": "create_company",
+      // "Update Organization": "update_organization",
+      // "Search Organizations": "search_companies",
       "Create Note": "create_note",
       "Create Activity": "create_activity"
     },

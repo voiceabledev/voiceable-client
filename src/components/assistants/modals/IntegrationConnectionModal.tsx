@@ -65,6 +65,7 @@ type IntegrationConnectionModalProps = {
   fetchUserIntegrations?: () => Promise<void>; // Function to refresh user integrations in the hook
   onRemoveIntegration?: (integrationType: string) => Promise<void>; // Function to remove integration from agent
   agentId?: string | number; // Agent ID for removing integration
+  onIntegrationSaved?: (integrationType: string) => void; // Callback when integration is saved and modal closes
 };
 
 export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProps> = ({
@@ -93,6 +94,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
   fetchUserIntegrations,
   onRemoveIntegration,
   agentId,
+  onIntegrationSaved,
 }) => {
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
@@ -383,6 +385,13 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
         console.log('[IntegrationModal] handleSaveSelectedIntegrationTools: Closing modal after successful save');
         // Set closing flag before closing
         isClosingRef.current = true;
+        
+        // Call callback to notify that integration was saved (before closing modal)
+        if (onIntegrationSaved && connectingIntegrationType) {
+          console.log('[IntegrationModal] Calling onIntegrationSaved callback for:', connectingIntegrationType);
+          onIntegrationSaved(connectingIntegrationType);
+        }
+        
         closeIntegrationConnectionModal();
         
         // Reset closing flag after a delay to allow the close to complete
@@ -404,7 +413,7 @@ export const IntegrationConnectionModal: React.FC<IntegrationConnectionModalProp
       closeIntegrationConnectionModal();
       // Don't re-throw - we've already closed the modal and shown an error toast
     }
-  }, [saveSelectedIntegrationTools, closeIntegrationConnectionModal, isSaving]);
+  }, [saveSelectedIntegrationTools, closeIntegrationConnectionModal, isSaving, onIntegrationSaved, connectingIntegrationType]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

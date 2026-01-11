@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
-import { ChevronDown, Edit, Plus, Trash2, Loader2 } from "lucide-react";
+import { Input } from "../ui/input";
+import { ChevronDown, Edit, Plus, Trash2, Loader2, Check, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { IntegrationFunctionCard } from "../assistants/IntegrationFunctionCard";
 import type { AgentFunction, Function } from "@/types/functions";
 import type { UserIntegration } from "@/types/assistant";
 import { functionsApi, agentFunctionsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { CreateWorkflowFromScratchModal } from "../workflows/CreateWorkflowFromScratchModal";
 
 type AgentIntegrationToolsState = Record<
   string,
@@ -60,6 +62,12 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   const [agentFunctions, setAgentFunctions] = useState<Record<string, AgentFunction[]>>({});
   const [loadingFunctions, setLoadingFunctions] = useState<Record<string, boolean>>({});
   const [functionErrors, setFunctionErrors] = useState<Record<string, string>>({});
+  const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
+  const [workflowsExpanded, setWorkflowsExpanded] = useState<Record<number, boolean>>({});
+  const [deletingWorkflowId, setDeletingWorkflowId] = useState<number | null>(null);
+  const [editingWorkflowId, setEditingWorkflowId] = useState<number | null>(null);
+  const [editingWorkflowName, setEditingWorkflowName] = useState<string>("");
+  const [savingWorkflowName, setSavingWorkflowName] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Load functions for an integration
@@ -114,12 +122,34 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
       console.log(`[Functions] Agent functions response:`, response);
       
       if (response.data) {
-        const grouped: Record<string, AgentFunction[]> = {};
-        response.data.forEach((group) => {
-          grouped[group.integration_type] = group.functions;
+        // Response is now a flat array of workflows
+        const workflows = Array.isArray(response.data) ? response.data : [];
+        console.log(`[Functions] Loaded ${workflows.length} workflows`);
+        
+        // Store workflows in a map by ID for easy access
+        const workflowsMap: Record<string, AgentFunction[]> = {};
+        workflows.forEach((workflow) => {
+          const key = workflow.is_custom_workflow ? 'custom' : (workflow.function?.integration_type || 'other');
+          if (!workflowsMap[key]) {
+            workflowsMap[key] = [];
+          }
+          workflowsMap[key].push(workflow);
         });
-        console.log(`[Functions] Grouped agent functions:`, grouped);
-        setAgentFunctions(grouped);
+        setAgentFunctions(workflowsMap);
+        
+        // Expand all workflows by default (only for newly loaded workflows)
+        setWorkflowsExpanded(prev => {
+          const updated = { ...prev };
+          workflows.forEach((workflow) => {
+            // Only expand if this workflow hasn't been manually collapsed/expanded by the user
+            // If it's undefined, it's a new workflow - expand it by default
+            if (updated[workflow.id] === undefined) {
+              updated[workflow.id] = true;
+            }
+            // If it's already set (true or false), preserve the user's choice
+          });
+          return updated;
+        });
       }
     } catch (error) {
       console.error("[Functions] Failed to load agent functions:", error);
@@ -143,33 +173,80 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   // Load agent functions on mount and when agentId changes or refresh key changes
   useEffect(() => {
     if (agentId) {
+      console.log(`[AgentIntegrationToolsSection] Refresh triggered - agentId: ${agentId}, refreshKey: ${agentFunctionsRefreshKey}`);
       loadAgentFunctions();
     }
   }, [agentId, agentFunctionsRefreshKey, loadAgentFunctions]);
 
   // Handle function toggle
-  const handleFunctionToggle = async (functionId: number, enabled: boolean) => {
+  const handleFunctionToggle = async (functionId: number | null, enabled: boolean, agentFunctionId?: number) => {
     if (!agentId) return;
+
+    // If enabling a workflow, check if it requires SMS
+    if (enabled) {
+      const workflow = getAllWorkflows().find(w => 
+        w.id === agentFunctionId || (functionId && w.function_id === functionId)
+      );
+      if (workflow) {
+        const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
+        const hasSmsTool = toolChain.some(tool => 
+          tool.role === 'communication' && tool.type === 'twilio' && (tool.method === 'sms' || !tool.method)
+        );
+        
+        // Note: Backend will validate Twilio configuration
+        // Frontend validation is just for user feedback
+        if (hasSmsTool) {
+          // Backend will handle the actual validation
+        }
+      }
+    }
 
     try {
       if (enabled) {
-        await agentFunctionsApi.enable(agentId, functionId, true);
+        if (functionId) {
+          await agentFunctionsApi.enable(agentId, functionId, true);
+        }
       } else {
-        // Find the agent function to disable
-        const agentFunction = Object.values(agentFunctions)
-          .flat()
-          .find((af) => af.function_id === functionId);
-        if (agentFunction) {
-          await agentFunctionsApi.disable(agentId, agentFunction.id);
+        // Use provided agentFunctionId or find by function_id
+        if (agentFunctionId) {
+          await agentFunctionsApi.disable(agentId, agentFunctionId);
+        } else if (functionId) {
+          // Find the agent function to disable
+          const agentFunction = Object.values(agentFunctions)
+            .flat()
+            .find((af) => af.function_id === functionId);
+          if (agentFunction) {
+            await agentFunctionsApi.disable(agentId, agentFunction.id);
+          }
         }
       }
       await loadAgentFunctions();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to toggle function:", error);
+      // Check if error is about SMS requirement
+      const errorMessage = error?.response?.data?.status?.message || error?.message || "";
+      if (errorMessage.includes('SMS') || errorMessage.includes('Twilio')) {
+        toast({
+          title: "SMS Required",
+          description: errorMessage || "SMS/Twilio is required when agent workflows need to receive user input. Please configure Twilio credentials.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to toggle workflow",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  // Get functions for an integration (both available and enabled)
+  // Get all workflows (custom and function-based)
+  const getAllWorkflows = (): AgentFunction[] => {
+    return Object.values(agentFunctions).flat();
+  };
+
+  // Get functions for an integration (both available and enabled) - kept for backward compatibility
   const getFunctionsForIntegration = (integrationType: string): AgentFunction[] => {
     const available = availableFunctions[integrationType] || [];
     const enabled = agentFunctions[integrationType] || [];
@@ -187,6 +264,80 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
         function: func,
       };
     });
+  };
+
+  const handleDeleteWorkflow = async (workflowId: number) => {
+    if (!agentId) return;
+    
+    if (!confirm("Are you sure you want to delete this workflow? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeletingWorkflowId(workflowId);
+    try {
+      await agentFunctionsApi.disable(agentId, workflowId);
+      await loadAgentFunctions();
+      toast({
+        title: "Success",
+        description: "Workflow deleted successfully",
+      });
+    } catch (error) {
+      console.error("Failed to delete workflow:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete workflow",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingWorkflowId(null);
+    }
+  };
+
+  const handleStartEditWorkflowName = (workflow: AgentFunction) => {
+    setEditingWorkflowId(workflow.id);
+    setEditingWorkflowName(workflow.workflow_name || workflow.function?.name || "Workflow");
+  };
+
+  const handleCancelEditWorkflowName = () => {
+    setEditingWorkflowId(null);
+    setEditingWorkflowName("");
+  };
+
+  const handleSaveWorkflowName = async (workflowId: number) => {
+    if (!agentId) return;
+
+    const trimmedName = editingWorkflowName.trim();
+    if (!trimmedName) {
+      toast({
+        title: "Error",
+        description: "Workflow name cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingWorkflowName(workflowId);
+    try {
+      await agentFunctionsApi.updateWorkflowConfig(agentId, workflowId, { name: trimmedName });
+      
+      toast({
+        title: "Success",
+        description: "Workflow name updated successfully",
+      });
+      
+      setEditingWorkflowId(null);
+      setEditingWorkflowName("");
+      await loadAgentFunctions();
+    } catch (error) {
+      console.error("Failed to update workflow name:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update workflow name",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingWorkflowName(null);
+    }
   };
 
   // Helper to get required integrations from enabled functions
@@ -233,7 +384,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
               shared across all your agents.
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              {connectedCount} integration{connectedCount !== 1 ? "s" : ""} connected to this agent
+              {getAllWorkflows().length} workflow{getAllWorkflows().length !== 1 ? "s" : ""} configured for this agent
             </p>
           </div>
           <ChevronDown
@@ -248,82 +399,117 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
       {integrationToolsSectionExpanded && (
         <div className="mt-4 md:mt-6">
           <div className="flex justify-end mb-4">
-            <Button variant="outline" size="sm" onClick={onOpenAddIntegrationModal}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowCreateWorkflowModal(true)}
+              disabled={!agentId}
+            >
               <Plus className="h-4 w-4 mr-2" />
-              Add Integration
+              Add Workflow
             </Button>
           </div>
-          {connectedCount > 0 ? (
+          {getAllWorkflows().length > 0 ? (
             <div className="space-y-3">
-              {Object.keys(agentIntegrationTools).map((integrationType) => {
-                const enabledTools = agentIntegrationTools[integrationType]?.enabledTools || [];
-                const enabledToolsSet = new Set(enabledTools);
-                const isExpanded = integrationToolsExpanded[integrationType] || false;
-
+              {/* Show all workflows as "Workflow" containers */}
+              {getAllWorkflows().map((workflow) => {
+                const isExpanded = workflowsExpanded[workflow.id] || false;
                 return (
                   <div
-                    key={integrationType}
-                    className="border border-border rounded-lg overflow-hidden"
+                    key={workflow.id}
+                    className="border border-border rounded-lg overflow-hidden group"
                   >
                     <div className="flex items-center justify-between p-3 bg-secondary/50">
-                      <div className="flex items-center gap-3 flex-1">
-                        <span className="text-xl">{getIntegrationIcon(integrationType)}</span>
-                        <div>
-                          <span className="text-sm font-medium">
-                            {formatToolName(integrationType)}
-                          </span>
-                          <span className="text-xs text-success ml-2">Connected & Active</span>
-                        </div>
+                      <div className="flex items-center gap-2 flex-1 group">
+                        {editingWorkflowId === workflow.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              value={editingWorkflowName}
+                              onChange={(e) => setEditingWorkflowName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleSaveWorkflowName(workflow.id);
+                                } else if (e.key === "Escape") {
+                                  handleCancelEditWorkflowName();
+                                }
+                              }}
+                              className="h-7 text-sm font-medium"
+                              autoFocus
+                              disabled={savingWorkflowName === workflow.id}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleSaveWorkflowName(workflow.id)}
+                              disabled={savingWorkflowName === workflow.id}
+                            >
+                              {savingWorkflowName === workflow.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3 text-success" />
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={handleCancelEditWorkflowName}
+                              disabled={savingWorkflowName === workflow.id}
+                            >
+                              <X className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">
+                              {workflow.workflow_name || workflow.function?.name || "Workflow"}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleStartEditWorkflowName(workflow);
+                              }}
+                              title="Edit workflow name"
+                            >
+                              <Edit className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
-                          onClick={(e) => {
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          disabled={deletingWorkflowId !== null}
+                          onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            onOpenEditIntegrationModal(integrationType);
+                            await handleDeleteWorkflow(workflow.id);
                           }}
-                          title="Edit credentials"
+                          title="Delete workflow"
                         >
-                          <Edit className="h-4 w-4" />
+                          {deletingWorkflowId === workflow.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
-                        {integrationType !== 'twilio' && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            disabled={deletingIntegrationType !== null}
-                            onClick={async (e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (confirm(`Are you sure you want to remove ${formatToolName(integrationType)} from this agent? This will disable all tools for this integration.`)) {
-                                setDeletingIntegrationType(integrationType);
-                                try {
-                                  await onDeleteIntegration(integrationType);
-                                } finally {
-                                  setDeletingIntegrationType(null);
-                                }
-                              }
-                            }}
-                            title="Remove integration from agent"
-                          >
-                            {deletingIntegrationType === integrationType ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => onToggleIntegrationExpanded(integrationType)}
+                          onClick={() => setWorkflowsExpanded(prev => ({ ...prev, [workflow.id]: !isExpanded }))}
                         >
                           <ChevronDown
                             className={cn(
@@ -336,129 +522,16 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
                     </div>
 
                     {isExpanded && (
-                      <div className="p-4 border-t border-border space-y-3">
-                        {/* Functions Section */}
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-3 font-medium">
-                            Functions
-                          </p>
-                          <p className="text-xs text-muted-foreground mb-3">
-                            Predefined workflows that connect {formatToolName(integrationType)} with other tools:
-                          </p>
-                          
-                          {loadingFunctions[integrationType] ? (
-                            <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <span>Loading functions...</span>
-                            </div>
-                          ) : functionErrors[integrationType] ? (
-                            <div className="py-4 text-sm text-destructive">
-                              <p>Error loading functions: {functionErrors[integrationType]}</p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="mt-2"
-                                onClick={() => loadFunctionsForIntegration(integrationType)}
-                              >
-                                Retry
-                              </Button>
-                            </div>
-                          ) : availableFunctions[integrationType] && availableFunctions[integrationType].length > 0 ? (
-                            <div className="space-y-2">
-                              {getFunctionsForIntegration(integrationType).map((agentFunction) => (
-                                <IntegrationFunctionCard
-                                  key={agentFunction.function_id}
-                                  agentFunction={agentFunction}
-                                  onToggle={(enabled) =>
-                                    handleFunctionToggle(agentFunction.function_id, enabled)
-                                  }
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="py-4 text-sm text-muted-foreground">
-                              <p>No functions available for this integration.</p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Required Integrations Section */}
-                        {(() => {
-                          const requiredIntegrations = getRequiredIntegrationsForIntegration(integrationType);
-                          if (requiredIntegrations.length === 0) return null;
-
-                          return (
-                            <div className="mt-4 pt-4 border-t border-border">
-                              <p className="text-xs text-muted-foreground mb-3 font-medium">
-                                Required Integrations
-                              </p>
-                              <p className="text-xs text-muted-foreground mb-3">
-                                These integrations are required by enabled functions:
-                              </p>
-                              <div className="space-y-2">
-                                {requiredIntegrations.map(({ integrationType: requiredType, requiredBy }) => {
-                                  const userIntegration = userIntegrations.find(
-                                    ui => ui.integration_type === requiredType
-                                  );
-                                  const isConnected = !!agentIntegrationTools[requiredType];
-                                  
-                                  return (
-                                    <div
-                                      key={requiredType}
-                                      className="border border-border rounded-lg overflow-hidden bg-secondary/30"
-                                    >
-                                      <div className="flex items-center justify-between p-3">
-                                        <div className="flex items-center gap-3 flex-1">
-                                          <span className="text-xl">{getIntegrationIcon(requiredType)}</span>
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-sm font-medium">
-                                                {formatToolName(requiredType)}
-                                              </span>
-                                              {isConnected && (
-                                                <span className="text-xs text-success">Connected & Active</span>
-                                              )}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                              Required by: {requiredBy.join(", ")}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          {!isConnected && (
-                                            <Button
-                                              variant="default"
-                                              size="sm"
-                                              onClick={() => onOpenEditIntegrationModal(requiredType)}
-                                            >
-                                              Connect to Agent
-                                            </Button>
-                                          )}
-                                          {isConnected && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-7 w-7"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                onOpenEditIntegrationModal(requiredType);
-                                              }}
-                                              title="Edit credentials"
-                                            >
-                                              <Edit className="h-4 w-4" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })()}
+                      <div className="p-4 border-t border-border">
+                        <IntegrationFunctionCard
+                          agentFunction={workflow}
+                          agentId={agentId}
+                          onToggle={(enabled) =>
+                            handleFunctionToggle(workflow.function_id, enabled, workflow.id)
+                          }
+                          onWorkflowUpdate={loadAgentFunctions}
+                          onConfigureCredentials={onOpenEditIntegrationModal}
+                        />
                       </div>
                     )}
                   </div>
@@ -467,13 +540,22 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
-              <p className="text-sm">No integrations connected yet.</p>
+              <p className="text-sm">No workflows configured yet.</p>
               <p className="text-xs mt-1">
-                Click &quot;Add Integration&quot; to connect your CRM or scheduling tools.
+                Click &quot;Add Workflow&quot; to create a new workflow.
               </p>
             </div>
           )}
         </div>
+      )}
+
+      {agentId && (
+        <CreateWorkflowFromScratchModal
+          open={showCreateWorkflowModal}
+          onClose={() => setShowCreateWorkflowModal(false)}
+          agentId={agentId}
+          onWorkflowCreated={loadAgentFunctions}
+        />
       )}
     </div>
   );
