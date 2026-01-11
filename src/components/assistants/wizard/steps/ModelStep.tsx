@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Code, Info } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import React, { useState, useEffect, useMemo } from "react";
+import { Code, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 import { providers, modelsByProvider } from "../constants";
 import { pricingSettingsApi, PricingSetting } from "@/lib/api";
 
@@ -56,17 +58,55 @@ const getModelName = (provider: string, modelId: string): string => {
 };
 
 // Helper to get pricing with commission from API data
-const getPricingWithCommission = (model: string, pricingSettings: PricingSetting[]): string => {
+const TOKENS_PER_MINUTE = 4066.667; // Average tokens per minute of conversation
+
+const getPricingWithCommission = (model: string, pricingSettings: PricingSetting[], commissionMarkup: number): string => {
   const setting = pricingSettings.find(
-    s => s.category === 'llm' && s.model_id === model && s.active && s.cost_per_million_tokens
+    s => s.category === 'llm' && s.model_id === model && s.active
   );
   
-  if (setting && setting.cost_per_million_tokens) {
-    // Convert per-million-tokens to per-minute (approximate)
-    // Based on ~4066 tokens per minute average
-    const costPerMinute = (setting.cost_per_million_tokens / 1000000) * 4066.667;
-    const priceWithCommission = costPerMinute * (1 + COMMISSION_MARKUP);
-    return `~$${priceWithCommission.toFixed(4)}/min`;
+  // Ensure commissionMarkup is a valid number, default to 0.70 if not
+  const markup = typeof commissionMarkup === 'number' && !isNaN(commissionMarkup) ? commissionMarkup : 0.70;
+  
+  if (setting) {
+    // Prefer cost_per_minute from database if available
+    if (setting.cost_per_minute !== null && setting.cost_per_minute !== undefined) {
+      const baseCostPerMinute = Number(setting.cost_per_minute);
+      
+      // Validate baseCostPerMinute is a valid number
+      if (!isNaN(baseCostPerMinute) && baseCostPerMinute > 0) {
+        // Apply commission markup to the base cost per minute
+        const pricePerMinute = baseCostPerMinute * (1 + markup);
+        
+        // Format with appropriate precision - use 6 decimals for very small values
+        // If value is less than 0.0001, show 6 decimals, otherwise 4
+        const decimals = pricePerMinute < 0.0001 ? 6 : 4;
+        return `~$${pricePerMinute.toFixed(decimals)}/min`;
+      }
+    }
+    
+    // Fallback to calculation from cost_per_million_tokens if cost_per_minute is not available
+    if (setting.cost_per_million_tokens) {
+      // Convert to number explicitly to avoid NaN
+      const baseCost = Number(setting.cost_per_million_tokens);
+      
+      // Validate baseCost is a valid number
+      if (!isNaN(baseCost) && baseCost > 0) {
+        // Calculate price per 1M tokens with commission
+        const pricePerMillionTokens = baseCost * (1 + markup);
+        // Convert to per-minute: (price per 1M tokens / 1,000,000) * tokens per minute
+        // Formula: (cost_per_million_tokens * (1 + markup) / 1,000,000) * TOKENS_PER_MINUTE
+        const pricePerMinute = (pricePerMillionTokens / 1_000_000) * TOKENS_PER_MINUTE;
+        
+        // Validate result is a valid number
+        if (!isNaN(pricePerMinute) && pricePerMinute > 0) {
+          // Format with appropriate precision - use 6 decimals for very small values
+          // If value is less than 0.0001, show 6 decimals, otherwise 4
+          const decimals = pricePerMinute < 0.0001 ? 6 : 4;
+          return `~$${pricePerMinute.toFixed(decimals)}/min`;
+        }
+      }
+    }
   }
   
   // Fallback to default pricing
@@ -133,13 +173,50 @@ const getModelQuality = (provider: string, model: string, pricingSettings: Prici
   return { level: 3, label: "Standard", cost: pricing, modelName };
 };
 
+// Build model list from pricing settings grouped by quality
+const buildModelList = (
+  pricingSettings: PricingSetting[],
+  commissionMarkup: number
+): {
+  best: Array<{ provider: string; modelId: string; quality: ReturnType<typeof getModelQuality>; setting: PricingSetting }>;
+  standard: Array<{ provider: string; modelId: string; quality: ReturnType<typeof getModelQuality>; setting: PricingSetting }>;
+  economy: Array<{ provider: string; modelId: string; quality: ReturnType<typeof getModelQuality>; setting: PricingSetting }>;
+} => {
+  // Get all active LLM models from pricing settings
+  const activeModels = pricingSettings.filter(
+    (s) => s.category === "llm" && s.model_id && s.active && (s.cost_per_minute || s.cost_per_million_tokens)
+  );
+
+  // Map to model objects with provider and quality info
+  const modelsWithQuality = activeModels.map((setting) => {
+    const provider = setting.provider;
+    const modelId = setting.model_id!;
+    const quality = getModelQuality(provider, modelId, pricingSettings, commissionMarkup);
+    return {
+      provider,
+      modelId,
+      quality,
+      setting,
+    };
+  });
+
+  // Group by quality level
+  const grouped = {
+    best: modelsWithQuality.filter((m) => m.quality.level >= 4),
+    standard: modelsWithQuality.filter((m) => m.quality.level === 3),
+    economy: modelsWithQuality.filter((m) => m.quality.level <= 2),
+  };
+
+  return grouped;
+};
+
 export function ModelStep({
   selectedProvider,
   selectedModel,
   onProviderChange,
   onModelChange,
 }: ModelStepProps) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [open, setOpen] = useState(false);
   const [pricingSettings, setPricingSettings] = useState<PricingSetting[]>([]);
   const [commissionMarkup, setCommissionMarkup] = useState<number>(0.70); // Default fallback
 
@@ -165,7 +242,11 @@ export function ModelStep({
       try {
         const response = await pricingSettingsApi.getCommissionMarkup();
         if (response.data?.commission_markup !== undefined) {
-          setCommissionMarkup(response.data.commission_markup);
+          const markup = Number(response.data.commission_markup);
+          // Only update if it's a valid number
+          if (!isNaN(markup) && markup >= 0 && markup <= 1) {
+            setCommissionMarkup(markup);
+          }
         }
       } catch (error) {
         console.error("Error fetching commission markup:", error);
@@ -175,9 +256,20 @@ export function ModelStep({
     };
     fetchCommissionMarkup();
   }, []);
-  
+
   const quality = getModelQuality(selectedProvider, selectedModel, pricingSettings, commissionMarkup);
   const qualityDots = "●".repeat(quality.level) + "○".repeat(5 - quality.level);
+
+  // Build model list grouped by quality
+  const modelGroups = useMemo(
+    () => buildModelList(pricingSettings, commissionMarkup),
+    [pricingSettings, commissionMarkup]
+  );
+
+  // Get provider label for search
+  const getProviderLabel = (provider: string): string => {
+    return providers.find((p) => p.value === provider)?.label || provider;
+  };
 
   return (
     <div>
@@ -195,181 +287,149 @@ export function ModelStep({
         </div>
 
         <div className="mt-4 md:mt-6 space-y-4">
-          {!showAdvanced ? (
-            <>
-              {/* Simple Mode: Quality Selection */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">AI Quality</label>
-                <div className="flex flex-col md:flex-row items-stretch md:items-start gap-3">
-                  <div className="flex-1 w-full">
-                    <Select
-                      value={`${selectedProvider}:${selectedModel}`}
-                      onValueChange={(value) => {
-                        const [provider, model] = value.split(":");
-                        onProviderChange(provider);
-                        onModelChange(model);
-                      }}
-                    >
-                      <SelectTrigger className="bg-white border-border focus:ring-muted focus:ring-offset-0 w-full">
-                        <SelectValue>
-                          {(() => {
-                            const q = getModelQuality(selectedProvider, selectedModel, pricingSettings);
-                            return (
-                              <div className="flex items-center justify-between w-full gap-2">
-                                <span className="text-xs md:text-sm font-medium truncate">
-                                  {q.label} - {q.modelName}
-                                </span>
-                                <span className="text-[10px] md:text-xs text-muted-foreground flex-shrink-0">
-                                  {q.cost}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[400px] shadow-xl border border-border/50 rounded-lg p-1.5 bg-popover">
-                        <SelectItem 
-                          value="anthropic:claude-sonnet-4-5" 
-                          className="group rounded-md py-3.5 px-3 hover:bg-accent/50 data-[highlighted]:bg-accent/50 transition-all cursor-pointer border-b border-border/30 last:border-b-0"
-                        >
-                          <div className="flex flex-col w-full gap-2">
-                            <div className="flex items-center justify-between w-full gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <span className="text-sm font-bold text-foreground group-hover:text-white group-data-[highlighted]:text-white whitespace-nowrap transition-colors">Best</span>
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary group-hover:bg-primary/20 group-hover:text-white group-data-[highlighted]:bg-primary/20 group-data-[highlighted]:text-white font-medium transition-colors">Recommended</span>
-                              </div>
-                              <span className="text-xs font-semibold text-primary group-hover:text-white group-data-[highlighted]:text-white whitespace-nowrap flex-shrink-0 transition-colors">
-                                {getPricingWithCommission("claude-sonnet-4-5", pricingSettings)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-sm font-medium text-foreground/90 group-hover:text-white group-data-[highlighted]:text-white transition-colors">Claude Sonnet 4.5</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-foreground/60 group-hover:text-white/80 group-data-[highlighted]:text-white/80 font-mono transition-colors">●●●●●</span>
-                              </div>
-                            </div>
-                          </div>
-                        </SelectItem>
-                        <SelectItem 
-                          value="openai:gpt-4o-mini" 
-                          className="group rounded-md py-3.5 px-3 hover:bg-accent/50 data-[highlighted]:bg-accent/50 transition-all cursor-pointer border-b border-border/30 last:border-b-0"
-                        >
-                          <div className="flex flex-col w-full gap-2">
-                            <div className="flex items-center justify-between w-full gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <span className="text-sm font-bold text-foreground group-hover:text-white group-data-[highlighted]:text-white whitespace-nowrap transition-colors">Standard</span>
-                              </div>
-                              <span className="text-xs font-semibold text-muted-foreground group-hover:text-white group-data-[highlighted]:text-white whitespace-nowrap flex-shrink-0 transition-colors">~$0.0018/min</span>
-                            </div>
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-sm font-medium text-foreground/90 group-hover:text-white group-data-[highlighted]:text-white transition-colors">GPT-4o Mini</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-foreground/60 group-hover:text-white/80 group-data-[highlighted]:text-white/80 font-mono transition-colors">●●●○○</span>
-                              </div>
-                            </div>
-                          </div>
-                        </SelectItem>
-                        <SelectItem 
-                          value="openai:gpt-5-nano" 
-                          className="group rounded-md py-3.5 px-3 hover:bg-accent/50 data-[highlighted]:bg-accent/50 transition-all cursor-pointer border-b border-border/30 last:border-b-0"
-                        >
-                          <div className="flex flex-col w-full gap-2">
-                            <div className="flex items-center justify-between w-full gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <span className="text-sm font-bold text-foreground group-hover:text-white group-data-[highlighted]:text-white whitespace-nowrap transition-colors">Economy</span>
-                              </div>
-                              <span className="text-xs font-semibold text-muted-foreground group-hover:text-white group-data-[highlighted]:text-white whitespace-nowrap flex-shrink-0 transition-colors">
-                                {getPricingWithCommission("gpt-5-nano", pricingSettings)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-sm font-medium text-foreground/90 group-hover:text-white group-data-[highlighted]:text-white transition-colors">GPT-5 Nano</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-foreground/60 group-hover:text-white/80 group-data-[highlighted]:text-white/80 font-mono transition-colors">●●○○○</span>
-                              </div>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {quality.label === "Best (Recommended)" && `${quality.modelName} - Highest quality responses, most natural conversations, best for complex tasks`}
-                      {quality.label === "Standard" && `${quality.modelName} - Good balance of quality and cost, suitable for most use cases`}
-                      {quality.label === "Economy" && `${quality.modelName} - Cost-effective option, suitable for simple conversations`}
-                    </p>
-                  </div>
+          <div>
+            <label className="text-sm font-medium mb-2 block">AI Quality</label>
+            <div className="flex-1 w-full">
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAdvanced(true)}
-                    className="w-full md:w-auto whitespace-nowrap border border-border"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between bg-white border-border"
                   >
-                    Show Advanced Options
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span className="text-xs md:text-sm font-medium truncate">
+                        {quality.label} - {quality.modelName}
+                      </span>
+                      <span className="text-[10px] md:text-xs text-muted-foreground flex-shrink-0">
+                        {quality.cost}
+                      </span>
+                    </div>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Advanced Mode: Full Provider/Model Selection */}
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <label className="text-sm text-muted-foreground mb-2 block">Provider</label>
-                  <Select
-                    value={selectedProvider || "openai"}
-                    onValueChange={(value) => {
-                      onProviderChange(value);
-                      const models = modelsByProvider[value];
-                      if (models && models.length > 0) {
-                        onModelChange(models[0].value);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="bg-white border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providers.map((provider) => (
-                        <SelectItem key={provider.value} value={provider.value}>
-                          <span className="flex items-center gap-2">
-                            <span>{provider.icon}</span>
-                            <span>{provider.label}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <label className="text-sm text-muted-foreground">Model</label>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <Select value={selectedModel} onValueChange={onModelChange}>
-                    <SelectTrigger className="bg-white border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {modelsByProvider[selectedProvider]?.map((model) => (
-                        <SelectItem key={model.value} value={model.value}>
-                          {model.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAdvanced(false)}
-                className="w-full border border-border"
-              >
-                Hide Advanced Options
-              </Button>
-            </>
-          )}
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-w-[280px] sm:max-w-none p-0" align="start">
+                  <Command className="max-h-[400px]">
+                    <CommandInput placeholder="Search models..." />
+                    <CommandList>
+                      <CommandEmpty>No models found.</CommandEmpty>
+                      {modelGroups.best.length > 0 && (
+                        <CommandGroup heading="Best (Recommended)">
+                          {modelGroups.best.map((model) => {
+                            const dots = "●".repeat(model.quality.level) + "○".repeat(5 - model.quality.level);
+                            const providerLabel = getProviderLabel(model.provider);
+                            return (
+                              <CommandItem
+                                key={`${model.provider}:${model.modelId}`}
+                                value={`${model.quality.modelName} ${providerLabel} ${model.provider} ${model.modelId}`}
+                                onSelect={() => {
+                                  onProviderChange(model.provider);
+                                  onModelChange(model.modelId);
+                                  setOpen(false);
+                                }}
+                                className="group rounded-md py-3.5 px-3 hover:bg-accent/50 data-[selected='true']:bg-accent/50 transition-all cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between w-full gap-3">
+                                  <span className="text-sm font-medium text-foreground/90 group-hover:text-white group-data-[selected='true']:text-white transition-colors flex-1">
+                                    {model.quality.modelName}
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-foreground/60 group-hover:text-white/80 group-data-[selected='true']:text-white/80 font-mono transition-colors">
+                                      {dots}
+                                    </span>
+                                    <span className="text-xs font-semibold text-primary group-hover:text-white group-data-[selected='true']:text-white whitespace-nowrap flex-shrink-0 transition-colors">
+                                      {model.quality.cost}
+                                    </span>
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      )}
+                      {modelGroups.standard.length > 0 && (
+                        <CommandGroup heading="Standard">
+                          {modelGroups.standard.map((model) => {
+                            const dots = "●".repeat(model.quality.level) + "○".repeat(5 - model.quality.level);
+                            const providerLabel = getProviderLabel(model.provider);
+                            return (
+                              <CommandItem
+                                key={`${model.provider}:${model.modelId}`}
+                                value={`${model.quality.modelName} ${providerLabel} ${model.provider} ${model.modelId}`}
+                                onSelect={() => {
+                                  onProviderChange(model.provider);
+                                  onModelChange(model.modelId);
+                                  setOpen(false);
+                                }}
+                                className="group rounded-md py-3.5 px-3 hover:bg-accent/50 data-[selected='true']:bg-accent/50 transition-all cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between w-full gap-3">
+                                  <span className="text-sm font-medium text-foreground/90 group-hover:text-white group-data-[selected='true']:text-white transition-colors flex-1">
+                                    {model.quality.modelName}
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-foreground/60 group-hover:text-white/80 group-data-[selected='true']:text-white/80 font-mono transition-colors">
+                                      {dots}
+                                    </span>
+                                    <span className="text-xs font-semibold text-muted-foreground group-hover:text-white group-data-[selected='true']:text-white whitespace-nowrap flex-shrink-0 transition-colors">
+                                      {model.quality.cost}
+                                    </span>
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      )}
+                      {modelGroups.economy.length > 0 && (
+                        <CommandGroup heading="Economy">
+                          {modelGroups.economy.map((model) => {
+                            const dots = "●".repeat(model.quality.level) + "○".repeat(5 - model.quality.level);
+                            const providerLabel = getProviderLabel(model.provider);
+                            return (
+                              <CommandItem
+                                key={`${model.provider}:${model.modelId}`}
+                                value={`${model.quality.modelName} ${providerLabel} ${model.provider} ${model.modelId}`}
+                                onSelect={() => {
+                                  onProviderChange(model.provider);
+                                  onModelChange(model.modelId);
+                                  setOpen(false);
+                                }}
+                                className="group rounded-md py-3.5 px-3 hover:bg-accent/50 data-[selected='true']:bg-accent/50 transition-all cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between w-full gap-3">
+                                  <span className="text-sm font-medium text-foreground/90 group-hover:text-white group-data-[selected='true']:text-white transition-colors flex-1">
+                                    {model.quality.modelName}
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-foreground/60 group-hover:text-white/80 group-data-[selected='true']:text-white/80 font-mono transition-colors">
+                                      {dots}
+                                    </span>
+                                    <span className="text-xs font-semibold text-muted-foreground group-hover:text-white group-data-[selected='true']:text-white whitespace-nowrap flex-shrink-0 transition-colors">
+                                      {model.quality.cost}
+                                    </span>
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground mt-2">
+                {quality.label === "Best (Recommended)" &&
+                  `${quality.modelName} - Highest quality responses, most natural conversations, best for complex tasks`}
+                {quality.label === "Standard" &&
+                  `${quality.modelName} - Good balance of quality and cost, suitable for most use cases`}
+                {quality.label === "Economy" &&
+                  `${quality.modelName} - Cost-effective option, suitable for simple conversations`}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

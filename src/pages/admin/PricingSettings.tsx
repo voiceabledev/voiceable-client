@@ -280,9 +280,11 @@ export default function AdminPricingSettings() {
     return (markup / (1 + markup)) * 100;
   };
 
-  const formatPrice = (price: number | undefined, unit: 'min' | 'tokens' = 'min'): string => {
+  const formatPrice = (price: number | undefined, unit: 'min' | 'tokens' = 'min', withCommission: boolean = false): string => {
     if (price === undefined || price === null) return '—';
-    const formatted = price.toFixed(6).replace(/\.?0+$/, '');
+    // For prices with commission, use toFixed(4) to match Pricing.tsx
+    // For base costs, use toFixed(6) and remove trailing zeros
+    const formatted = withCommission ? price.toFixed(4) : price.toFixed(6).replace(/\.?0+$/, '');
     return unit === 'min' ? `$${formatted}/min` : `$${formatted}/1M tokens`;
   };
 
@@ -433,9 +435,9 @@ export default function AdminPricingSettings() {
                               </TableCell>
                               <TableCell>
                                 {setting.cost_per_minute !== undefined && setting.cost_per_minute !== null
-                                  ? formatPrice(priceWithCommission, 'min')
+                                  ? formatPrice(priceWithCommission, 'min', true)
                                   : setting.cost_per_million_tokens !== undefined && setting.cost_per_million_tokens !== null
-                                  ? formatPrice(priceWithCommission, 'tokens')
+                                  ? formatPrice(priceWithCommission, 'tokens', true)
                                   : '—'}
                               </TableCell>
                               <TableCell>
@@ -582,9 +584,9 @@ export default function AdminPricingSettings() {
                 <div className="text-sm font-medium mb-2">Price Preview (with {(commissionMarkup * 100).toFixed(0)}% commission):</div>
                 <div className="text-lg font-semibold">
                   {formData.cost_per_minute
-                    ? formatPrice((formData.cost_per_minute || 0) * (1 + commissionMarkup), 'min')
+                    ? formatPrice((formData.cost_per_minute || 0) * (1 + commissionMarkup), 'min', true)
                     : formData.cost_per_million_tokens
-                    ? formatPrice((formData.cost_per_million_tokens || 0) * (1 + commissionMarkup), 'tokens')
+                    ? formatPrice((formData.cost_per_million_tokens || 0) * (1 + commissionMarkup), 'tokens', true)
                     : '—'}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
