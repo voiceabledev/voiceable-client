@@ -602,7 +602,7 @@ const Pricing = () => {
                   <div className="space-y-2">
                     {pricingData.transport.length > 0 ? (
                       pricingData.transport.map((option) => {
-                        const priceWithCommission = option.cost * (1 + COMMISSION_MARKUP);
+                        const priceWithCommission = option.cost * (1 + commissionMarkup);
                         return (
                           <div key={option.id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
                             <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer flex-1">
@@ -616,7 +616,7 @@ const Pricing = () => {
                     ) : (
                       // Fallback to default transport options if API data not available
                       Object.entries(DEFAULT_TRANSPORT_COSTS).map(([id, cost]) => {
-                        const priceWithCommission = cost * (1 + COMMISSION_MARKUP);
+                        const priceWithCommission = cost * (1 + commissionMarkup);
                         return (
                           <div key={id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
                             <Label htmlFor={id} className="flex items-center gap-2 cursor-pointer flex-1">
@@ -656,7 +656,7 @@ const Pricing = () => {
                         ${(() => {
                           for (const providerModels of Object.values(pricingData.llm)) {
                             const model = providerModels.find(m => m.id === selectedLLM);
-                            if (model) return (model.cost * (1 + COMMISSION_MARKUP)).toFixed(4);
+                            if (model) return (model.cost * (1 + commissionMarkup)).toFixed(4);
                           }
                           return "0.00";
                         })()} / 1M tokens (includes commission)
@@ -726,7 +726,7 @@ const Pricing = () => {
                   Natural, high-quality speech synthesis
                 </p>
               </div>
-              <span className="font-medium">${(pricingData.tts * (1 + COMMISSION_MARKUP)).toFixed(4)} / min</span>
+              <span className="font-medium">${(pricingData.tts * (1 + commissionMarkup)).toFixed(4)} / min</span>
             </div>
 
             {/* STT */}
