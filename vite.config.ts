@@ -22,20 +22,23 @@ export default defineConfig(({ mode }) => ({
         manualChunks: (id) => {
           // Split vendor chunks
           if (id.includes('node_modules')) {
-            // Keep React, React DOM, and Radix UI together to avoid forwardRef issues
-            // Radix UI components need React.forwardRef which requires React to be in the same chunk
-            if (id.includes('react') || id.includes('react-dom') || id.includes('@radix-ui')) {
+            // Keep React, React DOM, and all React-dependent libraries together
+            // This ensures React is available when other libraries need createContext, forwardRef, etc.
+            if (
+              id.includes('react') || 
+              id.includes('react-dom') || 
+              id.includes('@radix-ui') ||
+              id.includes('react-router') ||
+              id.includes('react-hook-form') ||
+              id.includes('@tanstack/react-query') ||
+              id.includes('framer-motion') ||
+              id.includes('cmdk')
+            ) {
               return 'react-vendor';
             }
-            // Separate large third-party libraries
+            // Separate large third-party libraries that don't depend on React
             if (id.includes('@stripe')) {
               return 'stripe';
-            }
-            if (id.includes('@tanstack')) {
-              return 'tanstack';
-            }
-            if (id.includes('framer-motion')) {
-              return 'framer-motion';
             }
             if (id.includes('recharts')) {
               return 'recharts';
