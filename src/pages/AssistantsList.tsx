@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { generateSectionEntryId } from "@/utils/assistantHelpers";
 import { detectAgentType } from "@/utils/agentTypeDetection";
 import { getAgentTypeConfig } from "@/constants/agentTypeConfigs";
+import { generateFirstMessage } from "@/utils/generateFirstMessage";
 import {
   animate,
   useMotionTemplate,
@@ -561,6 +562,7 @@ export default function AssistantsList() {
         autoGenerateBehavior?: boolean;
         preSelectedVoices?: string[];
         preSelectedGoals?: string[];
+        firstMessage?: string;
       } = {
         assistantName: "New Assistant",
         systemPrompt: prompt.trim(),
@@ -587,6 +589,13 @@ export default function AssistantsList() {
           ? [availableVoices[0].id] 
           : [];
 
+        // Generate first message using AI (with fallback handled internally)
+        const generatedFirstMessage = await generateFirstMessage(
+          prompt.trim(),
+          detectionResult.type,
+          config.name
+        );
+
         initialData = {
           assistantName: config.name,
           systemPrompt: prompt.trim(),
@@ -599,11 +608,20 @@ export default function AssistantsList() {
           autoGenerateBehavior: true,
           preSelectedVoices: selectedVoiceIds,
           preSelectedGoals: config.primaryGoals,
+          firstMessage: generatedFirstMessage,
         };
       } else {
         // If detection fails, extract name from prompt
         const promptWords = prompt.trim().split(/\s+/);
-        initialData.assistantName = promptWords.slice(0, 4).join(" ") || "New Assistant";
+        const extractedName = promptWords.slice(0, 4).join(" ") || "New Assistant";
+        initialData.assistantName = extractedName;
+        
+        // Generate first message using AI (without agent type, fallback handled internally)
+        initialData.firstMessage = await generateFirstMessage(
+          prompt.trim(),
+          undefined,
+          extractedName
+        );
       }
 
       // Navigate to wizard at step 1 (second step) with the prompt data
@@ -620,11 +638,20 @@ export default function AssistantsList() {
       // Fallback: navigate with basic data
       const promptWords = prompt.trim().split(/\s+/);
       const assistantName = promptWords.slice(0, 4).join(" ") || "New Assistant";
+      
+      // Generate first message using AI (fallback handled internally)
+      const generatedFirstMessage = await generateFirstMessage(
+        prompt.trim(),
+        undefined,
+        assistantName
+      );
+      
       navigate("/assistants/create?step=1", {
         state: {
           assistantName: assistantName,
           systemPrompt: prompt.trim(),
           skipNameStep: true,
+          firstMessage: generatedFirstMessage,
         }
       });
     } finally {
