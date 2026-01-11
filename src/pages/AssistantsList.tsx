@@ -770,11 +770,11 @@ export default function AssistantsList() {
           </p>
         )}
 
-        <div className="absolute right-3 top-4 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute right-3 top-4 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 sm:h-8 sm:w-8 text-neutral-400 hover:text-neutral-50"
+            className="h-9 w-9 sm:h-8 sm:w-8 text-neutral-400 hover:text-neutral-50 pointer-events-auto"
             onClick={onEdit}
             title="Edit"
           >
@@ -783,7 +783,7 @@ export default function AssistantsList() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 sm:h-8 sm:w-8 text-neutral-400 hover:text-destructive"
+            className="h-9 w-9 sm:h-8 sm:w-8 text-neutral-400 hover:text-destructive pointer-events-auto"
             onClick={onDelete}
             title="Delete"
           >
@@ -791,7 +791,7 @@ export default function AssistantsList() {
           </Button>
         </div>
 
-        <FiEye className="absolute right-3 top-4 z-10 text-2xl text-neutral-400 transition-colors group-hover:text-neutral-50 group-hover:opacity-0" />
+        <FiEye className="absolute right-3 top-4 z-10 text-2xl text-neutral-400 transition-all duration-200 group-hover:text-neutral-50 group-hover:opacity-0 pointer-events-none" />
 
         <div
           className={cn(
