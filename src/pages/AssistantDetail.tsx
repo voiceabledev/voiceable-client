@@ -68,7 +68,7 @@ import {
   INTEGRATION_TOOLS_DISPLAY,
 } from "@/constants/assistant";
 import { getAvailableIntegrationTypes } from "@/constants/integrations";
-import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi, agentsApi, authApi } from "@/lib/api";
+import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi, agentsApi, authApi, phoneNumbersApi, type PhoneNumber } from "@/lib/api";
 import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 
@@ -242,6 +242,7 @@ export default function AssistantDetail() {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [loadingCredits, setLoadingCredits] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [agentPhoneNumbers, setAgentPhoneNumbers] = useState<PhoneNumber[]>([]);
 
   // Fetch credit balance when phone-number tab is active
   useEffect(() => {
@@ -298,6 +299,36 @@ export default function AssistantDetail() {
   );
 
   const { fetchAgentDetails } = agentData;
+
+  // Fetch phone numbers for the current agent
+  useEffect(() => {
+    const fetchAgentPhoneNumbers = async () => {
+      const currentAgentId = agentData.agent?.id || id;
+      if (!currentAgentId || currentAgentId === "create" || currentAgentId === "new") {
+        setAgentPhoneNumbers([]);
+        return;
+      }
+
+      try {
+        const response = await phoneNumbersApi.list();
+        if (response.data) {
+          // Filter phone numbers by agent_id matching the current agent
+          const filtered = response.data.filter(
+            (pn) => pn.agent_id?.toString() === currentAgentId.toString()
+          );
+          setAgentPhoneNumbers(filtered);
+        } else {
+          setAgentPhoneNumbers([]);
+        }
+      } catch (error) {
+        // Silently fail - phone number is not critical for page functionality
+        console.error("Error fetching phone numbers:", error);
+        setAgentPhoneNumbers([]);
+      }
+    };
+
+    fetchAgentPhoneNumbers();
+  }, [id, agentData.agent?.id]);
 
   // Change tracking
   const { hasChanges, updateBaseline, setTrackedState } = useChangeTracker();
@@ -1683,7 +1714,7 @@ export default function AssistantDetail() {
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground flex-wrap">
                 <span className="truncate">ID: {agentId}</span>
                 {!isNew && (
                   <>
@@ -1691,6 +1722,15 @@ export default function AssistantDetail() {
                     <span className="flex items-center gap-1">
                       <Globe className="h-3 w-3" />
                       Public
+                    </span>
+                  </>
+                )}
+                {agentPhoneNumbers.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{agentPhoneNumbers[0].phone_number}</span>
                     </span>
                   </>
                 )}

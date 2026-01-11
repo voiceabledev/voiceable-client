@@ -209,6 +209,121 @@ const SUGGESTED_BEHAVIORS = [
   { label: "Technical Support", icon: FiSettings, prompt: "Design a technical support agent that troubleshoots issues, provides step-by-step solutions, and escalates when needed." },
 ];
 
+// BeamInput component - defined outside to prevent re-creation on every render
+interface BeamInputProps {
+  prompt: string;
+  setPrompt: (value: string) => void;
+  isCreating: boolean;
+  onSubmit: (e?: React.FormEvent) => void;
+  textareaRef: React.MutableRefObject<HTMLTextAreaElement | null>;
+}
+
+function BeamInput({ prompt, setPrompt, isCreating, onSubmit, textareaRef }: BeamInputProps) {
+  const localTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const turn = useMotionValue(0);
+
+  useEffect(() => {
+    animate(turn, 1, {
+      ease: "linear",
+      duration: 5,
+      repeat: Infinity,
+    });
+  }, [turn]);
+
+  // Stable ref callback
+  const textareaRefCallback = useCallback((node: HTMLTextAreaElement | null) => {
+    localTextareaRef.current = node;
+    textareaRef.current = node;
+  }, [textareaRef]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (localTextareaRef.current) {
+      const textarea = localTextareaRef.current;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [prompt]);
+
+  const backgroundImage = useMotionTemplate`conic-gradient(from ${turn}turn, hsl(var(--primary) / 0) 75%, hsl(var(--primary) / 0.8) 100%)`;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.stopPropagation();
+      e.preventDefault();
+      onSubmit(e);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className={cn(
+        "relative flex w-full gap-2 border-1 border-foreground/50 bg-gradient-to-br from-background/80 to-background/40 py-2 pl-6 pr-1.5 backdrop-blur-sm shadow-sm min-h-[3rem] transition-all",
+        prompt && prompt.split('\n').length > 1 ? "items-start" : "items-center",
+        prompt ? "rounded-2xl" : "rounded-full"
+      )}
+    >
+      <textarea
+        ref={textareaRefCallback}
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="How can I help? Describe your agent and I'll build it."
+        className="w-full bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-0 resize-none overflow-hidden min-h-[1.5rem] max-h-32 leading-relaxed"
+        disabled={isCreating}
+        rows={1}
+        onKeyDown={handleKeyDown}
+      />
+
+      <motion.button
+        onClick={(e) => e.stopPropagation()}
+        type="submit"
+        disabled={!prompt.trim() || isCreating}
+        animate={{
+          scale: prompt.trim() && !isCreating ? [1, 1.05, 1] : 1,
+          boxShadow: prompt.trim() && !isCreating
+            ? [
+                '0 0 0px rgba(42, 102, 255, 0)',
+                '0 0 20px rgba(42, 102, 255, 0.8)',
+                '0 0 0px rgba(42, 102, 255, 0)'
+              ]
+            : '0 0 0px rgba(42, 102, 255, 0)'
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        whileTap={{ scale: 0.985 }}
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full bg-[#2A66FF] size-8 sm:size-9 p-2 self-end mb-1",
+          prompt.trim()
+            ? "opacity-100 hover:opacity-90"
+            : "opacity-50 hover:opacity-70",
+          isCreating && "opacity-50 cursor-not-allowed"
+        )}
+      >
+        {isCreating ? (
+          <Loader2 className="h-4 w-4 animate-spin text-white" />
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" aria-hidden="true" className="w-full h-full">
+            <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+          </svg>
+        )}
+      </motion.button>
+
+      <div className="pointer-events-none absolute inset-0 z-10 rounded-full">
+        <motion.div
+          style={{
+            backgroundImage,
+          }}
+          className="mask-with-browser-support absolute -inset-[1px] rounded-full border border-transparent bg-origin-border"
+        />
+      </div>
+    </form>
+  );
+}
+
 export default function AssistantsList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -229,6 +344,8 @@ export default function AssistantsList() {
   
   // Ref for intersection observer sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // Ref for textarea to allow focusing after template selection
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const searchQueryRef = useRef(searchQuery);
   
@@ -517,6 +634,17 @@ export default function AssistantsList() {
 
   const handleSuggestedClick = (suggestedPrompt: string) => {
     setPrompt(suggestedPrompt);
+    // Focus the textarea after state update to allow editing
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        // Move cursor to end of text so user can continue typing
+        if (textareaRef.current) {
+          const length = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(length, length);
+        }
+      }, 10);
+    });
   };
 
   // Corners Component for card hover effect
@@ -681,90 +809,6 @@ export default function AssistantsList() {
     );
   };
 
-  // BeamInput component
-  const BeamInput = () => {
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const turn = useMotionValue(0);
-
-    useEffect(() => {
-      animate(turn, 1, {
-        ease: "linear",
-        duration: 5,
-        repeat: Infinity,
-      });
-    }, [turn]);
-
-    // Auto-resize textarea
-    useEffect(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-      }
-    }, [prompt]);
-
-    const backgroundImage = useMotionTemplate`conic-gradient(from ${turn}turn, hsl(var(--primary) / 0) 75%, hsl(var(--primary) / 0.8) 100%)`;
-
-    return (
-      <form
-        onSubmit={handleCreateFromPrompt}
-        onClick={() => {
-          textareaRef.current?.focus();
-        }}
-        className={cn(
-          "relative flex w-full gap-2 border-1 border-foreground/50 bg-gradient-to-br from-background/80 to-background/40 py-2 pl-6 pr-1.5 backdrop-blur-sm shadow-sm min-h-[3rem] transition-all",
-          prompt && prompt.split('\n').length > 1 ? "items-start" : "items-center",
-          prompt ? "rounded-2xl" : "rounded-full"
-        )}
-      >
-        <textarea
-          ref={textareaRef}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="How can I help? Describe your agent and I'll build it."
-          className="w-full bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-0 resize-none overflow-hidden min-h-[1.5rem] max-h-32 leading-relaxed"
-          disabled={isCreating}
-          rows={1}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleCreateFromPrompt(e);
-            }
-          }}
-        />
-
-        <button
-          onClick={(e) => e.stopPropagation()}
-          type="submit"
-          disabled={!prompt.trim() || isCreating}
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-full bg-[#2A66FF] size-8 sm:size-9 p-2 transition-all active:scale-[0.985] self-end mb-1",
-            prompt.trim() 
-              ? "opacity-100 hover:opacity-90" 
-              : "opacity-50 hover:opacity-70",
-            isCreating && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          {isCreating ? (
-            <Loader2 className="h-4 w-4 animate-spin text-white" />
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" aria-hidden="true" className="w-full h-full">
-              <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
-            </svg>
-          )}
-        </button>
-
-        <div className="pointer-events-none absolute inset-0 z-10 rounded-full">
-          <motion.div
-            style={{
-              backgroundImage,
-            }}
-            className="mask-with-browser-support absolute -inset-[1px] rounded-full border border-transparent bg-origin-border"
-          />
-        </div>
-      </form>
-    );
-  };
-
   // Template selection and modal logic removed - now handled in wizard
 
   const handleDeleteAssistant = async (assistant: Agent, e: React.MouseEvent) => {
@@ -801,7 +845,13 @@ export default function AssistantsList() {
       <div className="relative flex items-center justify-center min-h-[50vh] md:h-[70vh] p-4 sm:p-6 md:p-8 border-b border-border bg-neutral-50 overflow-hidden">
         <BGGrid />
         <div className="relative z-10 w-full max-w-6xl space-y-4">
-          <BeamInput />
+          <BeamInput
+            prompt={prompt}
+            setPrompt={setPrompt}
+            isCreating={isCreating}
+            onSubmit={handleCreateFromPrompt}
+            textareaRef={textareaRef}
+          />
 
         <div className="space-y-3 mt-4 flex flex-col items-center justify-center">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 w-full">
