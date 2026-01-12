@@ -68,6 +68,22 @@
     --shadow-glow: 0 0 40px hsl(160 84% 39% / 0.3);
     --shadow-glow-accent: 0 0 40px hsl(262 83% 58% / 0.3);
 
+    /* Enterprise Workflow Colors */
+    --workflow-role-communication: 217 91% 60%;    /* Blue */
+    --workflow-role-knowledge: 262 83% 58%;        /* Purple */
+    --workflow-role-scheduling: 142 76% 36%;       /* Green */
+    --workflow-role-crm: 24 95% 53%;               /* Orange */
+    --workflow-role-control: 215 20% 45%;          /* Slate */
+
+    /* Workflow Shadow System */
+    --shadow-workflow-sm: 0 2px 4px -1px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+    --shadow-workflow-md: 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --shadow-workflow-lg: 0 8px 12px -4px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+
+    /* Branch Path Colors */
+    --workflow-branch-true: 142 76% 36%;           /* Green */
+    --workflow-branch-false: 0 72% 51%;            /* Red */
+
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -468,5 +484,26 @@
   }
   to {
     transform: translateX(-50%);
+  }
+}
+
+/* Enterprise Workflow Animation Keyframes */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }

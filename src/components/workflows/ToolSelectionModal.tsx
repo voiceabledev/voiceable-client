@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronRight, GitBranch, Globe } from "lucide-react";
 import { Input } from "../ui/input";
 import { workflowsApi } from "@/lib/api";
 import { getIntegrationIcon } from "@/constants/assistant";
-import type { ToolInChain } from "@/types/functions";
+import type { ToolInChain, ConditionalConfig } from "@/types/functions";
 
 type ToolSelectionModalProps = {
   open: boolean;
@@ -28,6 +28,7 @@ const getToolIcon = (toolType: string): string => {
     outlook_calendar: "📧",
     calcom: "📅",
     pinecone: "🔍",
+    webhook: "🌐",
   };
   return icons[toolType] || getIntegrationIcon(toolType) || "🔧";
 };
@@ -44,6 +45,90 @@ const getToolDisplayName = (tool: { type: string; role: string; method?: string;
     return `${tool.type} ${tool.method.toUpperCase()}`;
   }
   return tool.type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
+// Format integration type names for display
+const formatIntegrationName = (integrationType: string): string => {
+  const nameMap: Record<string, string> = {
+    calcom: "Cal.com",
+    google_calendar: "Google Calendar",
+    outlook_calendar: "Outlook Calendar",
+    calendly: "Calendly",
+    pipedrive: "Pipedrive",
+    hubspot: "HubSpot",
+    salesforce: "Salesforce",
+    twilio: "Twilio",
+    pinecone: "Pinecone",
+  };
+
+  return nameMap[integrationType] || integrationType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
+// Format method names to Title Case
+const formatMethodName = (method: string): string => {
+  return method
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+type Tool = {
+  type: string;
+  role: string;
+  method?: string;
+  name: string;
+  description: string;
+  integration_connected: boolean;
+};
+
+type IntegrationGroup = {
+  name: string;
+  icon: string;
+  actions: Tool[];
+  allConnected: boolean;
+};
+
+// Transform role-based tool data into integration-based grouped structure
+const groupToolsByIntegration = (
+  tools: {
+    communication: Tool[];
+    knowledge: Tool[];
+    scheduling: Tool[];
+    crm: Tool[];
+  }
+): Record<string, IntegrationGroup> => {
+  const grouped: Record<string, IntegrationGroup> = {};
+
+  // Combine all tools from all roles
+  const allTools = [
+    ...tools.communication,
+    ...tools.knowledge,
+    ...tools.scheduling,
+    ...tools.crm,
+  ];
+
+  // Group by integration type
+  allTools.forEach((tool) => {
+    const integrationType = tool.type;
+
+    if (!grouped[integrationType]) {
+      grouped[integrationType] = {
+        name: formatIntegrationName(integrationType),
+        icon: getToolIcon(integrationType),
+        actions: [],
+        allConnected: true,
+      };
+    }
+
+    grouped[integrationType].actions.push(tool);
+
+    // Update connection status - if any action is not connected, mark as not all connected
+    if (!tool.integration_connected) {
+      grouped[integrationType].allConnected = false;
+    }
+  });
+
+  return grouped;
 };
 
 export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
@@ -63,10 +148,17 @@ export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedIntegrations, setExpandedIntegrations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open && agentId) {
       loadAvailableTools();
+      // Reset expanded state when modal opens
+      setExpandedIntegrations(new Set());
+    } else if (!open) {
+      // Clear expanded state when modal closes
+      setExpandedIntegrations(new Set());
+      setSearchQuery("");
     }
   }, [open, agentId]);
 
@@ -82,6 +174,26 @@ export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
           scheduling?: Array<{ type: string; role: string; method?: string; name: string; description: string; integration_connected: boolean }>;
           crm?: Array<{ type: string; role: string; method?: string; name: string; description: string; integration_connected: boolean }>;
         };
+        // Patch: Inject "Get All Bookings" if missing from backend
+        if (data.scheduling) {
+          const hasGetAllBookings = data.scheduling.some(t => t.type === 'calcom' && t.method === 'list_bookings');
+          if (!hasGetAllBookings) {
+            // Find if Cal.com is connected by checking other calcom tools
+            const isCalcomConnected = data.scheduling.some(t => t.type === 'calcom' && t.integration_connected);
+
+            if (isCalcomConnected) {
+              data.scheduling.push({
+                type: 'calcom',
+                role: 'scheduling',
+                method: 'list_bookings',
+                name: 'Get All Bookings',
+                description: 'Get all bookings from Cal.com within a time window.',
+                integration_connected: true
+              });
+            }
+          }
+        }
+
         setAvailableTools({
           communication: data.communication || [],
           knowledge: data.knowledge || [],
@@ -97,16 +209,39 @@ export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
   };
 
   const handleToolSelect = (tool: { type: string; role: string; method?: string; name?: string }) => {
-    const toolInChain: ToolInChain = {
-      type: tool.type,
-      role: tool.role,
-      method: tool.method,
-      config: {}, // Initialize empty config
-    };
-    
+    let toolInChain: ToolInChain;
+
+    // Special handling for condition tool
+    if (tool.type === "condition") {
+      const defaultCondition: ConditionalConfig = {
+        expression: "result.length === 0",
+        then: [],
+        else: []
+      };
+      toolInChain = {
+        type: "condition",
+        role: "control",
+        method: "branch",
+        config: defaultCondition,
+      };
+      // Conditions always need configuration
+      if (onConfigureAfterSelect) {
+        onConfigureAfterSelect(toolInChain);
+        onClose();
+        return;
+      }
+    } else {
+      toolInChain = {
+        type: tool.type,
+        role: tool.role,
+        method: tool.method,
+        config: {}, // Initialize empty config
+      };
+    }
+
     // If tool needs configuration and callback is provided, use it
     // Otherwise, just select the tool
-    if (onConfigureAfterSelect && (tool.type === 'calcom' || tool.type === 'pipedrive')) {
+    if (onConfigureAfterSelect && (tool.type === 'calcom' || tool.type === 'pipedrive' || tool.type === 'condition')) {
       onConfigureAfterSelect(toolInChain);
       onClose();
     } else {
@@ -115,22 +250,68 @@ export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
     }
   };
 
-  const filterTools = (tools: Array<{ type: string; role: string; method?: string; name: string; description: string; integration_connected: boolean }>) => {
-    if (!searchQuery) return tools;
-    const query = searchQuery.toLowerCase();
-    return tools.filter(
-      (tool) =>
-        tool.name.toLowerCase().includes(query) ||
-        tool.type.toLowerCase().includes(query) ||
-        tool.description.toLowerCase().includes(query) ||
-        (tool.method && tool.method.toLowerCase().includes(query))
-    );
+  const toggleIntegration = (integrationType: string) => {
+    setExpandedIntegrations((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(integrationType)) {
+        newSet.delete(integrationType);
+      } else {
+        newSet.add(integrationType);
+      }
+      return newSet;
+    });
   };
 
-  const getToolsToShow = () => {
-    if (!availableTools) return { communication: [], knowledge: [], scheduling: [], crm: [] };
+  // Auto-expand integrations when search is active
+  useEffect(() => {
+    if (searchQuery && availableTools) {
+      const query = searchQuery.toLowerCase();
+      const newExpanded = new Set<string>();
 
-    // If currentRole is specified, only show tools of that role
+      // Check all integrations for matches
+      const allTools = [
+        ...(availableTools.communication || []),
+        ...(availableTools.knowledge || []),
+        ...(availableTools.scheduling || []),
+        ...(availableTools.crm || []),
+      ];
+
+      const integrationTypes = new Set(allTools.map(t => t.type));
+
+      integrationTypes.forEach((integrationType) => {
+        const integrationName = formatIntegrationName(integrationType).toLowerCase();
+        const toolsForIntegration = allTools.filter(t => t.type === integrationType);
+
+        // Check if integration name matches
+        if (integrationName.includes(query) || integrationType.toLowerCase().includes(query)) {
+          newExpanded.add(integrationType);
+        } else {
+          // Check if any action matches
+          const hasMatchingAction = toolsForIntegration.some(
+            (tool) =>
+              tool.name.toLowerCase().includes(query) ||
+              tool.description.toLowerCase().includes(query) ||
+              (tool.method && tool.method.toLowerCase().includes(query))
+          );
+          if (hasMatchingAction) {
+            newExpanded.add(integrationType);
+          }
+        }
+      });
+
+      setExpandedIntegrations(newExpanded);
+    } else if (!searchQuery) {
+      // Collapse all when search is cleared
+      setExpandedIntegrations(new Set());
+    }
+  }, [searchQuery, availableTools]);
+
+  // Filter and group tools by integration
+  const getGroupedTools = (): Record<string, IntegrationGroup> => {
+    if (!availableTools) return {};
+
+    // Filter tools based on currentRole if specified
+    let toolsToFilter = availableTools;
     if (currentRole) {
       const roleMap: Record<string, keyof typeof availableTools> = {
         communication: "communication",
@@ -140,21 +321,69 @@ export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
       };
       const roleKey = roleMap[currentRole];
       if (roleKey) {
-        return {
-          [roleKey]: filterTools(availableTools[roleKey] || []),
+        toolsToFilter = {
+          communication: roleKey === "communication" ? availableTools.communication : [],
+          knowledge: roleKey === "knowledge" ? availableTools.knowledge : [],
+          scheduling: roleKey === "scheduling" ? availableTools.scheduling : [],
+          crm: roleKey === "crm" ? availableTools.crm : [],
         };
       }
     }
 
-    return {
-      communication: filterTools(availableTools.communication || []),
-      knowledge: filterTools(availableTools.knowledge || []),
-      scheduling: filterTools(availableTools.scheduling || []),
-      crm: filterTools(availableTools.crm || []),
-    };
+    // Group by integration
+    const grouped = groupToolsByIntegration(toolsToFilter);
+
+    // Inject Webhook tool
+    if (!grouped['webhook']) {
+      grouped['webhook'] = {
+        name: "Webhook",
+        icon: getToolIcon("webhook"),
+        actions: [{
+          type: "webhook",
+          role: "external",
+          method: "call",
+          name: "Webhook",
+          description: "Trigger an external webhook",
+          integration_connected: true
+        }],
+        allConnected: true
+      };
+    }
+
+    // Apply search filter if query exists
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const filtered: Record<string, IntegrationGroup> = {};
+
+      Object.entries(grouped).forEach(([integrationType, group]) => {
+        // Check if integration name matches
+        const nameMatches = group.name.toLowerCase().includes(query) ||
+          integrationType.toLowerCase().includes(query);
+
+        // Filter actions that match
+        const matchingActions = group.actions.filter(
+          (tool) =>
+            tool.name.toLowerCase().includes(query) ||
+            tool.description.toLowerCase().includes(query) ||
+            (tool.method && tool.method.toLowerCase().includes(query))
+        );
+
+        // If integration name matches or has matching actions, include it
+        if (nameMatches || matchingActions.length > 0) {
+          filtered[integrationType] = {
+            ...group,
+            actions: nameMatches ? group.actions : matchingActions,
+          };
+        }
+      });
+
+      return filtered;
+    }
+
+    return grouped;
   };
 
-  const toolsToShow = getToolsToShow();
+  const groupedTools = getGroupedTools();
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -181,111 +410,122 @@ export const ToolSelectionModal: React.FC<ToolSelectionModalProps> = ({
               </div>
             </div>
 
-            <div className="space-y-6">
-              {toolsToShow.communication && toolsToShow.communication.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-3">Communication Tools</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {toolsToShow.communication.map((tool) => (
+            <div className="space-y-2">
+              {/* Control Flow Tools Section */}
+              {(!searchQuery || "condition".includes(searchQuery.toLowerCase())) && (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="w-full flex items-center gap-3 p-3 bg-muted/30">
+                    <GitBranch className="h-5 w-5 text-primary" />
+                    <div className="flex-1">
+                      <div className="font-medium">Control Flow</div>
+                      <div className="text-xs text-muted-foreground">Workflow control and branching</div>
+                    </div>
+                  </div>
+                  <div className="border-t border-border bg-muted/30">
+                    <div className="p-2">
                       <button
-                        key={`${tool.type}-${tool.method || ''}`}
-                        onClick={() => handleToolSelect({ type: tool.type, role: tool.role, method: tool.method || (tool.type === "twilio" ? "sms" : undefined), name: tool.name })}
-                        disabled={!tool.integration_connected}
-                        className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-secondary transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => handleToolSelect({
+                          type: "condition",
+                          role: "control",
+                          method: "branch",
+                          name: "Condition",
+                        })}
+                        className="w-full flex items-center gap-3 p-2 rounded hover:bg-secondary transition-colors text-left"
                       >
-                        <span className="text-2xl">{getToolIcon(tool.type)}</span>
                         <div className="flex-1">
-                          <div className="font-medium">{getToolDisplayName(tool)}</div>
-                          <div className="text-sm text-muted-foreground">{tool.description}</div>
+                          <div className="font-medium text-sm">Condition</div>
+                          <div className="text-xs text-muted-foreground">
+                            Branch workflow based on previous step results
+                          </div>
                         </div>
-                        {!tool.integration_connected && (
-                          <span className="text-xs text-muted-foreground">Not connected</span>
-                        )}
                       </button>
-                    ))}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {toolsToShow.knowledge && toolsToShow.knowledge.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-3">Knowledge Base Tools</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {toolsToShow.knowledge.map((tool) => (
-                      <button
-                        key={tool.type}
-                        onClick={() => handleToolSelect({ type: tool.type, role: tool.role })}
-                        disabled={!tool.integration_connected}
-                        className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-secondary transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className="text-2xl">{getToolIcon(tool.type)}</span>
-                        <div className="flex-1">
-                          <div className="font-medium">{tool.name}</div>
-                          <div className="text-sm text-muted-foreground">{tool.description}</div>
-                        </div>
-                        {!tool.integration_connected && (
-                          <span className="text-xs text-muted-foreground">Not connected</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {toolsToShow.scheduling && toolsToShow.scheduling.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-3">Scheduling Tools</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {toolsToShow.scheduling.map((tool) => (
-                      <button
-                        key={`${tool.type}-${tool.method || ''}`}
-                        onClick={() => handleToolSelect({ type: tool.type, role: tool.role, method: tool.method, name: tool.name })}
-                        disabled={!tool.integration_connected}
-                        className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-secondary transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className="text-2xl">{getToolIcon(tool.type)}</span>
-                        <div className="flex-1">
-                          <div className="font-medium">{getToolDisplayName(tool)}</div>
-                          <div className="text-sm text-muted-foreground">{tool.description}</div>
-                        </div>
-                        {!tool.integration_connected && (
-                          <span className="text-xs text-muted-foreground">Not connected</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {toolsToShow.crm && toolsToShow.crm.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-3">CRM Tools</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {toolsToShow.crm.map((tool) => (
-                      <button
-                        key={tool.type}
-                        onClick={() => handleToolSelect({ type: tool.type, role: tool.role })}
-                        disabled={!tool.integration_connected}
-                        className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-secondary transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className="text-2xl">{getToolIcon(tool.type)}</span>
-                        <div className="flex-1">
-                          <div className="font-medium">{tool.name}</div>
-                          <div className="text-sm text-muted-foreground">{tool.description}</div>
-                        </div>
-                        {!tool.integration_connected && (
-                          <span className="text-xs text-muted-foreground">Not connected</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {Object.values(toolsToShow).every((tools) => tools.length === 0) && (
+              {Object.keys(groupedTools).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No tools available{searchQuery ? " matching your search" : ""}.</p>
                 </div>
+              ) : (
+                Object.entries(groupedTools).map(([integrationType, group]) => {
+                  const isExpanded = expandedIntegrations.has(integrationType);
+                  const actionCount = group.actions.length;
+
+                  return (
+                    <div key={integrationType} className="border border-border rounded-lg overflow-hidden">
+                      {/* Integration Header - Collapsible */}
+                      <button
+                        onClick={() => toggleIntegration(integrationType)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-secondary transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-2 flex-1">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="text-xl">{group.icon}</span>
+                          <div className="flex-1">
+                            <div className="font-medium">{group.name}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              ({actionCount} {actionCount === 1 ? "action" : "actions"})
+                            </span>
+                            {!group.allConnected && (
+                              <span className="text-xs text-muted-foreground">Not connected</span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Actions List - Expanded */}
+                      {isExpanded && (
+                        <div className="border-t border-border bg-muted/30">
+                          <div className="p-2 space-y-1">
+                            {group.actions.map((tool, index) => {
+                              // For SMS/Twilio, show special handling
+                              const isSMS = tool.type === "twilio" && tool.method === "sms";
+                              const actionName = tool.method
+                                ? formatMethodName(tool.method)
+                                : (isSMS ? "Request user data" : tool.name);
+
+                              return (
+                                <button
+                                  key={`${tool.type}-${tool.method || index}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToolSelect({
+                                      type: tool.type,
+                                      role: tool.role,
+                                      method: tool.method || (isSMS ? "sms" : undefined),
+                                      name: tool.name,
+                                    });
+                                  }}
+                                  className="w-full flex items-center gap-3 p-2 rounded hover:bg-secondary transition-colors text-left"
+                                >
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm flex items-center gap-2">
+                                      {actionName}
+                                      {!tool.integration_connected && (
+                                        <span className="text-xs text-muted-foreground font-normal">(Not connected)</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">{tool.description}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </>

@@ -1,7 +1,7 @@
 // Constants for Assistant Detail page
 import { Settings, FileText, Wrench, Layout, MessageSquare, Phone, Target, BarChart3, TrendingUp } from "lucide-react";
 
-export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "tools", "widget", "phone-number", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
+export const VALID_TABS = ["dashboard", "calls", "performance", "settings", "call-script", "workflows", "widget", "phone-number", "advanced", "overview", "configuration", "prompt-logic", "conversations", "outcomes"] as const;
 
 export const tabs = [
   // { id: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -9,7 +9,7 @@ export const tabs = [
   { id: "performance", label: "Performance", icon: TrendingUp },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "call-script", label: "Call Script", icon: FileText },
-  { id: "tools", label: "Tools", icon: Wrench },
+  { id: "tools", label: "Workflows", icon: Wrench },
   { id: "widget", label: "Widget", icon: Layout },
   { id: "phone-number", label: "Phone Number", icon: Phone },
   // { id: "advanced", label: "Advanced", icon: Settings },
@@ -369,6 +369,7 @@ export const INTEGRATION_TOOLS_DISPLAY: Record<string, string[]> = {
   calcom: [
     "Get Event Types",
     "Get Available Slots",
+    "Get All Bookings",
     "Create Booking",
     "Reschedule Booking",
     "Cancel Booking"
@@ -585,8 +586,8 @@ export const displayNameToActionName = (displayName: string, integrationType: st
     calcom: {
       "Get Event Types": "get_event_types",
       "Get Available Slots": "get_available_slots",
+      "Get All Bookings": "list_bookings",
       "Create Booking": "create_booking",
-      // "Get All Bookings": "list_bookings",
       // "Get Booking": "get_booking",
       "Reschedule Booking": "reschedule_booking",
       "Cancel Booking": "cancel_booking",
@@ -671,6 +672,8 @@ export const actionNameToDisplayName = (actionName: string, integrationType: str
     calcom: {
       "get_event_types": "Get Event Types",
       "get_available_slots": "Get Available Slots",
+      "list_bookings": "Get All Bookings",
+      "create_booking": "Create Booking",
       "get_booking": "Get Booking",
       "reschedule_booking": "Reschedule Booking",
       "cancel_booking": "Cancel Booking",

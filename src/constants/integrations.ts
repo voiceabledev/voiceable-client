@@ -1,5 +1,22 @@
 export type IntegrationStatus = 'available' | 'upcoming';
 
+export type IntegrationCategory =
+  | 'crm-sales'
+  | 'scheduling'
+  | 'communication'
+  | 'customer-support'
+  | 'ecommerce'
+  | 'database'
+  | 'payment'
+  | 'telephony'
+  | 'cloud-storage'
+  | 'ats'
+  | 'restaurant'
+  | 'pos'
+  | 'model'
+  | 'voice'
+  | 'transcriber';
+
 export interface IntegrationProvider {
   id: string;
   name: string;
@@ -8,6 +25,9 @@ export interface IntegrationProvider {
   iconBg: string;
   status: IntegrationStatus;
   order: number; // For sorting - lower numbers appear first
+  category?: IntegrationCategory;
+  capabilities?: string[]; // List of capabilities this integration provides
+  popular?: boolean; // Whether this is a popular/recommended integration
 }
 
 export const modelProviders: IntegrationProvider[] = [
@@ -261,7 +281,10 @@ export const crmProviders: IntegrationProvider[] = [
     icon: "HS",
     iconBg: "bg-blue-600",
     status: "upcoming",
-    order: 1
+    order: 1,
+    category: "crm-sales",
+    capabilities: ["Create contacts", "Update deals", "Search companies", "Manage tickets"],
+    popular: false
   },
   {
     id: "salesforce",
@@ -270,7 +293,10 @@ export const crmProviders: IntegrationProvider[] = [
     icon: "SF",
     iconBg: "bg-sky-500",
     status: "upcoming",
-    order: 2
+    order: 2,
+    category: "crm-sales",
+    capabilities: ["Manage leads", "Track opportunities", "Update accounts", "Create tasks"],
+    popular: false
   },
   {
     id: "pipedrive",
@@ -279,7 +305,10 @@ export const crmProviders: IntegrationProvider[] = [
     icon: "PD",
     iconBg: "bg-emerald-600",
     status: "available",
-    order: 3
+    order: 3,
+    category: "crm-sales",
+    capabilities: ["Create deals", "Search deals", "Manage contacts", "Add notes", "Create activities"],
+    popular: true
   },
   {
     id: "kommo",
@@ -288,7 +317,10 @@ export const crmProviders: IntegrationProvider[] = [
     icon: "K",
     iconBg: "bg-purple-600",
     status: "upcoming",
-    order: 4
+    order: 4,
+    category: "crm-sales",
+    capabilities: ["Manage leads", "Send messages", "Track conversations"],
+    popular: false
   },
   {
     id: "gohighlevel",
@@ -297,7 +329,10 @@ export const crmProviders: IntegrationProvider[] = [
     icon: "GH",
     iconBg: "bg-green-600",
     status: "upcoming",
-    order: 5
+    order: 5,
+    category: "crm-sales",
+    capabilities: ["Manage contacts", "Send campaigns", "Track appointments"],
+    popular: false
   }
 ];
 
@@ -309,7 +344,10 @@ export const schedulingProviders: IntegrationProvider[] = [
     icon: "📅",
     iconBg: "bg-blue-500",
     status: "upcoming",
-    order: 1
+    order: 1,
+    category: "scheduling",
+    capabilities: ["Check availability", "Create events", "Update events", "Delete events"],
+    popular: false
   },
   {
     id: "outlook_calendar",
@@ -318,7 +356,10 @@ export const schedulingProviders: IntegrationProvider[] = [
     icon: "🗓️",
     iconBg: "bg-sky-700",
     status: "upcoming",
-    order: 2
+    order: 2,
+    category: "scheduling",
+    capabilities: ["Check availability", "Create events", "Update events", "Delete events"],
+    popular: false
   },
   {
     id: "calendly",
@@ -327,7 +368,10 @@ export const schedulingProviders: IntegrationProvider[] = [
     icon: "C",
     iconBg: "bg-orange-500",
     status: "upcoming",
-    order: 3
+    order: 3,
+    category: "scheduling",
+    capabilities: ["Create bookings", "Cancel events", "Reschedule events", "Get availability"],
+    popular: false
   },
   {
     id: "calcom",
@@ -336,7 +380,10 @@ export const schedulingProviders: IntegrationProvider[] = [
     icon: "Cal",
     iconBg: "bg-purple-600",
     status: "available",
-    order: 4
+    order: 4,
+    category: "scheduling",
+    capabilities: ["Get event types", "Check availability", "Create bookings", "Reschedule bookings", "Cancel bookings"],
+    popular: true
   }
 ];
 
@@ -654,13 +701,58 @@ export const toAvailableIntegrationType = (provider: IntegrationProvider) => {
  */
 export const getAvailableIntegrationTypes = () => {
   const allProviders = getAllIntegrationProviders();
-  
+
   // Sort: available first (by order), then upcoming (by order)
   const sorted = allProviders.sort((a, b) => {
     if (a.status === 'available' && b.status === 'upcoming') return -1;
     if (a.status === 'upcoming' && b.status === 'available') return 1;
     return a.order - b.order;
   });
-  
+
   return sorted.map(toAvailableIntegrationType);
+};
+
+/**
+ * Get integrations grouped by category
+ */
+export const getIntegrationsByCategory = () => {
+  const allProviders = getAllIntegrationProviders();
+
+  const grouped: Record<string, IntegrationProvider[]> = {};
+
+  allProviders.forEach(provider => {
+    const category = provider.category || 'other';
+    if (!grouped[category]) {
+      grouped[category] = [];
+    }
+    grouped[category].push(provider);
+  });
+
+  return grouped;
+};
+
+/**
+ * Get category display name
+ */
+export const getCategoryDisplayName = (category: IntegrationCategory | 'other'): string => {
+  const names: Record<string, string> = {
+    'crm-sales': 'CRM & Sales',
+    'scheduling': 'Scheduling',
+    'communication': 'Communication',
+    'customer-support': 'Customer Support',
+    'ecommerce': 'E-commerce',
+    'database': 'Database',
+    'payment': 'Payment Processing',
+    'telephony': 'Telephony',
+    'cloud-storage': 'Cloud Storage',
+    'ats': 'Applicant Tracking',
+    'restaurant': 'Restaurant',
+    'pos': 'Point of Sale',
+    'model': 'AI Models',
+    'voice': 'Voice & TTS',
+    'transcriber': 'Transcription',
+    'other': 'Other',
+  };
+
+  return names[category] || category;
 };

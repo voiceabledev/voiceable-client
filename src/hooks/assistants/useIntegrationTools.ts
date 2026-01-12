@@ -73,8 +73,8 @@ const getIntegrationToolDescription = (displayName: string, integrationType: str
     calcom: {
       "Get Event Types": "Get all available event types from Cal.com. Returns event type IDs needed for booking.",
       "Get Available Slots": "Check available time slots for booking on Cal.com. Returns array of available times.",
+      "Get All Bookings": "Get all bookings from Cal.com within a time window.",
       "Create Booking": "Create a new booking/appointment on Cal.com with attendee details.",
-      // "Get All Bookings": "Get all bookings from Cal.com within a time window.",
       // "Get Booking": "Get details of a specific booking by its unique ID (UID).",
       "Reschedule Booking": "Reschedule an existing booking to a new time.",
       "Cancel Booking": "Cancel an existing booking on Cal.com.",
@@ -95,8 +95,8 @@ const getIntegrationToolDescription = (displayName: string, integrationType: str
       "Get Task": "Retrieve a task from HubSpot",
     },
   };
-  
-  return descriptions[integrationType]?.[displayName] || 
+
+  return descriptions[integrationType]?.[displayName] ||
     `${displayName} action for ${integrationType}`;
 };
 
@@ -108,7 +108,7 @@ const getIntegrationBodyParams = (
   actionName: string
 ): WebhookQueryParam[] => {
   const bodyParams: WebhookQueryParam[] = [];
-  
+
   // Action parameter - always present, with constant value
   // Use webhook_action to avoid conflicts with Rails params[:action]
   const actionParam: WebhookQueryParam = {
@@ -121,11 +121,11 @@ const getIntegrationBodyParams = (
     enumValues: [actionName], // Use enumValues to store the constant value
   };
   bodyParams.push(actionParam);
-  
+
   // Create data object with nested properties based on integration type and action
   if (integrationType === "pipedrive") {
     const dataProperties: WebhookQueryParam[] = [];
-    
+
     if (actionName === "create_contact" || actionName === "create_person") {
       dataProperties.push(
         {
@@ -244,7 +244,7 @@ const getIntegrationBodyParams = (
         }
       );
     }
-    
+
     // Create the data object with all properties (only if there are properties to add)
     if (dataProperties.length > 0) {
       const dataObject: WebhookQueryParam = {
@@ -260,7 +260,7 @@ const getIntegrationBodyParams = (
     }
   } else if (integrationType === "calcom") {
     const dataProperties: WebhookQueryParam[] = [];
-    
+
     if (actionName === "get_available_slots") {
       dataProperties.push(
         {
@@ -324,7 +324,7 @@ const getIntegrationBodyParams = (
           dataType: "string",
         }
       ];
-      
+
       dataProperties.push(
         {
           ...getEmptyWebhookQueryParam(),
@@ -405,21 +405,21 @@ const getIntegrationBodyParams = (
     // Note: Actions like "list_bookings" (Get All Bookings) and "get_event_types" (Get Event Types)
     // don't require a data object - they only send the action parameter
     // If dataProperties is empty, no data object will be created
-    
+
     // Create the data object with all properties (only if there are properties to add)
     if (dataProperties.length > 0) {
       const dataObject: WebhookQueryParam = {
         ...getEmptyWebhookQueryParam(),
         identifier: "data",
-        description: actionName === "get_available_slots" 
+        description: actionName === "get_available_slots"
           ? "Example:\n\n{\"eventTypeId\": 4166361, \"timeZone\": \"America/Vancouver\", \"startTime\": \"2025-12-30T00:00:00.000Z\",\"endTime\": \"2026-01-02T00:00:00.000Z\"}"
           : actionName === "reschedule_booking"
-          ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\", \"start\": \"2025-12-30T18:00:00.000Z\", \"reschedulingReason\": \"User requested a new time\"}"
-          : actionName === "cancel_booking"
-          ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\"}"
-          : actionName === "get_booking"
-          ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\"}"
-          : "Data that needs to be sent to the webhook.",
+            ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\", \"start\": \"2025-12-30T18:00:00.000Z\", \"reschedulingReason\": \"User requested a new time\"}"
+            : actionName === "cancel_booking"
+              ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\"}"
+              : actionName === "get_booking"
+                ? "Example:\n\n{\"id\": \"i28Snwo9QBQJYmEGfQBXvr\"}"
+                : "Data that needs to be sent to the webhook.",
         required: true,
         valueType: "llm_prompt",
         dataType: "object",
@@ -428,7 +428,7 @@ const getIntegrationBodyParams = (
       bodyParams.push(dataObject);
     }
   }
-  
+
   return bodyParams;
 };
 
@@ -439,12 +439,12 @@ const createIntegrationWebhookTool = (
   agentId: string
 ): WebhookTool => {
   const actionName = displayNameToActionName(displayName, integrationType);
-  
+
   // Use the backend webhook endpoint for this integration
   // Route: POST /api/v1/webhooks/:integration_type
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api/v1";
   const webhookUrl = `${baseUrl.replace(/\/api\/v1\/?$/, "")}/api/v1/webhooks/${integrationType}`;
-  
+
   // Create header with agent ID
   const agentIdHeader: WebhookHeader = {
     ...getEmptyWebhookHeader(),
@@ -452,10 +452,10 @@ const createIntegrationWebhookTool = (
     name: "X-Agent-ID",
     value: agentId,
   };
-  
+
   // Get body parameters (action + data parameters if any)
   const bodyParams = getIntegrationBodyParams(displayName, integrationType, actionName);
-  
+
   return {
     ...getEmptyWebhookTool(),
     id: crypto.randomUUID(),
@@ -483,12 +483,12 @@ export function useIntegrationTools(
   const [integrationToolsExpanded, setIntegrationToolsExpanded] = useState<Record<string, boolean>>({});
   const [showIntegrationModal, setShowIntegrationModalRaw] = useState(false);
   const showIntegrationModalRef = useRef(showIntegrationModal);
-  
+
   // Update ref when state changes
   useEffect(() => {
     showIntegrationModalRef.current = showIntegrationModal;
   }, [showIntegrationModal]);
-  
+
   const setShowIntegrationModal = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     setShowIntegrationModalRaw(value);
   }, []);
@@ -499,7 +499,7 @@ export function useIntegrationTools(
   const [connectingIntegrationLoading, setConnectingIntegrationLoading] = useState(false);
   const [editingIntegrationConfig, setEditingIntegrationConfig] = useState<UserIntegration | null>(null);
   const [selectedIntegrationToolsForModal, setSelectedIntegrationToolsForModal] = useState<string[]>([]);
-  
+
   const { toast } = useToast();
 
   // Fetch user integrations
@@ -537,13 +537,13 @@ export function useIntegrationTools(
       } else {
         // Implementation for disabling tool...
       }
-      
+
       setAgentIntegrationTools(prev => {
         const existing = prev.find(t => t.integration_type === integrationType && t.tool_name === toolName);
         if (existing) {
-          return prev.map(t => 
-            t.integration_type === integrationType && t.tool_name === toolName 
-              ? { ...t, enabled } 
+          return prev.map(t =>
+            t.integration_type === integrationType && t.tool_name === toolName
+              ? { ...t, enabled }
               : t
           );
         }
@@ -573,22 +573,22 @@ export function useIntegrationTools(
     setIntegrationModalStep("connect");
     setConnectingIntegrationLoading(true);
     setShowIntegrationModal(true); // Open the modal
-    
+
     try {
       // Fetch schema for the integration type
       const schemasResponse = await integrationsApi.getSchemas();
       const integrationSchema = schemasResponse.data?.find((s: IntegrationSchema) => s.type === type);
-      
+
       if (integrationSchema) {
         setIntegrationSchemas(integrationSchema);
       } else {
         console.warn(`Schema not found for integration type: ${type}`);
         setIntegrationSchemas(null);
       }
-      
+
       // Check if integration already exists - first check userIntegrations (faster, no API call)
       let existingIntegration: UserIntegration | null = userIntegrations.find(i => i.integration_type === type) || null;
-      
+
       // If not found in userIntegrations, try fetching from API (might be newly created)
       if (!existingIntegration) {
         try {
@@ -614,7 +614,7 @@ export function useIntegrationTools(
           // Silently handle 404 - integration will be created when connecting
         }
       }
-      
+
       if (existingIntegration) {
         setEditingIntegrationConfig(existingIntegration);
         // Always go to credentials tab first (even if API key exists, user might want to update it)
@@ -655,9 +655,9 @@ export function useIntegrationTools(
 
       // Check if integration already exists
       const existingIntegration = userIntegrations.find(i => i.integration_type === connectingIntegrationType);
-      
+
       let updatedIntegration: UserIntegration | null = null;
-      
+
       if (existingIntegration) {
         // Try to update existing integration
         try {
@@ -732,12 +732,12 @@ export function useIntegrationTools(
           }
         }
       }
-      
+
       // Update editingIntegrationConfig with the newly connected integration
       if (updatedIntegration) {
         setEditingIntegrationConfig(updatedIntegration);
       }
-      
+
       // After successful connection, switch to tools tab so user can add integration tools
       // Wait a bit to ensure integrations are refreshed
       setTimeout(() => {
@@ -758,10 +758,10 @@ export function useIntegrationTools(
 
   const openEditIntegrationModal = useCallback(async (integration: UserIntegration | string): Promise<void> => {
     const integrationType = typeof integration === 'string' ? integration : integration.integration_type;
-    
+
     // Always fetch the latest integration data from the API to ensure we have the most up-to-date config
     let integrationData: UserIntegration | null = null;
-    
+
     try {
       const response = await integrationsApi.get(integrationType);
       if (response.data) {
@@ -830,11 +830,11 @@ export function useIntegrationTools(
   ) => {
     try {
       const idNum = typeof id === 'string' ? parseInt(id, 10) : id;
-      
+
       // Find the integration being deleted to get its type
       const integrationToDelete = userIntegrations.find(i => i.id === idNum);
       const integrationType = integrationToDelete?.integration_type || connectingIntegrationType;
-      
+
       if (!agent || !agent.id || agent.id === "create") {
         toast({
           title: "Error",
@@ -843,51 +843,51 @@ export function useIntegrationTools(
         });
         return;
       }
-      
+
       // Delete AgentIntegration records from backend (keeps UserIntegration/credentials)
       await integrationsApi.deleteFromAgent(String(agent.id), integrationType || String(id));
-      
+
       // Don't remove from userIntegrations - keep credentials
       // setUserIntegrations(prev => prev.filter(i => i.id !== idNum));
-      
+
       // Remove all agent integration tools for this integration type
       const updatedIntegrationTools = agentIntegrationTools.filter(
         tool => tool.integration_type !== integrationType
       );
       setAgentIntegrationTools(updatedIntegrationTools);
-      
+
       // Get the display names for tools of this integration type
       const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-      
+
       // Remove all webhook tools associated with this integration
       const updatedWebhookTools = webhookTools.filter(
         wt => !toolDisplayNames.includes(wt.name)
       );
       setWebhookTools(updatedWebhookTools);
-      
+
       // Save the agent with updated tools
       if (onSave) {
         await onSave(updatedIntegrationTools, updatedWebhookTools);
       }
-      
+
       // Publish to sync with ElevenLabs
       if (onPublish) {
         await onPublish();
       }
-      
+
       toast({ title: "Success", description: "Integration removed from agent. Credentials kept." });
     } catch (error) {
       console.error("Failed to delete integration:", error);
-      toast({ 
-        title: "Error", 
-        description: "Failed to remove integration.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: "Failed to remove integration.",
+        variant: "destructive"
       });
     }
   }, [toast, userIntegrations, connectingIntegrationType, agentIntegrationTools, setAgentIntegrationTools, webhookTools, setWebhookTools]);
 
   const toggleModalToolSelection = useCallback((toolName: string) => {
-    setSelectedIntegrationToolsForModal(prev => 
+    setSelectedIntegrationToolsForModal(prev =>
       prev.includes(toolName) ? prev.filter(t => t !== toolName) : [...prev, toolName]
     );
   }, []);
@@ -907,9 +907,9 @@ export function useIntegrationTools(
     }
 
     const agentId = agent.id || "new";
-    
+
     // Convert display names to action names (snake_case)
-    const toolActionNames = selectedIntegrationToolsForModal.map(displayName => 
+    const toolActionNames = selectedIntegrationToolsForModal.map(displayName =>
       displayNameToActionName(displayName, connectingIntegrationType)
     );
 
@@ -937,7 +937,7 @@ export function useIntegrationTools(
     // Create webhook tools for newly selected tools
     const existingWebhookNames = new Set(updatedWebhookTools.map(wt => wt.name));
     const newWebhookTools: WebhookTool[] = [];
-    
+
     selectedIntegrationToolsForModal.forEach(displayName => {
       if (!existingWebhookNames.has(displayName)) {
         const webhookTool = createIntegrationWebhookTool(displayName, connectingIntegrationType, agentId);

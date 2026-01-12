@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, ExternalLink, X, ChevronDown, Trash2 } from "lucide-react";
 import { IntegrationForm } from "@/components/integrations/IntegrationForm";
+import { IntegrationTester } from "@/components/integrations/IntegrationTester";
+import { CapabilitySelector } from "@/components/integrations/CapabilitySelector";
 import { integrationsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { IntegrationSchema, IntegrationConfig } from "@/types/integrations";
+import { INTEGRATION_TOOLS_DISPLAY } from "@/constants/assistant";
 
 // Integration metadata for display (icons, colors, external links)
 const INTEGRATION_METADATA: Record<string, { name: string; icon: string; iconBg: string; url?: string }> = {
@@ -238,8 +241,8 @@ const INTEGRATION_TOOLS: Record<string, string[]> = {
   calcom: [
     "Get Event Types",
     "Get Available Slots",
+    "Get All Bookings",
     "Create Booking",
-    // "Get All Bookings",
     "Get Booking",
     "Reschedule Booking",
     "Cancel Booking"
@@ -257,6 +260,8 @@ export default function IntegrationSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState("credentials");
+  const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
+  const [showCapabilities, setShowCapabilities] = useState(false);
 
   const integrationType = type || '';
   const metadata = INTEGRATION_METADATA[integrationType] || {
@@ -285,7 +290,7 @@ export default function IntegrationSettings() {
       // Get schema for the integration type
       const schemasResponse = await integrationsApi.getSchemas();
       const integrationSchema = schemasResponse.data?.find((s) => s.type === integrationType);
-      
+
       if (!integrationSchema) {
         toast({
           title: 'Error loading schema',
@@ -305,22 +310,22 @@ export default function IntegrationSettings() {
         if (integrationResponse.data?.config && integrationSchema) {
           // Mark that we have a saved integration
           setHasSavedIntegration(true);
-          
+
           // Process config values - store password values, keep others
           const config: IntegrationConfig = {};
           const apiConfig = integrationResponse.data.config;
-          
+
           // First, copy all values from API response as-is
           // This ensures we preserve all fields including optional ones like organization_url
           Object.keys(apiConfig).forEach((key) => {
             config[key] = apiConfig[key];
           });
-          
+
           // Then, ensure all schema fields are present (for fields not in API response)
           Object.keys(integrationSchema.fields).forEach((key) => {
             const fieldConfig = integrationSchema.fields[key];
             const apiValue = config[key];
-            
+
             // If field is not in config yet, initialize it
             if (apiValue === undefined || apiValue === null) {
               config[key] = '';
@@ -403,6 +408,14 @@ export default function IntegrationSettings() {
       // This ensures password fields show the masked values (like "****1234")
       // instead of appearing blank
       await loadIntegration();
+
+      // After successful connection, show capabilities selector
+      if (!hasSavedIntegration) {
+        setShowCapabilities(true);
+        // Pre-select recommended capabilities
+        const availableTools = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+        setSelectedCapabilities(availableTools.slice(0, 2)); // First 2 are usually recommended
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save integration';
       toast({
@@ -428,12 +441,12 @@ export default function IntegrationSettings() {
     setIsDeleting(true);
     try {
       await integrationsApi.delete(integrationType);
-      
+
       toast({
         title: 'Integration deleted',
         description: `${metadata.name} integration has been removed successfully.`,
       });
-      
+
       // Navigate back to integrations list
       navigate('/settings/integrations');
     } catch (error) {
@@ -448,7 +461,7 @@ export default function IntegrationSettings() {
     }
   };
 
-  const integrationDescription = INTEGRATION_DESCRIPTIONS[integrationType] || 
+  const integrationDescription = INTEGRATION_DESCRIPTIONS[integrationType] ||
     `Configure your ${metadata.name} integration settings. Connect your AI agents with ${metadata.name} to extend their capabilities.`;
   const integrationTools = INTEGRATION_TOOLS[integrationType] || [];
 
@@ -476,22 +489,22 @@ export default function IntegrationSettings() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-1/2">
           <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 w-full justify-start overflow-x-auto">
-            <TabsTrigger 
-              value="credentials" 
+            <TabsTrigger
+              value="credentials"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap"
             >
               Credentials
             </TabsTrigger>
             {integrationTools.length > 0 && (
-              <TabsTrigger 
-                value="tools" 
+              <TabsTrigger
+                value="tools"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap"
               >
                 Tools
               </TabsTrigger>
             )}
-            <TabsTrigger 
-              value="about" 
+            <TabsTrigger
+              value="about"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap"
             >
               About
@@ -523,6 +536,15 @@ export default function IntegrationSettings() {
                       </div>
                     </div>
                   )}
+                  {/* Test Connection */}
+                  {hasSavedIntegration && (
+                    <IntegrationTester
+                      integrationType={integrationType}
+                      integrationName={metadata.name}
+                      config={initialConfig}
+                    />
+                  )}
+
                   <IntegrationForm
                     schema={schema}
                     initialConfig={initialConfig}
@@ -536,6 +558,18 @@ export default function IntegrationSettings() {
                     hideSubmitButton={true}
                     integrationType={integrationType}
                   />
+
+                  {/* Capability Selector - Show after connection */}
+                  {showCapabilities && hasSavedIntegration && (
+                    <div className="pt-4 border-t border-border">
+                      <CapabilitySelector
+                        integrationType={integrationType}
+                        selectedCapabilities={selectedCapabilities}
+                        onSelectionChange={setSelectedCapabilities}
+                      />
+                    </div>
+                  )}
+
                   <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-3 sm:justify-end">
                     {hasSavedIntegration && integrationType !== 'twilio' && (
                       <Button

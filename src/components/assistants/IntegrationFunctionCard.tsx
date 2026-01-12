@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import { Switch } from "../ui/switch";
-import { ArrowRight, Bot } from "lucide-react";
+import { ArrowRight, Bot, Loader2, Save } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { AgentFunction, ToolInChain } from "@/types/functions";
 import { getIntegrationIcon } from "@/constants/assistant";
 import { EditableWorkflow } from "../workflows/EditableWorkflow";
+import { WorkflowTriggerEditor } from "../workflows/WorkflowTriggerEditor";
+import { Button } from "../ui/button";
 import { agentFunctionsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 type IntegrationFunctionCardProps = {
   agentFunction: AgentFunction;
-  onToggle: (enabled: boolean) => void;
   agentId?: string;
   onWorkflowUpdate?: () => void;
   onConfigureCredentials?: (integrationType: string) => void;
@@ -35,7 +35,7 @@ const getToolDisplayName = (tool: { type: string; role: string; method?: string 
   if (tool.type === "twilio" && tool.method === "sms") {
     return "SMS";
   }
-  
+
   if (tool.method) {
     return `${tool.type} ${tool.method.toUpperCase()}`;
   }
@@ -44,7 +44,6 @@ const getToolDisplayName = (tool: { type: string; role: string; method?: string 
 
 export const IntegrationFunctionCard: React.FC<IntegrationFunctionCardProps> = ({
   agentFunction,
-  onToggle,
   agentId,
   onWorkflowUpdate,
   onConfigureCredentials,
@@ -53,6 +52,10 @@ export const IntegrationFunctionCard: React.FC<IntegrationFunctionCardProps> = (
   const name = agentFunction.workflow_name || func?.name || "Unnamed Workflow";
   const description = agentFunction.workflow_description || func?.description;
   const { toast } = useToast();
+
+  const [triggerPhrases, setTriggerPhrases] = useState<string[]>(agentFunction.trigger_phrases || []);
+  const [isSavingPhrases, setIsSavingPhrases] = useState(false);
+  const [hasUnsavedPhrases, setHasUnsavedPhrases] = useState(false);
 
   const handleToolChainUpdate = async (newToolChain: ToolInChain[]) => {
     if (!agentId) return;
@@ -76,6 +79,40 @@ export const IntegrationFunctionCard: React.FC<IntegrationFunctionCardProps> = (
     }
   };
 
+  const handlePhrasesChange = (newPhrases: string[]) => {
+    setTriggerPhrases(newPhrases);
+    setHasUnsavedPhrases(true);
+  };
+
+  const handleSavePhrases = async () => {
+    if (!agentId) return;
+
+    setIsSavingPhrases(true);
+    try {
+      await agentFunctionsApi.updateWorkflowConfig(agentId, agentFunction.id, {
+        trigger_phrases: triggerPhrases
+      });
+
+      toast({
+        title: "Triggers updated",
+        description: "Workflow trigger phrases have been updated.",
+      });
+      setHasUnsavedPhrases(false);
+      if (onWorkflowUpdate) {
+        onWorkflowUpdate();
+      }
+    } catch (error) {
+      console.error("Failed to update trigger phrases:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update trigger phrases.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPhrases(false);
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -83,33 +120,52 @@ export const IntegrationFunctionCard: React.FC<IntegrationFunctionCardProps> = (
         enabled ? "bg-primary/5 border-primary/20" : "bg-secondary/30"
       )}
     >
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          {/* Editable Tool Chain Visualization */}
-          <div>
-            <EditableWorkflow
-              agentFunction={agentFunction}
-              agentId={agentId || ""}
-              onToolChainUpdate={handleToolChainUpdate}
-              onConfigureCredentials={onConfigureCredentials}
-              readOnly={!agentId || !enabled}
-            />
-          </div>
+      <div className="flex flex-col gap-4">
+        {/* Trigger Phrases Editor */}
+        <div className="bg-secondary/20 p-4 rounded-lg border border-border">
+          <WorkflowTriggerEditor
+            triggerPhrases={triggerPhrases}
+            onPhrasesChange={handlePhrasesChange}
+          />
 
-          {/* Description only (name is shown in container title) */}
-          {description && (
-            <p className="text-xs text-muted-foreground mt-2">{description}</p>
+          {hasUnsavedPhrases && (
+            <div className="flex justify-end mt-3">
+              <Button
+                size="sm"
+                onClick={handleSavePhrases}
+                disabled={isSavingPhrases}
+              >
+                {isSavingPhrases ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Trigger Phrases
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
 
-        {/* Toggle Switch */}
-        <div className="flex-shrink-0">
-          <Switch
-            checked={enabled}
-            onCheckedChange={onToggle}
-            className="flex-shrink-0"
+        {/* Editable Tool Chain Visualization */}
+        <div>
+          <EditableWorkflow
+            agentFunction={agentFunction}
+            agentId={agentId || ""}
+            onToolChainUpdate={handleToolChainUpdate}
+            onConfigureCredentials={onConfigureCredentials}
+            readOnly={!agentId || !enabled}
           />
         </div>
+
+        {/* Description only (name is shown in container title) */}
+        {description && (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        )}
       </div>
     </div>
   );

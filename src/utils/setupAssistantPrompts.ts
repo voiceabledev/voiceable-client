@@ -1,7 +1,7 @@
 import { SETUP_ASSISTANT_KNOWLEDGE } from "@/constants/setupAssistantKnowledge";
 
 export interface IntegrationFlowContext {
-  phase: 'initial' | 'sms_created' | 'scheduling_offered' | 'scheduling_connecting' | 'crm_offered' | 'crm_connecting' | 'complete';
+  phase: 'initial' | 'sms_created' | 'scheduling_offered' | 'scheduling_connecting' | 'crm_offered' | 'crm_connecting' | 'credential_setup' | 'tools_offered' | 'complete';
   connectedIntegrations: string[];
   currentIntegration?: string;
   currentWorkflowId?: number;
@@ -74,12 +74,8 @@ ${wizardContext.integrationFlow.currentWorkflowId ? `- Current Workflow ID: ${wi
 - Scheduling Skipped: ${wizardContext.integrationFlow.schedulingSkipped ? "Yes" : "No"}
 
 Based on the current phase, guide the user appropriately:
-- "initial": Create workflow with SMS immediately
-- "sms_created": SMS workflow created, offer scheduling tool
-- "scheduling_offered": Offer scheduling tools (Cal.com, Calendly, Google Calendar)
-- "scheduling_connecting": Waiting for scheduling connection to complete
-- "crm_offered": Offer CRM tools (Pipedrive, HubSpot, Kommo)
-- "crm_connecting": Waiting for CRM connection to complete
+- "initial": Ask if user wants to create a workflow
+- "credential_setup": Guide user through setting up credentials for tools in the workflow
 - "complete": Workflow setup is complete
 ` : ""}
 
@@ -146,53 +142,46 @@ You: "I'll open the Pipedrive integration connection modal for you."
 
 ## Step 5 (Integrations) - Workflow Creation Flow
 
-When the user is on step 5 (Integrations), you are responsible for guiding them through workflow creation in a natural, conversational way. The workflow is created automatically with SMS first, then you guide users to add scheduling and CRM tools.
+When the user is on step 5 (Integrations), you are responsible for guiding them through workflow creation in a natural, conversational way. The focus is on helping users create workflows based on their earlier choices, then guiding them through credential setup.
 
 ### Workflow Creation Flow
 
-The system automatically creates a workflow with SMS/Twilio when entering step 5. Your job is to:
-1. Acknowledge the SMS workflow creation
-2. Offer to add scheduling tools (Cal.com, Calendly, Google Calendar)
-3. Offer to add CRM tools (Pipedrive, HubSpot, Kommo)
-4. Update the workflow as tools are added through integration modals
+The system asks users if they want to create a workflow when entering step 5. Your job is to:
+1. Ask if they want to create a workflow based on their setup
+2. If yes, open the workflow creation modal with pre-populated tools based on:
+   - Their selected template
+   - Already connected integrations
+   - Default: always include SMS/Twilio for communication
+3. After workflow is created, guide them through credential setup for tools that need it
+4. Help them connect integrations one by one until all credentials are set up
 
 ### Integration Flow State
 The system will provide you with flow context including:
-- \`integrationFlowPhase\`: Current phase ("sms_created", "scheduling_offered", "scheduling_connecting", "crm_offered", "crm_connecting", "complete")
+- \`integrationFlowPhase\`: Current phase ("initial", "credential_setup", "complete")
 - \`connectedIntegrations\`: Array of already connected integration types
 - \`currentWorkflowId\`: ID of the created workflow
 - \`workflowTools\`: Array of tool types already in the workflow
 
 ### Your Responsibilities
 
-1. **Interpret User Intent**: Parse user responses to understand their intent:
-   - "yes", "sure", "okay", "I'd like that" → Affirmative
-   - "no", "skip", "not now", "maybe later" → Negative
-   - "pipedrive", "I want Pipedrive", "let's use Pipedrive" → Select specific CRM
-   - "calcom", "cal.com", "I'll use Cal" → Select specific scheduling tool
-   - Numbers "1", "2", "3" → Select by position
-   - Questions like "what does Pipedrive do?" → Answer from knowledge base, then continue flow
+1. **Workflow Creation Request**:
+   - When user enters step 5, ask: "Based on your setup, I can help you create a workflow. Would you like to create a workflow now?"
+   - If yes, the system will open the workflow creation modal with pre-populated tools based on user's choices
+   - The workflow is inferred from:
+     - Selected template (if any)
+     - Already connected integrations
+     - Always includes SMS/Twilio for communication
 
-2. **SMS Workflow Creation**:
-   - The workflow with SMS is created automatically when entering step 5
-   - Acknowledge this: "I've created a workflow with SMS communication. This allows your assistant to send and receive text messages."
-   - Then immediately offer scheduling: "Would you like to add a scheduling tool for booking appointments?"
+2. **Credential Setup Phase**:
+   - After workflow is created, check which tools need credentials
+   - Guide user through setting up credentials one by one
+   - For each tool needing credentials: "To use [Tool Name], you'll need to connect your [Integration] account. Would you like to set that up now?"
+   - If user says yes, open the integration modal using OPEN_INTEGRATION_MODAL action
+   - If user skips, move to the next tool or complete if all are processed
 
-3. **Scheduling Tool Phase**:
-   - After SMS workflow is created, offer: "Would you like to add a scheduling tool for booking appointments?"
-   - If yes, present options: "We support Cal.com, Calendly, and Google Calendar. Which scheduling tool do you use?"
-   - When user selects, respond with the OPEN_INTEGRATION_MODAL action
-   - After scheduling is added, the workflow is automatically updated
-
-4. **CRM Tool Phase**:
-   - After scheduling (or if skipped), offer: "Would you like to add a CRM system to manage your contacts and deals?"
-   - If yes, present options: "We support Pipedrive, HubSpot, and Kommo. Which CRM do you use?"
-   - When user selects, respond with the OPEN_INTEGRATION_MODAL action
-   - After CRM is added, the workflow is automatically updated
-
-5. **Completion**:
-   - When all tools are added (or skipped), acknowledge: "Your workflow is complete! It includes [list of tools]."
-   - The workflow name is automatically generated based on the tools included
+3. **Completion**:
+   - When all credentials are set up (or skipped), acknowledge: "Great! Your workflow is ready to use."
+   - If some credentials are missing, remind them they can set them up later from integrations settings
 
 ### Action Types for Step 5
 

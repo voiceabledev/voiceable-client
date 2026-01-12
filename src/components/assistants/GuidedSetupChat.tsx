@@ -44,6 +44,7 @@ interface GuidedSetupChatProps {
   onMinimizedChange?: (minimized: boolean) => void; // Callback when minimized state changes
   disableInput?: boolean; // Hide input field and send button when true
   onIntegrationSaved?: (integrationType: string) => void; // Callback when integration is saved to trigger workflow update
+  disableSetupFlow?: boolean; // Disable setup/onboarding messages and proactive guidance
 }
 
 const STEP_NAMES = [
@@ -57,11 +58,13 @@ const STEP_NAMES = [
 
 export interface GuidedSetupChatRef {
   handleIntegrationSaved: (integrationType: string) => Promise<void>;
+  reloadWorkflow: () => Promise<void>;
 }
 
 export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatProps>(({
   agentId,
   agent,
+  disableSetupFlow = false,
   onComplete,
   onClose,
   wizardContext: externalWizardContext,
@@ -113,6 +116,11 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
   const [awaitingChatGPTResponse, setAwaitingChatGPTResponse] = useState(false);
   // Track when integration is saved to trigger workflow update
   const [savedIntegrationType, setSavedIntegrationType] = useState<string | null>(null);
+  // User integrations for credential checking
+  const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
+  // Track tools needing credentials
+  const [toolsNeedingCredentials, setToolsNeedingCredentials] = useState<string[]>([]);
+  const [currentCredentialIndex, setCurrentCredentialIndex] = useState(0);
   
   // Try to use wizard context if available
   let wizardContext: WizardContextValue | null = externalWizardContext || null;
@@ -178,22 +186,43 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
     loadConnectedIntegrations();
   }, [loadConnectedIntegrations, agentId, agent]);
 
-  // Initialize chat with welcome message (only once per agentId, but not for step 5)
+  // Load user integrations for credential checking
+  useEffect(() => {
+    const loadUserIntegrations = async () => {
+      try {
+        const response = await integrationsApi.list();
+        if (response.data) {
+          setUserIntegrations(response.data);
+        }
+      } catch (error) {
+        console.error('[GuidedSetupChat] Error loading user integrations:', error);
+      }
+    };
+    
+    if (agentId && agentId !== "new") {
+      loadUserIntegrations();
+      // Refresh periodically to catch new integrations
+      const interval = setInterval(loadUserIntegrations, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [agentId]);
+
+  // Initialize chat with welcome message (only once per agentId, but not for step 5 or when setup flow is disabled)
   useEffect(() => {
     const currentAgentId = agentId || 'no-agent';
-    if (messages.length === 0 && initializationDoneRef.current !== currentAgentId && wizardContext?.currentStep !== 5) {
+    if (messages.length === 0 && initializationDoneRef.current !== currentAgentId && wizardContext?.currentStep !== 5 && !disableSetupFlow) {
       initializationDoneRef.current = currentAgentId;
       setTimeout(() => {
         addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. Let me guide you through the process.");
         setTimeout(() => {
-          if (!isProvidingGuidanceRef.current && wizardContext?.currentStep !== 5) {
+          if (!isProvidingGuidanceRef.current && wizardContext?.currentStep !== 5 && !disableSetupFlow) {
             provideProactiveGuidance();
           }
         }, 1000);
       }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, agent, messages.length, wizardContext?.currentStep]);
+  }, [agentId, agent, messages.length, wizardContext?.currentStep, disableSetupFlow]);
 
   // Monitor wizard state changes for proactive guidance (disabled to prevent multiple calls)
   // Only provide proactive guidance when explicitly requested or on initial load
@@ -247,6 +276,69 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
     });
     return toolNames.join(' + ');
   }, []);
+
+  // Infer workflow from user's earlier choices
+  // Note: SMS/Twilio is required when CRM or Calendar tools are present, as SMS is needed to collect data
+  const inferWorkflowFromUserChoices = useCallback((): {
+    toolChain: ToolInChain[];
+    name: string;
+    description: string;
+  } => {
+    const tools: ToolInChain[] = [];
+    const connectedIntegrations = wizardContext?.formValues?.integrationTools || {};
+    const agentName = wizardContext?.formValues?.name || 'Assistant';
+    
+    // Always add SMS for communication
+    // SMS is required when CRM or Calendar tools are present to collect data from users
+    tools.push({
+      type: 'twilio',
+      role: 'communication',
+      method: 'sms',
+      config: {}
+    });
+    
+    // Add tools based on connected integrations
+    // Note: If CRM or Calendar tools are added, SMS must be present (handled above)
+    if (connectedIntegrations.calcom || connectedIntegrations.calendly || connectedIntegrations.google_calendar) {
+      const schedulingType = connectedIntegrations.calcom ? 'calcom' : 
+                            connectedIntegrations.calendly ? 'calendly' : 'google_calendar';
+      tools.push({
+        type: schedulingType,
+        role: 'scheduling',
+        method: schedulingType === 'google_calendar' ? 'create_event' : 'create_booking',
+        config: {}
+      });
+    }
+    
+    if (connectedIntegrations.pipedrive || connectedIntegrations.hubspot || connectedIntegrations.kommo) {
+      const crmType = connectedIntegrations.pipedrive ? 'pipedrive' :
+                      connectedIntegrations.hubspot ? 'hubspot' : 'kommo';
+      tools.push({
+        type: crmType,
+        role: 'crm',
+        method: crmType === 'pipedrive' ? 'create_deal' : 'create_contact',
+        config: {}
+      });
+    }
+    
+    // Generate name and description
+    const toolNames = tools.map(t => {
+      if (t.type === 'twilio') return 'SMS';
+      if (t.type === 'calcom') return 'Cal.com';
+      if (t.type === 'calendly') return 'Calendly';
+      if (t.type === 'google_calendar') return 'Google Calendar';
+      if (t.type === 'pipedrive') return 'Pipedrive';
+      if (t.type === 'hubspot') return 'HubSpot';
+      if (t.type === 'kommo') return 'Kommo';
+      return t.type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+    }).join(' + ');
+    
+    return {
+      toolChain: tools,
+      name: `${agentName} Workflow`,
+      description: `Workflow for ${agentName} with ${toolNames}`
+    };
+  }, [wizardContext]);
 
   // Load existing workflow if it exists
   const loadExistingWorkflow = useCallback(async () => {
@@ -518,123 +610,47 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
     }
   }, [agentId, currentWorkflowId, workflowTools, createInitialWorkflow, loadExistingWorkflow, addSystemMessage]);
 
-  // Monitor step 5 and create workflow with SMS immediately
+  // Monitor step 5 and ask about workflow creation
   useEffect(() => {
     if (wizardContext?.currentStep === 5 && !integrationFlowStartedRef.current && messages.length === 0) {
       integrationFlowStartedRef.current = true;
 
-      // First, load existing workflow to check if it's already complete
       const initializeFlow = async () => {
-        if (!agentId) {
+        if (!agentId || agentId === "new") {
+          // Agent not saved yet, wait for it
           return;
         }
 
-        // Load existing workflow first
+        // Load existing workflow to check if one already exists
         const workflowExists = await loadExistingWorkflow();
         
-        // Wait a bit for state to update after loading workflow
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Re-check workflow tools after loading (they might have been updated)
-        // We need to fetch the workflow again to get the latest tools
-        let currentTools = new Set<string>();
-        if (currentWorkflowId) {
-          try {
-            const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
-            if (agentFunctionsResponse.data) {
-              const workflow = agentFunctionsResponse.data.find((af: any) => 
-                af.id === currentWorkflowId && (af.is_custom_workflow || af.custom_tool_chain || af.effective_tool_chain)
-              );
-              if (workflow) {
-                const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
-                currentTools = new Set(toolChain.map((t: ToolInChain) => t.type));
-                setWorkflowTools(currentTools);
-              }
-            }
-          } catch (error) {
-            console.error('[GuidedSetupChat] Error fetching workflow tools:', error);
-          }
-        } else {
-          // Use workflowTools state if we don't have a workflow ID yet
-          currentTools = workflowTools;
-        }
-        
-        // Check if workflow is already complete
-        const hasScheduling = currentTools.has('calcom') || currentTools.has('calendly') || currentTools.has('google_calendar');
-        const hasCrm = currentTools.has('pipedrive') || currentTools.has('hubspot') || currentTools.has('kommo');
-        const hasSms = currentTools.has('twilio');
-        
-        if (hasSms && hasScheduling && hasCrm) {
-          // Workflow is complete, just show completion message
-          setIntegrationFlowPhase('complete');
-          addSystemMessage("Your workflow is complete!", undefined, [
-            { label: "Done", value: "done" }
-          ]);
-          return;
-        }
-
-        // If workflow doesn't exist, create it with SMS
-        if (!workflowExists && !currentWorkflowId) {
-          const created = await createInitialWorkflow();
-          if (created) {
-            // Reload workflow to get updated tools
-            await loadExistingWorkflow();
-            // Update currentTools after creating
-            await new Promise(resolve => setTimeout(resolve, 100));
-            if (currentWorkflowId) {
-              try {
-                const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
-                if (agentFunctionsResponse.data) {
-                  const workflow = agentFunctionsResponse.data.find((af: any) => 
-                    af.id === currentWorkflowId && (af.is_custom_workflow || af.custom_tool_chain || af.effective_tool_chain)
-                  );
-                  if (workflow) {
-                    const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
-                    currentTools = new Set(toolChain.map((t: ToolInChain) => t.type));
-                    setWorkflowTools(currentTools);
-                  }
-                }
-              } catch (error) {
-                console.error('[GuidedSetupChat] Error fetching workflow tools after creation:', error);
-              }
-            }
-          }
-        }
-
-        // Load integrations and start flow
-        const loadedIntegrations = await loadConnectedIntegrations();
-        setConnectedIntegrations(loadedIntegrations);
-
-        // Re-check if workflow is complete after all loading
-        const finalHasScheduling = currentTools.has('calcom') || currentTools.has('calendly') || currentTools.has('google_calendar');
-        const finalHasCrm = currentTools.has('pipedrive') || currentTools.has('hubspot') || currentTools.has('kommo');
-        const finalHasSms = currentTools.has('twilio');
-        
-        if (finalHasSms && finalHasScheduling && finalHasCrm) {
-          // Workflow is complete, just show completion message
-          setIntegrationFlowPhase('complete');
-          addSystemMessage("Your workflow is complete!", undefined, [
-            { label: "Done", value: "done" }
-          ]);
-          return;
-        }
-        
-        // Only send welcome message if workflow is not complete
-        setTimeout(() => {
-          if (!welcomeMessageSentRef.current) {
-            welcomeMessageSentRef.current = true;
-            if (currentWorkflowId) {
-              addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. I've created a workflow with SMS communication.");
-            } else {
-              addSystemMessage("Hello! I'm here to help you set up your Voiceable assistant. Let me guide you through the process on how to integrate tools.");
-            }
-          }
-
-          // Start the flow after welcome message
+        // Only send welcome message if workflow is not complete and setup flow is enabled
+        if (!disableSetupFlow) {
           setTimeout(() => {
-            startIntegrationFlowWithChatGPT(loadedIntegrations);
-          }, 800);
-        });
+            if (!welcomeMessageSentRef.current) {
+              welcomeMessageSentRef.current = true;
+              
+              // Check if workflow exists - use workflowExists (from loadExistingWorkflow) 
+              // or check currentWorkflowId (which should be set by loadExistingWorkflow)
+              // Give a small delay to ensure state has updated
+              const hasWorkflow = workflowExists || currentWorkflowId !== null;
+              
+              if (hasWorkflow) {
+                // Workflow already exists, offer to help with credentials
+                addSystemMessage("Hello! I see you already have a workflow. Would you like help setting up credentials for your tools?", undefined, [
+                  { label: "Yes", value: "yes" },
+                  { label: "Not now", value: "no" }
+                ]);
+              } else {
+                // No workflow yet, ask if they want to create one
+                addSystemMessage("Based on your setup, I can help you create a workflow. Would you like to create a workflow now?", undefined, [
+                  { label: "Yes, create workflow", value: "yes" },
+                  { label: "Not now", value: "no" }
+                ]);
+              }
+            }
+          }, 500);
+        }
       };
 
       initializeFlow();
@@ -645,7 +661,7 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
       setIntegrationFlowPhase('initial');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizardContext?.currentStep, messages.length, loadConnectedIntegrations, agentId, currentWorkflowId, workflowTools, createInitialWorkflow, loadExistingWorkflow, addSystemMessage, startIntegrationFlowWithChatGPT]);
+  }, [wizardContext?.currentStep, messages.length, agentId, currentWorkflowId, disableSetupFlow, addSystemMessage, loadExistingWorkflow]);
 
   const addUserMessage = useCallback((text: string) => {
     const message: ChatMessage = {
@@ -932,8 +948,105 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
     try {
       // Check if we're on Step 5 (Integrations)
       if (wizardContext?.currentStep === 5) {
-        // Handle quick actions for integration selection directly (for better UX)
         const lowerValue = buttonValue.toLowerCase();
+        
+        // Handle tools offer (when workflow only has SMS)
+        if (integrationFlowPhase === 'tools_offered') {
+          if (lowerValue === "yes" || lowerValue === "add tools") {
+            addUserMessage(buttonValue);
+            // Offer scheduling first
+            addSystemMessage(
+              "Great! Would you like to add a scheduling tool for booking appointments?",
+              undefined,
+              [
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" }
+              ]
+            );
+            setIntegrationFlowPhase('scheduling_offered');
+            setIsProcessing(false);
+            setWaitingForUser(false);
+            return;
+          } else if (lowerValue === "no" || lowerValue === "i'm done") {
+            addUserMessage(buttonValue);
+            addSystemMessage("Perfect! Your workflow with SMS is ready to use. You can always add more tools later from your integrations settings.", undefined, [
+              { label: "Done", value: "done" }
+            ]);
+            setIntegrationFlowPhase('complete');
+            setIsProcessing(false);
+            setWaitingForUser(false);
+            return;
+          }
+        }
+        
+        // Handle credential setup
+        if (integrationFlowPhase === 'credential_setup') {
+          if (lowerValue === "yes" || lowerValue === "set it up") {
+            const currentTool = toolsNeedingCredentials[currentCredentialIndex];
+            if (currentTool && wizardContext) {
+              addUserMessage(buttonValue);
+              await wizardContext.openIntegrationModal(currentTool);
+              setIsProcessing(false);
+              setWaitingForUser(false);
+              return;
+            }
+          } else if (lowerValue === "skip" || lowerValue === "skip for now") {
+            // Move to next tool or complete
+            const nextIndex = currentCredentialIndex + 1;
+            if (nextIndex < toolsNeedingCredentials.length) {
+              setCurrentCredentialIndex(nextIndex);
+              const nextTool = toolsNeedingCredentials[nextIndex];
+              const toolName = nextTool === 'twilio' ? 'SMS (Twilio)' :
+                               nextTool === 'calcom' ? 'Cal.com' :
+                               nextTool === 'calendly' ? 'Calendly' :
+                               nextTool === 'google_calendar' ? 'Google Calendar' :
+                               nextTool === 'pipedrive' ? 'Pipedrive' :
+                               nextTool === 'hubspot' ? 'HubSpot' :
+                               nextTool === 'kommo' ? 'Kommo' : nextTool;
+              addUserMessage(buttonValue);
+              addSystemMessage(
+                `No problem! To use ${toolName}, you'll need to connect your ${toolName} account. Would you like to set that up now?`,
+                undefined,
+                [
+                  { label: "Yes, set it up", value: "yes" },
+                  { label: "Skip for now", value: "skip" }
+                ]
+              );
+            } else {
+              // All tools processed
+              addUserMessage(buttonValue);
+              addSystemMessage("Got it! You can set up the remaining credentials later from your integrations settings. Your workflow is ready to use!", undefined, [
+                { label: "Done", value: "done" }
+              ]);
+              setIntegrationFlowPhase('complete');
+            }
+            setIsProcessing(false);
+            setWaitingForUser(false);
+            return;
+          }
+        }
+        
+        // Handle workflow creation request
+        if (lowerValue === "yes" && messages.length > 0) {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage.text.includes("create a workflow") || lastMessage.text.includes("create workflow")) {
+            addUserMessage(buttonValue);
+            
+            if (wizardContext) {
+              // Open workflow modal without pre-populated data to show template selection first
+              await wizardContext.openWorkflowModal();
+              
+              addSystemMessage(
+                "Great! I've opened the workflow creation modal. You can choose from templates like Lead Qualification, Appointment Booking, or Support Ticket Creation, or create a custom workflow."
+              );
+            }
+            setIsProcessing(false);
+            setWaitingForUser(false);
+            return;
+          }
+        }
+        
+        // Handle quick actions for integration selection directly (for better UX)
         const crmIntegrations = ['pipedrive', 'hubspot', 'kommo'];
         const schedulingIntegrations = ['calcom', 'calendly', 'google_calendar'];
 
@@ -966,7 +1079,7 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
       setIsProcessing(false);
       setWaitingForUser(false);
     }
-  }, [isProcessing, waitingForUser, wizardContext, integrationFlowPhase, addUserMessage, handleStep5ChatGPTMessage]);
+  }, [isProcessing, waitingForUser, wizardContext, integrationFlowPhase, addUserMessage, handleStep5ChatGPTMessage, messages, inferWorkflowFromUserChoices, toolsNeedingCredentials, currentCredentialIndex]);
 
   // Use refs to track previous state to avoid infinite loops
   const previousConnectedIntegrationsRef = useRef<Set<string>>(new Set());
@@ -1234,6 +1347,11 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
   const handleIntegrationSaved = useCallback(async (integrationType: string) => {
     console.log('[GuidedSetupChat] Integration saved callback received:', integrationType);
     
+    // If we're in credential setup phase, mark this integration as saved
+    if (integrationFlowPhase === 'credential_setup') {
+      setSavedIntegrationType(integrationType);
+    }
+    
     if (!currentWorkflowId || !agentId) {
       console.warn('[GuidedSetupChat] Cannot update workflow: missing workflowId or agentId');
       return;
@@ -1302,12 +1420,220 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
         addSystemMessage(`Failed to add ${integrationType} to workflow. Please try again.`);
       }
     }
-  }, [currentWorkflowId, agentId, workflowTools, mapIntegrationToTool, updateWorkflowWithTool, addSystemMessage, schedulingSkipped, crmSkipped, setIntegrationFlowPhase]);
+  }, [currentWorkflowId, agentId, workflowTools, mapIntegrationToTool, updateWorkflowWithTool, addSystemMessage, schedulingSkipped, crmSkipped, setIntegrationFlowPhase, integrationFlowPhase]);
 
-  // Expose handleIntegrationSaved via ref using useImperativeHandle
+  // Check which tools in workflow need credentials
+  const checkWorkflowCredentials = useCallback(async (workflowId: number): Promise<string[]> => {
+    if (!agentId) return [];
+    
+    try {
+      // Refresh user integrations first
+      const integrationsResponse = await integrationsApi.list();
+      const currentUserIntegrations = integrationsResponse.data || [];
+      
+      const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
+      if (agentFunctionsResponse.data) {
+        const workflow = agentFunctionsResponse.data.find((af: any) => af.id === workflowId);
+        if (workflow) {
+          const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
+          const toolsNeedingCredentials: string[] = [];
+          
+          // Check each tool to see if it needs credentials
+          // Note: Twilio is handled by the backend, so we skip it
+          for (const tool of toolChain) {
+            if (tool.type === 'twilio') {
+              // Twilio is already set up by the backend, skip it
+              continue;
+            } else if (['calcom', 'calendly', 'google_calendar'].includes(tool.type)) {
+              const schedulingIntegration = currentUserIntegrations.find((ui: UserIntegration) => ui.integration_type === tool.type);
+              if (!schedulingIntegration) {
+                toolsNeedingCredentials.push(tool.type);
+              }
+            } else if (['pipedrive', 'hubspot', 'kommo'].includes(tool.type)) {
+              const crmIntegration = currentUserIntegrations.find((ui: UserIntegration) => ui.integration_type === tool.type);
+              if (!crmIntegration) {
+                toolsNeedingCredentials.push(tool.type);
+              }
+            }
+          }
+          
+          return toolsNeedingCredentials;
+        }
+      }
+    } catch (error) {
+      console.error('[GuidedSetupChat] Error checking workflow credentials:', error);
+    }
+    
+    return [];
+  }, [agentId]);
+
+  // Guide user through credential setup after workflow creation
+  const guideCredentialSetup = useCallback(async (workflowId: number) => {
+    const toolsNeedingCreds = await checkWorkflowCredentials(workflowId);
+    
+    // Get the workflow to check what tools are in it
+    let workflowTools: string[] = [];
+    try {
+      const agentFunctionsResponse = await agentFunctionsApi.list(agentId!);
+      if (agentFunctionsResponse.data) {
+        const workflow = agentFunctionsResponse.data.find((af: any) => af.id === workflowId);
+        if (workflow) {
+          const toolChain = workflow.effective_tool_chain || workflow.custom_tool_chain || [];
+          workflowTools = toolChain.map((t: ToolInChain) => t.type);
+        }
+      }
+    } catch (error) {
+      console.error('[GuidedSetupChat] Error fetching workflow tools:', error);
+    }
+    
+    // Check if workflow only has SMS (Twilio)
+    const hasOnlySms = workflowTools.length === 1 && workflowTools[0] === 'twilio';
+    
+    if (toolsNeedingCreds.length === 0) {
+      if (hasOnlySms) {
+        // Workflow only has SMS, offer to add more tools
+        addSystemMessage(
+          "Your workflow has been created with SMS! Would you like to add scheduling or CRM tools to make it more powerful?",
+          undefined,
+          [
+            { label: "Yes, add tools", value: "yes" },
+            { label: "No, I'm done", value: "no" }
+          ]
+        );
+        setIntegrationFlowPhase('tools_offered');
+      } else {
+        // Workflow has other tools and all credentials are set up
+        addSystemMessage("Great! Your workflow is ready to use. All required credentials are already set up!", undefined, [
+          { label: "Done", value: "done" }
+        ]);
+        setIntegrationFlowPhase('complete');
+      }
+      return;
+    }
+    
+    setToolsNeedingCredentials(toolsNeedingCreds);
+    setCurrentCredentialIndex(0);
+    
+    const firstTool = toolsNeedingCreds[0];
+    const toolName = firstTool === 'twilio' ? 'SMS (Twilio)' :
+                     firstTool === 'calcom' ? 'Cal.com' :
+                     firstTool === 'calendly' ? 'Calendly' :
+                     firstTool === 'google_calendar' ? 'Google Calendar' :
+                     firstTool === 'pipedrive' ? 'Pipedrive' :
+                     firstTool === 'hubspot' ? 'HubSpot' :
+                     firstTool === 'kommo' ? 'Kommo' : firstTool;
+    
+    addSystemMessage(
+      `Your workflow has been created! To use ${toolName}, you'll need to connect your ${toolName} account. Would you like to set that up now?`,
+      undefined,
+      [
+        { label: "Yes, set it up", value: "yes" },
+        { label: "Skip for now", value: "skip" }
+      ]
+    );
+    
+    setIntegrationFlowPhase('credential_setup');
+  }, [checkWorkflowCredentials, addSystemMessage, agentId]);
+
+  // Poll for new workflows to guide credential setup
+  useEffect(() => {
+    if (wizardContext?.currentStep === 5 && agentId && agentId !== "new" && integrationFlowPhase === 'initial') {
+      const pollForWorkflows = async () => {
+        try {
+          const agentFunctionsResponse = await agentFunctionsApi.list(agentId);
+          if (agentFunctionsResponse.data) {
+            const workflows = agentFunctionsResponse.data.filter((af: any) => 
+              af.is_custom_workflow || af.custom_tool_chain || af.effective_tool_chain
+            );
+            
+            // Check if we have a new workflow that we haven't guided yet
+            if (workflows.length > 0) {
+              const latestWorkflow = workflows[workflows.length - 1];
+              if (latestWorkflow.id !== currentWorkflowId) {
+                setCurrentWorkflowId(latestWorkflow.id);
+                const toolChain = latestWorkflow.effective_tool_chain || latestWorkflow.custom_tool_chain || [];
+                setWorkflowTools(new Set(toolChain.map((t: ToolInChain) => t.type)));
+                
+                // Guide credential setup
+                setTimeout(() => {
+                  guideCredentialSetup(latestWorkflow.id);
+                }, 1000);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[GuidedSetupChat] Error polling for workflows:', error);
+        }
+      };
+      
+      // Poll immediately, then every 3 seconds
+      pollForWorkflows();
+      const interval = setInterval(pollForWorkflows, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [wizardContext?.currentStep, agentId, integrationFlowPhase, currentWorkflowId, guideCredentialSetup]);
+
+  // Advance credential setup when integration is saved during credential setup phase
+  useEffect(() => {
+    if (integrationFlowPhase === 'credential_setup' && savedIntegrationType) {
+      const handleCredentialSaved = async () => {
+        // Check if the saved integration matches the current tool we're setting up
+        const currentTool = toolsNeedingCredentials[currentCredentialIndex];
+        if (currentTool === savedIntegrationType) {
+          // Move to next tool or complete
+          const nextIndex = currentCredentialIndex + 1;
+          if (nextIndex < toolsNeedingCredentials.length) {
+            setCurrentCredentialIndex(nextIndex);
+            const nextTool = toolsNeedingCredentials[nextIndex];
+            const toolName = nextTool === 'twilio' ? 'SMS (Twilio)' :
+                             nextTool === 'calcom' ? 'Cal.com' :
+                             nextTool === 'calendly' ? 'Calendly' :
+                             nextTool === 'google_calendar' ? 'Google Calendar' :
+                             nextTool === 'pipedrive' ? 'Pipedrive' :
+                             nextTool === 'hubspot' ? 'HubSpot' :
+                             nextTool === 'kommo' ? 'Kommo' : nextTool;
+            addSystemMessage(
+              `Great! ${toolName} is now connected. To use ${toolName === 'SMS (Twilio)' ? 'SMS' : toolName}, you'll need to connect your ${toolName} account. Would you like to set that up now?`,
+              undefined,
+              [
+                { label: "Yes, set it up", value: "yes" },
+                { label: "Skip for now", value: "skip" }
+              ]
+            );
+          } else {
+            // All tools processed
+            addSystemMessage("Excellent! All credentials are set up. Your workflow is ready to use!", undefined, [
+              { label: "Done", value: "done" }
+            ]);
+            setIntegrationFlowPhase('complete');
+          }
+          setSavedIntegrationType(null);
+        }
+      };
+      
+      handleCredentialSaved();
+    }
+  }, [savedIntegrationType, integrationFlowPhase, currentCredentialIndex, toolsNeedingCredentials, addSystemMessage]);
+
+  // Reload workflow - useful when workflow is created externally (e.g., auto-generated)
+  const reloadWorkflow = useCallback(async () => {
+    if (!agentId) {
+      return;
+    }
+    // Reset current workflow ID to force reload
+    setCurrentWorkflowId(null);
+    // Load existing workflow
+    const workflowLoaded = await loadExistingWorkflow();
+    if (workflowLoaded) {
+      console.log('[GuidedSetupChat] Reloaded workflow after external creation');
+    }
+  }, [agentId, loadExistingWorkflow]);
+
+  // Expose handleIntegrationSaved and reloadWorkflow via ref using useImperativeHandle
   useImperativeHandle(ref, () => ({
     handleIntegrationSaved,
-  }), [handleIntegrationSaved]);
+    reloadWorkflow,
+  }), [handleIntegrationSaved, reloadWorkflow]);
 
   // Poll for integration changes when in connecting state
   useEffect(() => {
@@ -1329,7 +1655,7 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
 
   const provideProactiveGuidance = useCallback(async () => {
     // Prevent multiple simultaneous calls
-    if (!wizardContext || isProcessing || waitingForUser || isProvidingGuidanceRef.current) {
+    if (!wizardContext || isProcessing || waitingForUser || isProvidingGuidanceRef.current || disableSetupFlow) {
       return;
     }
 
@@ -1368,7 +1694,7 @@ export const GuidedSetupChat = forwardRef<GuidedSetupChatRef, GuidedSetupChatPro
       setIsProcessing(false);
       isProvidingGuidanceRef.current = false;
     }
-  }, [wizardContext, isProcessing, waitingForUser, buildWizardContext, addAssistantMessage, addSystemMessage]);
+  }, [wizardContext, isProcessing, waitingForUser, disableSetupFlow, buildWizardContext, addAssistantMessage, addSystemMessage]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();

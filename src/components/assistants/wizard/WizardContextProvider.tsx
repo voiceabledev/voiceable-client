@@ -42,6 +42,7 @@ export interface WizardContextValue {
   fillField: (fieldId: string, value: any) => Promise<void>;
   selectOption: (fieldId: string, value: any) => Promise<void>;
   openIntegrationModal: (integrationType: string) => Promise<void>;
+  openWorkflowModal: (initialData?: { toolChain?: any[]; name?: string; description?: string }) => Promise<void>;
   
   // Step-specific data
   getStepName: (step: number) => string;

@@ -19,7 +19,7 @@ import {
   Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi, outcomeDefinitionsApi } from "@/lib/api";
+import { agentsApi, voicesApi, Voice, agentTemplatesApi, AgentTemplate, AgentBehaviour, adminApi, integrationsApi, apiKeysApi, outcomeDefinitionsApi, workflowsApi } from "@/lib/api";
 import { SectionEntry, SectionPayload, Agent } from "@/types/assistant";
 import type { OutcomeDefinition } from "@/types/outcomes";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
@@ -46,7 +46,6 @@ import { SectionEntryModal } from "./wizard/SectionEntryModal";
 import { useWizardState } from "./wizard/hooks/useWizardState";
 import { useVoicePreview } from "./wizard/hooks/useVoicePreview";
 import { useTemplateDefaults } from "./wizard/hooks/useTemplateDefaults";
-import { GuidedSetupChat, type GuidedSetupChatRef } from "./GuidedSetupChat";
 import { WizardContextProvider, WizardContextValue } from "./wizard/WizardContextProvider";
 import { NameStep } from "./wizard/steps/NameStep";
 import { TemplateStep } from "./wizard/steps/TemplateStep";
@@ -55,22 +54,20 @@ import { CallOutcomesStep } from "./wizard/steps/CallOutcomesStep";
 import { AgentBehaviourStep } from "./wizard/steps/AgentBehaviourStep";
 import { VoiceLanguageStep } from "./wizard/steps/VoiceLanguageStep";
 import { AgentIntegrationToolsSection } from "@/components/integrations/AgentIntegrationToolsSection";
+import { IntegrationSuggestions } from "@/components/integrations/IntegrationSuggestions";
+import { CreateWorkflowFromScratchModal } from "@/components/workflows/CreateWorkflowFromScratchModal";
 import type { EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { normalizeLanguage } from "@/constants/languages";
-
-// Helper functions are now imported from ./wizard/helpers
-// Constants are now imported from ./wizard/constants
-// CustomWidgetPreviewModal is now imported from ./wizard/CustomWidgetPreviewModal
-// steps and templateDefaults are now imported from ./wizard/constants
+import { inferWorkflowFromAgentType } from "@/utils/workflowInference";
 
 export default function CreateAgentWizard({ onComplete, voices: propVoices, loadingVoices: propLoadingVoices, initialData }: CreateAgentWizardProps) {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Get agent slug from URL params (for persistence across refreshes)
   const urlAgentSlug = searchParams.get('slug');
   const savedStep = searchParams.get('step');
-  
+
   // Start at template step (step 0)
   const initialStep = savedStep ? parseInt(savedStep, 10) : 0;
   const [currentStep, setCurrentStep] = useState(initialStep);
@@ -91,7 +88,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     firstMessage?: string;
   }>>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
-  
+
   // Icon mapping for templates
   const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     'plus': Plus,
@@ -106,7 +103,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     'utensils-crossed': UtensilsCrossed,
     'phone': Phone,
   };
-  
+
   // Fetch templates
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -148,17 +145,17 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     };
     fetchTemplates();
   }, [toast]);
-  
+
   // Handle template selection
   const handleTemplateSelect = (templateId: string) => {
     const template = templates.find(t => t.id === templateId);
     setSelectedTemplate(templateId);
-    
+
     // Auto-generate name based on template
     if (template && template.title !== "Blank Template") {
       setName(template.title);
     }
-    
+
     // Apply template defaults if available
     if (template) {
       const templateDefault = templateDefaults[template.title];
@@ -166,18 +163,18 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         // Pre-populate model
         setSelectedProvider(templateDefault.provider);
         setSelectedModel(templateDefault.model);
-        
+
         // Pre-populate scenarios, phases, and voice tone with fresh IDs
         const generateId = () => `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         setScenarios(templateDefault.scenarios.map(s => ({ ...s, id: generateId() })));
         setPhases(templateDefault.phases.map(p => ({ ...p, id: generateId() })));
         setVoiceTone(templateDefault.voiceTone.map(v => ({ ...v, id: generateId() })));
-        
+
         // Pre-populate first message if template has one
         if (template.firstMessage && !firstMessage) {
           setFirstMessage(template.firstMessage);
         }
-        
+
         // Pre-populate system prompt if template has one
         if (template.systemPrompt && !systemPromptTemplate) {
           setSystemPromptTemplate(template.systemPrompt);
@@ -244,23 +241,20 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [integrationToolsExpanded, setIntegrationToolsExpanded] = useState<Record<string, boolean>>({});
   const previousIntegrationToolsRef = React.useRef<Set<string>>(new Set());
   const [agentFunctionsRefreshKey, setAgentFunctionsRefreshKey] = useState(0);
-  const [isChatMinimized, setIsChatMinimized] = useState(false);
-  const guidedSetupChatRef = React.useRef<GuidedSetupChatRef | null>(null);
-  
-  // Ensure chat is open when entering step 5
-  useEffect(() => {
-    if (currentStep === 5) {
-      setIsChatMinimized(false);
-    }
-  }, [currentStep]);
-  
+
   // Widget preview and phone number modals
   const [showWidgetPreview, setShowWidgetPreview] = useState(false);
   const [showPhoneNumberModal, setShowPhoneNumberModal] = useState(false);
+  const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
+  const [workflowModalInitialData, setWorkflowModalInitialData] = useState<{
+    toolChain?: import("@/types/functions").ToolInChain[];
+    name?: string;
+    description?: string;
+  } | null>(null);
   const [agentData, setAgentData] = useState<import("@/lib/api").Agent | null>(null);
   const [widgetConfig, setWidgetConfig] = useState<CustomWidgetConfig>(DEFAULT_CONFIG);
   const [apiKey, setApiKey] = useState<string>('');
-  
+
   // inferTemplateFromName is now imported from ./wizard/helpers
 
   // Get required integrations from template
@@ -276,7 +270,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         console.log('[CreateAgentWizard] initialData.integrationTools exists but is empty:', initialData.integrationTools);
       }
     }
-    
+
     // Check agentData for existing integrations (when editing an existing agent)
     if (agentData?.integration_tools) {
       const keys = Object.keys(agentData.integration_tools);
@@ -285,7 +279,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         return keys;
       }
     }
-    
+
     // Fallback: check template title if template is loaded
     if (template?.title) {
       const templateTools = getTemplateIntegrationTools(template.title);
@@ -301,7 +295,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         return integrationKeys;
       }
     }
-    
+
     // If template not loaded but we have agent name, try to infer template from name
     if (!template && agentData?.name) {
       const inferredTemplate = inferTemplateFromName(agentData.name);
@@ -315,7 +309,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         }
       }
     }
-    
+
     // If we have a templateId but template isn't loaded yet, try to get integrations from the mapping
     // This is a fallback for when template is still loading
     if (initialData?.templateId && !template) {
@@ -323,11 +317,11 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       // We can't get the title without the template, so return empty for now
       // The template will be loaded in useEffect and then this will recalculate
     }
-    
+
     console.log('[CreateAgentWizard] No integrations found - template:', template?.title, 'templateId:', initialData?.templateId, 'agentData.integration_tools:', agentData?.integration_tools, 'agentData.name:', agentData?.name, 'initialData.integrationTools:', initialData?.integrationTools);
     return [];
   }, [template, initialData?.integrationTools, initialData?.templateId, agentData?.integration_tools, agentData?.name]);
-  
+
   const hasRequiredIntegrations = requiredIntegrations.length > 0;
 
   // Generate system prompt using imported helper
@@ -360,7 +354,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   const saveSectionEntry = () => {
     if (!editingSectionType) return;
-    
+
     const getSetter = () => {
       switch (editingSectionType) {
         case "scenarios": return setScenarios;
@@ -368,9 +362,9 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         case "voiceTone": return setVoiceTone;
       }
     };
-    
+
     const setter = getSetter();
-    
+
     if (editingSectionEntry) {
       setter((prev) =>
         prev.map((entry) =>
@@ -406,7 +400,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(propLoadingVoices || false);
   const [voiceSearchQuery, setVoiceSearchQuery] = useState("");
-  
+
   // Use voice preview hook
   const { playingVoiceId, handlePlayPreview } = useVoicePreview();
 
@@ -419,7 +413,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // Handle behaviour change
   const handleBehaviourChange = async (behaviourId: string) => {
     const newBehaviourId = behaviourId === "none" ? undefined : parseInt(behaviourId, 10);
-    
+
     if (newBehaviourId) {
       try {
         setLoadingBehaviours(true);
@@ -532,7 +526,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         if (response.data) {
           const behaviours = Array.isArray(response.data) ? response.data : [];
           setAvailableBehaviours(behaviours);
-          
+
           // Automatically set default behaviour if not already set and no template is being loaded
           if (!currentBehaviourId && !initialData?.templateId) {
             const defaultBehaviour = behaviours.find(b => b.name === "Default");
@@ -591,7 +585,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         setLoadingBehaviours(false);
       }
     };
-    
+
     fetchBehaviours();
   }, [currentBehaviourId, initialData?.templateId]);
 
@@ -611,17 +605,17 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           setAgentId(agent.id);
           setAgentSlug(agent.slug || urlAgentSlug);
           setAgentData(agent);
-          
+
           // Restore form state from agent
           setName(agent.name || "");
-          
+
           // Restore model/provider from conversation config
           if (agent.conversation_config?.model) {
             const modelConfig = agent.conversation_config.model as { provider?: string; model?: string };
             if (modelConfig.provider) setSelectedProvider(modelConfig.provider);
             if (modelConfig.model) setSelectedModel(modelConfig.model);
           }
-          
+
           // Restore platform settings (voice, language)
           if (agent.platform_settings) {
             const platformSettings = agent.platform_settings as { voice_id?: string; language?: string };
@@ -644,7 +638,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 setSelectedLanguages([normalizeLanguage(platformSettings.language as string)]);
               }
             }
-            
+
             // Also check conversation_config for languages array and default_language
             if (agent.conversation_config) {
               const conversationConfig = agent.conversation_config as Record<string, unknown>;
@@ -662,7 +656,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               }
             }
           }
-          
+
           // Also check conversation_config for voice_ids and primary_voice_id
           if (agent.conversation_config) {
             const conversationConfig = agent.conversation_config as Record<string, unknown>;
@@ -687,7 +681,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               setPrimaryVoiceId(voiceId);
             }
           }
-          
+
           // Also check top-level primary_voice_id (if it exists in the agent object)
           const agentWithPrimary = agent as unknown as Record<string, unknown>;
           if (agentWithPrimary.primary_voice_id && typeof agentWithPrimary.primary_voice_id === 'string') {
@@ -696,7 +690,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               setPrimaryVoiceId(agentWithPrimary.primary_voice_id);
             }
           }
-          
+
           // Restore section entries from prompt_sections
           if (agent.conversation_config?.prompt_sections) {
             const sections = agent.conversation_config.prompt_sections as {
@@ -729,7 +723,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               })));
             }
           }
-          
+
           // If no behavior sections were loaded and we have auto-generation config, trigger generation
           const hasNoBehavior = scenarios.length === 0 && phases.length === 0 && voiceTone.length === 0;
           if (hasNoBehavior && agent.id) {
@@ -739,13 +733,13 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               console.log("[Behavior Generation] Agent loaded with no behavior, will generate when on step 4");
             }
           }
-          
+
           // Restore widget config
           if (agent.widget_config) {
             const loadedConfig = toFullConfig(agent.widget_config);
             setWidgetConfig(loadedConfig);
           }
-          
+
           // Restore first message if available
           if (agent.conversation_config?.first_message) {
             setFirstMessage(agent.conversation_config.first_message as string);
@@ -792,7 +786,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 ...(outcomeDef.secondary_outcomes || [])
               ].filter((outcome): outcome is string => typeof outcome === 'string' && outcome.trim() !== '');
               setPrimaryOutcomes(allOutcomes);
-              
+
               // Restore success and failure keywords
               if (outcomeDef.success_conditions?.keywords) {
                 setSuccessKeywords(outcomeDef.success_conditions.keywords);
@@ -800,7 +794,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
               if (outcomeDef.failure_conditions?.failure_keywords) {
                 setFailureKeywords(outcomeDef.failure_conditions.failure_keywords);
               }
-              
+
               // Restore escalation rules
               if (outcomeDef.escalation_rules) {
                 setEscalationRuleSettings({
@@ -835,7 +829,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         setLoadingAgent(false);
       }
     };
-    
+
     loadAgentData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlAgentSlug, setSearchParams, toast]);
@@ -864,7 +858,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             const foundTemplate = templates.find(t => t.id.toString() === initialData.templateId);
             if (foundTemplate) {
               setTemplate(foundTemplate);
-              
+
               // Capture template's system_prompt if initialData.systemPrompt is not available
               if (foundTemplate.system_prompt && !initialData?.systemPrompt) {
                 setTemplateSystemPrompt(foundTemplate.system_prompt);
@@ -878,20 +872,20 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 setTemplateSystemPrompt(foundTemplate.system_prompt);
                 setSystemPromptTemplate(foundTemplate.system_prompt);
               }
-              
+
               // Pre-populate from template defaults if available
               const templateDefault = templateDefaults[foundTemplate.title];
               if (templateDefault) {
                 // Pre-populate model
                 setSelectedProvider(templateDefault.provider);
                 setSelectedModel(templateDefault.model);
-                
+
                 // Pre-populate scenarios, phases, and voice tone with fresh IDs
                 const generateId = () => `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                 setScenarios(templateDefault.scenarios.map(s => ({ ...s, id: generateId() })));
                 setPhases(templateDefault.phases.map(p => ({ ...p, id: generateId() })));
                 setVoiceTone(templateDefault.voiceTone.map(v => ({ ...v, id: generateId() })));
-                
+
                 // Pre-populate first message from template if available
                 // Always use template's first message if it exists, unless initialData explicitly provides a non-empty value
                 if (foundTemplate.first_message) {
@@ -906,7 +900,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   setFirstMessage(foundTemplate.first_message);
                 }
               }
-              
+
               // If template has a behaviour ID, load the full behaviour with sections
               if (foundTemplate.agent_behaviour_id && foundTemplate.agent_behaviour) {
                 // Check if sections are already loaded in the response
@@ -958,37 +952,37 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                       if (behaviour.sections && behaviour.sections.length > 0) {
                         const config: BehaviourConfig = {};
                         behaviour.sections.forEach((section) => {
-                        if (section.section_type === "scenarios") {
-                          config.scenarios = {
-                            label: section.label,
-                            description: section.description,
-                            add_label: section.add_label,
-                            title_placeholder: section.title_placeholder,
-                            description_placeholder: section.description_placeholder,
-                            notes_placeholder: section.notes_placeholder,
-                            notes_label: section.notes_label,
-                          };
-                        } else if (section.section_type === "phases") {
-                          config.phases = {
-                            label: section.label,
-                            description: section.description,
-                            add_label: section.add_label,
-                            title_placeholder: section.title_placeholder,
-                            description_placeholder: section.description_placeholder,
-                            notes_placeholder: section.notes_placeholder,
-                            notes_label: section.notes_label,
-                          };
-                        } else if (section.section_type === "voice_tone") {
-                          config.voiceTone = {
-                            label: section.label,
-                            description: section.description,
-                            add_label: section.add_label,
-                            title_placeholder: section.title_placeholder,
-                            description_placeholder: section.description_placeholder,
-                            notes_placeholder: section.notes_placeholder,
-                            notes_label: section.notes_label,
-                          };
-                        }
+                          if (section.section_type === "scenarios") {
+                            config.scenarios = {
+                              label: section.label,
+                              description: section.description,
+                              add_label: section.add_label,
+                              title_placeholder: section.title_placeholder,
+                              description_placeholder: section.description_placeholder,
+                              notes_placeholder: section.notes_placeholder,
+                              notes_label: section.notes_label,
+                            };
+                          } else if (section.section_type === "phases") {
+                            config.phases = {
+                              label: section.label,
+                              description: section.description,
+                              add_label: section.add_label,
+                              title_placeholder: section.title_placeholder,
+                              description_placeholder: section.description_placeholder,
+                              notes_placeholder: section.notes_placeholder,
+                              notes_label: section.notes_label,
+                            };
+                          } else if (section.section_type === "voice_tone") {
+                            config.voiceTone = {
+                              label: section.label,
+                              description: section.description,
+                              add_label: section.add_label,
+                              title_placeholder: section.title_placeholder,
+                              description_placeholder: section.description_placeholder,
+                              notes_placeholder: section.notes_placeholder,
+                              notes_label: section.notes_label,
+                            };
+                          }
                         });
                         setBehaviourConfig(config);
                         setCurrentBehaviourId(behaviour.id);
@@ -1070,7 +1064,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         console.error("Error loading default behaviour:", error);
       }
     };
-    
+
     loadTemplate();
   }, [initialData?.templateId, initialData?.firstMessage]);
 
@@ -1121,10 +1115,10 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       } else {
         // Default: Select first professional-sounding voice (prioritize voices with names containing professional keywords)
         const professionalKeywords = ['charlie', 'sarah', 'david', 'emily', 'james', 'professional', 'confident'];
-        const professionalVoice = voices.find(v => 
+        const professionalVoice = voices.find(v =>
           v.name && professionalKeywords.some(keyword => v.name.toLowerCase().includes(keyword))
         ) || voices[0];
-        
+
         if (professionalVoice) {
           setSelectedVoiceIds([professionalVoice.id]);
         }
@@ -1136,10 +1130,10 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   useEffect(() => {
     if (initialData?.preSelectedVoices && voices.length > 0 && selectedVoiceIds.length === 0) {
       // Filter available voices by pre-selected IDs
-      const availablePreSelectedVoices = voices.filter(v => 
+      const availablePreSelectedVoices = voices.filter(v =>
         initialData.preSelectedVoices!.includes(v.id)
       );
-      
+
       if (availablePreSelectedVoices.length > 0) {
         setSelectedVoiceIds(availablePreSelectedVoices.map(v => v.id));
         setPrimaryVoiceId(availablePreSelectedVoices[0].id);
@@ -1189,14 +1183,14 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
   // Force behavior generation check when navigating to step 4
   const [forceBehaviorCheck, setForceBehaviorCheck] = useState(0);
-  
+
   useEffect(() => {
     if (currentStep === 4 && agentId && agentId !== "new") {
       // Check if we should generate behavior
       const storageKey = `agent_auto_generate_${agentId}`;
       const stored = sessionStorage.getItem(storageKey);
       const shouldGenerate = stored && scenarios.length === 0 && phases.length === 0 && voiceTone.length === 0 && !behaviorGeneratedRef.current && !isGeneratingBehavior;
-      
+
       if (shouldGenerate) {
         console.log("[Behavior Generation] Step 4 detected, forcing behavior check...");
         setForceBehaviorCheck(prev => prev + 1);
@@ -1255,7 +1249,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
 
       // Generate when on step 4 OR if agent was just created (no behaviors exist)
       const shouldGenerate = currentStep === 4 || (scenarios.length === 0 && phases.length === 0 && voiceTone.length === 0);
-      
+
       if (!shouldGenerate) {
         console.log("[Behavior Generation] Skipping - not on step 4 and behaviors exist");
         return;
@@ -1353,7 +1347,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   useEffect(() => {
     const oauthSuccess = searchParams.get("oauth_success");
     const integrationType = searchParams.get("integration_type");
-    
+
     if (oauthSuccess === "true" && integrationType) {
       // Restore the step from URL (should be step 5 for integrations)
       const stepFromUrl = searchParams.get("step");
@@ -1366,7 +1360,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         // Default to integrations step (step 5) if not in URL
         setCurrentStep(5);
       }
-      
+
       // Remove OAuth query parameters after handling
       setSearchParams(prev => {
         const newParams = new URLSearchParams(prev);
@@ -1375,7 +1369,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         // Keep step and slug parameters
         return newParams;
       });
-      
+
       // Open the integration modal and select the integration
       // Small delay to ensure state is updated
       setTimeout(async () => {
@@ -1390,17 +1384,17 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       try {
         const response = await apiKeysApi.list();
         const existingKeys = response.data || [];
-        
+
         // Look for an existing widget API key by name first
         let widgetKey = existingKeys.find(
           (key) => key.name === 'Widget API Key'
         );
-        
+
         // If no widget key exists, use any existing key
         if (!widgetKey && existingKeys.length > 0) {
           widgetKey = existingKeys[0]; // Use the first available key
         }
-        
+
         // Only create if no keys exist at all
         if (!widgetKey) {
           const createResponse = await apiKeysApi.create({
@@ -1476,7 +1470,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   const handleSetStep = (direction: -1 | 1) => {
     const minStep = 0; // Template step is first
     const maxStep = 5; // Integrations step is the last step
-    
+
     if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
     }
@@ -1574,6 +1568,14 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           // Include webhook tools and integration tools in conversation_config
           ...(webhookTools.length > 0 ? { webhook_tools: webhookTools } : {}),
           ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
+          system_tools: {
+            end_call: { active: true, description: "Ends the call when the conversation is finished.", disable_interruptions: false },
+            voicemail_detection: { active: true, description: "Detects if the call was answered by a voicemail.", disable_interruptions: false }
+          },
+        },
+        system_tools: {
+          end_call: { active: true, description: "Ends the call when the conversation is finished.", disable_interruptions: false },
+          voicemail_detection: { active: true, description: "Detects if the call was answered by a voicemail.", disable_interruptions: false }
         },
         platform_settings: {
           ...(selectedVoiceIds.length > 0 && { voice_id: primaryVoiceId || selectedVoiceIds[0] }),
@@ -1626,7 +1628,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           name: name.trim(),
           ...config,
         };
-        
+
         const response = await agentsApi.create(createParams);
         if (response.data) {
           savedAgentId = response.data.id;
@@ -1656,6 +1658,39 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           } catch (err) {
             console.error('Failed to fetch agent data:', err);
           }
+
+          // Auto-generate workflow if agent was created from AssistantsList with agent type
+          if (initialData?.agentType && savedAgentId) {
+            try {
+              // Type guard to ensure agentType is a valid AgentType
+              const validAgentTypes = [
+                "customer_support",
+                "lead_generation",
+                "sales_calls",
+                "appointment_booking",
+                "product_information",
+                "technical_support",
+              ] as const;
+
+              if (validAgentTypes.includes(initialData.agentType as any)) {
+                const workflow = inferWorkflowFromAgentType(
+                  initialData.agentType as import("@/utils/agentTypeDetection").AgentType,
+                  name.trim()
+                );
+                await workflowsApi.create(savedAgentId, {
+                  name: workflow.name,
+                  description: workflow.description,
+                  tool_chain: workflow.toolChain,
+                  trigger_phrases: workflow.triggerPhrases,
+                  enabled: true,
+                });
+                console.log('[CreateAgentWizard] Auto-generated workflow for agent type:', initialData.agentType);
+              }
+            } catch (error) {
+              console.error('[CreateAgentWizard] Failed to create workflow:', error);
+              // Don't block agent creation if workflow fails
+            }
+          }
         } else {
           throw new Error('Failed to create agent');
         }
@@ -1664,22 +1699,22 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       // Only sync with ElevenLabs on Voice & Language step (step 3, index 2)
       // Steps array: [0: Name, 1: Model, 2: Voice & Language, 3: Call Outcomes, 4: Agent Behaviour, 5: Integrations]
       const shouldSyncWithElevenLabs = currentStep === 2;
-      
+
       // Ensure voice_ids are set before syncing (required for ElevenLabs)
       const hasRequiredFields = shouldSyncWithElevenLabs ? selectedVoiceIds.length > 0 : true;
 
       if (shouldSyncWithElevenLabs && savedAgentId && hasRequiredFields) {
         // Small delay to ensure database transaction is committed
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         try {
           console.log(`[CreateAgentWizard] Syncing with ElevenLabs for step ${currentStep} (${steps[currentStep].label}), agent ID: ${savedAgentId}`);
           console.log(`[CreateAgentWizard] Current config - Voice IDs: ${selectedVoiceIds.join(', ')}, Languages: ${selectedLanguages.join(', ')}`);
           console.log(`[CreateAgentWizard] Full config being sent:`, JSON.stringify(config, null, 2));
-          
+
           const publishResponse = await agentsApi.publish(savedAgentId);
           console.log('[CreateAgentWizard] Publish response:', publishResponse);
-          
+
           if (publishResponse.data) {
             toast({
               title: 'Success',
@@ -1699,7 +1734,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           });
           // Don't re-throw - allow user to continue even if sync fails
         }
-        
+
       } else if (shouldSyncWithElevenLabs && !hasRequiredFields) {
         // Voice/Language step but missing required fields
         toast({
@@ -1710,7 +1745,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       } else if (currentStep === 3) {
         // Call Outcomes step - save outcome definition and escalation rules
         console.log(`[CreateAgentWizard] Saving Call Outcomes data for step ${currentStep}, agent ID: ${savedAgentId}`);
-        
+
         try {
           // Save outcome definition if at least one primary outcome is set
           if (primaryOutcomes && primaryOutcomes.length > 0) {
@@ -1754,11 +1789,11 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           }
 
           // Save escalation rules to system_tools if human transfer rules exist
-          const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
-                                      escalationRuleSettings.humanTransferRules.length > 0 &&
-                                      escalationRuleSettings.humanTransferRules.some(rule => 
-                                        rule.phoneNumber && rule.phoneNumber.trim() !== ''
-                                      );
+          const hasHumanTransferRules = escalationRuleSettings.humanTransferRules &&
+            escalationRuleSettings.humanTransferRules.length > 0 &&
+            escalationRuleSettings.humanTransferRules.some(rule =>
+              rule.phoneNumber && rule.phoneNumber.trim() !== ''
+            );
 
           if (hasHumanTransferRules) {
             // Enable transfer_to_number system tool and save settings in the correct format
@@ -1810,7 +1845,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       // Steps: [0: Name, 1: Model, 2: Voice & Language, 3: Call Outcomes, 4: Agent Behaviour, 5: Integrations]
       // Integrations step is at index 5 (step 6 when counting from 1)
       const integrationsStep = 5;
-      
+
       console.log('[CreateAgentWizard] Step navigation:', {
         currentStep,
         integrationsStep,
@@ -1819,7 +1854,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         templateTitle: template?.title,
         initialDataIntegrationTools: initialData?.integrationTools
       });
-      
+
       if (currentStep === integrationsStep) {
         // On integrations step, save the final configuration, publish, and then redirect to assistant details
         // The agent should already be saved, but ensure we publish with latest config
@@ -1829,7 +1864,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             console.log(`[CreateAgentWizard] Publishing agent on integrations step completion, agent ID: ${savedAgentId}`);
             const publishResponse = await agentsApi.publish(savedAgentId);
             console.log('[CreateAgentWizard] Publish response:', publishResponse);
-            
+
             if (publishResponse.data) {
               // Fetch the latest agent data to get the slug
               const agentResponse = await agentsApi.get(savedAgentId);
@@ -1850,7 +1885,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           } catch (publishErr) {
             console.error('[CreateAgentWizard] Failed to publish agent:', publishErr);
             const errorMessage = publishErr instanceof Error ? publishErr.message : 'Unknown error';
-            
+
             // Still try to redirect even if publish fails
             try {
               const agentResponse = await agentsApi.get(savedAgentId);
@@ -1868,7 +1903,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             } catch (err) {
               console.error('Failed to fetch agent for redirect:', err);
             }
-            
+
             // Fall back to using what we have
             const agentIdentifier = agentSlug || savedAgentId;
             if (agentIdentifier) {
@@ -1882,7 +1917,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             }
           }
         }
-        
+
         // If we get here, something went wrong
         toast({
           title: 'Error',
@@ -1926,7 +1961,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         // Validate escalation rules if any exist
         const hasEscalationRules = escalationRuleSettings.humanTransferRules && escalationRuleSettings.humanTransferRules.length > 0;
         if (hasEscalationRules) {
-          return escalationRuleSettings.humanTransferRules.every(rule => 
+          return escalationRuleSettings.humanTransferRules.every(rule =>
             rule.phoneNumber.trim() !== "" && rule.condition.trim() !== ""
           );
         }
@@ -1946,7 +1981,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   // Transform agentIntegrationTools array to Record format for AgentIntegrationToolsSection
   const agentIntegrationToolsRecord = React.useMemo(() => {
     const record: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
-    
+
     integrationHook.agentIntegrationTools.forEach(tool => {
       if (!record[tool.integration_type]) {
         record[tool.integration_type] = {
@@ -1958,7 +1993,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         record[tool.integration_type].enabledTools.push(tool.tool_name);
       }
     });
-    
+
     return record;
   }, [integrationHook.agentIntegrationTools]);
 
@@ -1966,7 +2001,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   React.useEffect(() => {
     const currentIntegrationTypes = new Set(Object.keys(agentIntegrationToolsRecord));
     const previousIntegrationTypes = previousIntegrationToolsRef.current;
-    
+
     // Find newly added integrations
     currentIntegrationTypes.forEach(integrationType => {
       if (!previousIntegrationTypes.has(integrationType)) {
@@ -1979,7 +2014,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         setIntegrationToolsSectionExpanded(true);
       }
     });
-    
+
     // Update ref for next comparison
     previousIntegrationToolsRef.current = currentIntegrationTypes;
   }, [agentIntegrationToolsRecord]);
@@ -2101,151 +2136,175 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           </>
         );
       case 5: // Integrations step
+        // Get connected integration types for suggestions
+        const connectedIntegrationTypes = Object.keys(agentIntegrationToolsRecord);
+
         return (
-          <AgentIntegrationToolsSection
-            agentIntegrationTools={agentIntegrationToolsRecord}
-            integrationToolsSectionExpanded={integrationToolsSectionExpanded}
-            integrationToolsExpanded={integrationToolsExpanded}
-            agentFunctionsRefreshKey={agentFunctionsRefreshKey}
-            onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
-            onToggleIntegrationExpanded={(integrationType) => {
-              setIntegrationToolsExpanded(prev => ({
-                ...prev,
-                [integrationType]: !prev[integrationType]
-              }));
-            }}
-            onOpenAddIntegrationModal={async () => {
-              // The AgentIntegrationToolsSection now handles workflow creation internally
-              // This handler is kept for backward compatibility but workflow creation
-              // is handled by the CreateWorkflowFromScratchModal in AgentIntegrationToolsSection
-              // If agent is not saved yet, prompt user to save first
-              if (!agentId || agentId === "new") {
-                toast({
-                  title: "Save agent first",
-                  description: "Please save the agent before creating workflows.",
-                  variant: "default",
-                });
-              }
-            }}
-            onOpenEditIntegrationModal={async (integrationType) => {
-              const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
-              if (userIntegration) {
-                await integrationHook.openEditIntegrationModal(userIntegration);
-              } else {
-                // If integration doesn't exist, open add modal
-                await integrationHook.selectIntegrationToAdd(integrationType);
-              }
-            }}
-            onDeleteIntegration={async (integrationType) => {
-              // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
-              if (agentId && agentId !== "new") {
-                try {
-                  // Delete from backend if agent exists
-                  await integrationsApi.deleteFromAgent(agentId, integrationType);
-                  
-                  // Remove from local state
+          <div className="space-y-4">
+            {/* Integration Suggestions */}
+            <IntegrationSuggestions
+              connectedIntegrations={connectedIntegrationTypes}
+              onActionClick={(action, integrationType) => {
+                // Handle suggestion actions
+                if (action === "Set up SMS" || action === "Add SMS") {
+                  integrationHook.selectIntegrationToAdd("twilio");
+                } else if (action === "Add Calendar" || action === "Connect Calendar") {
+                  integrationHook.selectIntegrationToAdd("calcom");
+                } else if (action === "Create Workflow") {
+                  // Could open workflow creation modal
+                  toast({
+                    title: "Workflow Creation",
+                    description: "Use 'Add Workflow' button to create automated workflows.",
+                  });
+                }
+              }}
+            />
+
+            <AgentIntegrationToolsSection
+              agentIntegrationTools={agentIntegrationToolsRecord}
+              integrationToolsSectionExpanded={integrationToolsSectionExpanded}
+              integrationToolsExpanded={integrationToolsExpanded}
+              agentFunctionsRefreshKey={agentFunctionsRefreshKey}
+              onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
+              onToggleIntegrationExpanded={(integrationType) => {
+                setIntegrationToolsExpanded(prev => ({
+                  ...prev,
+                  [integrationType]: !prev[integrationType]
+                }));
+              }}
+              onOpenAddIntegrationModal={async () => {
+                // The AgentIntegrationToolsSection now handles workflow creation internally
+                // This handler is kept for backward compatibility but workflow creation
+                // is handled by the CreateWorkflowFromScratchModal in AgentIntegrationToolsSection
+                // If agent is not saved yet, prompt user to save first
+                if (!agentId || agentId === "new") {
+                  toast({
+                    title: "Save agent first",
+                    description: "Please save the agent before creating workflows.",
+                    variant: "default",
+                  });
+                }
+              }}
+              onOpenEditIntegrationModal={async (integrationType) => {
+                const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
+                if (userIntegration) {
+                  await integrationHook.openEditIntegrationModal(userIntegration);
+                } else {
+                  // If integration doesn't exist, open add modal
+                  await integrationHook.selectIntegrationToAdd(integrationType);
+                }
+              }}
+              onDeleteIntegration={async (integrationType) => {
+                // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
+                if (agentId && agentId !== "new") {
+                  try {
+                    // Delete from backend if agent exists
+                    await integrationsApi.deleteFromAgent(agentId, integrationType);
+
+                    // Remove from local state
+                    const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                      tool => tool.integration_type !== integrationType
+                    );
+                    integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+
+                    // Get the display names for tools of this integration type
+                    const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+
+                    // Remove all webhook tools associated with this integration
+                    const updatedWebhookTools = webhookTools.filter(
+                      wt => !toolDisplayNames.includes(wt.name)
+                    );
+                    setWebhookTools(updatedWebhookTools);
+
+                    toast({
+                      title: "Success",
+                      description: "Integration removed from agent. Credentials kept."
+                    });
+                  } catch (error) {
+                    console.error("Failed to remove integration:", error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to remove integration.",
+                      variant: "destructive"
+                    });
+                  }
+                } else {
+                  // For new agents, just remove from local state
                   const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
                     tool => tool.integration_type !== integrationType
                   );
                   integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-                  
+
                   // Get the display names for tools of this integration type
                   const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-                  
+
                   // Remove all webhook tools associated with this integration
                   const updatedWebhookTools = webhookTools.filter(
                     wt => !toolDisplayNames.includes(wt.name)
                   );
                   setWebhookTools(updatedWebhookTools);
-                  
-                  toast({ 
-                    title: "Success", 
-                    description: "Integration removed from agent. Credentials kept." 
-                  });
-                } catch (error) {
-                  console.error("Failed to remove integration:", error);
-                  toast({ 
-                    title: "Error", 
-                    description: "Failed to remove integration.", 
-                    variant: "destructive" 
+
+                  toast({
+                    title: "Success",
+                    description: "Integration removed from agent."
                   });
                 }
-              } else {
-                // For new agents, just remove from local state
-                const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
-                  tool => tool.integration_type !== integrationType
-                );
-                integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-                
-                // Get the display names for tools of this integration type
-                const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-                
-                // Remove all webhook tools associated with this integration
-                const updatedWebhookTools = webhookTools.filter(
-                  wt => !toolDisplayNames.includes(wt.name)
-                );
-                setWebhookTools(updatedWebhookTools);
-                
-                toast({ 
-                  title: "Success", 
-                  description: "Integration removed from agent." 
-                });
-              }
-            }}
-            onToggleTool={async (integrationType, displayName, enabled) => {
-              // Toggle tool enable/disable
-              const actionName = displayNameToActionName(displayName, integrationType);
-              const updatedTools = integrationHook.agentIntegrationTools.map(tool => {
-                if (tool.integration_type === integrationType && tool.tool_name === actionName) {
-                  return { ...tool, enabled };
-                }
-                return tool;
-              });
-              
-              // If tool doesn't exist, add it
-              const existingTool = updatedTools.find(
-                t => t.integration_type === integrationType && t.tool_name === actionName
-              );
-              
-              if (!existingTool) {
-                updatedTools.push({
-                  integration_type: integrationType,
-                  tool_name: actionName,
-                  enabled: true,
-                });
-              }
-              
-              integrationHook.setAgentIntegrationTools(updatedTools);
-              
-              // Update webhook tools if agent exists
-              if (agentId && agentId !== "new") {
-                // Save to backend
-                const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
-                updatedTools.forEach(tool => {
-                  if (tool.enabled) {
-                    if (!integrationToolsPayload[tool.integration_type]) {
-                      integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
-                    }
-                    integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
+              }}
+              onToggleTool={async (integrationType, displayName, enabled) => {
+                // Toggle tool enable/disable
+                const actionName = displayNameToActionName(displayName, integrationType);
+                const updatedTools = integrationHook.agentIntegrationTools.map(tool => {
+                  if (tool.integration_type === integrationType && tool.tool_name === actionName) {
+                    return { ...tool, enabled };
                   }
+                  return tool;
                 });
-                
-                try {
-                  await agentsApi.update(agentId, {
-                    integration_tools: integrationToolsPayload,
-                  } as any);
-                } catch (error) {
-                  console.error("Failed to update integration tools:", error);
+
+                // If tool doesn't exist, add it
+                const existingTool = updatedTools.find(
+                  t => t.integration_type === integrationType && t.tool_name === actionName
+                );
+
+                if (!existingTool) {
+                  updatedTools.push({
+                    integration_type: integrationType,
+                    tool_name: actionName,
+                    enabled: true,
+                  });
                 }
-              }
-            }}
-            INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
-            getIntegrationIcon={getIntegrationIcon}
-            formatToolName={formatToolName}
-            displayNameToActionName={displayNameToActionName}
-            userIntegrations={userIntegrations as any}
-            agentId={agentId || undefined}
-          />
+
+                integrationHook.setAgentIntegrationTools(updatedTools);
+
+                // Update webhook tools if agent exists
+                if (agentId && agentId !== "new") {
+                  // Save to backend
+                  const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+                  updatedTools.forEach(tool => {
+                    if (tool.enabled) {
+                      if (!integrationToolsPayload[tool.integration_type]) {
+                        integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
+                      }
+                      integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
+                    }
+                  });
+
+                  try {
+                    await agentsApi.update(agentId, {
+                      integration_tools: integrationToolsPayload,
+                    } as any);
+                  } catch (error) {
+                    console.error("Failed to update integration tools:", error);
+                  }
+                }
+              }}
+              INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
+              getIntegrationIcon={getIntegrationIcon}
+              formatToolName={formatToolName}
+              displayNameToActionName={displayNameToActionName}
+              userIntegrations={userIntegrations as any}
+              agentId={agentId || undefined}
+            />
+          </div>
         );
       default:
         return null;
@@ -2382,6 +2441,12 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         await integrationHook.selectIntegrationToAdd(integrationType);
       }
     },
+    openWorkflowModal: async (initialData?: { toolChain?: any[]; name?: string; description?: string }) => {
+      if (initialData) {
+        setWorkflowModalInitialData(initialData);
+      }
+      setShowCreateWorkflowModal(true);
+    },
     getStepName: (step: number) => steps[step]?.label || "Unknown",
     getAvailableActionsForStep: (step: number) => {
       const actions = ["back", "save"];
@@ -2399,320 +2464,239 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
   return (
     <WizardContextProvider value={wizardContextValue}>
       <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="p-6 md:p-8 bg-card border-b border-border">
-        <Steps 
-          numSteps={steps.length} 
-          currentStep={currentStep}
-          steps={steps} 
-        />
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
-        {currentStep === 5 ? (
-          // Main content with right padding to prevent overlap with fixed chat (only when chat is expanded on desktop)
-          <div className={cn(
-            "w-full mx-auto",
-            !isChatMinimized && "lg:pr-[420px]"
-          )}>
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold mb-2">
-                {steps[currentStep]?.label}
-              </h2>
-              <p className="text-muted-foreground">
-                Connect integrations to enable additional features for your assistant.
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-lg p-6">
-              {renderStepContent()}
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-7xl mx-auto">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold mb-2">
-                {steps[currentStep]?.label}
-              </h2>
-              <p className="text-muted-foreground">
-                {(() => {
-                  if (currentStep === 0) return "Choose a template and name your assistant.";
-                  if (currentStep === 1) return "Configure the AI model for your assistant.";
-                  if (currentStep === 2) return "Select a voice and language for your assistant.";
-                  if (currentStep === 3) return "Define what success means for your agent's calls.";
-                  if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
-                  return "";
-                })()}
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-lg p-6">
-              {renderStepContent()}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Fixed Floating Chat Widget - Only visible on step 5 */}
-      {currentStep === 5 && (
-        <div className="block">
-          <GuidedSetupChat
-            ref={guidedSetupChatRef}
-            agentId={agentId || undefined}
-            agent={agentData}
-            wizardContext={wizardContextValue}
-            renderMode="inline"
-            startMinimized={false}
-            disableInput={false}
-            onMinimizedChange={(minimized) => setIsChatMinimized(minimized)}
-            onFunctionEnabled={() => {
-              console.log('[CreateAgentWizard] onFunctionEnabled called, incrementing refresh key');
-              setAgentFunctionsRefreshKey(prev => {
-                const newKey = prev + 1;
-                console.log('[CreateAgentWizard] Refresh key updated:', prev, '->', newKey);
-                return newKey;
-              });
-            }}
-            onComplete={async () => {
-              if (!agentId) return;
-              
-              // Refresh agent data to show new integrations
-              try {
-                const agentResponse = await agentsApi.get(agentId);
-                if (agentResponse.data) {
-                  setAgentData(agentResponse.data);
-                  if (agentResponse.data.slug) {
-                    setAgentSlug(agentResponse.data.slug);
-                  }
-                }
-              } catch (err) {
-                console.error('Failed to fetch agent data after setup:', err);
-              }
-              
-              toast({
-                title: "Success",
-                description: "Assistant setup completed!",
-              });
-            }}
-            onClose={() => {
-              // Chat can be minimized, no action needed on close
-            }}
+        <div className="p-6 md:p-8 bg-card border-b border-border">
+          <Steps
+            numSteps={steps.length}
+            currentStep={currentStep}
+            steps={steps}
           />
         </div>
-      )}
 
-      <div className={cn(
-        "sticky bottom-0 border-t border-border p-6 md:p-8 bg-background shadow-lg z-40",
-        currentStep === 5 && !isChatMinimized ? "lg:pr-[420px]" : ""
-      )}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <Button
-            variant="outline"
-            onClick={() => handleSetStep(-1)}
-            disabled={currentStep === 0 || saving}
-            data-wizard-action="back"
-            id="wizard-back-button"
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Previous
-          </Button>
-          <Button
-            onClick={handleSaveStep}
-            disabled={!isStepValid() || saving}
-            data-wizard-action="save"
-            id="wizard-save-button"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                {currentStep === steps.length - 1 ? "Complete" : "Save & Continue"}
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </>
-            )}
-          </Button>
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          {currentStep === 5 ? (
+            // Main content
+            <div className="w-full mx-auto">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">
+                  {steps[currentStep]?.label}
+                </h2>
+                <p className="text-muted-foreground">
+                  Connect integrations to enable additional features for your assistant.
+                </p>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-6">
+                {renderStepContent()}
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-7xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">
+                  {steps[currentStep]?.label}
+                </h2>
+                <p className="text-muted-foreground">
+                  {(() => {
+                    if (currentStep === 0) return "Choose a template and name your assistant.";
+                    if (currentStep === 1) return "Configure the AI model for your assistant.";
+                    if (currentStep === 2) return "Select a voice and language for your assistant.";
+                    if (currentStep === 3) return "Define what success means for your agent's calls.";
+                    if (currentStep === 4) return "Define scenarios, phases, and voice tone to customize your agent's behavior.";
+                    return "";
+                  })()}
+                </p>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-6">
+                {renderStepContent()}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Section Entry Modal */}
-      <SectionEntryModal
-        open={showSectionModal}
-        onOpenChange={setShowSectionModal}
-        editingSectionType={editingSectionType}
-        editingSectionEntry={editingSectionEntry}
-        sectionForm={sectionForm}
-        onSectionFormChange={(form) => setSectionForm(form)}
-        onSave={saveSectionEntry}
-        onCancel={closeSectionModal}
-      />
 
-      {/* Integration Connection Modal */}
-      <IntegrationConnectionModal
-        open={integrationHook.showIntegrationModal}
-        onOpenChange={integrationHook.setShowIntegrationModal}
-        connectingIntegrationLoading={integrationHook.connectingIntegrationLoading}
-        integrationModalStep={integrationHook.integrationModalStep}
-        availableIntegrationTypes={getAvailableIntegrationTypes()}
-        agentIntegrationTools={integrationHook.agentIntegrationTools}
-        selectIntegrationToAdd={integrationHook.selectIntegrationToAdd}
-        userIntegrations={userIntegrations}
-        connectingIntegrationType={integrationHook.connectingIntegrationType}
-        integrationSchemas={integrationHook.integrationSchemas 
-          ? { [integrationHook.connectingIntegrationType || '']: integrationHook.integrationSchemas }
-          : {}}
-        integrationModalTab={integrationHook.integrationModalTab}
-        setIntegrationModalTab={integrationHook.setIntegrationModalTab}
-        editingIntegrationConfig={integrationHook.editingIntegrationConfig}
-        handleIntegrationConnect={async (config) => {
-          await integrationHook.handleIntegrationConnect(config);
-          // Refresh user integrations after connecting
-          const response = await integrationsApi.list();
-          if (response.data) {
-            setUserIntegrations(response.data);
-          }
-        }}
-        closeIntegrationConnectionModal={integrationHook.closeIntegrationConnectionModal}
-        selectedIntegrationToolsForModal={integrationHook.selectedIntegrationToolsForModal}
-        toggleModalToolSelection={integrationHook.toggleModalToolSelection}
-        setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
-        isWizardMode={true}
-        onIntegrationSaved={async (integrationType: string) => {
-          // Trigger workflow update in GuidedSetupChat
-          console.log('[CreateAgentWizard] Integration saved in modal:', integrationType);
-          
-          // Call the handler in GuidedSetupChat to update workflow
-          if (guidedSetupChatRef.current) {
-            try {
-              await guidedSetupChatRef.current.handleIntegrationSaved(integrationType);
-              console.log('[CreateAgentWizard] Workflow updated via GuidedSetupChat');
-            } catch (error) {
-              console.error('[CreateAgentWizard] Error updating workflow:', error);
+        <div className="sticky bottom-0 border-t border-border p-6 md:p-8 bg-background shadow-lg z-40">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <Button
+              variant="outline"
+              onClick={() => handleSetStep(-1)}
+              disabled={currentStep === 0 || saving}
+              data-wizard-action="back"
+              id="wizard-back-button"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+            <Button
+              onClick={handleSaveStep}
+              disabled={!isStepValid() || saving}
+              data-wizard-action="save"
+              id="wizard-save-button"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {currentStep === steps.length - 1 ? "Complete" : "Save & Continue"}
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Section Entry Modal */}
+        <SectionEntryModal
+          open={showSectionModal}
+          onOpenChange={setShowSectionModal}
+          editingSectionType={editingSectionType}
+          editingSectionEntry={editingSectionEntry}
+          sectionForm={sectionForm}
+          onSectionFormChange={(form) => setSectionForm(form)}
+          onSave={saveSectionEntry}
+          onCancel={closeSectionModal}
+        />
+
+        {/* Integration Connection Modal */}
+        <IntegrationConnectionModal
+          open={integrationHook.showIntegrationModal}
+          onOpenChange={integrationHook.setShowIntegrationModal}
+          connectingIntegrationLoading={integrationHook.connectingIntegrationLoading}
+          integrationModalStep={integrationHook.integrationModalStep}
+          availableIntegrationTypes={getAvailableIntegrationTypes()}
+          agentIntegrationTools={integrationHook.agentIntegrationTools}
+          selectIntegrationToAdd={integrationHook.selectIntegrationToAdd}
+          userIntegrations={userIntegrations}
+          connectingIntegrationType={integrationHook.connectingIntegrationType}
+          integrationSchemas={integrationHook.integrationSchemas
+            ? { [integrationHook.connectingIntegrationType || '']: integrationHook.integrationSchemas }
+            : {}}
+          integrationModalTab={integrationHook.integrationModalTab}
+          setIntegrationModalTab={integrationHook.setIntegrationModalTab}
+          editingIntegrationConfig={integrationHook.editingIntegrationConfig}
+          handleIntegrationConnect={async (config) => {
+            await integrationHook.handleIntegrationConnect(config);
+            // Refresh user integrations after connecting
+            const response = await integrationsApi.list();
+            if (response.data) {
+              setUserIntegrations(response.data);
             }
-          }
-          
-          // Also trigger the refresh to ensure UI updates
-          setAgentFunctionsRefreshKey(prev => {
-            const newKey = prev + 1;
-            console.log('[CreateAgentWizard] Workflow refresh key updated:', prev, '->', newKey);
-            return newKey;
-          });
-        }}
-        onRemoveIntegration={async (integrationType) => {
-          // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
-          if (agentId && agentId !== "new") {
-            try {
-              // Delete from backend if agent exists
-              await integrationsApi.deleteFromAgent(agentId, integrationType);
-              
-              // Remove from local state
+          }}
+          closeIntegrationConnectionModal={integrationHook.closeIntegrationConnectionModal}
+          selectedIntegrationToolsForModal={integrationHook.selectedIntegrationToolsForModal}
+          toggleModalToolSelection={integrationHook.toggleModalToolSelection}
+          setSelectedIntegrationToolsForModal={integrationHook.setSelectedIntegrationToolsForModal}
+          isWizardMode={true}
+          onIntegrationSaved={async (integrationType: string) => {
+            console.log('[CreateAgentWizard] Integration saved in modal:', integrationType);
+
+            // Trigger the refresh to ensure UI updates
+            setAgentFunctionsRefreshKey(prev => {
+              const newKey = prev + 1;
+              console.log('[CreateAgentWizard] Workflow refresh key updated:', prev, '->', newKey);
+              return newKey;
+            });
+          }}
+          onRemoveIntegration={async (integrationType) => {
+            // Remove integration from agent (local state only if no agentId, or via API if agentId exists)
+            if (agentId && agentId !== "new") {
+              try {
+                // Delete from backend if agent exists
+                await integrationsApi.deleteFromAgent(agentId, integrationType);
+
+                // Remove from local state
+                const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
+                  tool => tool.integration_type !== integrationType
+                );
+                integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
+
+                // Get the display names for tools of this integration type
+                const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
+
+                // Remove all webhook tools associated with this integration
+                const updatedWebhookTools = webhookTools.filter(
+                  wt => !toolDisplayNames.includes(wt.name)
+                );
+                setWebhookTools(updatedWebhookTools);
+
+                toast({
+                  title: "Success",
+                  description: "Integration removed from agent. Credentials kept."
+                });
+              } catch (error) {
+                console.error("Failed to remove integration:", error);
+                toast({
+                  title: "Error",
+                  description: "Failed to remove integration.",
+                  variant: "destructive"
+                });
+              }
+            } else {
+              // For new agents, just remove from local state
               const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
                 tool => tool.integration_type !== integrationType
               );
               integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-              
+
               // Get the display names for tools of this integration type
               const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-              
+
               // Remove all webhook tools associated with this integration
               const updatedWebhookTools = webhookTools.filter(
                 wt => !toolDisplayNames.includes(wt.name)
               );
               setWebhookTools(updatedWebhookTools);
-              
-              toast({ 
-                title: "Success", 
-                description: "Integration removed from agent. Credentials kept." 
-              });
-            } catch (error) {
-              console.error("Failed to remove integration:", error);
-              toast({ 
-                title: "Error", 
-                description: "Failed to remove integration.", 
-                variant: "destructive" 
-              });
             }
-          } else {
-            // For new agents, just remove from local state
-            const updatedIntegrationTools = integrationHook.agentIntegrationTools.filter(
-              tool => tool.integration_type !== integrationType
-            );
-            integrationHook.setAgentIntegrationTools(updatedIntegrationTools);
-            
-            // Get the display names for tools of this integration type
-            const toolDisplayNames = INTEGRATION_TOOLS_DISPLAY[integrationType as keyof typeof INTEGRATION_TOOLS_DISPLAY] || [];
-            
-            // Remove all webhook tools associated with this integration
-            const updatedWebhookTools = webhookTools.filter(
-              wt => !toolDisplayNames.includes(wt.name)
-            );
-            setWebhookTools(updatedWebhookTools);
-          }
-        }}
-        agentId={agentId}
-        fetchUserIntegrations={integrationHook.fetchUserIntegrations}
-        saveSelectedIntegrationTools={async () => {
-          if (!agentId) {
-            toast({
-              title: "Error",
-              description: "Please save the agent first before adding integrations.",
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Save integration tools to agent and sync with ElevenLabs
-          await integrationHook.saveSelectedIntegrationTools(
-            { id: agentId, name: name } as Agent,
-            async (updatedIntegrationTools, updatedWebhookTools) => {
-              // Format integration tools for API
-              const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
-              updatedIntegrationTools.forEach(tool => {
-                if (tool.enabled) {
-                  if (!integrationToolsPayload[tool.integration_type]) {
-                    integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
-                  }
-                  integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
-                }
+          }}
+          agentId={agentId}
+          fetchUserIntegrations={integrationHook.fetchUserIntegrations}
+          saveSelectedIntegrationTools={async () => {
+            if (!agentId) {
+              toast({
+                title: "Error",
+                description: "Please save the agent first before adding integrations.",
+                variant: "destructive",
               });
+              return;
+            }
 
-              // Get current agent data to merge with existing conversation_config
-              let currentConversationConfig: Record<string, unknown> = {};
-              if (agentData?.conversation_config) {
-                currentConversationConfig = { ...agentData.conversation_config } as Record<string, unknown>;
-              }
-
-              // Update agent with integration tools and webhook tools in both conversation_config and top level
-              const updateParams: Record<string, unknown> = {
-                conversation_config: {
-                  ...currentConversationConfig,
-                  webhook_tools: updatedWebhookTools,
-                  ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
-                },
-                integration_tools: integrationToolsPayload,
-                webhook_tools: updatedWebhookTools,
-              };
-
-              await agentsApi.update(agentId, updateParams);
-              
-              // Refresh agent data
-              try {
-                const agentResponse = await agentsApi.get(agentId);
-                if (agentResponse.data) {
-                  setAgentData(agentResponse.data);
-                  if (agentResponse.data.slug) {
-                    setAgentSlug(agentResponse.data.slug);
+            // Save integration tools to agent and sync with ElevenLabs
+            await integrationHook.saveSelectedIntegrationTools(
+              { id: agentId, name: name } as Agent,
+              async (updatedIntegrationTools, updatedWebhookTools) => {
+                // Format integration tools for API
+                const integrationToolsPayload: Record<string, { enabled: boolean; enabled_tools: string[] }> = {};
+                updatedIntegrationTools.forEach(tool => {
+                  if (tool.enabled) {
+                    if (!integrationToolsPayload[tool.integration_type]) {
+                      integrationToolsPayload[tool.integration_type] = { enabled: true, enabled_tools: [] };
+                    }
+                    integrationToolsPayload[tool.integration_type].enabled_tools.push(tool.tool_name);
                   }
+                });
+
+                // Get current agent data to merge with existing conversation_config
+                let currentConversationConfig: Record<string, unknown> = {};
+                if (agentData?.conversation_config) {
+                  currentConversationConfig = { ...agentData.conversation_config } as Record<string, unknown>;
                 }
-              } catch (err) {
-                console.error('Failed to fetch agent data after saving integration tools:', err);
-              }
-            },
-            async () => {
-              // Publish to sync with ElevenLabs
-              if (agentId) {
+
+                // Update agent with integration tools and webhook tools in both conversation_config and top level
+                const updateParams: Record<string, unknown> = {
+                  conversation_config: {
+                    ...currentConversationConfig,
+                    webhook_tools: updatedWebhookTools,
+                    ...(Object.keys(integrationToolsPayload).length > 0 ? { integration_tools: integrationToolsPayload } : {}),
+                  },
+                  integration_tools: integrationToolsPayload,
+                  webhook_tools: updatedWebhookTools,
+                };
+
+                await agentsApi.update(agentId, updateParams);
+
+                // Refresh agent data
                 try {
-                  await agentsApi.publish(agentId);
-                  // Refresh agent data after publish
                   const agentResponse = await agentsApi.get(agentId);
                   if (agentResponse.data) {
                     setAgentData(agentResponse.data);
@@ -2721,89 +2705,88 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                     }
                   }
                 } catch (err) {
-                  console.error('Failed to publish agent after adding integration tools:', err);
-                  toast({
-                    title: "Warning",
-                    description: "Integration tools saved, but failed to sync with ElevenLabs. Please try publishing manually.",
-                    variant: "destructive",
-                  });
+                  console.error('Failed to fetch agent data after saving integration tools:', err);
+                }
+              },
+              async () => {
+                // Publish to sync with ElevenLabs
+                if (agentId) {
+                  try {
+                    await agentsApi.publish(agentId);
+                    // Refresh agent data after publish
+                    const agentResponse = await agentsApi.get(agentId);
+                    if (agentResponse.data) {
+                      setAgentData(agentResponse.data);
+                      if (agentResponse.data.slug) {
+                        setAgentSlug(agentResponse.data.slug);
+                      }
+                    }
+                  } catch (err) {
+                    console.error('Failed to publish agent after adding integration tools:', err);
+                    toast({
+                      title: "Warning",
+                      description: "Integration tools saved, but failed to sync with ElevenLabs. Please try publishing manually.",
+                      variant: "destructive",
+                    });
+                  }
                 }
               }
-            }
-          );
+            );
 
-          // Refresh user integrations to ensure we have the latest data including API keys
-          try {
-            const response = await integrationsApi.list();
-            if (response.data) {
-              setUserIntegrations(response.data);
-            }
-          } catch (err) {
-            console.error('Failed to refresh user integrations:', err);
-          }
-        }}
-      />
-
-      {/* Widget Preview Modal */}
-      <Dialog open={showWidgetPreview} onOpenChange={setShowWidgetPreview}>
-        <DialogContent className="max-w-4xl h-[80vh] p-0">
-          <CustomWidgetPreviewModal
-            config={widgetConfig}
-            agentName={agentData?.name}
-            onClose={() => setShowWidgetPreview(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Phone Number Modal */}
-      <PhoneNumberModal
-        open={showPhoneNumberModal}
-        onOpenChange={setShowPhoneNumberModal}
-        defaultAgentId={agentId || undefined}
-      />
-
-      {/* Guided Setup Chat - Show minimized on other steps, inline on step 5 */}
-      {currentStep !== 5 && (
-        <GuidedSetupChat
-          agentId={agentId || undefined}
-          agent={agentData}
-          wizardContext={wizardContextValue}
-          renderMode="portal"
-          startMinimized={true}
-          onFunctionEnabled={() => {
-            console.log('[CreateAgentWizard] onFunctionEnabled called (second instance), incrementing refresh key');
-            setAgentFunctionsRefreshKey(prev => {
-              const newKey = prev + 1;
-              console.log('[CreateAgentWizard] Refresh key updated:', prev, '->', newKey);
-              return newKey;
-            });
-          }}
-          onComplete={async () => {
-            if (!agentId) return;
-            
-            // Refresh agent data to show new integrations
+            // Refresh user integrations to ensure we have the latest data including API keys
             try {
-              const agentResponse = await agentsApi.get(agentId);
-              if (agentResponse.data) {
-                setAgentData(agentResponse.data);
-                if (agentResponse.data.slug) {
-                  setAgentSlug(agentResponse.data.slug);
-                }
+              const response = await integrationsApi.list();
+              if (response.data) {
+                setUserIntegrations(response.data);
               }
             } catch (err) {
-              console.error('Failed to fetch agent data after setup:', err);
+              console.error('Failed to refresh user integrations:', err);
             }
-            
-            toast({
-              title: "Success",
-              description: "Assistant setup completed!",
-            });
-          }}
-          onClose={() => {
-            // Chat can be minimized, no action needed on close
           }}
         />
-      )}
+
+        {/* Widget Preview Modal */}
+        <Dialog open={showWidgetPreview} onOpenChange={setShowWidgetPreview}>
+          <DialogContent className="max-w-4xl h-[80vh] p-0">
+            <CustomWidgetPreviewModal
+              config={widgetConfig}
+              agentName={agentData?.name}
+              onClose={() => setShowWidgetPreview(false)}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Phone Number Modal */}
+        <PhoneNumberModal
+          open={showPhoneNumberModal}
+          onOpenChange={setShowPhoneNumberModal}
+          defaultAgentId={agentId || undefined}
+        />
+
+        {/* Workflow Creation Modal */}
+        {agentId && agentId !== "new" && (
+          <CreateWorkflowFromScratchModal
+            open={showCreateWorkflowModal}
+            onClose={() => {
+              setShowCreateWorkflowModal(false);
+              setWorkflowModalInitialData(null);
+            }}
+            agentId={agentId}
+            onWorkflowCreated={() => {
+              setAgentFunctionsRefreshKey(prev => prev + 1);
+              setShowCreateWorkflowModal(false);
+              setWorkflowModalInitialData(null);
+              toast({
+                title: "Success",
+                description: "Workflow created successfully!",
+              });
+            }}
+            initialToolChain={workflowModalInitialData?.toolChain}
+            initialName={workflowModalInitialData?.name}
+            initialDescription={workflowModalInitialData?.description}
+          />
+        )}
+
       </div>
     </WizardContextProvider>
   );

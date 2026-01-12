@@ -40,7 +40,7 @@ function getApiBaseUrl(): string {
 
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
-    
+
     // If on Heroku or production domain, construct API URL
     if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
       // For same-domain deployments, use relative path
@@ -48,12 +48,12 @@ function getApiBaseUrl(): string {
       // or use a runtime config. For now, assume same domain or set via env var.
       return '/api/v1';
     }
-    
+
     // For localhost development
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost:3000/api/v1';
     }
-    
+
     // For other production domains, try to construct API URL
     // Assumes API is on same domain with /api/v1 path
     return `${protocol}//${hostname}/api/v1`;
@@ -152,13 +152,13 @@ class ApiClient {
       // Handle 401 Unauthorized - redirect to login only for user authentication errors
       if (response.status === 401) {
         const errorMessage = data.status?.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'An error occurred');
-        
+
         // Only redirect to login if it's a user authentication error, not an ElevenLabs API key error
         // User auth errors: "Authentication required."
         // ElevenLabs API key errors: "Invalid ElevenLabs API key." or similar
-        const isUserAuthError = errorMessage === 'Authentication required.' || 
-                                errorMessage.toLowerCase().includes('authentication required');
-        
+        const isUserAuthError = errorMessage === 'Authentication required.' ||
+          errorMessage.toLowerCase().includes('authentication required');
+
         if (isUserAuthError) {
           // Clear token if present
           this.setToken(null);
@@ -167,7 +167,7 @@ class ApiClient {
             window.location.href = '/login';
           }
         }
-        
+
         const error = new Error(errorMessage);
         // Attach additional error details if available
         if (data.details) {
@@ -178,7 +178,7 @@ class ApiClient {
         }
         throw error;
       }
-      
+
       const errorMessage = data.status?.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'An error occurred');
       const error = new Error(errorMessage);
       // Attach response status and data to error for better error handling
@@ -221,7 +221,7 @@ class ApiClient {
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { 
+    return this.request<T>(endpoint, {
       method: 'DELETE',
       redirect: 'manual' as RequestRedirect // Prevent automatic redirect following
     });
@@ -255,7 +255,7 @@ export const authApi = {
     const response = await apiClient.post('/auth/sign_in', {
       user: { email, password },
     });
-    
+
     // Extract JWT token from response
     if (response.token) {
       apiClient.setToken(response.token);
@@ -342,7 +342,7 @@ export const voicesApi = {
 
     const queryString = params.toString();
     const endpoint = `/voices${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await apiClient.get<Voice[]>(endpoint);
     return response;
   },
@@ -397,6 +397,21 @@ export const integrationsApi = {
   getSchemas: async () => {
     const response = await apiClient.get<IntegrationSchema[]>('/integrations/schemas');
     return response;
+  },
+
+  testConnection: async (type: string, config: IntegrationConfig) => {
+    // Test integration connection without saving
+    const response = await apiClient.post<{ success: boolean; message?: string }>(
+      `/integrations/${type}/test`,
+      {
+        integration: {
+          config: config,
+        },
+      }
+    );
+    // API returns { status: {...}, data: { success: boolean, message: string } }
+    // response.data is the inner data object
+    return response.data || { success: false, message: 'Connection test failed' };
   },
 
   getOAuthUrl: async (integrationType: string, returnUrl?: string) => {
@@ -467,6 +482,9 @@ export interface Agent {
   elevenlabs_agent_id?: string;
   version?: number;
   integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
+  system_tools?: Record<string, any>;
+  webhook_tools?: Array<Record<string, unknown>>;
+  client_tools?: Array<Record<string, unknown>>;
 }
 
 export interface CreateAgentParams {
@@ -476,6 +494,7 @@ export interface CreateAgentParams {
   widget_config?: WidgetConfig;
   tags?: string[];
   integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
+  system_tools?: Record<string, any>;
 }
 
 export interface UpdateAgentParams {
@@ -486,6 +505,8 @@ export interface UpdateAgentParams {
   tags?: string[];
   webhook_tools?: Array<Record<string, unknown>>;
   integration_tools?: Record<string, { enabled: boolean; enabled_tools: string[] }>;
+  system_tools?: Record<string, any>;
+  client_tools?: Array<Record<string, unknown>>;
 }
 
 export const agentsApi = {
@@ -500,7 +521,7 @@ export const agentsApi = {
 
     const queryString = params.toString();
     const endpoint = `/agents${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await apiClient.get<PaginatedAgentsResponse>(endpoint);
     return response;
   },
@@ -547,6 +568,23 @@ export const agentsApi = {
     const response = await apiClient.delete(`/agents/${id}`);
     return response;
   },
+
+  chat: async (id: string, message: string, mode: 'text' | 'voice' = 'text') => {
+    const response = await apiClient.post<{
+      response: string;
+      workflows_triggered: Array<{
+        workflow_id: number;
+        workflow_name: string;
+        matched_phrase: string;
+        status: string;
+      }>;
+    }>(`/agents/${id}/chat`, {
+      message,
+      mode,
+    });
+    // API returns { status: {...}, data: { response, workflows_triggered } }
+    return response;
+  },
 };
 
 // Functions API
@@ -554,10 +592,10 @@ export const functionsApi = {
   list: async (integrationType?: string) => {
     const params = new URLSearchParams();
     if (integrationType) params.append('integration_type', integrationType);
-    
+
     const queryString = params.toString();
     const endpoint = `/functions${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await apiClient.get<Function[]>(endpoint);
     return response;
   },
@@ -602,7 +640,7 @@ export const agentFunctionsApi = {
     return response;
   },
 
-  updateWorkflowConfig: async (agentId: string, agentFunctionId: number, config: { name?: string; description?: string }) => {
+  updateWorkflowConfig: async (agentId: string, agentFunctionId: number, config: { name?: string; description?: string; trigger_phrases?: string[] }) => {
     const response = await apiClient.patch<AgentFunction>(
       `/agents/${agentId}/agent_functions/${agentFunctionId}/update_workflow_config`,
       config
@@ -612,7 +650,7 @@ export const agentFunctionsApi = {
 };
 
 export const workflowsApi = {
-  create: async (agentId: string, data: { name: string; description?: string; tool_chain: ToolInChain[]; enabled?: boolean }) => {
+  create: async (agentId: string, data: { name: string; description?: string; tool_chain: ToolInChain[]; trigger_phrases?: string[]; enabled?: boolean }) => {
     const response = await apiClient.post<AgentFunction>(`/agents/${agentId}/workflows`, data);
     return response;
   },
@@ -636,6 +674,20 @@ export const workflowsApi = {
       activity_types?: Array<{ id: number; name: string }>;
       methods?: Array<{ value: string; label: string }>;
     }>(`/agents/${agentId}/workflows/tool_options/${toolType}`);
+    return response;
+  },
+
+  getFieldSchema: async (agentId: string, toolType: string, method: string) => {
+    const response = await apiClient.get<import('@/types/functions').FieldSchemaResponse>(
+      `/agents/${agentId}/workflows/field_schema?tool_type=${toolType}&method=${method}`
+    );
+    return response;
+  },
+
+  getConversationContext: async (agentId: string) => {
+    const response = await apiClient.get<import('@/types/functions').ConversationContextResponse>(
+      `/agents/${agentId}/workflows/conversation_context`
+    );
     return response;
   },
 };
@@ -771,12 +823,12 @@ export const agentFilesApi = {
       file_size: params.file_size,
       content_type: params.content_type,
     };
-    
+
     // Only include agent_id if it's provided
     if (agentId && agentId.trim() !== "") {
       requestBody.agent_id = agentId;
     }
-    
+
     const response = await apiClient.post<AgentFile>(`/agent_files/create_and_sync`, requestBody);
     return response;
   },
@@ -883,7 +935,7 @@ export const conversationsApi = {
 
     const queryString = params.toString();
     const endpoint = `/conversations${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await apiClient.get<Conversation[]>(endpoint);
     return response;
   },
@@ -938,7 +990,7 @@ export const metricsApi = {
 
     const queryString = params.toString();
     const endpoint = `/metrics${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await apiClient.get<Metrics>(endpoint);
     return response;
   },
@@ -1063,7 +1115,7 @@ export const phoneNumbersApi = {
     const params = new URLSearchParams();
     if (countryCode) params.append('country_code', countryCode);
     if (areaCode) params.append('area_code', areaCode);
-    
+
     const queryString = params.toString();
     const endpoint = `/phone_numbers/available${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<AvailablePhoneNumber[]>(endpoint);
@@ -1287,8 +1339,8 @@ export const paymentsApi = {
   },
 
   creditBalance: async () => {
-    const response = await apiClient.get<{ 
-      balance: number; 
+    const response = await apiClient.get<{
+      balance: number;
       balance_cents: number;
       total_payments_cents: number;
       total_refunds_cents: number;
@@ -1944,7 +1996,7 @@ export const escalationsApi = {
     const params = new URLSearchParams();
     if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
     if (filters?.status) params.append('status', filters.status);
-    
+
     const queryString = params.toString();
     const endpoint = `/escalations${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: HumanHandoffEvent[] }>(endpoint);
@@ -1973,7 +2025,7 @@ export const failureReasonsApi = {
     if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
     if (filters?.category) params.append('category', filters.category);
     if (filters?.reason_code) params.append('reason_code', filters.reason_code);
-    
+
     const queryString = params.toString();
     const endpoint = `/failure_reasons${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: FailureReason[] }>(endpoint);
@@ -1988,7 +2040,7 @@ export const dashboardsApi = {
     if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/dashboards/support${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: SupportDashboardData }>(endpoint);
@@ -1999,7 +2051,7 @@ export const dashboardsApi = {
     if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/dashboards/sales${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: SalesDashboardData }>(endpoint);
@@ -2010,7 +2062,7 @@ export const dashboardsApi = {
     if (filters?.agent_id) params.append('agent_id', filters.agent_id.toString());
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/dashboards/failure_breakdown${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: FailureBreakdownData[] }>(endpoint);
@@ -2066,7 +2118,7 @@ export const agentMetricsApi = {
     const params = new URLSearchParams();
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/metrics${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: AgentMetrics }>(endpoint);
@@ -2076,7 +2128,7 @@ export const agentMetricsApi = {
     const params = new URLSearchParams();
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/roi${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<AgentROI>(endpoint);
@@ -2086,7 +2138,7 @@ export const agentMetricsApi = {
     const params = new URLSearchParams();
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/performance${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: any }>(endpoint);
@@ -2096,7 +2148,7 @@ export const agentMetricsApi = {
     const params = new URLSearchParams();
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/escalations${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: any }>(endpoint);
@@ -2106,7 +2158,7 @@ export const agentMetricsApi = {
     const params = new URLSearchParams();
     if (filters?.start_date) params.append('start_date', filters.start_date);
     if (filters?.end_date) params.append('end_date', filters.end_date);
-    
+
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/optimization_suggestions${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: { high_impact: OptimizationSuggestion[]; medium_impact: OptimizationSuggestion[] } }>(endpoint);

@@ -104,7 +104,7 @@ export const steps: StepType[] = [
   { id: 3, label: "Voice & Language", icon: AudioLines },
   { id: 4, label: "Call Outcomes", icon: Target },
   { id: 5, label: "Agent Behaviour", icon: Sparkles },
-  { id: 6, label: "Integrations", icon: Plug },
+  { id: 6, label: "Workflows", icon: Plug },
 ];
 
 export type TemplateDefaults = {

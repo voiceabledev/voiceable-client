@@ -35,7 +35,7 @@ const Billing = lazy(() => import("@/pages/settings/Billing"));
 const Members = lazy(() => import("@/pages/settings/Members"));
 const Profile = lazy(() => import("@/pages/settings/Profile"));
 const OrgSettings = lazy(() => import("@/pages/settings/OrgSettings"));
-const Integrations = lazy(() => import("@/pages/settings/Integrations"));
+const Integrations = lazy(() => import("@/pages/integrations/IntegrationLibrary"));
 const IntegrationSettings = lazy(() => import("@/pages/settings/IntegrationSettings"));
 const FinancialSimulation = lazy(() => import("@/pages/settings/FinancialSimulation"));
 const Conversations = lazy(() => import("@/pages/Conversations"));

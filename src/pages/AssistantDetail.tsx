@@ -2606,6 +2606,7 @@ export default function AssistantDetail() {
           agent={agentData.agent}
           renderMode="inline"
           startMinimized={true}
+          disableSetupFlow={true}
           onComplete={async () => {
             // Remove setup parameter from URL if it exists
             if (searchParams.get("setup") === "true") {

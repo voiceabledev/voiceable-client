@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Settings, Globe, Plug } from "lucide-react";
-import { SystemToolsSection } from "./SystemToolsSection";
-import { ExternalToolsSection } from "./ExternalToolsSection";
+import { Plug } from "lucide-react";
 import { AgentIntegrationToolsSection } from "@/components/integrations/AgentIntegrationToolsSection";
 import {
   INTEGRATION_TOOLS_DISPLAY,
@@ -9,12 +7,12 @@ import {
   formatToolName,
   displayNameToActionName,
 } from "@/constants/assistant";
-import type { 
-  SystemToolsState, 
-  WebhookTool, 
-  ClientTool, 
+import type {
+  SystemToolsState,
+  WebhookTool,
+  ClientTool,
   AgentIntegrationTool,
-  UserIntegration 
+  UserIntegration
 } from "@/types/assistant";
 
 type ToolsTabProps = {
@@ -65,13 +63,12 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   agentId,
 }) => {
   const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(false);
-  const [systemToolsSectionExpanded, setSystemToolsSectionExpanded] = useState(false);
-  const [externalToolsSectionExpanded, setExternalToolsSectionExpanded] = useState(false);
+
 
   // Transform agentIntegrationTools array to Record format expected by AgentIntegrationToolsSection
   const agentIntegrationToolsRecord = useMemo(() => {
     const record: Record<string, { enabled: boolean; enabledTools: string[] }> = {};
-    
+
     agentIntegrationTools.forEach(tool => {
       if (!record[tool.integration_type]) {
         record[tool.integration_type] = {
@@ -83,7 +80,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
         record[tool.integration_type].enabledTools.push(tool.tool_name);
       }
     });
-    
+
     return record;
   }, [agentIntegrationTools]);
 
@@ -91,22 +88,8 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Settings className="h-4 w-4" />
-          <span>SYSTEM TOOLS</span>
-        </div>
-        <SystemToolsSection
-          systemTools={systemTools}
-          onToggleTool={(key, checked) => onToggleSystemTool(key as keyof SystemToolsState)}
-          onOpenSettings={onOpenSystemToolSettings ? (key) => onOpenSystemToolSettings(key as keyof SystemToolsState) : undefined}
-          expanded={systemToolsSectionExpanded}
-          onToggleExpanded={() => setSystemToolsSectionExpanded(prev => !prev)}
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
           <Plug className="h-4 w-4" />
-          <span>INTEGRATION TOOLS</span>
+          <span>WORKFLOWS</span>
         </div>
         <AgentIntegrationToolsSection
           agentIntegrationTools={agentIntegrationToolsRecord}
@@ -135,30 +118,8 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
           agentId={agentId}
         />
       </div>
-      
-      <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Globe className="h-4 w-4" />
-          <span>EXTERNAL TOOLS</span>
-        </div>
-        <ExternalToolsSection
-          webhooks={webhookTools}
-          clientTools={clientTools}
-          onAddWebhook={onAddWebhook}
-          onEditWebhook={(id) => {
-            const tool = webhookTools.find(t => t.id === id);
-            if (tool) onEditWebhook(tool);
-          }}
-          onDeleteWebhook={onDeleteWebhook}
-          onEditClientTool={(id) => {
-            const tool = clientTools.find(t => t.id === id);
-            if (tool) onEditClientTool(tool);
-          }}
-          onDeleteClientTool={onDeleteClientTool}
-          expanded={externalToolsSectionExpanded}
-          onToggleExpanded={() => setExternalToolsSectionExpanded(prev => !prev)}
-        />
-      </div>
+
+
     </div>
   );
 };
