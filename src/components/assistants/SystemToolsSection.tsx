@@ -15,20 +15,23 @@ type SystemToolsSectionProps = {
 };
 
 const TOOL_CONFIG = [
-  { 
-    key: "end_call", 
+  {
+    key: "end_call",
     label: "End call",
     tooltip: "Gives agent the ability to end the conversation with the user."
   },
-  { 
-    key: "detect_language", 
+  {
+    key: "detect_language",
     label: "Detect language",
     tooltip: "Gives agent the ability to change the language during conversation."
   },
-  // { key: "transfer_to_agent", label: "Transfer to agent" },
-  // { key: "transfer_to_number", label: "Transfer to number" },
-  { 
-    key: "voicemail_detection", 
+  {
+    key: "transfer_to_number",
+    label: "Transfer to number",
+    tooltip: "Configure transfer behaviors and escalation triggers for human handoff."
+  },
+  {
+    key: "voicemail_detection",
     label: "Voicemail detection",
     tooltip: "Allows agent to detect voicemail systems and optionally leave a message."
   },

@@ -1660,35 +1660,40 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           }
 
           // Auto-generate workflow if agent was created from AssistantsList with agent type
+          // Skip workflow inference for types that have backend defaults
           if (initialData?.agentType && savedAgentId) {
-            try {
-              // Type guard to ensure agentType is a valid AgentType
-              const validAgentTypes = [
-                "customer_support",
-                "lead_generation",
-                "sales_calls",
-                "appointment_booking",
-                "product_information",
-                "technical_support",
-              ] as const;
+            const typesWithBackendDefaults = ['appointment_booking', 'lead_generation'];
+            if (typesWithBackendDefaults.includes(initialData.agentType)) {
+              // Backend will create default workflows, skip frontend inference
+              console.log('[CreateAgentWizard] Skipping frontend workflow inference for', initialData.agentType, '- backend will create defaults');
+            } else {
+              try {
+                // Type guard to ensure agentType is a valid AgentType
+                const validAgentTypes = [
+                  "customer_support",
+                  "sales_calls",
+                  "product_information",
+                  "technical_support",
+                ] as const;
 
-              if (validAgentTypes.includes(initialData.agentType as any)) {
-                const workflow = inferWorkflowFromAgentType(
-                  initialData.agentType as import("@/utils/agentTypeDetection").AgentType,
-                  name.trim()
-                );
-                await workflowsApi.create(savedAgentId, {
-                  name: workflow.name,
-                  description: workflow.description,
-                  tool_chain: workflow.toolChain,
-                  trigger_phrases: workflow.triggerPhrases,
-                  enabled: true,
-                });
-                console.log('[CreateAgentWizard] Auto-generated workflow for agent type:', initialData.agentType);
+                if (validAgentTypes.includes(initialData.agentType as any)) {
+                  const workflow = inferWorkflowFromAgentType(
+                    initialData.agentType as import("@/utils/agentTypeDetection").AgentType,
+                    name.trim()
+                  );
+                  await workflowsApi.create(savedAgentId, {
+                    name: workflow.name,
+                    description: workflow.description,
+                    tool_chain: workflow.toolChain,
+                    trigger_phrases: workflow.triggerPhrases,
+                    enabled: true,
+                  });
+                  console.log('[CreateAgentWizard] Auto-generated workflow for agent type:', initialData.agentType);
+                }
+              } catch (error) {
+                console.error('[CreateAgentWizard] Failed to create workflow:', error);
+                // Don't block agent creation if workflow fails
               }
-            } catch (error) {
-              console.error('[CreateAgentWizard] Failed to create workflow:', error);
-              // Don't block agent creation if workflow fails
             }
           }
         } else {

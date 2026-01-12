@@ -38,6 +38,7 @@ export type SystemToolSetting = {
   disableInterruptions?: boolean;
   transferRules?: TransferRule[];
   humanTransferRules?: HumanTransferRule[];
+  escalation_keywords?: string[];
 };
 
 // Webhook Tool Types

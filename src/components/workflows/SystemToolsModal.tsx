@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { PhoneOff, Languages, Voicemail, Settings2, ChevronRight } from "lucide-react";
+import { PhoneOff, Languages, Voicemail, Settings2, ChevronRight, PhoneForwarded } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SystemToolKey, SystemToolsState, SystemToolSetting } from "@/types/assistant";
 
@@ -47,6 +47,12 @@ const SYSTEM_TOOLS_CONFIG: {
             description: "Detect if a voicemail system answers and leave a message.",
             icon: Voicemail,
         },
+        {
+            key: "transfer_to_number",
+            label: "Transfer to Number",
+            description: "Transfer calls to human operators with escalation triggers and transfer rules.",
+            icon: PhoneForwarded,
+        },
     ];
 
 export const SystemToolsModal: React.FC<SystemToolsModalProps> = ({
@@ -58,7 +64,7 @@ export const SystemToolsModal: React.FC<SystemToolsModalProps> = ({
 }) => {
     return (
         <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md gap-0 p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+            <DialogContent className="sm:max-w-md gap-0 p-0 border-none shadow-2xl bg-white dark:bg-slate-950">
                 <DialogHeader className="p-6 pb-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
                     <DialogTitle className="text-xl">System Tools</DialogTitle>
                     <DialogDescription className="text-slate-500 dark:text-slate-400 mt-1.5">

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plug } from "lucide-react";
+
 import { AgentIntegrationToolsSection } from "@/components/integrations/AgentIntegrationToolsSection";
 import {
   INTEGRATION_TOOLS_DISPLAY,
@@ -62,7 +62,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   onDeleteIntegration,
   agentId,
 }) => {
-  const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(false);
+  const [integrationToolsSectionExpanded, setIntegrationToolsSectionExpanded] = useState(true);
 
 
   // Transform agentIntegrationTools array to Record format expected by AgentIntegrationToolsSection
@@ -86,38 +86,32 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Plug className="h-4 w-4" />
-          <span>WORKFLOWS</span>
-        </div>
-        <AgentIntegrationToolsSection
-          agentIntegrationTools={agentIntegrationToolsRecord}
-          integrationToolsSectionExpanded={integrationToolsSectionExpanded}
-          integrationToolsExpanded={integrationToolsExpanded}
-          onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
-          onToggleIntegrationExpanded={onToggleIntegrationExpand}
-          onOpenAddIntegrationModal={onAddIntegration}
-          onOpenEditIntegrationModal={(integrationType) => {
-            // Pass the integration type directly - the hook will handle fetching if needed
-            onEditIntegration(integrationType);
-          }}
-          onDeleteIntegration={async (integrationType) => {
-            // Find the user integration by type to get its ID
-            const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
-            if (userIntegration?.id) {
-              await onDeleteIntegration(String(userIntegration.id));
-            }
-          }}
-          onToggleTool={onToggleIntegrationTool}
-          INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
-          getIntegrationIcon={getIntegrationIcon}
-          formatToolName={formatToolName}
-          displayNameToActionName={displayNameToActionName}
-          userIntegrations={userIntegrations}
-          agentId={agentId}
-        />
-      </div>
+      <AgentIntegrationToolsSection
+        agentIntegrationTools={agentIntegrationToolsRecord}
+        integrationToolsSectionExpanded={integrationToolsSectionExpanded}
+        integrationToolsExpanded={integrationToolsExpanded}
+        onToggleSectionExpanded={() => setIntegrationToolsSectionExpanded(prev => !prev)}
+        onToggleIntegrationExpanded={onToggleIntegrationExpand}
+        onOpenAddIntegrationModal={onAddIntegration}
+        onOpenEditIntegrationModal={(integrationType) => {
+          // Pass the integration type directly - the hook will handle fetching if needed
+          onEditIntegration(integrationType);
+        }}
+        onDeleteIntegration={async (integrationType) => {
+          // Find the user integration by type to get its ID
+          const userIntegration = userIntegrations.find(i => i.integration_type === integrationType);
+          if (userIntegration?.id) {
+            await onDeleteIntegration(String(userIntegration.id));
+          }
+        }}
+        onToggleTool={onToggleIntegrationTool}
+        INTEGRATION_TOOLS_DISPLAY={INTEGRATION_TOOLS_DISPLAY}
+        getIntegrationIcon={getIntegrationIcon}
+        formatToolName={formatToolName}
+        displayNameToActionName={displayNameToActionName}
+        userIntegrations={userIntegrations}
+        agentId={agentId}
+      />
 
 
     </div>

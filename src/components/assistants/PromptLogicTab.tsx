@@ -1,10 +1,9 @@
-import React, { useState, useRef } from "react";
-import { MessageSquare, FileText, Brain, Paperclip } from "lucide-react";
+import React, { useState } from "react";
+import { MessageSquare, FileText, Brain } from "lucide-react";
 import { FirstMessageSection } from "./sections/FirstMessageSection";
 import { AgentTemplateSection } from "./sections/AgentTemplateSection";
 import { SectionEditors, type BehaviourConfig } from "./SectionEditors";
-import { FilesSection } from "./sections/FilesSection";
-import type { Agent, SectionEntry, AgentFile, SectionType } from "@/types/assistant";
+import type { Agent, SectionEntry, SectionType } from "@/types/assistant";
 
 type PromptLogicTabProps = {
   agent: Agent | null;
@@ -20,17 +19,6 @@ type PromptLogicTabProps = {
     phases?: SectionEntry[];
     voiceTone?: SectionEntry[];
   }) => void;
-  attachedFiles: AgentFile[];
-  onFileUpload: (e: React.ChangeEvent<HTMLInputElement>, agentId?: string) => Promise<void>;
-  onFileDelete: (fileId: string) => Promise<void>;
-  onOpenChooseFiles: () => void;
-  uploadingFiles: boolean;
-  isNew: boolean;
-  agentFiles: AgentFile[];
-  loadingAvailableFiles: boolean;
-  assigningFile: string | null;
-  fetchAllAvailableFiles: () => Promise<void>;
-  setShowChooseFilesDialog: (show: boolean) => void;
   behaviourConfig?: BehaviourConfig;
   conversationConfig?: Record<string, unknown> | null;
   onUpdateConversationConfig?: (updates: Record<string, unknown>) => void;
@@ -46,17 +34,6 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
   onEditSectionEntry,
   onRemoveSectionEntry,
   onApplyGeneratedBehaviour,
-  attachedFiles,
-  onFileUpload,
-  onFileDelete,
-  onOpenChooseFiles,
-  uploadingFiles,
-  isNew,
-  agentFiles,
-  loadingAvailableFiles,
-  assigningFile,
-  fetchAllAvailableFiles,
-  setShowChooseFilesDialog,
   behaviourConfig,
   conversationConfig,
   onUpdateConversationConfig,
@@ -64,11 +41,6 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
   const [firstMessageExpanded, setFirstMessageExpanded] = useState(false);
   const [agentTemplateExpanded, setAgentTemplateExpanded] = useState(false);
   const [agentBehaviourExpanded, setAgentBehaviourExpanded] = useState(false);
-  const [filesExpanded, setFilesExpanded] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Convert uploadingFiles boolean to Set<string> for FilesSection
-  const uploadingFilesSet = new Set<string>();
 
   if (!agent) {
     return null;
@@ -161,33 +133,6 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
         />
       </div>
 
-      <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Paperclip className="h-4 w-4" />
-          <span>FILES</span>
-        </div>
-        <FilesSection
-          expanded={filesExpanded}
-          onToggleExpanded={() => setFilesExpanded(!filesExpanded)}
-          isNew={isNew}
-          attachedFiles={attachedFiles}
-          setAttachedFiles={() => {}} // This is handled by the parent
-          agentFiles={agentFiles}
-          uploadingFiles={uploadingFilesSet}
-          handleFileDelete={onFileDelete}
-          handleFileUpload={async (files) => {
-            // Create a synthetic ChangeEvent from File[]
-            const dataTransfer = new DataTransfer();
-            files.forEach(file => dataTransfer.items.add(file));
-            const syntheticEvent = {
-              target: { files: dataTransfer.files }
-            } as React.ChangeEvent<HTMLInputElement>;
-            // Pass agentId if available
-            await onFileUpload(syntheticEvent, agent?.id);
-          }}
-          fileInputRef={fileInputRef}
-        />
-      </div>
     </div>
   );
 };

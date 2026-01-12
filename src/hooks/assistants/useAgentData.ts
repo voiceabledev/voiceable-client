@@ -258,7 +258,7 @@ export function useAgentData(
           detect_language?: boolean;
           skip_turn?: boolean;
           transfer_to_agent?: { enabled?: boolean; transferRules?: TransferRule[]; transfer_rules?: TransferRule[] };
-          transfer_to_number?: { enabled?: boolean; humanTransferRules?: HumanTransferRule[]; human_transfer_rules?: HumanTransferRule[] };
+          transfer_to_number?: { enabled?: boolean; humanTransferRules?: HumanTransferRule[]; human_transfer_rules?: HumanTransferRule[]; escalation_keywords?: string[] };
           play_keypad_touch_tone?: boolean;
           voicemail_detection?: boolean;
         };
@@ -276,6 +276,7 @@ export function useAgentData(
         const settings: SystemToolSetting = {
           transferRules: st.transfer_to_agent?.transferRules || st.transfer_to_agent?.transfer_rules || [],
           humanTransferRules: st.transfer_to_number?.humanTransferRules || st.transfer_to_number?.human_transfer_rules || [],
+          escalation_keywords: st.transfer_to_number?.escalation_keywords || [],
         };
         setSystemToolSettings(settings);
       }
@@ -323,6 +324,7 @@ export function useAgentData(
         transfer_to_number: {
           enabled: systemTools.transfer_to_number,
           humanTransferRules: systemToolSettings.humanTransferRules,
+          escalation_keywords: systemToolSettings.escalation_keywords || [],
         }
       }
     };
@@ -672,6 +674,7 @@ export function useAgentData(
             description: toolSettings?.description || "",
             disable_interruptions: toolSettings?.disableInterruptions || false,
             human_transfer_rules: toolSettings?.humanTransferRules || [],
+            escalation_keywords: toolSettings?.escalation_keywords || [],
           };
         } else {
           // For other tools, include active flag, description and disableInterruptions if available

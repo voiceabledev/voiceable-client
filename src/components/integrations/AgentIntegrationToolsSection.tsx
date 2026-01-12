@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { Input } from "../ui/input";
-import { ChevronDown, Edit, Plus, Trash2, Loader2, Check, X } from "lucide-react";
+import { ChevronDown, Edit, Plus, Trash2, Loader2, Check, X, Maximize2, Minimize2, Bot, Calendar, Database, Phone, Mail, MessageSquare, Zap, Workflow as WorkflowIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { IntegrationFunctionCard } from "../assistants/IntegrationFunctionCard";
 import type { AgentFunction, Function } from "@/types/functions";
@@ -10,6 +10,7 @@ import type { UserIntegration, SystemToolsState } from "@/types/assistant";
 import { functionsApi, agentFunctionsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { CreateWorkflowFromScratchModal } from "../workflows/CreateWorkflowFromScratchModal";
+import { motion, AnimatePresence } from "framer-motion";
 
 type AgentIntegrationToolsState = Record<
   string,
@@ -67,11 +68,11 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   const [loadingFunctions, setLoadingFunctions] = useState<Record<string, boolean>>({});
   const [functionErrors, setFunctionErrors] = useState<Record<string, string>>({});
   const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
-  const [workflowsExpanded, setWorkflowsExpanded] = useState<Record<number, boolean>>({});
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<number | null>(null);
   const [editingWorkflowId, setEditingWorkflowId] = useState<number | null>(null);
   const [editingWorkflowName, setEditingWorkflowName] = useState<string>("");
   const [savingWorkflowName, setSavingWorkflowName] = useState<number | null>(null);
+  const [fullscreenWorkflowId, setFullscreenWorkflowId] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Track section expansion state with ref to access actual value in callbacks
@@ -146,28 +147,6 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
           workflowsMap[key].push(workflow);
         });
         setAgentFunctions(workflowsMap);
-
-        // Expand all workflows by default (only for newly loaded workflows)
-        // Expand workflows logic:
-        // If there is exactly 1 workflow, expand it.
-        // If there are multiple workflows, keep them collapsed.
-        const shouldExpandWorkflow = workflows.length === 1;
-
-        setWorkflowsExpanded(prev => {
-          const updated = { ...prev };
-          workflows.forEach((workflow) => {
-            // Only set initial state if undefined (new workflow)
-            if (updated[workflow.id] === undefined) {
-              updated[workflow.id] = shouldExpandWorkflow;
-            }
-          });
-          return updated;
-        });
-
-        // Auto-expand the section if there is exactly 1 workflow and it's currently closed
-        if (shouldExpandWorkflow && !isSectionExpandedRef.current) {
-          onToggleSectionExpanded();
-        }
       }
     } catch (error) {
       console.error("[Functions] Failed to load agent functions:", error);
@@ -388,6 +367,44 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
     }));
   };
 
+  // Helper to get category-specific styling
+  const getCategoryConfig = (category: string) => {
+    const configs: Record<string, { icon: React.ReactNode; color: string; bgColor: string; borderColor: string }> = {
+      "Scheduling": {
+        icon: <Calendar className="h-4 w-4" />,
+        color: "text-blue-600",
+        bgColor: "bg-blue-50",
+        borderColor: "border-blue-200"
+      },
+      "CRM": {
+        icon: <Database className="h-4 w-4" />,
+        color: "text-purple-600",
+        bgColor: "bg-purple-50",
+        borderColor: "border-purple-200"
+      },
+      "Communication": {
+        icon: <MessageSquare className="h-4 w-4" />,
+        color: "text-green-600",
+        bgColor: "bg-green-50",
+        borderColor: "border-green-200"
+      },
+      "Information": {
+        icon: <Zap className="h-4 w-4" />,
+        color: "text-orange-600",
+        bgColor: "bg-orange-50",
+        borderColor: "border-orange-200"
+      },
+      "Other": {
+        icon: <WorkflowIcon className="h-4 w-4" />,
+        color: "text-gray-600",
+        bgColor: "bg-gray-50",
+        borderColor: "border-gray-200"
+      }
+    };
+
+    return configs[category] || configs["Other"];
+  };
+
   // Helper to categorize and group workflows
   const getGroupedWorkflows = () => {
     const workflows = getAllWorkflows();
@@ -395,14 +412,14 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
       "Scheduling": [],
       "CRM": [],
       "Communication": [],
-      "Knowledge": [],
+      "Information": [],
       "Other": []
     };
 
     const schedulingTypes = ['calcom', 'calendly', 'google_calendar', 'outlook_calendar'];
     const crmTypes = ['hubspot', 'salesforce', 'pipedrive', 'kommo'];
     const commTypes = ['twilio'];
-    const knowledgeTypes = ['pinecone'];
+    const knowledgeTypes = ['pinecone', 'search_knowledge_base'];
 
     workflows.forEach(workflow => {
       let type = workflow.function?.integration_type;
@@ -435,7 +452,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
       } else if (type && commTypes.includes(type)) {
         groups["Communication"].push(workflow);
       } else if (type && knowledgeTypes.includes(type)) {
-        groups["Knowledge"].push(workflow);
+        groups["Information"].push(workflow);
       } else {
         groups["Other"].push(workflow);
       }
@@ -443,7 +460,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
 
     // Remove empty groups and sort order
     const orderedGroups: Record<string, AgentFunction[]> = {};
-    const order = ["Scheduling", "CRM", "Communication", "Knowledge", "Other"];
+    const order = ["Scheduling", "CRM", "Communication", "Information", "Other"];
 
     order.forEach(key => {
       if (groups[key].length > 0) {
@@ -455,185 +472,280 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   };
 
   const renderWorkflowItem = (workflow: AgentFunction) => {
-    const isExpanded = workflowsExpanded[workflow.id] || false;
+    // Determine category characteristics for the badge
+    let category = "Other";
+    const groups = getGroupedWorkflows();
+
+    for (const [cat, workflows] of Object.entries(groups)) {
+      if (workflows.find(w => w.id === workflow.id)) {
+        category = cat;
+        break;
+      }
+    }
+
+    const categoryConfig = getCategoryConfig(category);
+
     return (
       <div
         key={workflow.id}
-        className="border border-border rounded-lg overflow-hidden group mb-3 last:mb-0"
+        className={cn(
+          "relative border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden group h-full flex flex-col",
+          "bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300",
+          "hover:border-primary/40 hover:-translate-y-0.5"
+        )}
       >
-        <div className="flex items-center justify-between p-3 bg-secondary/50">
-          <div className="flex items-center gap-2 flex-1 group">
-            {editingWorkflowId === workflow.id ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editingWorkflowName}
-                  onChange={(e) => setEditingWorkflowName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSaveWorkflowName(workflow.id);
-                    } else if (e.key === "Escape") {
-                      handleCancelEditWorkflowName();
-                    }
-                  }}
-                  className="h-7 text-sm font-medium"
-                  autoFocus
-                  disabled={savingWorkflowName === workflow.id}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => handleSaveWorkflowName(workflow.id)}
-                  disabled={savingWorkflowName === workflow.id}
-                >
-                  {savingWorkflowName === workflow.id ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Check className="h-3 w-3 text-success" />
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={handleCancelEditWorkflowName}
-                  disabled={savingWorkflowName === workflow.id}
-                >
-                  <X className="h-3 w-3 text-muted-foreground" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  {workflow.workflow_name || workflow.function?.name || "Workflow"}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleStartEditWorkflowName(workflow);
-                  }}
-                  title="Edit workflow name"
-                >
-                  <Edit className="h-3 w-3 text-muted-foreground" />
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-              disabled={deletingWorkflowId !== null}
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                await handleDeleteWorkflow(workflow.id);
-              }}
-              title="Delete workflow"
-            >
-              {deletingWorkflowId === workflow.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+        {/* Subtle gradient overlay on hover */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+        <div className="relative flex items-center justify-between p-4 pl-0">
+          {/* Left colored accent bar */}
+          <div className={cn(
+            "absolute left-0 top-0 bottom-0 w-1",
+            categoryConfig.bgColor.replace('bg-', 'bg-').replace('50', '500')
+          )} />
+
+          <div className="flex items-center gap-4 flex-1 pl-5">
+            {/* Category Icon */}
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+              categoryConfig.bgColor,
+              categoryConfig.color
+            )}>
+              {categoryConfig.icon}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              {editingWorkflowId === workflow.id ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <Input
+                    value={editingWorkflowName}
+                    onChange={(e) => setEditingWorkflowName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSaveWorkflowName(workflow.id);
+                      } else if (e.key === "Escape") {
+                        handleCancelEditWorkflowName();
+                      }
+                    }}
+                    className="h-8 text-sm font-medium bg-background/80 backdrop-blur-sm max-w-[240px]"
+                    autoFocus
+                    disabled={savingWorkflowName === workflow.id}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:bg-green-50 text-green-600"
+                    onClick={() => handleSaveWorkflowName(workflow.id)}
+                    disabled={savingWorkflowName === workflow.id}
+                  >
+                    {savingWorkflowName === workflow.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 hover:bg-red-50 text-red-600"
+                    onClick={handleCancelEditWorkflowName}
+                    disabled={savingWorkflowName === workflow.id}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               ) : (
-                <Trash2 className="h-4 w-4" />
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100 truncate">
+                      {workflow.workflow_name || workflow.function?.name || "Workflow"}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleStartEditWorkflowName(workflow);
+                      }}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={cn("text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded", categoryConfig.bgColor, categoryConfig.color)}>
+                      {category}
+                    </span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                      {workflow.enabled ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </div>
               )}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setWorkflowsExpanded(prev => ({ ...prev, [workflow.id]: !isExpanded }))}
-            >
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 transition-transform",
-                  isExpanded && "rotate-180",
-                )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pr-2">
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
+              <Switch
+                checked={workflow.enabled}
+                onCheckedChange={(checked) => handleFunctionToggle(workflow.function_id, checked, workflow.id)}
+                className="scale-90 data-[state=checked]:bg-primary mr-2"
+                aria-label="Toggle workflow"
               />
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-medium dark:bg-slate-800 dark:border-slate-700"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setFullscreenWorkflowId(workflow.id);
+                }}
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                Open Editor
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (confirm("Are you sure you want to delete this workflow? This action cannot be undone.")) {
+                    await handleDeleteWorkflow(workflow.id);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-
-        {isExpanded && (
-          <div className="p-4 border-t border-border">
-            <IntegrationFunctionCard
-              agentFunction={workflow}
-              agentId={agentId}
-              onWorkflowUpdate={loadAgentFunctions}
-              onConfigureCredentials={onOpenEditIntegrationModal}
-              systemTools={systemTools}
-              onToggleSystemTool={onToggleSystemTool}
-            /> </div>
-        )}
       </div>
     );
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-      <div className="flex items-start justify-between gap-2">
-        <button
-          className="flex-1 flex items-start justify-between gap-2"
-          onClick={onToggleSectionExpanded}
-        >
-          <div className="text-left flex-1">
-            {/* <h3 className="text-base md:text-lg font-semibold">Integration tools</h3> */}
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Connect your agent to CRM and scheduling integrations. Integration credentials are
-              shared across all your agents.
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              {getAllWorkflows().length} workflow{getAllWorkflows().length !== 1 ? "s" : ""} configured for this agent
+    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+      <button
+        className={cn(
+          "w-full relative flex items-center justify-between gap-4 p-5 cursor-pointer transition-all duration-300 group",
+          "hover:bg-slate-50 dark:hover:bg-slate-900/50",
+          integrationToolsSectionExpanded
+            ? "bg-slate-50/80 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800"
+            : "bg-transparent"
+        )}
+        onClick={onToggleSectionExpanded}
+      >
+        <div className="flex items-center gap-4 relative z-10 flex-1 text-left">
+          <div className={cn(
+            "p-3 rounded-xl transition-all duration-300 flex-shrink-0 shadow-sm ring-1 ring-inset",
+            integrationToolsSectionExpanded
+              ? "bg-gradient-to-br from-primary to-primary/80 text-white ring-primary/20 shadow-primary/20"
+              : "bg-white dark:bg-slate-900 text-slate-500 ring-slate-200 dark:ring-slate-800 group-hover:text-primary group-hover:ring-primary/20"
+          )}>
+            <WorkflowIcon className={cn(
+              "h-5 w-5 transition-colors duration-300"
+            )} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                Agent Workflows
+              </h3>
+              {getAllWorkflows().length > 0 && (
+                <span className={cn(
+                  "inline-flex items-center justify-center min-w-[24px] h-6 px-2.5 text-xs font-bold rounded-full transition-all duration-300",
+                  integrationToolsSectionExpanded
+                    ? "bg-primary/10 text-primary"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                )}>
+                  {getAllWorkflows().length}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+              Manage automation workflows for scheduling, CRM, and communication.
             </p>
           </div>
-          <ChevronDown
-            className={cn(
-              "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-              integrationToolsSectionExpanded && "rotate-180",
-            )}
-          />
-        </button>
-      </div>
+        </div>
 
-      {integrationToolsSectionExpanded && (
-        <div className="mt-4 md:mt-6">
-          <div className="flex justify-end gap-2 mb-4">
+        <div className="flex items-center gap-3">
+          {integrationToolsSectionExpanded && (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              onClick={() => setShowCreateWorkflowModal(true)}
+              className="h-9 px-4 shadow-sm active:scale-95 transition-all text-xs font-bold rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCreateWorkflowModal(true);
+              }}
               disabled={!agentId}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Workflow
+              <Plus className="h-3.5 w-3.5 mr-2 stroke-[3]" />
+              New Workflow
             </Button>
+          )}
+          <div className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
+            integrationToolsSectionExpanded
+              ? "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rotate-180"
+              : "bg-transparent text-slate-400"
+          )}>
+            <ChevronDown className="h-5 w-5" />
           </div>
+        </div>
+      </button>
+
+      {integrationToolsSectionExpanded && (
+        <div className="p-5 bg-slate-50/30 dark:bg-slate-900/10">
           {getAllWorkflows().length > 0 ? (
-            <div className="space-y-6">
-              {Object.entries(getGroupedWorkflows()).map(([category, workflows]) => (
-                <div key={category}>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1 mb-3">{category}</h4>
-                  <div>
-                    {workflows.map((workflow) => renderWorkflowItem(workflow))}
+            <div className="space-y-8 animate-in slide-in-from-top-2 duration-300 fade-in">
+              {Object.entries(getGroupedWorkflows()).map(([category, workflows]) => {
+                const config = getCategoryConfig(category);
+                return (
+                  <div key={category}>
+                    <div className="flex items-center gap-2 mb-4 px-1">
+                      <div className={cn("p-1.5 rounded-md", config.bgColor, config.color)}>
+                        {config.icon}
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 tracking-tight">
+                        {category}
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      {workflows.map((workflow) => renderWorkflowItem(workflow))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
-              <p className="text-sm">No workflows configured yet.</p>
-              <p className="text-xs mt-1">
-                Click &quot;Add Workflow&quot; to create a new workflow.
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4 ring-8 ring-primary/5">
+                <WorkflowIcon className="w-8 h-8 text-primary/40" />
+              </div>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white mb-2">No Workflows Yet</h4>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6">
+                Create a workflow to automate tasks like booking appointments, updating CRMs, or sending messages.
               </p>
+              <Button
+                onClick={() => setShowCreateWorkflowModal(true)}
+                disabled={!agentId}
+                className="font-semibold shadow-md active:scale-95 transition-all"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create First Workflow
+              </Button>
             </div>
           )}
         </div>
@@ -649,6 +761,77 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
           />
         </>
       )}
+
+      {/* Fullscreen Workflow Editor */}
+      <AnimatePresence>
+        {fullscreenWorkflowId && (() => {
+          const workflow = getAllWorkflows().find(w => w.id === fullscreenWorkflowId);
+          if (!workflow) return null;
+
+          return (
+            <motion.div
+              key="fullscreen-workflow"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[50] bg-slate-50 dark:bg-slate-950 flex flex-col pt-24 pb-32 overflow-y-auto overflow-x-hidden"
+            >
+              <div className="fixed top-0 left-0 right-0 h-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-[110] flex items-center justify-between px-8 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center ring-4 ring-primary/5">
+                    <Bot className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                      {workflow.workflow_name || workflow.function?.name || "Workflow"}
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-tight">Workflow Editor</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      if (confirm("Are you sure you want to delete this workflow? This action cannot be undone.")) {
+                        await handleDeleteWorkflow(workflow.id);
+                        setFullscreenWorkflowId(null);
+                      }
+                    }}
+                    disabled={deletingWorkflowId !== null}
+                    className="group flex items-center gap-2 px-5 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 rounded-2xl transition-all font-bold text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Delete workflow"
+                  >
+                    {deletingWorkflowId === workflow.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    )}
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setFullscreenWorkflowId(null)}
+                    className="group flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-2xl transition-all font-bold text-sm text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95"
+                  >
+                    <Minimize2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    Exit Fullscreen
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 w-full max-w-7xl mx-auto px-8 pt-8">
+                <IntegrationFunctionCard
+                  agentFunction={workflow}
+                  agentId={agentId}
+                  onWorkflowUpdate={() => {
+                    loadAgentFunctions();
+                    setFullscreenWorkflowId(null);
+                  }}
+                  onConfigureCredentials={onOpenEditIntegrationModal}
+                />
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 };

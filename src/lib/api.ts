@@ -690,6 +690,21 @@ export const workflowsApi = {
     );
     return response;
   },
+
+  getAgentFiles: async (agentId: string) => {
+    const response = await apiClient.get<{
+      files: Array<{
+        id: string;
+        file_name: string;
+        file_size: number;
+        content_type?: string;
+        elevenlabs_document_id?: string;
+        synced: boolean;
+        created_at: string;
+      }>;
+    }>(`/agents/${agentId}/workflows/agent_files`);
+    return response;
+  },
 };
 
 // Agent Behaviours API

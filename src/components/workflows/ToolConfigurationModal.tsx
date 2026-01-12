@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import type { ToolInChain, ConditionalConfig, FieldMapping } from "@/types/functions";
 import { isConditionalTool } from "@/types/functions";
 import { FieldMappingModal } from "./FieldMappingModal";
+import { KnowledgeBaseFileSelector } from "./KnowledgeBaseFileSelector";
 import { ConditionConfiguration } from "./ConditionConfiguration";
 import { getIntegrationIcon } from "@/constants/assistant";
 
@@ -86,8 +87,24 @@ const formatIntegrationName = (type: string): string => {
     salesforce: "Salesforce",
     twilio: "Twilio",
     pinecone: "Pinecone",
+    search_knowledge_base: "Search Knowledge Base",
   };
   return map[type] || type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
+const formatMethodName = (method: string, toolType?: string): string => {
+  // Special formatting for specific methods
+  const methodMap: Record<string, string> = {
+    answer_questions: "Answer Questions",
+    sms: "Send SMS",
+  };
+  
+  if (methodMap[method]) {
+    return methodMap[method];
+  }
+  
+  // Default formatting: convert snake_case to Title Case
+  return method.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
@@ -117,7 +134,9 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
       setLoading(false);
 
       // 2. Load Options if needed (with race condition protection)
-      if (!isConditionalTool(tool)) {
+      // Skip loading options for tools that don't need dynamic options
+      const toolsWithoutOptions = ['search_knowledge_base', 'twilio'];
+      if (!isConditionalTool(tool) && !toolsWithoutOptions.includes(tool.type)) {
         setLoading(true);
         workflowsApi.getToolOptions(agentId, tool.type)
           .then((response) => {
@@ -148,13 +167,21 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
           .finally(() => {
             if (isMounted) setLoading(false);
           });
+      } else if (!isConditionalTool(tool) && toolsWithoutOptions.includes(tool.type)) {
+        // For tools without options, set loading to false immediately
+        setLoading(false);
       }
 
       // 3. Initialize Config
       if (isConditionalTool(tool)) {
         setConfig(tool.config || { expression: "", description: "", then: [], else: [] });
       } else {
-        setConfig(tool.config || {});
+        const initialConfig = tool.config || {};
+        // Set default method for tools that need it
+        if (tool.type === 'search_knowledge_base' && !initialConfig.method && !tool.method) {
+          initialConfig.method = 'answer_questions';
+        }
+        setConfig(initialConfig);
       }
 
       // 4. Reset Tab
@@ -170,6 +197,22 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
       isMounted = false;
     };
   }, [open, tool, agentId]);
+
+  // Ensure default method is set for knowledge base tools (safeguard)
+  useEffect(() => {
+    if (open && tool && tool.type === 'search_knowledge_base' && !isConditionalTool(tool)) {
+      // Only set default if method is truly missing
+      if (!config.method && !tool.method) {
+        setConfig((prevConfig) => {
+          // Only update if method is still missing (avoid unnecessary updates)
+          if (!prevConfig.method) {
+            return { ...prevConfig, method: 'answer_questions' };
+          }
+          return prevConfig;
+        });
+      }
+    }
+  }, [open, tool?.type, tool?.method]);
 
   // Removed standalone loadToolOptions to prevent usage outside effect
 
@@ -369,6 +412,31 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
             <SelectItem value="sms">Send SMS</SelectItem>
           </SelectContent>
         </Select>
+      );
+    }
+
+    if (tool.type === 'search_knowledge_base') {
+      const currentMethod = config.method || tool.method || "answer_questions";
+      
+      return (
+        <div className="space-y-2">
+          <Select
+            value={currentMethod}
+            onValueChange={(val) => setConfig({ ...config, method: val })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a trigger event" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="answer_questions">
+                Answer Questions
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Answer questions and provide information based on attached files (guides, policies, scripts, templates, etc.)
+          </p>
+        </div>
       );
     }
 
@@ -750,6 +818,49 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
       </div>
     );
   };
+
+  const renderSearchKnowledgeBaseConfig = () => {
+    // Type guard
+    if (!tool || isConditionalTool(tool)) return null;
+    const regularConfig = config as Record<string, unknown>;
+    const toolConfig = tool.config as Record<string, unknown> | undefined;
+
+    const selectedFileIds = (regularConfig.file_ids || toolConfig?.file_ids || []) as string[];
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <Label>Knowledge Base Files</Label>
+          <p className="text-xs text-muted-foreground mt-1 mb-3">
+            Select which files the agent should search. Leave empty to search all files.
+          </p>
+
+          <KnowledgeBaseFileSelector
+            agentId={agentId}
+            selectedFileIds={selectedFileIds}
+            onSelectionChange={(fileIds) => {
+              setConfig({ ...regularConfig, file_ids: fileIds });
+            }}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="query-preset">Preset Query (Optional)</Label>
+          <Input
+            id="query-preset"
+            placeholder="e.g., What are our product features?"
+            value={(regularConfig.query || toolConfig?.query || '') as string}
+            onChange={(e) => setConfig({ ...regularConfig, query: e.target.value })}
+            className="mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Optional: Set a default query. Otherwise uses conversation context.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   // --- Helper to extract Fields ---
   const renderToolFields = () => {
     if (!tool) return null;
@@ -769,6 +880,8 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
         return renderTwilioFields();
       case 'pinecone':
         return renderPineconeConfig();
+      case 'search_knowledge_base':
+        return renderSearchKnowledgeBaseConfig();
       default:
         return <p className="text-sm text-muted-foreground">No configuration fields available.</p>;
     }
@@ -787,7 +900,7 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
               <span className="text-2xl">{getToolIcon(tool.type)}</span>
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  {stepIndex > 0 ? `${stepIndex}. ` : ""}{config.method ? config.method.replace(/_/g, ' ') : formatIntegrationName(tool.type)}
+                  {stepIndex > 0 ? `${stepIndex}. ` : ""}{config.method ? formatMethodName(config.method, tool.type) : formatIntegrationName(tool.type)}
                   <Edit className="w-3 h-3 text-muted-foreground cursor-pointer" />
                 </h2>
               </div>

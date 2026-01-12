@@ -36,7 +36,6 @@ export interface OutcomeConfigTabRef {
 interface OutcomeConfigTabProps {
   agentId: string;
   onAgentDataChange?: () => void | Promise<void>;
-  onOpenEscalationPanel?: () => void;
   escalationRuleSettings?: EscalationRuleSettings;
   onEscalationRuleSettingsChange?: (settings: EscalationRuleSettings) => void;
   onSaveEscalationRules?: (settings: EscalationRuleSettings) => Promise<void>;
@@ -45,10 +44,9 @@ interface OutcomeConfigTabProps {
   onOutcomeStateChange?: () => void; // Callback to notify parent when outcome state changes
 }
 
-const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({ 
-  agentId, 
-  onAgentDataChange, 
-  onOpenEscalationPanel,
+const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(({
+  agentId,
+  onAgentDataChange,
   escalationRuleSettings: externalEscalationRuleSettings,
   onEscalationRuleSettingsChange,
   onSaveEscalationRules,
@@ -84,7 +82,7 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
   const setEscalationRuleSettings = onEscalationRuleSettingsChange || setInternalEscalationRuleSettings;
   
   // Collapsible state for sections
-  const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
+  const [isPrimaryOpen, setIsPrimaryOpen] = useState(true); // Always open by default
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isFailureOpen, setIsFailureOpen] = useState(false);
 
@@ -123,12 +121,10 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       failure_conditions: {
         failure_keywords: failureKeywords.filter(k => k.trim()),
       },
+      // Note: escalation_rules are now managed in system_tools.transfer_to_number
+      // Keep escalation_rules in outcome_definition for backward compatibility only
       escalation_rules: {
-        escalation_keywords: settings.escalation_keywords?.filter(k => k.trim()) || [],
-        name: settings.name,
-        description: settings.description,
-        disableInterruptions: settings.disableInterruptions,
-        humanTransferRules: settings.humanTransferRules,
+        escalation_keywords: [], // No longer saved here - use system_tools instead
       },
     };
 
@@ -210,27 +206,19 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
       const failureKws = outcomeDefinition.failure_conditions?.failure_keywords;
       const newFailureKeywords = Array.isArray(failureKws) && failureKws.length > 0 ? failureKws : [''];
       
-      // Load escalation rule settings if they exist
-      let newEscalationRuleSettings: EscalationRuleSettings;
-      if (outcomeDefinition.escalation_rules) {
-        const escalationKws = outcomeDefinition.escalation_rules?.escalation_keywords;
-        newEscalationRuleSettings = {
-          name: outcomeDefinition.escalation_rules.name || 'transfer_to_number',
-          description: outcomeDefinition.escalation_rules.description || '',
-          disableInterruptions: outcomeDefinition.escalation_rules.disableInterruptions || false,
-          humanTransferRules: outcomeDefinition.escalation_rules.humanTransferRules || [],
-          escalation_keywords: Array.isArray(escalationKws) && escalationKws.length > 0 ? escalationKws : [],
-        };
-      } else {
-        // Reset to defaults if no escalation rules
-        newEscalationRuleSettings = {
-          name: 'transfer_to_number',
-          description: '',
-          disableInterruptions: false,
-          humanTransferRules: [],
-          escalation_keywords: [],
-        };
-      }
+      // Load escalation rule settings - now read from system_tools instead of outcome_definition
+      // For backward compatibility, still check outcome_definition but prefer system_tools
+      let newEscalationRuleSettings: EscalationRuleSettings = {
+        name: 'transfer_to_number',
+        description: '',
+        disableInterruptions: false,
+        humanTransferRules: [],
+        escalation_keywords: [],
+      };
+      
+      // Note: Escalation rules are now managed in system_tools.transfer_to_number
+      // This component should read from system_tools, but for now we'll keep backward compatibility
+      // The actual escalation_keywords should be loaded from system_tools by the parent component
 
       // Update state (using filtered outcomes to remove any coming soon items)
       setPrimaryOutcomes(filteredAllOutcomes);
@@ -540,271 +528,122 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
           <Target className="h-4 w-4" />
           <span>CALL OUTCOMES</span>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-          <div className="flex items-start justify-between gap-2 mb-4">
-            <div className="text-left flex-1">
-              <h3 className="text-base md:text-lg font-semibold">Call Outcomes</h3>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Define what success means for your agent's calls. We'll automatically analyze conversations to track outcomes. Changes are saved automatically.
-              </p>
+
+        <div className="space-y-6">
+          {/* Primary Goals Section */}
+          <div className="bg-card border border-border rounded-lg p-4 md:p-6">
+            <button 
+              className="w-full flex items-start justify-between gap-2" 
+              onClick={() => setIsPrimaryOpen(!isPrimaryOpen)}
+            >
+              <div className="text-left flex-1">
+                <h3 className="text-base md:text-lg font-semibold">Primary Goals</h3>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  What are the main things you want your agent to accomplish in each call? You can select multiple goals.
+                </p>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
+                  isPrimaryOpen && "rotate-180"
+                )}
+              />
+            </button>
+
+            {isPrimaryOpen && (
+              <div className="mt-4 md:mt-6 space-y-4">
+            <div>
+              {/* <Label htmlFor="primary-outcomes">Primary Outcomes</Label> */}
+              <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
+                {filteredOutcomes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No outcomes available for this category.</p>
+                ) : (
+                  filteredOutcomes.map(outcome => {
+                    const isSelected = primaryOutcomes.includes(outcome.value);
+                    const isDisabled = outcome.comingSoon === true;
+                    return (
+                      <div
+                        key={outcome.value}
+                        className={`flex items-center space-x-3 p-2 rounded-md ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}
+                        onClick={(e) => {
+                          // Prevent double-toggling if clicking directly on checkbox
+                          if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+                            return;
+                          }
+                          if (!isDisabled) {
+                            toggleOutcome(outcome.value);
+                          }
+                        }}
+                      >
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            id={`outcome-${outcome.value}`}
+                            checked={isSelected}
+                            disabled={isDisabled}
+                            onCheckedChange={(checked) => {
+                              if (!isDisabled) {
+                                toggleOutcome(outcome.value);
+                              }
+                            }}
+                          />
+                        </div>
+                        <label
+                          htmlFor={`outcome-${outcome.value}`}
+                          className={`flex-1 flex items-center gap-2 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          <span className="text-sm font-medium">{outcome.label}</span>
+                          <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
+                            {outcome.type}
+                          </Badge>
+                          {isDisabled && (
+                            <Badge variant="outline" className="text-xs text-muted-foreground">
+                              Coming Soon
+                            </Badge>
+                          )}
+                        </label>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {primaryOutcomes.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-2">Please select at least one primary goal.</p>
+              )}
             </div>
-            {saving && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-shrink-0">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
+
+            {/* Display selected goals as chips */}
+            {primaryOutcomes.length > 0 && (
+              <div className="space-y-2">
+                <Label>Selected Goals</Label>
+                <div className="flex flex-wrap gap-2">
+                  {orderedPrimaryOutcomes.map(outcomeValue => {
+                    const outcome = filteredOutcomes.find(o => o.value === outcomeValue);
+                    if (!outcome) return null;
+                    return (
+                      <Badge
+                        key={outcomeValue}
+                        variant="secondary"
+                        className="flex items-center gap-1 pr-1"
+                      >
+                        {outcome.label}
+                        <button
+                          onClick={() => toggleOutcome(outcomeValue)}
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          type="button"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
               </div>
             )}
           </div>
-
-          <div className="space-y-6">
-            {/* Primary Goals Section */}
-            <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-              <button 
-                className="w-full flex items-start justify-between gap-2" 
-                onClick={() => setIsPrimaryOpen(!isPrimaryOpen)}
-              >
-                <div className="text-left flex-1">
-                  <h3 className="text-base md:text-lg font-semibold">Primary Goals</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    What are the main things you want your agent to accomplish in each call? You can select multiple goals.
-                  </p>
-                </div>
-                <ChevronDown
-                  className={cn(
-                    "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-                    isPrimaryOpen && "rotate-180"
-                  )}
-                />
-              </button>
-
-              {isPrimaryOpen && (
-                <div className="mt-4 md:mt-6 space-y-4">
-              <div>
-                {/* <Label htmlFor="primary-outcomes">Primary Outcomes</Label> */}
-                <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
-                  {filteredOutcomes.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No outcomes available for this category.</p>
-                  ) : (
-                    filteredOutcomes.map(outcome => {
-                      const isSelected = primaryOutcomes.includes(outcome.value);
-                      const isDisabled = outcome.comingSoon === true;
-                      return (
-                        <div
-                          key={outcome.value}
-                          className={`flex items-center space-x-3 p-2 rounded-md ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}
-                          onClick={(e) => {
-                            // Prevent double-toggling if clicking directly on checkbox
-                            if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
-                              return;
-                            }
-                            if (!isDisabled) {
-                              toggleOutcome(outcome.value);
-                            }
-                          }}
-                        >
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              id={`outcome-${outcome.value}`}
-                              checked={isSelected}
-                              disabled={isDisabled}
-                              onCheckedChange={(checked) => {
-                                if (!isDisabled) {
-                                  toggleOutcome(outcome.value);
-                                }
-                              }}
-                            />
-                          </div>
-                          <label
-                            htmlFor={`outcome-${outcome.value}`}
-                            className={`flex-1 flex items-center gap-2 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            <span className="text-sm font-medium">{outcome.label}</span>
-                            <Badge variant={outcome.type === 'support' ? 'default' : outcome.type === 'sales' ? 'secondary' : 'outline'} className="text-xs">
-                              {outcome.type}
-                            </Badge>
-                            {isDisabled && (
-                              <Badge variant="outline" className="text-xs text-muted-foreground">
-                                Coming Soon
-                              </Badge>
-                            )}
-                          </label>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                {primaryOutcomes.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-2">Please select at least one primary goal.</p>
-                )}
-              </div>
-
-              {/* Display selected goals as chips */}
-              {primaryOutcomes.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Selected Goals</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {orderedPrimaryOutcomes.map(outcomeValue => {
-                      const outcome = filteredOutcomes.find(o => o.value === outcomeValue);
-                      if (!outcome) return null;
-                      return (
-                        <Badge
-                          key={outcomeValue}
-                          variant="secondary"
-                          className="flex items-center gap-1 pr-1"
-                        >
-                          {outcome.label}
-                          <button
-                            onClick={() => toggleOutcome(outcomeValue)}
-                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
-                            type="button"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-                </div>
-              )}
-            </div>
-
-      {/* <Collapsible open={isSuccessOpen} onOpenChange={setIsSuccessOpen}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="mb-2">Success Indicators</CardTitle>
-                  <CardDescription>
-                    Optional: Add keywords that help identify successful calls. Our AI will automatically analyze conversations, but you can add specific words to look for.
-                  </CardDescription>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isSuccessOpen ? 'transform rotate-180' : ''}`} />
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
-          <div>
-            <Label>Success Keywords</Label>
-            <div className="space-y-2 mt-2">
-              {successKeywords.map((keyword, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    value={keyword}
-                    onChange={(e) => updateKeyword(index, e.target.value, setSuccessKeywords)}
-                    placeholder="e.g., resolved, fixed, working"
-                  />
-                  {successKeywords.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeKeyword(index, setSuccessKeywords)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => addKeyword(setSuccessKeywords)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Keyword
-              </Button>
-            </div>
-          </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      <Collapsible open={isFailureOpen} onOpenChange={setIsFailureOpen}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="mb-2">Failure Indicators</CardTitle>
-                  <CardDescription>
-                    Optional: Add keywords that help identify unsuccessful calls. Our AI will automatically analyze conversations, but you can add specific words to look for.
-                  </CardDescription>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isFailureOpen ? 'transform rotate-180' : ''}`} />
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
-          <div>
-            <Label>Failure Keywords</Label>
-            <div className="space-y-2 mt-2">
-              {failureKeywords.map((keyword, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    value={keyword}
-                    onChange={(e) => updateKeyword(index, e.target.value, setFailureKeywords)}
-                    placeholder="e.g., still broken, doesn't work"
-                  />
-                  {failureKeywords.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeKeyword(index, setFailureKeywords)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => addKeyword(setFailureKeywords)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Keyword
-              </Button>
-            </div>
-          </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible> */}
-
-            {/* Escalation Rules Section */}
-            <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-left flex-1">
-                  <h3 className="text-base md:text-lg font-semibold">Escalation Rules</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Configure transfer behaviors and escalation triggers
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (onOpenEscalationPanel) {
-                      onOpenEscalationPanel();
-                    }
-                  }}
-                  className="h-8 flex-shrink-0"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-      
-      {/* Escalation Rules Panel - will be rendered in parent's right panel area */}
     </div>
   );
 });

@@ -34,7 +34,7 @@ import { PromptLogicTab } from "@/components/assistants/PromptLogicTab";
 import { AdvancedTab } from "@/components/assistants/AdvancedTab";
 import { ToolsTab } from "@/components/assistants/ToolsTab";
 import { SystemToolSettingsPanel } from "@/components/assistants/SystemToolSettingsPanel";
-import { EscalationRulesPanel, type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
+import { type EscalationRuleSettings } from "@/components/assistants/EscalationRulesPanel";
 import { LanguageSelectorDialog } from "@/components/assistants/LanguageSelectorDialog";
 import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab, { type OutcomeConfigTabRef } from "@/components/assistants/OutcomeConfigTab";
@@ -225,8 +225,6 @@ export default function AssistantDetail() {
   const [selectedSystemTool, setSelectedSystemTool] = useState<string | null>(null);
   const [initialSystemToolSettings, setInitialSystemToolSettings] = useState<SystemToolSetting | null>(null);
   const initialSystemToolSettingsToolRef = useRef<string | null>(null);
-  const [showEscalationPanel, setShowEscalationPanel] = useState(false);
-  const panelClosingRef = useRef(false);
   const [escalationRuleSettings, setEscalationRuleSettings] = useState<EscalationRuleSettings>({
     name: 'transfer_to_number',
     description: '',
@@ -502,13 +500,8 @@ export default function AssistantDetail() {
       return;
     }
 
-    // Don't auto-save if escalation rules panel is open (it has its own save button)
-    if (showEscalationPanel) {
-      return;
-    }
-
     await performSave(showToast, "Your changes have been saved automatically.");
-  }, [selectedSystemTool, showEscalationPanel, performSave]);
+  }, [selectedSystemTool, performSave]);
 
   // Manual save function (for the Save button) - bypasses panel checks
   const handleSaveWithBaselineUpdate = useCallback(async () => {
@@ -526,9 +519,7 @@ export default function AssistantDetail() {
     // - Already saving
     // - Baseline not initialized yet (wait for baseline to be set)
     // - System tool settings panel is open (it has its own save button)
-    // - Escalation rules panel is open (it has its own save button)
-    // - Panel is currently closing (to prevent auto-save during panel close operations)
-    if (!hasChanges || agentData.saving || !baselineInitializedRef.current || selectedSystemTool || showEscalationPanel || panelClosingRef.current) {
+    if (!hasChanges || agentData.saving || !baselineInitializedRef.current || selectedSystemTool) {
       // Clear timer if conditions aren't met
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
@@ -560,7 +551,7 @@ export default function AssistantDetail() {
         autoSaveTimerRef.current = null;
       }
     };
-  }, [hasChanges, agentData.saving, selectedSystemTool, showEscalationPanel, autoSave]);
+  }, [hasChanges, agentData.saving, selectedSystemTool, autoSave]);
 
   // Handle publish with undeployed changes tracking
   const handlePublishWithTracking = useCallback(async () => {
@@ -1383,22 +1374,10 @@ export default function AssistantDetail() {
   };
 
   const handleOpenSystemToolSettings = (key: keyof SystemToolsState) => {
-    // Set flag to prevent auto-save during panel open
-    panelClosingRef.current = true;
-    
-    // Close escalation panel if open
-    if (showEscalationPanel) {
-      setShowEscalationPanel(false);
-    }
     setSelectedSystemTool(key);
     // Reset the ref so initial settings will be stored when settings are loaded
     initialSystemToolSettingsToolRef.current = null;
     setInitialSystemToolSettings(null);
-    
-    // Clear the flag after a delay to allow state updates to complete
-    setTimeout(() => {
-      panelClosingRef.current = false;
-    }, 300);
   };
 
   // Load all tool settings into map when agent data is loaded
@@ -1869,12 +1848,6 @@ export default function AssistantDetail() {
                     // Trigger tracked state update by incrementing trigger
                     setOutcomeStateUpdateTrigger(prev => prev + 1);
                   }}
-                  onOpenEscalationPanel={() => {
-                    if (selectedSystemTool) {
-                      setSelectedSystemTool(null);
-                    }
-                    setShowEscalationPanel(true);
-                  }}
                   escalationRuleSettings={escalationRuleSettings}
                   onEscalationRuleSettingsChange={setEscalationRuleSettings}
                   onEnableTransferToNumber={async (settings: EscalationRuleSettings) => {
@@ -1996,33 +1969,22 @@ export default function AssistantDetail() {
                       sectionHook.setTomDeVoz(data.voiceTone);
                     }
                   }}
-                  attachedFiles={filesHook.attachedFiles}
-                  onFileUpload={(e) => filesHook.handleFileUpload(e, agentId)}
-                  onFileDelete={filesHook.handleFileDelete}
-                  onOpenChooseFiles={() => filesHook.setShowChooseFilesDialog(true)}
-                  uploadingFiles={filesHook.uploadingFiles}
-                  isNew={isNew}
-                  agentFiles={filesHook.agentFiles}
-                  loadingAvailableFiles={filesHook.loadingAvailableFiles}
-                  assigningFile={filesHook.assigningFile}
-                  fetchAllAvailableFiles={filesHook.fetchAllAvailableFiles}
-                  setShowChooseFilesDialog={filesHook.setShowChooseFilesDialog}
                   behaviourConfig={behaviourConfig}
                   conversationConfig={agentData.conversationConfig}
                   onUpdateConversationConfig={async (updates: Record<string, unknown>) => {
                     if (!agentData.agent) return;
-                    
+
                     const currentConfig = agentData.conversationConfig || {};
                     const updatedConfig = {
                       ...currentConfig,
                       ...updates,
                     };
-                    
+
                     // Update conversationConfig state first
                     if (agentData.setConversationConfig) {
                       agentData.setConversationConfig(updatedConfig);
                     }
-                    
+
                     // Save to backend using handleSave
                     await agentData.handleSave(
                       webhookHook.webhookTools,
@@ -2205,100 +2167,6 @@ export default function AssistantDetail() {
                   panelClosingRef.current = false;
                 }, 100);
               }}
-            />
-          </div>
-        )}
-
-        {/* Escalation Rules Right Panel */}
-        {showEscalationPanel && (activeTab === "performance" || activeTab === "outcomes") && (
-          <div className="w-[400px]">
-            <EscalationRulesPanel
-              settings={escalationRuleSettings}
-              onUpdate={(updates) => {
-                setEscalationRuleSettings(prev => ({ ...prev, ...updates }));
-              }}
-              onClose={() => {
-                // Set flag to prevent auto-save during panel close
-                panelClosingRef.current = true;
-                setShowEscalationPanel(false);
-                // Clear the flag after a delay to allow state updates to complete
-                setTimeout(() => {
-                  panelClosingRef.current = false;
-                }, 300);
-              }}
-              onSave={async () => {
-                try {
-                  // Save escalation rules to outcome definition first
-                  if (outcomeConfigTabRef.current) {
-                    await outcomeConfigTabRef.current.saveEscalationRules(escalationRuleSettings);
-                  }
-                  
-                  // Enable transfer_to_number system tool if we have human transfer rules
-                  const hasHumanTransferRules = escalationRuleSettings.humanTransferRules && 
-                                              escalationRuleSettings.humanTransferRules.length > 0 &&
-                                              escalationRuleSettings.humanTransferRules.some(rule => 
-                                                rule.phoneNumber && rule.phoneNumber.trim() !== ''
-                                              );
-                  
-                  if (hasHumanTransferRules) {
-                    // Enable transfer_to_number system tool
-                    setSystemTools(prev => ({
-                      ...prev,
-                      transfer_to_number: true,
-                    }));
-                    
-                    // Update system tool settings with escalation rule settings
-                    const updatedSettings: SystemToolSetting = {
-                      name: escalationRuleSettings.name || 'transfer_to_number',
-                      description: escalationRuleSettings.description || '',
-                      disableInterruptions: escalationRuleSettings.disableInterruptions || false,
-                      humanTransferRules: escalationRuleSettings.humanTransferRules || [],
-                    };
-                    
-                    setSystemToolSettings(updatedSettings);
-                    setSystemToolSettingsMap(prev => ({
-                      ...prev,
-                      transfer_to_number: updatedSettings,
-                    }));
-                    
-                    // Save the agent with updated system tools (this will sync to ElevenLabs)
-                    await agentData.handleSave(
-                      webhookHook.webhookTools,
-                      clientHook.clientTools,
-                      integrationHook.agentIntegrationTools,
-                      sectionHook.cenarios,
-                      sectionHook.etapas,
-                      sectionHook.tomDeVoz,
-                      {
-                        ...systemTools,
-                        transfer_to_number: true,
-                      },
-                      updatedSettings,
-                      filesHook.attachedFiles,
-                      {
-                        ...systemToolSettingsMap,
-                        transfer_to_number: updatedSettings,
-                      }
-                    );
-                  } else {
-                    toast({
-                      title: "Success",
-                      description: "Escalation rules saved successfully.",
-                    });
-                  }
-                  
-                  // Close panel
-                  setShowEscalationPanel(false);
-                } catch (error) {
-                  console.error("Failed to save escalation rules:", error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to save escalation rules. Please try again.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              saving={agentData.saving}
             />
           </div>
         )}

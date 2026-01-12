@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowDown, Bot, Plus, GitBranch, Check, X, Trash2, Settings, Sparkles, GripVertical, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowRight, ArrowDown, Bot, Plus, GitBranch, Check, X, Trash2, Settings, Sparkles, GripVertical, Minimize2 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import type { AgentFunction, ToolInChain, ConditionalConfig } from "@/types/functions";
 import { isConditionalTool } from "@/types/functions";
 import { getIntegrationIcon, INTEGRATION_METADATA } from "@/constants/assistant";
@@ -17,7 +23,7 @@ import { SystemToolsModal } from "./SystemToolsModal";
 import { SystemToolSettingsPanel } from "../assistants/SystemToolSettingsPanel";
 import { agentsApi } from "@/lib/api";
 import { SYSTEM_TOOL_KEYS, type SystemToolKey, type SystemToolsState, type SystemToolSetting } from "@/types/assistant";
-import { PhoneOff, Languages, Voicemail, Settings2 } from "lucide-react";
+import { PhoneOff, Languages, Voicemail, Settings2, PhoneForwarded, User } from "lucide-react";
 
 type EditableWorkflowProps = {
   agentFunction: AgentFunction;
@@ -72,6 +78,15 @@ const getToolMethod = (tool: ToolInChain): string | null => {
   // Conditional tools show the expression
   if (isConditionalTool(tool)) {
     return tool.config.expression || "Branch";
+  }
+  // Search Knowledge Base shows file count
+  if (tool.type === "search_knowledge_base") {
+    const config = tool.config as Record<string, unknown> | undefined;
+    const fileIds = (config?.file_ids || []) as string[];
+    if (fileIds.length > 0) {
+      return `${fileIds.length} file${fileIds.length !== 1 ? 's' : ''} selected`;
+    }
+    return "All files";
   }
   if (!tool.method) {
     return null;
@@ -1155,6 +1170,29 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
     return undefined;
   };
 
+  const handleCloseSystemToolSettings = () => {
+    if (!selectedSystemTool) return;
+
+    if (selectedSystemTool === 'transfer_to_number') {
+      const transferSettings = systemToolSettings[selectedSystemTool] || {};
+      const humanTransferRules = transferSettings.humanTransferRules || [];
+      const hasValidRules = humanTransferRules.some(
+        (rule: any) =>
+          rule.phoneNumber &&
+          rule.phoneNumber.trim() &&
+          rule.condition &&
+          rule.condition.trim()
+      );
+
+      if (!hasValidRules) {
+        const updatedSystemTools = { ...systemTools, transfer_to_number: false };
+        setSystemTools(updatedSystemTools);
+        saveSystemTools(updatedSystemTools, systemToolSettings);
+      }
+    }
+    setSelectedSystemTool(null);
+  };
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -1187,16 +1225,6 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
               Exit Fullscreen
             </button>
           </div>
-        )}
-
-        {!isFullscreen && !readOnly && (
-          <button
-            onClick={() => setIsFullscreen(true)}
-            className="absolute top-0 right-0 p-3 bg-white/50 dark:bg-slate-900/50 hover:bg-primary/10 text-slate-400 hover:text-primary rounded-2xl transition-all z-10 border border-transparent hover:border-primary/20 backdrop-blur-sm"
-            title="Fullscreen Mode"
-          >
-            <Maximize2 className="w-5 h-5" />
-          </button>
         )}
 
         <div className="flex flex-col items-center gap-3">
@@ -1249,49 +1277,50 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
             </div>
           </div>
 
-          {/* System Tool Connections */}
           <div className="flex justify-center gap-4 w-full px-8">
-            {(['end_call', 'detect_language', 'voicemail_detection'] as SystemToolKey[]).map((key) => {
-              if (!systemTools[key]) return null;
+            {(['end_call', 'detect_language', 'voicemail_detection', 'transfer_to_number', 'transfer_to_agent'] as SystemToolKey[])
+              .filter((key) => systemTools[key])
+              .map((key) => {
+                const getToolConfig = (key: SystemToolKey) => {
+                  switch (key) {
+                    case 'end_call': return { icon: PhoneOff, label: 'End Call', color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-900' };
+                    case 'detect_language': return { icon: Languages, label: 'Detect Lang', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-900' };
+                    case 'voicemail_detection': return { icon: Voicemail, label: 'Voicemail', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-900' };
+                    case 'transfer_to_number': return { icon: PhoneForwarded, label: 'Transfer', color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-900' };
+                    case 'transfer_to_agent': return { icon: User, label: 'Agent Transfer', color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-900' };
+                    default: return { icon: Settings2, label: key, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' };
+                  }
+                };
 
-              const getToolConfig = (key: SystemToolKey) => {
-                switch (key) {
-                  case 'end_call': return { icon: PhoneOff, label: 'End Call', color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-900' };
-                  case 'detect_language': return { icon: Languages, label: 'Detect Lang', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-900' };
-                  case 'voicemail_detection': return { icon: Voicemail, label: 'Voicemail', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-900' };
-                  default: return { icon: Settings2, label: key, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' };
-                }
-              };
+                const config = getToolConfig(key);
+                const Icon = config.icon;
 
-              const config = getToolConfig(key);
-              const Icon = config.icon;
-
-              return (
-                <div
-                  key={key}
-                  className="flex flex-col items-center relative group"
-                >
-                  {/* Connection Line from Agent */}
-                  <div className="h-6 w-0.5 bg-slate-200 dark:bg-slate-700 absolute -top-6 left-1/2 -translate-x-1/2" />
-
-                  {/* Tool Node */}
+                return (
                   <div
-                    onClick={() => setSelectedSystemTool(key)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm transition-all cursor-pointer z-10",
-                      config.bg, config.border,
-                      "hover:shadow-md hover:scale-105"
-                    )}
+                    key={key}
+                    className="flex flex-col items-center relative group"
                   >
-                    <Icon className={cn("w-3.5 h-3.5", config.color)} />
-                    <span className={cn("text-xs font-medium", config.color)}>{config.label}</span>
-                  </div>
+                    {/* Connection Line from Agent */}
+                    <div className="h-6 w-0.5 bg-slate-200 dark:bg-slate-700 absolute -top-6 left-1/2 -translate-x-1/2" />
 
-                  {/* Merge back line (visual only, fades out) */}
-                  <div className="h-4 w-0.5 bg-gradient-to-b from-slate-200 to-transparent dark:from-slate-700 absolute -bottom-4 left-1/2 -translate-x-1/2" />
-                </div>
-              );
-            })}
+                    {/* Tool Node */}
+                    <div
+                      onClick={() => setSelectedSystemTool(key)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm transition-all cursor-pointer z-10",
+                        config.bg, config.border,
+                        "hover:shadow-md hover:scale-105"
+                      )}
+                    >
+                      <Icon className={cn("w-3.5 h-3.5", config.color)} />
+                      <span className={cn("text-xs font-medium", config.color)}>{config.label}</span>
+                    </div>
+
+                    {/* Merge back line (visual only, fades out) */}
+                    <div className="h-4 w-0.5 bg-gradient-to-b from-slate-200 to-transparent dark:from-slate-700 absolute -bottom-4 left-1/2 -translate-x-1/2" />
+                  </div>
+                );
+              })}
           </div>
 
           {/* Drop zone after Agent and System Tools (only for drag and drop, no visible button) */}
@@ -2053,21 +2082,48 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
 
       {
         selectedSystemTool && (
-          <div className="fixed inset-y-0 right-0 w-[500px] z-[60] shadow-2xl animate-in slide-in-from-right duration-300">
-            <SystemToolSettingsPanel
-              toolKey={selectedSystemTool}
-              settings={systemToolSettings[selectedSystemTool] || {}}
-              onUpdate={(updates) => handleUpdateSystemToolSettings(selectedSystemTool, updates)}
-              onClose={() => setSelectedSystemTool(null)}
-              onSave={() => {
-                saveSystemTools(systemTools, systemToolSettings);
-                setSelectedSystemTool(null);
-              }}
-              saving={isSavingSystemTools}
-              hasChanges={true}
-              currentAgentId={agentId}
-            />
-          </div>
+          <Dialog open={!!selectedSystemTool} onOpenChange={(open) => !open && handleCloseSystemToolSettings()}>
+            <DialogContent className="sm:max-w-[600px] gap-0 p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950 h-[85vh] flex flex-col">
+              <SystemToolSettingsPanel
+                toolKey={selectedSystemTool}
+                settings={systemToolSettings[selectedSystemTool] || {}}
+                onUpdate={(updates) => handleUpdateSystemToolSettings(selectedSystemTool, updates)}
+                onClose={handleCloseSystemToolSettings}
+                isFullscreen={false}
+                onSave={() => {
+                  // Auto-enable transfer_to_number if valid human transfer rules are configured
+                  const updatedSystemTools = { ...systemTools };
+                  const transferSettings = systemToolSettings[selectedSystemTool] || {};
+
+                  if (selectedSystemTool === 'transfer_to_number') {
+                    const humanTransferRules = transferSettings.humanTransferRules || [];
+                    const hasValidRules = humanTransferRules.some(
+                      (rule: any) =>
+                        rule.phoneNumber &&
+                        rule.phoneNumber.trim() &&
+                        rule.condition &&
+                        rule.condition.trim()
+                    );
+
+                    if (hasValidRules) {
+                      // Always enable if valid rules exist
+                      updatedSystemTools.transfer_to_number = true;
+                    } else {
+                      // Auto-disable if no valid rules exist
+                      updatedSystemTools.transfer_to_number = false;
+                    }
+                    setSystemTools(updatedSystemTools);
+                  }
+
+                  saveSystemTools(updatedSystemTools, systemToolSettings);
+                  setSelectedSystemTool(null);
+                }}
+                saving={isSavingSystemTools}
+                hasChanges={true}
+                currentAgentId={agentId}
+              />
+            </DialogContent>
+          </Dialog>
         )
       }
     </AnimatePresence >
