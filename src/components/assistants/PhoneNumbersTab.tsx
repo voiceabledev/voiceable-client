@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -11,18 +13,36 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Phone, Plus, Trash2, Edit, Loader2, User, Building2, CreditCard } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Phone, Plus, Trash2, Edit, Loader2, User, MoreVertical } from "lucide-react";
 import { phoneNumbersApi, PhoneNumber, Agent, agentsApi, UpdatePhoneNumberParams } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
 import { TabSectionCard } from "@/components/assistants/TabSectionCard";
+import { MembershipStatusMessage } from "@/components/assistants/MembershipStatusMessage";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 interface PhoneNumbersTabProps {
   agent: Agent | null;
@@ -39,7 +59,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPhoneNumberModalOpen, setIsPhoneNumberModalOpen] = useState(false);
-  const [showContactSalesModal, setShowContactSalesModal] = useState(false);
+  const [deletePhoneNumberId, setDeletePhoneNumberId] = useState<string | null>(null);
   const [editingPhoneNumber, setEditingPhoneNumber] = useState<PhoneNumber | null>(null);
   const [formData, setFormData] = useState({
     phone_number: "",
@@ -189,13 +209,11 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
     }
   };
 
-  const handleDelete = async (phoneNumberId: number) => {
-    if (!confirm("Are you sure you want to delete this phone number?")) {
-      return;
-    }
+  const handleDelete = async () => {
+    if (!deletePhoneNumberId) return;
 
     try {
-      await phoneNumbersApi.delete(phoneNumberId);
+      await phoneNumbersApi.delete(Number(deletePhoneNumberId));
       toast({
         title: "Success",
         description: "Phone number deleted successfully",
@@ -208,14 +226,48 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
         description: error instanceof Error ? error.message : "Failed to delete phone number",
         variant: "destructive",
       });
+    } finally {
+      setDeletePhoneNumberId(null);
     }
   };
 
   if (authLoading || loading) {
     return (
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="space-y-6">
+          <div>
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+              <Phone className="h-4 w-4" />
+              <span>PHONE NUMBER</span>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-6">
+              {/* Skeleton header */}
+              <div className="mb-6">
+                <div className="h-6 bg-muted/50 rounded w-48 mb-2 animate-pulse" />
+                <div className="h-4 bg-muted/30 rounded w-96 animate-pulse" />
+              </div>
+
+              {/* Skeleton cards */}
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card animate-pulse"
+                  >
+                    <div className="flex-shrink-0 p-2 rounded-lg bg-muted/50 h-9 w-9" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 bg-muted/50 rounded w-32" />
+                      <div className="h-3 bg-muted/30 rounded w-48" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-9 bg-muted/50 rounded w-40" />
+                      <div className="h-9 bg-muted/50 rounded w-9" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -229,119 +281,22 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   // Determine membership status
   const membershipStatus = user?.membership_status || 'free';
 
-  // Helper function to render status message
-  const renderStatusMessage = (title: string, description: string, primaryButtonText: string | null = null, primaryButtonAction: (() => void) | null = null) => {
-    return (
-      <>
-        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
-          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
-            <div className="flex justify-center mb-4 md:mb-6">
-              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
-                <Phone className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-              </div>
-            </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">{title}</h2>
-            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
-              {description}
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-              {primaryButtonText && primaryButtonAction && (
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={primaryButtonAction}
-                  className="w-full sm:w-auto text-sm sm:text-base"
-                >
-                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  {primaryButtonText}
-                </Button>
-              )}
-              <Button
-                variant={primaryButtonText ? "outline" : "default"}
-                size="lg"
-                onClick={() => setShowContactSalesModal(true)}
-                className="w-full sm:w-auto text-sm sm:text-base"
-              >
-                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Contact Support
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Sales Modal */}
-        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-              <DialogTitle>Schedule a Meeting</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-hidden min-h-0">
-              <iframe
-                src="https://calendly.com/imvitoroliveira"
-                className="w-full h-full border-0"
-                title="Calendly Scheduling"
-                allow="camera; microphone; geolocation"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  };
 
   // Block cancelled or suspended users from seeing phone numbers
   if (membershipStatus === 'cancelled' || membershipStatus === 'suspended') {
-    const title = membershipStatus === 'cancelled' 
-      ? 'Phone Number Access Unavailable' 
+    const title = membershipStatus === 'cancelled'
+      ? 'Phone Number Access Unavailable'
       : 'Account Suspended';
     const description = membershipStatus === 'cancelled'
       ? 'Your membership has been cancelled. Please contact support to reactivate your account and restore phone number access.'
       : 'Your account has been suspended. Please contact support for assistance with your account.';
 
     return (
-      <>
-        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
-          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
-            <div className="flex justify-center mb-4 md:mb-6">
-              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
-                <Phone className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-              </div>
-            </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">{title}</h2>
-            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
-              {description}
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => setShowContactSalesModal(true)}
-                className="w-full sm:w-auto text-sm sm:text-base"
-              >
-                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Contact Support
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Sales Modal */}
-        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-              <DialogTitle>Schedule a Meeting</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-hidden min-h-0">
-              <iframe
-                src="https://calendly.com/imvitoroliveira"
-                className="w-full h-full border-0"
-                title="Calendly Scheduling"
-                allow="camera; microphone; geolocation"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      </>
+      <MembershipStatusMessage
+        status={membershipStatus}
+        title={title}
+        description={description}
+      />
     );
   }
 
@@ -352,69 +307,25 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   // Show membership required message only for trial and free users
   else if (membershipStatus === 'trial' || membershipStatus === 'free') {
     return (
-      <>
-        <div className="flex md:items-center justify-center min-h-[calc(100vh-300px)] py-4 md:py-8 px-4">
-          <div className="max-w-2xl w-full bg-card border border-border rounded-xl p-6 sm:p-8 md:p-12 text-center">
-            <div className="flex justify-center mb-4 md:mb-6">
-              <div className="p-3 md:p-4 bg-primary/10 rounded-full">
-                <Phone className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-              </div>
-            </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 md:mb-4">Phone Numbers Require Membership</h2>
-            <p className="text-muted-foreground mb-6 md:mb-8 text-sm sm:text-base md:text-lg leading-relaxed px-2 sm:px-0">
-              Phone number purchases require at least one successful payment. 
-              You can use the widget to test your agent without purchasing a phone number.
-              Please make a purchase to unlock phone number functionality.
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => navigate("/settings/billing")}
-                className="w-full sm:w-auto text-sm sm:text-base"
-              >
-                <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Buy Credits
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setShowContactSalesModal(true)}
-                className="w-full sm:w-auto text-sm sm:text-base"
-              >
-                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Contact Support
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Sales Modal */}
-        <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-              <DialogTitle>Schedule a Meeting</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 overflow-hidden min-h-0">
-              <iframe
-                src="https://calendly.com/imvitoroliveira"
-                className="w-full h-full border-0"
-                title="Calendly Scheduling"
-                allow="camera; microphone; geolocation"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      </>
+      <MembershipStatusMessage
+        status={membershipStatus}
+        title="Phone Numbers Require Membership"
+        description="Phone number purchases require at least one successful payment. You can use the widget to test your agent without purchasing a phone number. Please make a purchase to unlock phone number functionality."
+        primaryButtonText="Buy Credits"
+        primaryButtonAction={() => navigate("/settings/billing")}
+      />
     );
   }
   // Show expired membership message
   else if (membershipStatus === 'expired') {
-    return renderStatusMessage(
-      "Membership Expired",
-      "Your membership has expired. Please renew your membership to purchase new phone numbers. You can still use the widget to test your agent.",
-      "Renew Membership",
-      () => navigate("/settings/billing")
+    return (
+      <MembershipStatusMessage
+        status="expired"
+        title="Membership Expired"
+        description="Your membership has expired. Please renew your membership to purchase new phone numbers. You can still use the widget to test your agent."
+        primaryButtonText="Renew Membership"
+        primaryButtonAction={() => navigate("/settings/billing")}
+      />
     );
   }
 
@@ -448,40 +359,60 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
               {agentPhoneNumbers.map((phoneNumber) => (
                 <div
                   key={phoneNumber.id}
-                  className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors"
+                  className={cn(
+                    "relative flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl overflow-hidden",
+                    "bg-card border border-border shadow-sm",
+                    "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5",
+                    "transition-all duration-300 group"
+                  )}
                 >
-                  <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium">{phoneNumber.phone_number}</span>
-                      <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded-full capitalize">
-                        {phoneNumber.provider}
+                  {/* Subtle gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+                  {/* Icon */}
+                  <div className={cn(
+                    "flex-shrink-0 p-2 rounded-lg transition-all duration-300",
+                    "bg-primary/10 group-hover:bg-primary/15"
+                  )}>
+                    <Phone className="h-5 w-5 text-primary" />
+                  </div>
+
+                  {/* Phone Number Info */}
+                  <div className="flex-1 min-w-0 relative z-10">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span className="text-sm font-semibold tracking-tight">
+                        {phoneNumber.phone_number}
                       </span>
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {phoneNumber.provider}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {phoneNumber.label && (
                         <>
-                          <span>{phoneNumber.label}</span>
-                          <span>•</span>
+                          <span className="font-medium">{phoneNumber.label}</span>
+                          <span className="hidden sm:inline">•</span>
                         </>
                       )}
                       {phoneNumber.agent_name ? (
-                        <>
+                        <div className="flex items-center gap-1.5">
                           <User className="h-3 w-3" />
                           <span className="truncate">Assigned to {phoneNumber.agent_name}</span>
-                        </>
+                        </div>
                       ) : (
-                        <span className="truncate italic">Unassigned</span>
+                        <span className="truncate italic text-muted-foreground/70">Unassigned</span>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Agent Assignment & Actions */}
+                  <div className="flex items-center gap-2 relative z-10 flex-wrap sm:flex-nowrap">
                     <Select
                       value={phoneNumber.agent_id ? phoneNumber.agent_id.toString() : "none"}
                       onValueChange={(value) => handleAgentChange(phoneNumber, value)}
                       disabled={loadingAgents}
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-full sm:w-40 h-9 bg-background/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-colors">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -493,38 +424,64 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenDialog(phoneNumber)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <button
-                      onClick={() => handleDelete(phoneNumber.id)}
-                      className="text-muted-foreground hover:text-destructive transition-colors p-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+
+                    {/* Actions Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 flex-shrink-0 hover:bg-secondary/80 transition-all"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          onClick={() => handleOpenDialog(phoneNumber)}
+                          className="cursor-pointer"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Label
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeletePhoneNumberId(phoneNumber.id.toString())}
+                          className="cursor-pointer text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
               </div>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Phone className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground mb-4">
-                No phone number assigned to this agent yet. Add a phone number to get started.
-              </p>
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => setIsPhoneNumberModalOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Phone Number
-              </Button>
+            <div className="relative text-center py-12 px-4">
+              {/* Gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl" />
+
+              {/* Content */}
+              <div className="relative z-10">
+                <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4 shadow-sm">
+                  <Phone className="h-12 w-12 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No Phone Numbers Yet</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+                  This agent doesn't have a phone number assigned yet. Add a phone number to enable inbound and outbound calls.
+                </p>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => setIsPhoneNumberModalOpen(true)}
+                  className="shadow-sm hover:shadow-md transition-all"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Phone Number
+                </Button>
+              </div>
             </div>
           )}
           </TabSectionCard>
@@ -532,40 +489,87 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Edit Phone Number</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Edit className="h-4 w-4 text-primary" />
+              </div>
+              Edit Phone Number
+            </DialogTitle>
             <DialogDescription>
-              Update the label for this phone number
+              Update the label for this phone number to help identify its purpose
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium">Phone Number</label>
-              <Input value={formData.phone_number} disabled className="mt-1" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Label</label>
+            <div className="space-y-2">
+              <Label htmlFor="phone-number" className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                Phone Number
+              </Label>
               <Input
+                id="phone-number"
+                value={formData.phone_number}
+                disabled
+                className="bg-muted/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="label" className="flex items-center gap-2">
+                <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+                Label
+              </Label>
+              <Input
+                id="label"
                 value={formData.label}
                 onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                 placeholder="e.g., Main Line, Support Line"
-                className="mt-1"
               />
+              <p className="text-xs text-muted-foreground">
+                Choose a descriptive name to identify this number
+              </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={handleCloseDialog}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>Save</Button>
+            <Button onClick={handleSave}>
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletePhoneNumberId} onOpenChange={(open) => !open && setDeletePhoneNumberId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </div>
+              Delete Phone Number
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this phone number? This action cannot be undone and the number will be removed from your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Phone Number Modal for adding/purchasing numbers */}
-      <PhoneNumberModal 
-        open={isPhoneNumberModalOpen} 
+      <PhoneNumberModal
+        open={isPhoneNumberModalOpen}
         onOpenChange={(open) => {
           setIsPhoneNumberModalOpen(open);
           if (!open) {

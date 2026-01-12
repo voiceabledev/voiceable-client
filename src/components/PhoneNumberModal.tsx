@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -14,12 +15,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { phoneNumbersApi, agentsApi, Agent, AvailablePhoneNumber } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, Phone, Check, ShoppingCart, CheckCircle2 } from "lucide-react";
+import { Loader2, Search, Phone, Check, ShoppingCart, CheckCircle2, ArrowLeft, Globe, MapPin, MessageSquare, PhoneCall, Smartphone } from "lucide-react";
 
 interface PhoneNumberModalProps {
   open: boolean;
@@ -198,243 +201,400 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto p-4 md:p-6">
-        <DialogHeader>
-          <DialogTitle>
-            {step === "account" ? "Phone Numbers" :
-             "Assign Phone Number"}
+      <DialogContent className="max-w-3xl bg-card border-border max-h-[90vh] overflow-y-auto p-0">
+        <DialogHeader className="p-6 pb-4 space-y-2">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className={cn(
+              "p-2.5 rounded-xl transition-all duration-300 shadow-sm",
+              step === "account" ? "bg-primary/10" : "bg-green-500/10"
+            )}>
+              {step === "account" ? (
+                <Phone className="h-5 w-5 text-primary" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              )}
+            </div>
+            {step === "account" ? "Add Phone Number" : "Assign Phone Number"}
           </DialogTitle>
+          <DialogDescription className="text-sm">
+            {step === "account"
+              ? "Choose from your existing numbers or search for new ones to purchase"
+              : "Configure your phone number with a label and assign it to an agent"}
+          </DialogDescription>
         </DialogHeader>
+
+        <Separator />
         
         {step === "account" ? (
-          <div className="flex flex-col gap-4 md:gap-6">
+          <div className="flex flex-col gap-6 p-6">
+            {/* Account Numbers Section */}
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                These are phone numbers available in your account that haven't been assigned yet.
-              </p>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-green-500/10">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Your Account Numbers</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Available numbers from your Twilio account
+                  </p>
+                </div>
+              </div>
 
               {loadingAccountNumbers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="space-y-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="p-4 rounded-xl border border-border bg-card animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted/50" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted/50 rounded w-32" />
+                          <div className="h-3 bg-muted/30 rounded w-24" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : accountNumbers.length > 0 ? (
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <p className="text-sm font-medium">
-                      {accountNumbers.length} number{accountNumbers.length !== 1 ? 's' : ''} available in your account
-                    </p>
-                  </div>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                   {accountNumbers.map((number, index) => (
                     <button
                       key={index}
                       onClick={() => handleSelectNumber(number)}
                       className={cn(
-                        "w-full p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors text-left relative",
-                        selectedNumber?.phone_number === number.phone_number && "border-primary bg-primary/5"
+                        "w-full p-4 rounded-xl border transition-all duration-300 text-left group",
+                        "bg-card hover:shadow-md hover:-translate-y-0.5",
+                        selectedNumber?.phone_number === number.phone_number
+                          ? "border-green-500/50 bg-green-500/5 shadow-sm"
+                          : "border-border hover:border-green-500/30"
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Phone className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <div className="font-medium text-base">{number.phone_number}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={cn(
+                            "p-2 rounded-lg transition-all duration-300 flex-shrink-0",
+                            selectedNumber?.phone_number === number.phone_number
+                              ? "bg-green-500/15"
+                              : "bg-green-500/10 group-hover:bg-green-500/15"
+                          )}>
+                            <Phone className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-base mb-1 tracking-tight">
+                              {number.phone_number}
+                            </div>
                             {number.friendly_name && (
-                              <div className="text-sm text-muted-foreground">{number.friendly_name}</div>
+                              <div className="text-sm text-muted-foreground mb-1">
+                                {number.friendly_name}
+                              </div>
                             )}
                             {number.region && (
-                              <div className="text-xs text-muted-foreground">{number.region}</div>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3" />
+                                {number.region}
+                              </div>
                             )}
                           </div>
                         </div>
-                        <span className="px-2 py-1 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-md">
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-700 border-green-500/20 flex-shrink-0">
                           In Account
-                        </span>
+                        </Badge>
                       </div>
                       {number.capabilities && (
-                        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
-                          {number.capabilities.voice && <span>Voice</span>}
-                          {number.capabilities.sms && <span>SMS</span>}
-                          {number.capabilities.mms && <span>MMS</span>}
+                        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
+                          {number.capabilities.voice && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <PhoneCall className="h-3 w-3" />
+                              Voice
+                            </Badge>
+                          )}
+                          {number.capabilities.sms && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              SMS
+                            </Badge>
+                          )}
+                          {number.capabilities.mms && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <Smartphone className="h-3 w-3" />
+                              MMS
+                            </Badge>
+                          )}
                         </div>
                       )}
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No numbers available in your account.</p>
+                <div className="text-center py-8 px-4 rounded-xl bg-muted/20">
+                  <Phone className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">
+                    No numbers available in your account
+                  </p>
                 </div>
               )}
 
-              <div className="space-y-4 pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground">
-                  Search for additional phone numbers to purchase.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Country</Label>
-                    <Select value={countryCode} onValueChange={setCountryCode}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="US">United States</SelectItem>
-                        <SelectItem value="CA">Canada</SelectItem>
-                        <SelectItem value="GB">United Kingdom</SelectItem>
-                        <SelectItem value="AU">Australia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <Separator className="my-2" />
 
-                  <div className="space-y-2">
-                    <Label>Area Code (Optional)</Label>
-                    <Input
-                      value={areaCode}
-                      onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                      placeholder="e.g., 415"
-                      className="bg-secondary/50"
-                    />
+              {/* Search Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-blue-500/10">
+                    <ShoppingCart className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold">Purchase New Number</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Search for available phone numbers to buy
+                    </p>
                   </div>
                 </div>
 
-                <Button
-                  onClick={handleSearch}
-                  disabled={loadingNumbers}
-                  className="w-full"
-                >
-                  {loadingNumbers ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      Search Available Numbers
-                    </>
-                  )}
-                </Button>
+                <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        Country
+                      </Label>
+                      <Select value={countryCode} onValueChange={setCountryCode}>
+                        <SelectTrigger className="bg-background/80">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">🇺🇸 United States</SelectItem>
+                          <SelectItem value="CA">🇨🇦 Canada</SelectItem>
+                          <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
+                          <SelectItem value="AU">🇦🇺 Australia</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                        Area Code (Optional)
+                      </Label>
+                      <Input
+                        value={areaCode}
+                        onChange={(e) => setAreaCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                        placeholder="e.g., 415"
+                        className="bg-background/80"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleSearch}
+                    disabled={loadingNumbers}
+                    className="w-full shadow-sm hover:shadow-md transition-all"
+                    size="lg"
+                  >
+                    {loadingNumbers ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        Search Available Numbers
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Available Numbers List */}
               {loadingNumbers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-4 rounded-xl border border-border bg-card animate-pulse">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted/50" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted/50 rounded w-32" />
+                          <div className="h-3 bg-muted/30 rounded w-24" />
+                        </div>
+                        <div className="h-6 bg-muted/50 rounded w-16" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : availableNumbers.length > 0 ? (
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ShoppingCart className="h-4 w-4 text-blue-500" />
-                    <p className="text-sm font-medium">
-                      {availableNumbers.length} available number{availableNumbers.length !== 1 ? 's' : ''} found for purchase
-                    </p>
-                  </div>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                   {availableNumbers.map((number, index) => (
                     <button
                       key={index}
                       onClick={() => handleSelectNumber(number)}
                       className={cn(
-                        "w-full p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 transition-colors text-left relative",
-                        selectedNumber?.phone_number === number.phone_number && "border-primary bg-primary/5"
+                        "w-full p-4 rounded-xl border transition-all duration-300 text-left group",
+                        "bg-card hover:shadow-md hover:-translate-y-0.5",
+                        selectedNumber?.phone_number === number.phone_number
+                          ? "border-blue-500/50 bg-blue-500/5 shadow-sm"
+                          : "border-border hover:border-blue-500/30"
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Phone className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <div className="font-medium text-base">{number.phone_number}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={cn(
+                            "p-2 rounded-lg transition-all duration-300 flex-shrink-0",
+                            selectedNumber?.phone_number === number.phone_number
+                              ? "bg-blue-500/15"
+                              : "bg-blue-500/10 group-hover:bg-blue-500/15"
+                          )}>
+                            <Phone className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-base mb-1 tracking-tight">
+                              {number.phone_number}
+                            </div>
                             {number.friendly_name && (
-                              <div className="text-sm text-muted-foreground">{number.friendly_name}</div>
+                              <div className="text-sm text-muted-foreground mb-1">
+                                {number.friendly_name}
+                              </div>
                             )}
                             {number.region && (
-                              <div className="text-xs text-muted-foreground">{number.region}</div>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3" />
+                                {number.region}
+                              </div>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                           {number.monthly_price && (
-                            <div className="text-sm font-medium text-muted-foreground">
+                            <div className="text-sm font-semibold text-blue-600">
                               ${number.monthly_price}/mo
                             </div>
                           )}
-                          <span className="px-2 py-1 text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md">
+                          <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
                             Purchase
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                       {number.capabilities && (
-                        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
-                          {number.capabilities.voice && <span>Voice</span>}
-                          {number.capabilities.sms && <span>SMS</span>}
-                          {number.capabilities.mms && <span>MMS</span>}
+                        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
+                          {number.capabilities.voice && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <PhoneCall className="h-3 w-3" />
+                              Voice
+                            </Badge>
+                          )}
+                          {number.capabilities.sms && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              SMS
+                            </Badge>
+                          )}
+                          {number.capabilities.mms && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <Smartphone className="h-3 w-3" />
+                              MMS
+                            </Badge>
+                          )}
                         </div>
                       )}
                     </button>
                   ))}
                 </div>
-              ) : !loadingNumbers ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No available numbers found. Try adjusting your search criteria.</p>
+              ) : availableNumbers.length === 0 && !loadingNumbers && areaCode ? (
+                <div className="text-center py-8 px-4 rounded-xl bg-muted/20">
+                  <Search className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    No available numbers found
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Try adjusting your search criteria
+                  </p>
                 </div>
               ) : null}
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <div className="flex justify-end gap-3 px-6 pb-6">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 md:gap-6">
+          <div className="flex flex-col gap-6 p-6">
             {/* Selected Number Display */}
             {selectedNumber && (
-              <div className="p-4 bg-secondary/30 border border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <div className="font-medium text-base">{selectedNumber.phone_number}</div>
+              <div className={cn(
+                "p-5 rounded-xl border transition-all duration-300",
+                isFromAccount
+                  ? "bg-green-500/5 border-green-500/30"
+                  : "bg-blue-500/5 border-blue-500/30"
+              )}>
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    "p-2 rounded-lg flex-shrink-0",
+                    isFromAccount ? "bg-green-500/15" : "bg-blue-500/15"
+                  )}>
+                    <Phone className={cn(
+                      "h-5 w-5",
+                      isFromAccount ? "text-green-600" : "text-blue-600"
+                    )} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-lg mb-1 tracking-tight">
+                      {selectedNumber.phone_number}
+                    </div>
                     {selectedNumber.friendly_name && (
-                      <div className="text-sm text-muted-foreground">{selectedNumber.friendly_name}</div>
-                    )}
-                    {isFromAccount && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        From your Twilio account
+                      <div className="text-sm text-muted-foreground mb-2">
+                        {selectedNumber.friendly_name}
                       </div>
                     )}
+                    <Badge variant="secondary" className={cn(
+                      "text-xs",
+                      isFromAccount
+                        ? "bg-green-500/10 text-green-700 border-green-500/20"
+                        : "bg-blue-500/10 text-blue-700 border-blue-500/20"
+                    )}>
+                      {isFromAccount ? "From Your Account" : "New Purchase"}
+                    </Badge>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Assignment Form */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Label *</Label>
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <Label htmlFor="label" className="text-sm font-semibold">
+                  Label *
+                </Label>
                 <Input
+                  id="label"
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
-                  placeholder="e.g., Main Support Line"
-                  className="bg-secondary/50"
+                  placeholder="e.g., Main Support Line, Sales Hotline"
+                  className="h-11"
                 />
-                <p className="text-xs text-muted-foreground">
-                  A descriptive label to identify this phone number
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Choose a descriptive name to help you identify this phone number
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label>Agent (Optional)</Label>
+              <Separator />
+
+              <div className="space-y-3">
+                <Label htmlFor="agent" className="text-sm font-semibold">
+                  Assign to Agent (Optional)
+                </Label>
                 <Select
                   value={selectedAgentId}
                   onValueChange={setSelectedAgentId}
                   disabled={loadingAgents}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an agent (optional)" />
+                  <SelectTrigger id="agent" className="h-11">
+                    <SelectValue placeholder="Select an agent" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No agent (unassigned)</SelectItem>
+                    <SelectItem value="none">
+                      <span className="text-muted-foreground italic">No agent (unassigned)</span>
+                    </SelectItem>
                     {agents.map((agent) => (
                       <SelectItem key={agent.id} value={agent.id.toString()}>
                         {agent.name || `Agent ${agent.id}`}
@@ -442,21 +602,29 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  Assign this number to an agent. You can change this later.
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  You can assign or reassign this number to different agents anytime
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-border">
-              <Button variant="outline" onClick={handleBack} disabled={assigning}>
+            <Separator />
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-center gap-3">
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                disabled={assigning}
+                className="w-full sm:w-auto"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
               <Button
-                variant="accent"
                 onClick={handleAssign}
                 disabled={assigning || !label.trim() || loadingAgents}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto shadow-sm hover:shadow-md transition-all"
+                size="lg"
               >
                 {assigning ? (
                   <>
@@ -466,7 +634,7 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
                 ) : (
                   <>
                     <Check className="h-4 w-4 mr-2" />
-                    {isFromAccount ? 'Assign' : 'Purchase & Assign'}
+                    {isFromAccount ? 'Assign Number' : 'Purchase & Assign'}
                   </>
                 )}
               </Button>

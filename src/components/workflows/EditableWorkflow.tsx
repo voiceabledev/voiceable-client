@@ -23,7 +23,7 @@ import { SystemToolsModal } from "./SystemToolsModal";
 import { SystemToolSettingsPanel } from "../assistants/SystemToolSettingsPanel";
 import { agentsApi } from "@/lib/api";
 import { SYSTEM_TOOL_KEYS, type SystemToolKey, type SystemToolsState, type SystemToolSetting } from "@/types/assistant";
-import { PhoneOff, Languages, Voicemail, Settings2, PhoneForwarded, User } from "lucide-react";
+import { PhoneOff, Languages, Voicemail, Settings2 } from "lucide-react";
 
 type EditableWorkflowProps = {
   agentFunction: AgentFunction;
@@ -1170,29 +1170,6 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
     return undefined;
   };
 
-  const handleCloseSystemToolSettings = () => {
-    if (!selectedSystemTool) return;
-
-    if (selectedSystemTool === 'transfer_to_number') {
-      const transferSettings = systemToolSettings[selectedSystemTool] || {};
-      const humanTransferRules = transferSettings.humanTransferRules || [];
-      const hasValidRules = humanTransferRules.some(
-        (rule: any) =>
-          rule.phoneNumber &&
-          rule.phoneNumber.trim() &&
-          rule.condition &&
-          rule.condition.trim()
-      );
-
-      if (!hasValidRules) {
-        const updatedSystemTools = { ...systemTools, transfer_to_number: false };
-        setSystemTools(updatedSystemTools);
-        saveSystemTools(updatedSystemTools, systemToolSettings);
-      }
-    }
-    setSelectedSystemTool(null);
-  };
-
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -1277,8 +1254,9 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
             </div>
           </div>
 
+          {/* System Tool Connections */}
           <div className="flex justify-center gap-4 w-full px-8">
-            {(['end_call', 'detect_language', 'voicemail_detection', 'transfer_to_number', 'transfer_to_agent'] as SystemToolKey[])
+            {(['end_call', 'detect_language', 'voicemail_detection'] as SystemToolKey[])
               .filter((key) => systemTools[key])
               .map((key) => {
                 const getToolConfig = (key: SystemToolKey) => {
@@ -1286,8 +1264,6 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
                     case 'end_call': return { icon: PhoneOff, label: 'End Call', color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-900' };
                     case 'detect_language': return { icon: Languages, label: 'Detect Lang', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-900' };
                     case 'voicemail_detection': return { icon: Voicemail, label: 'Voicemail', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-900' };
-                    case 'transfer_to_number': return { icon: PhoneForwarded, label: 'Transfer', color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-900' };
-                    case 'transfer_to_agent': return { icon: User, label: 'Agent Transfer', color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-900' };
                     default: return { icon: Settings2, label: key, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' };
                   }
                 };
@@ -2082,13 +2058,13 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
 
       {
         selectedSystemTool && (
-          <Dialog open={!!selectedSystemTool} onOpenChange={(open) => !open && handleCloseSystemToolSettings()}>
+          <Dialog open={!!selectedSystemTool} onOpenChange={(open) => !open && setSelectedSystemTool(null)}>
             <DialogContent className="sm:max-w-[600px] gap-0 p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950 h-[85vh] flex flex-col">
               <SystemToolSettingsPanel
                 toolKey={selectedSystemTool}
                 settings={systemToolSettings[selectedSystemTool] || {}}
                 onUpdate={(updates) => handleUpdateSystemToolSettings(selectedSystemTool, updates)}
-                onClose={handleCloseSystemToolSettings}
+                onClose={() => setSelectedSystemTool(null)}
                 isFullscreen={false}
                 onSave={() => {
                   // Auto-enable transfer_to_number if valid human transfer rules are configured
@@ -2106,13 +2082,10 @@ export const EditableWorkflow: React.FC<EditableWorkflowProps> = ({
                     );
 
                     if (hasValidRules) {
-                      // Always enable if valid rules exist
+                      // Always enable if valid rules exist, even if already enabled
                       updatedSystemTools.transfer_to_number = true;
-                    } else {
-                      // Auto-disable if no valid rules exist
-                      updatedSystemTools.transfer_to_number = false;
+                      setSystemTools(updatedSystemTools);
                     }
-                    setSystemTools(updatedSystemTools);
                   }
 
                   saveSystemTools(updatedSystemTools, systemToolSettings);

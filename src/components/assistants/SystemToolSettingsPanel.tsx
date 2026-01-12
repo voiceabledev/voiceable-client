@@ -281,7 +281,7 @@ The reason must include a specific reference to the wording in the user message 
   };
 
   return (
-    <div className="h-full flex flex-col bg-card">
+    <div className="h-full flex flex-col bg-card border-l border-border animate-in slide-in-from-right duration-300 shadow-2xl">
       <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/20 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-primary/10 text-primary">
