@@ -34,7 +34,7 @@ export default function ApiKeys() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { isEnterprise, loading: authLoading } = useAuth();
-  
+
   const fetchApiKeys = useCallback(async () => {
     setLoading(true);
     try {
@@ -79,7 +79,7 @@ export default function ApiKeys() {
       });
     }
   };
-  
+
   const maskKey = (key: string) => {
     if (key.length <= 8) return "•".repeat(key.length);
     return key.substring(0, 8) + "•".repeat(key.length - 8);
@@ -147,7 +147,7 @@ export default function ApiKeys() {
               </div>
               <h2 className="text-2xl md:text-3xl font-bold mb-4">API Keys Available for Enterprise</h2>
               <p className="text-muted-foreground mb-8 text-base md:text-lg leading-relaxed">
-                API Keys are currently available for Enterprise customers only. 
+                API Keys are currently available for Enterprise customers only.
                 Please contact our support team to upgrade to Enterprise and gain access to API Keys.
               </p>
               <div className="flex justify-center">
@@ -167,13 +167,10 @@ export default function ApiKeys() {
 
         {/* Contact Sales Modal */}
         <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-              <DialogTitle>Schedule a Meeting</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
             <div className="flex-1 overflow-hidden min-h-0">
               <iframe
-                src="https://calendly.com/imvitoroliveira"
+                src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
                 className="w-full h-full border-0"
                 title="Calendly Scheduling"
                 allow="camera; microphone; geolocation"
@@ -260,9 +257,9 @@ export default function ApiKeys() {
                             )}
                           </div>
                           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                               onClick={() => toggleKeyVisibility(key.id, 'private')}
                             >
@@ -272,17 +269,17 @@ export default function ApiKeys() {
                                 <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
                               )}
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                               onClick={() => handleCopy(key.key_value, "private")}
                             >
                               <Copy className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                               onClick={() => handleDelete(key.id)}
                             >
@@ -332,9 +329,9 @@ export default function ApiKeys() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                               onClick={() => toggleKeyVisibility(key.id, 'public')}
                             >
@@ -344,17 +341,17 @@ export default function ApiKeys() {
                                 <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
                               )}
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                               onClick={() => handleCopy(key.key_value, "public")}
                             >
                               <Copy className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="text-muted-foreground h-8 w-8 md:h-10 md:w-10"
                               onClick={() => handleDelete(key.id)}
                             >
@@ -453,7 +450,7 @@ function AddApiKeyModal({ open, onOpenChange, onSuccess, type }: AddApiKeyModalP
     setLoading(true);
     try {
       const origins = allowedOrigins.split(',').map(o => o.trim()).filter(o => o.length > 0);
-      
+
       await apiKeysApi.create({
         key_type: type,
         name: name.trim(),
@@ -469,7 +466,7 @@ function AddApiKeyModal({ open, onOpenChange, onSuccess, type }: AddApiKeyModalP
 
       onOpenChange(false);
       onSuccess();
-      
+
       // Reset form
       setName("");
       setAllowedOrigins("");

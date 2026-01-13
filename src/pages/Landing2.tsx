@@ -131,7 +131,7 @@ const Landing = () => {
       id: "saas-support",
       label: "B2B SaaS",
       icon: Code,
-      title: "Your 24/7 AI SDR for inbound demo calls",
+      title: "Your 24/7 AI Assistant for inbound demo calls",
       description: "Turn inbound calls into booked demos, without hiring SDRs. Qualifies leads, books demos directly into Cal.com, syncs context to your CRM, and answers technical questions. Perfect for B2B SaaS teams managing high inbound volume.",
       features: [
         {
@@ -542,19 +542,19 @@ const Landing = () => {
       />
       <Header />
       <main>
-        <HeroSection 
+        <HeroSection
           badgeText={heroContent.badgeText}
           headline={heroContent.headline}
           subtitle={heroContent.subtitle}
           socialProofText={heroContent.socialProofText}
         />
-        <OperatorInterfaceSection 
+        <OperatorInterfaceSection
           segments={operatorSegments}
           tabExamples={operatorTabExamples}
         />
         <FeaturesSection features={featuresContent} />
         <LiveCallsSection calls={liveCallsContent} />
-        <AssistantSection 
+        <AssistantSection
           headline={assistantContent.headline}
           description={assistantContent.description}
         />
@@ -563,7 +563,7 @@ const Landing = () => {
         <HumanLedSection />
         <SeamlessSetupSection features={seamlessSetupFeatures} />
         {/* <UserLoveSection /> */}
-        <CTASection 
+        <CTASection
           title={ctaContent.title}
           description={ctaContent.description}
           features={ctaContent.features}

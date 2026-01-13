@@ -148,13 +148,10 @@ export const MembershipStatusMessage: React.FC<MembershipStatusMessageProps> = (
 
       {/* Contact Support Modal */}
       <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-            <DialogTitle>Schedule a Meeting</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://calendly.com/imvitoroliveira"
+              src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"

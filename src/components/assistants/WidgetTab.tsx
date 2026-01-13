@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-  Phone, 
+import {
+  Phone,
   Copy,
   Check,
   Code,
@@ -57,7 +57,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       setApiKeyLoading(true);
       const response = await apiKeysApi.list();
       const existingKeys = response.data || [];
-      
+
       // If forcing create (refresh), create a new key
       if (forceCreate) {
         const createResponse = await apiKeysApi.create({
@@ -75,17 +75,17 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
         }
         return;
       }
-      
+
       // Look for an existing widget API key by name first
       let widgetKey = existingKeys.find(
         (key) => key.name === 'Widget API Key'
       );
-      
+
       // If no widget key exists, use any existing key
       if (!widgetKey && existingKeys.length > 0) {
         widgetKey = existingKeys[0]; // Use the first available key
       }
-      
+
       // Only create if no keys exist at all
       if (!widgetKey) {
         const createResponse = await apiKeysApi.create({
@@ -126,7 +126,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const handleRefreshApiKey = useCallback(async () => {
     try {
       setApiKeyRefreshing(true);
-      
+
       // Delete the old key if it exists
       if (apiKeyId) {
         try {
@@ -135,10 +135,10 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           console.error('Failed to delete old key:', e);
         }
       }
-      
+
       // Create a new key
       await fetchOrCreateApiKey(true);
-      
+
       toast({
         title: 'API Key Refreshed',
         description: 'A new API key has been generated. Update your widget code.',
@@ -180,14 +180,14 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
     if (!apiKey) {
       return '<!-- Loading API key... -->';
     }
-    
+
     if (!agent?.elevenlabs_agent_id) {
       return `<!-- Deploy your agent to get the embed code -->`;
     }
 
     const backendUrl = getBackendBaseUrl();
     const config = toFullConfig(agent?.widget_config);
-    
+
     const dataAttrs = [
       `data-agent-id="${agent.elevenlabs_agent_id}"`,
       `data-api-key="${apiKey}"`,
@@ -321,8 +321,8 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   }
 
   if (membershipStatus === 'cancelled' || membershipStatus === 'suspended') {
-    const title = membershipStatus === 'cancelled' 
-      ? 'Widget Access Unavailable' 
+    const title = membershipStatus === 'cancelled'
+      ? 'Widget Access Unavailable'
       : 'Account Suspended';
     const description = membershipStatus === 'cancelled'
       ? 'Your membership has been cancelled. Please contact support to reactivate your account and restore widget access.'
@@ -357,13 +357,10 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
 
         {/* Contact Sales Modal */}
         <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-              <DialogTitle>Schedule a Meeting</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
             <div className="flex-1 overflow-hidden min-h-0">
               <iframe
-                src="https://calendly.com/imvitoroliveira"
+                src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
                 className="w-full h-full border-0"
                 title="Calendly Scheduling"
                 allow="camera; microphone; geolocation"

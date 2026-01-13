@@ -16,7 +16,7 @@ interface CTASectionProps {
   showCalendarOnly?: boolean;
 }
 
-const CTASection = ({ 
+const CTASection = ({
   title = "Voice Agent",
   description = "Staff your phone line with an agent available 24/7 in any language",
   features = [
@@ -33,13 +33,13 @@ const CTASection = ({
     <section className="py-20 relative overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple/5 to-pink/10 pointer-events-none" />
-      
+
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto">
           <div className="bg-card rounded-3xl border border-border p-8 md:p-12 relative overflow-hidden">
             {/* Subtle glow */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-purple/10 rounded-full blur-3xl pointer-events-none" />
-            
+
             <div className="grid md:grid-cols-2 gap-8 items-center relative z-10">
               {/* Left side */}
               <div>
@@ -47,7 +47,7 @@ const CTASection = ({
                   <Sparkles className="w-6 h-6 text-purple" />
                   <h2 className="text-3xl md:text-4xl font-bold">{title}</h2>
                 </div>
-                
+
                 <p className="text-lg text-muted-foreground mb-8">
                   {description}
                 </p>
@@ -63,14 +63,14 @@ const CTASection = ({
                     </Avatar>
                     <span>Call Voice Agent</span>
                   </Button>
-                  {!showCalendarOnly && (
+                  {/* {!showCalendarOnly && (
                     <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
                       window.location.href = "/login";
                     }}>
                       <span>Start for free</span>
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
                     </Button>
-                  )}
+                  )} */}
                   {showCalendarOnly && (
                     <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
                       setShowScheduleModal(true);
@@ -115,13 +115,10 @@ const CTASection = ({
 
       {/* Schedule Call Modal */}
       <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
-        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-            <DialogTitle>Schedule a Call</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://calendly.com/imvitoroliveira"
+              src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"

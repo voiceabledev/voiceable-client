@@ -61,7 +61,7 @@ const Pricing = () => {
   const [selectedTransport, setSelectedTransport] = useState("twilio-inbound");
   const [selectedLLM, setSelectedLLM] = useState<string>("gpt-4.1");
   const [showContactSalesModal, setShowContactSalesModal] = useState(false);
-  
+
   // Collapsible sections state
   const [isTransportOpen, setIsTransportOpen] = useState(true);
   const [isLLMOpen, setIsLLMOpen] = useState(true);
@@ -132,15 +132,15 @@ const Pricing = () => {
         // Capitalize provider name properly (e.g., "elevenlabs" -> "ElevenLabs", "openai" -> "OpenAI")
         const providerName = setting.provider;
         const provider = providerName === 'elevenlabs' ? 'ElevenLabs' :
-                        providerName === 'openai' ? 'OpenAI' :
-                        providerName === 'anthropic' ? 'Anthropic' :
-                        providerName === 'google' ? 'Google' :
-                        providerName === 'meta' ? 'Meta' :
-                        providerName === 'mistral' ? 'Mistral' :
-                        providerName === 'cohere' ? 'Cohere' :
-                        providerName === 'groq' ? 'Groq' :
+          providerName === 'openai' ? 'OpenAI' :
+            providerName === 'anthropic' ? 'Anthropic' :
+              providerName === 'google' ? 'Google' :
+                providerName === 'meta' ? 'Meta' :
+                  providerName === 'mistral' ? 'Mistral' :
+                    providerName === 'cohere' ? 'Cohere' :
+                      providerName === 'groq' ? 'Groq' :
                         providerName === 'perplexity' ? 'Perplexity' :
-                        providerName.charAt(0).toUpperCase() + providerName.slice(1);
+                          providerName.charAt(0).toUpperCase() + providerName.slice(1);
         if (!organized.llm[provider]) {
           organized.llm[provider] = [];
         }
@@ -168,7 +168,7 @@ const Pricing = () => {
   };
 
   const pricingData = organizePricingSettings();
-  
+
   // Debug logging
   useEffect(() => {
     if (pricingSettings.length > 0) {
@@ -185,9 +185,9 @@ const Pricing = () => {
     const calls = parseInt(callsPerMonth) || 0;
     const length = parseFloat(callLength) || 0;
     const tokens = parseInt(promptTokens) || 0;
-    
+
     const totalMinutes = calls * length;
-    
+
     // Find selected LLM cost per million tokens
     let llmCostPerMillion = 0.0057; // Default fallback
     for (const providerModels of Object.values(pricingData.llm)) {
@@ -197,28 +197,28 @@ const Pricing = () => {
         break;
       }
     }
-    
+
     // Find selected transport
     const transport = pricingData.transport.find(t => t.id === selectedTransport);
     const transportCostPerMin = transport?.cost || DEFAULT_TRANSPORT_COSTS[selectedTransport] || 0.008;
-    
+
     // Base costs (at cost)
     const hostingCost = totalMinutes * pricingData.hosting;
     const transportCostBase = totalMinutes * transportCostPerMin;
     const ttsCostBase = totalMinutes * pricingData.tts;
     const sttCostBase = totalMinutes * pricingData.stt;
-    
+
     // Calculate LLM tokens: (total minutes * tokens per minute) + (calls * prompt tokens)
     const llmTokens = (totalMinutes * TOKENS_PER_MINUTE) + (calls * tokens);
     const llmCostBase = (llmTokens / 1_000_000) * llmCostPerMillion;
-    
+
     // Apply commission markup to provider costs
     const providerCostsBase = transportCostBase + ttsCostBase + sttCostBase + llmCostBase;
     const providerRevenue = providerCostsBase * (1 + commissionMarkup);
-    
+
     // Total cost includes hosting (no commission) + provider revenue (with commission)
     const totalCost = hostingCost + providerRevenue;
-    
+
     return {
       hostingCost,
       transportCostBase,
@@ -430,7 +430,7 @@ const Pricing = () => {
             <div className="text-center space-y-6">
               <h2 className="text-4xl md:text-5xl font-bold">Enterprise</h2>
               <p className="text-lg text-muted-foreground">Annual contract with custom pricing</p>
-              <Button 
+              <Button
                 className="rounded-full px-8 py-6 text-base bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => setShowContactSalesModal(true)}
               >
@@ -577,8 +577,8 @@ const Pricing = () => {
                           const baseCost = transport?.cost || DEFAULT_TRANSPORT_COSTS[selectedTransport] || 0.008;
                           return (baseCost * (1 + commissionMarkup)).toFixed(4);
                         })()} / min (includes commission)
-                </p>
-              </div>
+                      </p>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground text-left">
                       Network and data transport services (Charged by provider)
@@ -592,8 +592,8 @@ const Pricing = () => {
                 )}
               </button>
               {isTransportOpen && (
-                <RadioGroup 
-                  value={selectedTransport} 
+                <RadioGroup
+                  value={selectedTransport}
                   onValueChange={(value) => {
                     setSelectedTransport(value);
                     setIsTransportOpen(false);
@@ -664,8 +664,8 @@ const Pricing = () => {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground text-left">
-                  Advanced language processing and generation
-                </p>
+                      Advanced language processing and generation
+                    </p>
                   )}
                 </div>
                 {isLLMOpen ? (
@@ -675,8 +675,8 @@ const Pricing = () => {
                 )}
               </button>
               {isLLMOpen && (
-                <RadioGroup 
-                  value={selectedLLM} 
+                <RadioGroup
+                  value={selectedLLM}
                   onValueChange={(value) => {
                     setSelectedLLM(value);
                     setIsLLMOpen(false);
@@ -713,7 +713,7 @@ const Pricing = () => {
                         {loadingPricing ? "Loading pricing..." : "No LLM models available. Please configure pricing in admin settings."}
                       </div>
                     )}
-              </div>
+                  </div>
                 </RadioGroup>
               )}
             </div>
@@ -781,13 +781,10 @@ const Pricing = () => {
 
       {/* Contact Sales Modal */}
       <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-            <DialogTitle>Schedule a Meeting</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://calendly.com/imvitoroliveira"
+              src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"

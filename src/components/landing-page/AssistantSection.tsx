@@ -14,10 +14,10 @@ interface AssistantSectionProps {
   showCalendarOnly?: boolean;
 }
 
-const AssistantSection = ({ 
+const AssistantSection = ({
   headline = "Upgrade your robo menu to an Operator that's more human",
   description = "Voiceable handles each issue uniquely based on the user and scenario. It greets by name, recalls previous issues, and follows up until each case is resolved.",
-  showCalendarOnly = false
+  showCalendarOnly = true
 }: AssistantSectionProps) => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
@@ -42,7 +42,7 @@ const AssistantSection = ({
                 <span className="text-gradient-purple relative">
                   human
                   <svg className="absolute -bottom-2 left-0 w-full" height="8" viewBox="0 0 200 8" fill="none">
-                    <path d="M1 6C50 2 150 2 199 6" stroke="hsl(var(--purple))" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M1 6C50 2 150 2 199 6" stroke="hsl(var(--purple))" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </span>
               </>
@@ -76,13 +76,10 @@ const AssistantSection = ({
       {/* Schedule Call Modal */}
       {showCalendarOnly && (
         <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
-          <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-              <DialogTitle>Schedule a Meeting</DialogTitle>
-            </DialogHeader>
+          <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
             <div className="flex-1 overflow-hidden min-h-0">
               <iframe
-                src="https://calendly.com/imvitoroliveira"
+                src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
                 className="w-full h-full border-0"
                 title="Calendly Scheduling"
                 allow="camera; microphone; geolocation"

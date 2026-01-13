@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { 
+import {
   CreditCard,
   ArrowLeft,
   Mail,
@@ -203,13 +203,13 @@ export default function Billing() {
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const successfulPayments = payments.filter(p => p.status === 'succeeded');
-    
+
     const allTime = successfulPayments.reduce((sum, p) => sum + p.amount_dollars, 0);
-    
+
     const thisMonth = successfulPayments
       .filter(p => new Date(p.created_at) >= thisMonthStart)
       .reduce((sum, p) => sum + p.amount_dollars, 0);
-    
+
     const lastMonth = successfulPayments
       .filter(p => {
         const paymentDate = new Date(p.created_at);
@@ -265,337 +265,337 @@ export default function Billing() {
             </div>
 
             <TabsContent value="overview" className="space-y-4 sm:space-y-6 md:space-y-8">
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {/* Credit Balance & Payments Card */}
-            <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4 sm:p-5 md:p-6 shadow-sm">
-              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="p-2 sm:p-2.5 bg-primary/20 rounded-lg">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Account Summary</p>
-                </div>
-              </div>
-              
-              <div className="space-y-3 sm:space-y-4">
-                {/* Credit Balance */}
-                <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Credit Balance</p>
-                  {loadingBalance ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-muted-foreground" />
-                      <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+              {/* Stats Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* Credit Balance & Payments Card */}
+                <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4 sm:p-5 md:p-6 shadow-sm">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="p-2 sm:p-2.5 bg-primary/20 rounded-lg">
+                      <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
-                  ) : (
-                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                      ${creditBalance.toFixed(2)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-primary/20"></div>
-
-                {/* Total Payments */}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                    <p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p>
-                  </div>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
-                    {payments.filter(p => p.status === 'succeeded').length}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Current Plan Card */}
-            <div className="bg-gradient-to-br from-card via-card to-secondary/20 border border-border rounded-xl p-4 sm:p-5 md:p-6 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-              <div className="relative">
-                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                  <div className="p-2 sm:p-2.5 bg-primary/20 rounded-lg">
-                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Plan</p>
-                    <h3 className="text-base sm:text-lg md:text-xl font-bold">Pay as you go</h3>
-                  </div>
-                </div>
-                
-                <p className="text-xs text-muted-foreground mb-3 sm:mb-4 leading-relaxed">
-                  Flexible pricing that scales with your usage.
-                </p>
-
-                <div className="space-y-2">
-                  <Button 
-                    variant="default"
-                    size="sm"
-                    className="w-full text-xs sm:text-sm font-medium shadow-md hover:shadow-lg transition-all h-9 sm:h-10"
-                    onClick={() => setShowPaymentMethodModal(true)}
-                  >
-                    <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                    Add Credits
-                  </Button>
-                  
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs sm:text-sm font-medium border-primary/20 hover:bg-primary/5 transition-all h-9 sm:h-10"
-                    onClick={() => setShowContactSalesModal(true)}
-                  >
-                    <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                    Upgrade to Enterprise
-                  </Button>
-                </div>
-              </div>
-            </div>
-              </div>
-
-          {/* Spending Breakdown Section */}
-          <div className="bg-card border border-border rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
-            <div className="mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg md:text-xl font-semibold flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Spending Breakdown
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">Overview of your credit purchases and usage</p>
-            </div>
-
-            {loadingBalance || loadingPayments ? (
-              <div className="flex items-center justify-center py-8 sm:py-12">
-                <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                {/* Total Purchased */}
-                <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-lg p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Purchased</p>
-                    <ArrowUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                  </div>
-                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                    ${spendingBreakdown.totalPurchased.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">All time</p>
-                </div>
-
-                {/* Total Used */}
-                <div className="bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent border border-orange-500/20 rounded-lg p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Used</p>
-                    <ArrowDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
-                  </div>
-                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                    ${spendingBreakdown.totalUsed.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {spendingBreakdown.totalPurchased > 0 
-                      ? `${((spendingBreakdown.totalUsed / spendingBreakdown.totalPurchased) * 100).toFixed(1)}% of purchased`
-                      : 'No usage yet'}
-                  </p>
-                </div>
-
-                {/* Current Balance */}
-                <div className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent border border-green-500/20 rounded-lg p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Balance</p>
-                    <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
-                  </div>
-                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                    ${spendingBreakdown.currentBalance.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {spendingBreakdown.totalPurchased > 0 
-                      ? `${((spendingBreakdown.currentBalance / spendingBreakdown.totalPurchased) * 100).toFixed(1)}% remaining`
-                      : 'No credits'}
-                  </p>
-                </div>
-
-                {/* This Month */}
-                <div className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 rounded-lg p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">This Month</p>
-                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
-                  </div>
-                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-                    ${spendingBreakdown.thisMonth.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {spendingBreakdown.lastMonth > 0 
-                      ? `${spendingBreakdown.thisMonth >= spendingBreakdown.lastMonth ? '+' : ''}${((spendingBreakdown.thisMonth - spendingBreakdown.lastMonth) / spendingBreakdown.lastMonth * 100).toFixed(1)}% vs last month`
-                      : 'No previous month data'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Time Period Breakdown */}
-            {!loadingBalance && !loadingPayments && (
-              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-border">
-                <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4">Spending by Period</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="bg-secondary/30 rounded-lg p-3 sm:p-4 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">This Month</p>
-                    <p className="text-lg sm:text-xl font-bold text-foreground">${spendingBreakdown.thisMonth.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-secondary/30 rounded-lg p-3 sm:p-4 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">Last Month</p>
-                    <p className="text-lg sm:text-xl font-bold text-foreground">${spendingBreakdown.lastMonth.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-secondary/30 rounded-lg p-3 sm:p-4 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">All Time</p>
-                    <p className="text-lg sm:text-xl font-bold text-foreground">${spendingBreakdown.allTime.toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Auto-Recharge Section */}
-          <div className="bg-card border border-border rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
-            <div className="mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg md:text-xl font-semibold flex items-center gap-2 mb-2">
-                <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Auto Recharge
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">Automatically recharge your credits when balance is low</p>
-            </div>
-
-            {loadingAutoRecharge ? (
-              <div className="flex items-center justify-center py-6 sm:py-8">
-                <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
-              </div>
-            ) : autoRechargeSettings?.enabled ? (
-              <div className="p-3 sm:p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      <span className="text-sm sm:text-base font-semibold text-green-600 dark:text-green-400">Auto recharge is on</span>
+                    <div>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Account Summary</p>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
-                      When your credit balance reaches ${autoRechargeSettings.threshold_cents ? (autoRechargeSettings.threshold_cents / 100).toFixed(2) : '0.00'}, 
-                      your payment method will be charged to bring the balance up to ${autoRechargeSettings.amount_cents ? (autoRechargeSettings.amount_cents / 100).toFixed(2) : '0.00'}.
-                    </p>
-                    {autoRechargeSettings.monthly_limit_cents && (
-                      <p className="text-xs text-muted-foreground">
-                        Monthly limit: ${(autoRechargeSettings.monthly_limit_cents / 100).toFixed(2)}
+                  </div>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {/* Credit Balance */}
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Credit Balance</p>
+                      {loadingBalance ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-muted-foreground" />
+                          <span className="text-xs sm:text-sm text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : (
+                        <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                          ${creditBalance.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="border-t border-primary/20"></div>
+
+                    {/* Total Payments */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                        <p className="text-xs sm:text-sm text-muted-foreground">Total Payments</p>
+                      </div>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
+                        {payments.filter(p => p.status === 'succeeded').length}
                       </p>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAutoRechargeModal(true)}
-                    className="w-full sm:w-auto text-xs sm:text-sm"
-                  >
-                    Modify
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 sm:p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                      <span className="text-sm sm:text-base font-semibold text-yellow-600 dark:text-yellow-400">Auto recharge is off</span>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
-                      When your credit balance reaches $0, your API requests will stop working. Enable automatic recharge to automatically keep your credit balance topped up.
-                    </p>
                   </div>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setShowAutoRechargeModal(true)}
-                    className="w-full sm:w-auto text-xs sm:text-sm"
-                  >
-                    Enable Auto Recharge
-                  </Button>
+                </div>
+
+                {/* Current Plan Card */}
+                <div className="bg-gradient-to-br from-card via-card to-secondary/20 border border-border rounded-xl p-4 sm:p-5 md:p-6 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="p-2 sm:p-2.5 bg-primary/20 rounded-lg">
+                        <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Plan</p>
+                        <h3 className="text-base sm:text-lg md:text-xl font-bold">Pay as you go</h3>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground mb-3 sm:mb-4 leading-relaxed">
+                      Flexible pricing that scales with your usage.
+                    </p>
+
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="w-full text-xs sm:text-sm font-medium shadow-md hover:shadow-lg transition-all h-9 sm:h-10"
+                        onClick={() => setShowPaymentMethodModal(true)}
+                      >
+                        <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
+                        Add Credits
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs sm:text-sm font-medium border-primary/20 hover:bg-primary/5 transition-all h-9 sm:h-10"
+                        onClick={() => setShowContactSalesModal(true)}
+                      >
+                        <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
+                        Upgrade to Enterprise
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Quick Access Shortcuts */}
-          <div className="bg-card border border-border rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
-            <div className="mb-4 sm:mb-6">
-              <h2 className="text-base sm:text-lg md:text-xl font-semibold flex items-center gap-2 mb-2">
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                Quick Access
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">Navigate to other billing sections</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {/* Conversation History Shortcut */}
-              <button
-                onClick={() => setActiveTab("conversation_history")}
-                className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
-              >
-                <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                  <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                    <Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                  </div>
-                  <span className="font-semibold text-xs sm:text-sm">Conversation History</span>
+              {/* Spending Breakdown Section */}
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
+                <div className="mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    Spending Breakdown
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Overview of your credit purchases and usage</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  View conversation spending and costs
-                </p>
-              </button>
 
-              {/* Payment Methods Shortcut */}
-              <button
-                onClick={() => setActiveTab("payment_methods")}
-                className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
-              >
-                <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                  <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                    <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                {loadingBalance || loadingPayments ? (
+                  <div className="flex items-center justify-center py-8 sm:py-12">
+                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
                   </div>
-                  <span className="font-semibold text-xs sm:text-sm">Payment Methods</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Manage saved payment methods
-                </p>
-              </button>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+                    {/* Total Purchased */}
+                    <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-lg p-4 sm:p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Purchased</p>
+                        <ArrowUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                        ${spendingBreakdown.totalPurchased.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">All time</p>
+                    </div>
 
-              {/* Credit Grants Shortcut */}
-              <button
-                onClick={() => setActiveTab("credit_grants")}
-                className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
-              >
-                <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                  <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                  </div>
-                  <span className="font-semibold text-xs sm:text-sm">Credit Grants</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  View credit grants and bonuses
-                </p>
-              </button>
+                    {/* Total Used */}
+                    <div className="bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent border border-orange-500/20 rounded-lg p-4 sm:p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Used</p>
+                        <ArrowDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
+                      </div>
+                      <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                        ${spendingBreakdown.totalUsed.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {spendingBreakdown.totalPurchased > 0
+                          ? `${((spendingBreakdown.totalUsed / spendingBreakdown.totalPurchased) * 100).toFixed(1)}% of purchased`
+                          : 'No usage yet'}
+                      </p>
+                    </div>
 
-              {/* Billing History Shortcut */}
-              <button
-                onClick={() => setActiveTab("history")}
-                className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
-              >
-                <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                  <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                    <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                    {/* Current Balance */}
+                    <div className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent border border-green-500/20 rounded-lg p-4 sm:p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Balance</p>
+                        <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
+                      </div>
+                      <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                        ${spendingBreakdown.currentBalance.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {spendingBreakdown.totalPurchased > 0
+                          ? `${((spendingBreakdown.currentBalance / spendingBreakdown.totalPurchased) * 100).toFixed(1)}% remaining`
+                          : 'No credits'}
+                      </p>
+                    </div>
+
+                    {/* This Month */}
+                    <div className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 rounded-lg p-4 sm:p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">This Month</p>
+                        <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                      </div>
+                      <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+                        ${spendingBreakdown.thisMonth.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {spendingBreakdown.lastMonth > 0
+                          ? `${spendingBreakdown.thisMonth >= spendingBreakdown.lastMonth ? '+' : ''}${((spendingBreakdown.thisMonth - spendingBreakdown.lastMonth) / spendingBreakdown.lastMonth * 100).toFixed(1)}% vs last month`
+                          : 'No previous month data'}
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-semibold text-xs sm:text-sm">Billing History</span>
+                )}
+
+                {/* Time Period Breakdown */}
+                {!loadingBalance && !loadingPayments && (
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-border">
+                    <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4">Spending by Period</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                      <div className="bg-secondary/30 rounded-lg p-3 sm:p-4 border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">This Month</p>
+                        <p className="text-lg sm:text-xl font-bold text-foreground">${spendingBreakdown.thisMonth.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-lg p-3 sm:p-4 border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Last Month</p>
+                        <p className="text-lg sm:text-xl font-bold text-foreground">${spendingBreakdown.lastMonth.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-lg p-3 sm:p-4 border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">All Time</p>
+                        <p className="text-lg sm:text-xl font-bold text-foreground">${spendingBreakdown.allTime.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Auto-Recharge Section */}
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
+                <div className="mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold flex items-center gap-2 mb-2">
+                    <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    Auto Recharge
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Automatically recharge your credits when balance is low</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  View payment history and invoices
-                </p>
-              </button>
-            </div>
-          </div>
+
+                {loadingAutoRecharge ? (
+                  <div className="flex items-center justify-center py-6 sm:py-8">
+                    <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-primary" />
+                  </div>
+                ) : autoRechargeSettings?.enabled ? (
+                  <div className="p-3 sm:p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                          <span className="text-sm sm:text-base font-semibold text-green-600 dark:text-green-400">Auto recharge is on</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+                          When your credit balance reaches ${autoRechargeSettings.threshold_cents ? (autoRechargeSettings.threshold_cents / 100).toFixed(2) : '0.00'},
+                          your payment method will be charged to bring the balance up to ${autoRechargeSettings.amount_cents ? (autoRechargeSettings.amount_cents / 100).toFixed(2) : '0.00'}.
+                        </p>
+                        {autoRechargeSettings.monthly_limit_cents && (
+                          <p className="text-xs text-muted-foreground">
+                            Monthly limit: ${(autoRechargeSettings.monthly_limit_cents / 100).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAutoRechargeModal(true)}
+                        className="w-full sm:w-auto text-xs sm:text-sm"
+                      >
+                        Modify
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 sm:p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                          <span className="text-sm sm:text-base font-semibold text-yellow-600 dark:text-yellow-400">Auto recharge is off</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+                          When your credit balance reaches $0, your API requests will stop working. Enable automatic recharge to automatically keep your credit balance topped up.
+                        </p>
+                      </div>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setShowAutoRechargeModal(true)}
+                        className="w-full sm:w-auto text-xs sm:text-sm"
+                      >
+                        Enable Auto Recharge
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Access Shortcuts */}
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6 md:p-8 shadow-sm">
+                <div className="mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold flex items-center gap-2 mb-2">
+                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    Quick Access
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Navigate to other billing sections</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {/* Conversation History Shortcut */}
+                  <button
+                    onClick={() => setActiveTab("conversation_history")}
+                    className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                        <Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <span className="font-semibold text-xs sm:text-sm">Conversation History</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      View conversation spending and costs
+                    </p>
+                  </button>
+
+                  {/* Payment Methods Shortcut */}
+                  <button
+                    onClick={() => setActiveTab("payment_methods")}
+                    className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                        <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <span className="font-semibold text-xs sm:text-sm">Payment Methods</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Manage saved payment methods
+                    </p>
+                  </button>
+
+                  {/* Credit Grants Shortcut */}
+                  <button
+                    onClick={() => setActiveTab("credit_grants")}
+                    className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                        <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <span className="font-semibold text-xs sm:text-sm">Credit Grants</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      View credit grants and bonuses
+                    </p>
+                  </button>
+
+                  {/* Billing History Shortcut */}
+                  <button
+                    onClick={() => setActiveTab("history")}
+                    className="p-3 sm:p-4 bg-card border border-border rounded-lg hover:bg-secondary/50 hover:border-primary/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                        <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <span className="font-semibold text-xs sm:text-sm">Billing History</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      View payment history and invoices
+                    </p>
+                  </button>
+                </div>
+              </div>
 
             </TabsContent>
 
@@ -609,7 +609,7 @@ export default function Billing() {
                   </h2>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1">See which conversations spent credits</p>
                 </div>
-                
+
                 <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   {loadingTransactions ? (
                     <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20">
@@ -654,7 +654,7 @@ export default function Billing() {
                                     </Badge>
                                   )}
                                 </div>
-                                
+
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mb-2">
                                   {transaction.duration_seconds && (
                                     <div className="flex items-center gap-1.5">
@@ -737,7 +737,7 @@ export default function Billing() {
             </TabsContent>
 
             <TabsContent value="payment_methods" className="space-y-6">
-              <PaymentMethodsList 
+              <PaymentMethodsList
                 onPaymentMethodAdded={() => {
                   fetchAutoRechargeSettings();
                 }}
@@ -758,7 +758,7 @@ export default function Billing() {
                   </h2>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1">View all your credit purchases</p>
                 </div>
-            
+
                 <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   {loadingPayments ? (
                     <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20">
@@ -771,11 +771,11 @@ export default function Billing() {
                         <History className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                       </div>
                       <p className="text-sm sm:text-base md:text-lg font-medium text-foreground mb-2">No payment history</p>
-                        <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-center max-w-md mb-4 sm:mb-6">
+                      <p className="text-xs sm:text-sm md:text-base text-muted-foreground text-center max-w-md mb-4 sm:mb-6">
                         Credit purchases will appear here once you make your first purchase.
                       </p>
                       <Button
-                          variant="default"
+                        variant="default"
                         onClick={() => setShowPaymentMethodModal(true)}
                         className="text-xs sm:text-sm"
                       >
@@ -784,38 +784,38 @@ export default function Billing() {
                       </Button>
                     </div>
                   ) : (
-                      <div className="divide-y divide-border">
-                        {payments.map((payment) => (
-                          <div
-                              key={payment.id} 
-                            className="p-3 sm:p-4 md:p-6 hover:bg-secondary/30 transition-colors group"
-                            >
-                            <div className="flex items-center justify-between gap-3 sm:gap-4">
-                              <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                                <div className="p-2 sm:p-2.5 bg-secondary/50 rounded-lg group-hover:bg-secondary/70 transition-colors flex-shrink-0">
-                                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                    <div className="divide-y divide-border">
+                      {payments.map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="p-3 sm:p-4 md:p-6 hover:bg-secondary/30 transition-colors group"
+                        >
+                          <div className="flex items-center justify-between gap-3 sm:gap-4">
+                            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                              <div className="p-2 sm:p-2.5 bg-secondary/50 rounded-lg group-hover:bg-secondary/70 transition-colors flex-shrink-0">
+                                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
+                                  <p className="text-sm sm:text-base md:text-lg font-semibold text-foreground">
+                                    ${payment.amount_dollars.toFixed(2)}
+                                  </p>
+                                  <Badge
+                                    variant={getStatusBadgeVariant(payment.status)}
+                                    className="text-xs"
+                                  >
+                                    {getStatusLabel(payment.status)}
+                                  </Badge>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
-                                    <p className="text-sm sm:text-base md:text-lg font-semibold text-foreground">
-                                  ${payment.amount_dollars.toFixed(2)}
-                                    </p>
-                                <Badge 
-                                  variant={getStatusBadgeVariant(payment.status)}
-                                      className="text-xs"
-                                >
-                                  {getStatusLabel(payment.status)}
-                                </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                                    <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                                    <span className="break-words">{format(new Date(payment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
-                                  </div>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                                  <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                  <span className="break-words">{format(new Date(payment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        ))}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -827,13 +827,10 @@ export default function Billing() {
 
       {/* Modals */}
       <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-            <DialogTitle>Schedule a Meeting</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://calendly.com/imvitoroliveira"
+              src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"

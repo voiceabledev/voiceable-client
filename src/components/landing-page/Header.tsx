@@ -21,7 +21,7 @@ const Header = () => {
   const { user, isAuthenticated, loading } = useAuth();
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   // Show full navigation on home page and landing pages
   const isHomePage = location.pathname === "/";
   const isLandingPage = location.pathname === "/" || location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment";
@@ -70,9 +70,9 @@ const Header = () => {
                 </Button>
               ) : (
                 <>
-                  <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
+                  {/* <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
                     Login
-                  </Button>
+                  </Button> */}
                   <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
                     <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
                     Demo Call
@@ -93,8 +93,8 @@ const Header = () => {
               <div className="flex flex-col gap-6 mt-8">
                 {/* Mobile Navigation */}
                 <nav className="flex flex-col gap-4">
-                  <a 
-                    href="/" 
+                  <a
+                    href="/"
                     className="text-foreground hover:text-primary transition-colors py-2"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -102,15 +102,15 @@ const Header = () => {
                   </a>
                   {showFullNav && (
                     <>
-                      <a 
-                        href="#features" 
+                      <a
+                        href="#features"
                         className="text-foreground hover:text-primary transition-colors py-2"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         How it Works
                       </a>
-                      <a 
-                        href="#solutions" 
+                      <a
+                        href="#solutions"
                         className="text-foreground hover:text-primary transition-colors py-2"
                         onClick={() => setMobileMenuOpen(false)}
                       >
@@ -119,8 +119,8 @@ const Header = () => {
                     </>
                   )}
                   {!isCalendarOnlyPage && (
-                    <a 
-                      href="/pricing" 
+                    <a
+                      href="/pricing"
                       className="text-foreground hover:text-primary transition-colors py-2"
                       onClick={() => setMobileMenuOpen(false)}
                     >
@@ -133,8 +133,8 @@ const Header = () => {
                 {!loading && (
                   <div className="flex flex-col gap-3 pt-4 border-t border-border">
                     {isCalendarOnlyPage ? (
-                      <Button 
-                        className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full" 
+                      <Button
+                        className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full"
                         onClick={() => {
                           setShowCalendarModal(true);
                           setMobileMenuOpen(false);
@@ -144,8 +144,8 @@ const Header = () => {
                         Book a Demo
                       </Button>
                     ) : isAuthenticated ? (
-                      <Button 
-                        className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full" 
+                      <Button
+                        className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full"
                         onClick={() => {
                           navigate("/assistants");
                           setMobileMenuOpen(false);
@@ -155,9 +155,9 @@ const Header = () => {
                       </Button>
                     ) : (
                       <>
-                        <Button 
-                          variant="ghost" 
-                          className="w-full justify-start text-foreground hover:bg-secondary" 
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-foreground hover:bg-secondary"
                           onClick={() => {
                             navigate("/login");
                             setMobileMenuOpen(false);
@@ -165,8 +165,8 @@ const Header = () => {
                         >
                           Login
                         </Button>
-                        <Button 
-                          className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full" 
+                        <Button
+                          className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full"
                           onClick={() => {
                             setShowCalendarModal(true);
                             setMobileMenuOpen(false);
@@ -187,13 +187,10 @@ const Header = () => {
 
       {/* Calendar Modal */}
       <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
-        <DialogContent className="max-w-4xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border flex-shrink-0">
-            <DialogTitle>Schedule a Meeting</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://calendly.com/imvitoroliveira"
+              src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"
