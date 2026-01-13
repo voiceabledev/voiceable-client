@@ -66,6 +66,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
   const [availableFunctions, setAvailableFunctions] = useState<Record<string, Function[]>>({});
   const [agentFunctions, setAgentFunctions] = useState<Record<string, AgentFunction[]>>({});
   const [loadingFunctions, setLoadingFunctions] = useState<Record<string, boolean>>({});
+  const [loadingAgentFunctions, setLoadingAgentFunctions] = useState<boolean>(false);
   const [functionErrors, setFunctionErrors] = useState<Record<string, string>>({});
   const [showCreateWorkflowModal, setShowCreateWorkflowModal] = useState(false);
   const [deletingWorkflowId, setDeletingWorkflowId] = useState<number | null>(null);
@@ -128,6 +129,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
     if (!agentId) return;
 
     console.log(`[Functions] Loading agent functions for agent: ${agentId}`);
+    setLoadingAgentFunctions(true);
     try {
       const response = await agentFunctionsApi.list(agentId);
       console.log(`[Functions] Agent functions response:`, response);
@@ -147,6 +149,8 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
           workflowsMap[key].push(workflow);
         });
         setAgentFunctions(workflowsMap);
+      } else {
+        setAgentFunctions({});
       }
     } catch (error) {
       console.error("[Functions] Failed to load agent functions:", error);
@@ -155,6 +159,9 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
         description: "Failed to load agent functions",
         variant: "destructive",
       });
+      setAgentFunctions({});
+    } finally {
+      setLoadingAgentFunctions(false);
     }
   }, [agentId, toast]);
 
@@ -750,6 +757,14 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
                   </div>
                 );
               })}
+            </div>
+          ) : loadingAgentFunctions ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+              <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+              <h4 className="text-base font-bold text-slate-900 dark:text-white mb-2">Loading Workflows...</h4>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+                Please wait while we load your workflows.
+              </p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
