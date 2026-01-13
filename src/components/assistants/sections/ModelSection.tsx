@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Code, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 import {
   Command,
   CommandInput,
@@ -282,29 +283,14 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
 
   return (
     <div>
-      <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-        <Code className="h-4 w-4" />
-        <span>AI PERFORMANCE</span>
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-        <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
-          <div className="text-left flex-1">
-            <h3 className="text-base md:text-lg font-semibold">AI Performance</h3>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Configure the AI model quality for your agent. Higher quality = better conversations.
-            </p>
-          </div>
-          <ChevronDown
-            className={cn(
-              "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-              expanded && "rotate-180"
-            )}
-          />
-        </button>
-
-        {expanded && (
-          <div className="mt-4 md:mt-6 space-y-4">
+      <WorkflowStyleCard
+        title="AI Performance"
+        description="Configure the AI model quality for your agent. Higher quality = better conversations."
+        icon={Code}
+        expanded={expanded}
+        onToggle={onToggleExpanded}
+      >
+        <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-2 block">AI Quality</label>
               <div className="flex-1 w-full">
@@ -448,9 +434,8 @@ export const ModelSection: React.FC<ModelSectionProps> = ({
                 </p>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      </WorkflowStyleCard>
     </div>
   );
 };

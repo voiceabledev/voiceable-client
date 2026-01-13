@@ -73,10 +73,6 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <MessageSquare className="h-4 w-4" />
-          <span>FIRST MESSAGE</span>
-        </div>
         <FirstMessageSection
           expanded={firstMessageExpanded}
           onToggleExpanded={() => setFirstMessageExpanded(!firstMessageExpanded)}
@@ -108,10 +104,6 @@ export const PromptLogicTab: React.FC<PromptLogicTabProps> = ({
       )}
       
       <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Brain className="h-4 w-4" />
-          <span>AGENT BEHAVIOUR</span>
-        </div>
         <SectionEditors
           expanded={agentBehaviourExpanded}
           onToggleExpanded={() => setAgentBehaviourExpanded(!agentBehaviourExpanded)}

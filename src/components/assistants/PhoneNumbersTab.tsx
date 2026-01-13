@@ -39,7 +39,7 @@ import { Phone, Plus, Trash2, Edit, Loader2, User, MoreVertical } from "lucide-r
 import { phoneNumbersApi, PhoneNumber, Agent, agentsApi, UpdatePhoneNumberParams } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneNumberModal } from "@/components/PhoneNumberModal";
-import { TabSectionCard } from "@/components/assistants/TabSectionCard";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 import { MembershipStatusMessage } from "@/components/assistants/MembershipStatusMessage";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -61,6 +61,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   const [isPhoneNumberModalOpen, setIsPhoneNumberModalOpen] = useState(false);
   const [deletePhoneNumberId, setDeletePhoneNumberId] = useState<string | null>(null);
   const [editingPhoneNumber, setEditingPhoneNumber] = useState<PhoneNumber | null>(null);
+  const [expanded, setExpanded] = useState(true);
   const [formData, setFormData] = useState({
     phone_number: "",
     label: "",
@@ -332,25 +333,22 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
   return (
     <div className="space-y-6">
         <div>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-            <Phone className="h-4 w-4" />
-            <span>PHONE NUMBER</span>
-          </div>
-          <TabSectionCard
+          <WorkflowStyleCard
             title="Phone Number"
             description="Manage the phone number assigned to this agent. Purchase a new number or import an existing one from your account."
-            count={`${agentPhoneNumbers.length} phone number${agentPhoneNumbers.length !== 1 ? 's' : ''} assigned to this agent`}
+            icon={Phone}
+            expanded={expanded}
+            onToggle={() => setExpanded(!expanded)}
+            count={agentPhoneNumbers.length}
             actionButton={
-              agentPhoneNumbers.length === 0 ? (
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsPhoneNumberModalOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Number
-                </Button>
-              ) : null
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPhoneNumberModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Number
+              </Button>
             }
           >
           {agentPhoneNumbers.length > 0 ? (
@@ -484,7 +482,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
               </div>
             </div>
           )}
-          </TabSectionCard>
+          </WorkflowStyleCard>
         </div>
 
       {/* Edit Dialog */}

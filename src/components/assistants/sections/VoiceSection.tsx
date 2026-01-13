@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Voice } from "@/lib/api";
 import { VoiceSelectorDialog } from "@/components/assistants/VoiceSelectorDialog";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 
 type VoiceSectionProps = {
   expanded: boolean;
@@ -56,30 +57,15 @@ export const VoiceSection: React.FC<VoiceSectionProps> = ({
 
   return (
     <div>
-      <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-        <AudioLines className="h-4 w-4" />
-        <span>VOICE</span>
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-        <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
-          <div className="text-left flex-1">
-            <h3 className="text-base md:text-lg font-semibold">Voice Configuration</h3>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Select voices from the list, or sync your voice library if it's missing. If errors persist, enable
-              custom voice and add a voice ID.
-            </p>
-          </div>
-          <ChevronDown
-            className={cn(
-              "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-              expanded && "rotate-180"
-            )}
-          />
-        </button>
-
-        {expanded && (
-          <div className="mt-4 md:mt-6 space-y-4">
+      <WorkflowStyleCard
+        title="Voice Configuration"
+        description="Select voices from the list, or sync your voice library if it's missing. If errors persist, enable custom voice and add a voice ID."
+        icon={AudioLines}
+        expanded={expanded}
+        onToggle={onToggleExpanded}
+        count={selectedVoiceIds.length}
+      >
+        <div className="space-y-4">
             <div>
               <label className="text-sm text-muted-foreground mb-2 block">Voice{selectedVoiceIds.length !== 1 ? 's' : ''}</label>
               {loadingVoices ? (
@@ -167,9 +153,8 @@ export const VoiceSection: React.FC<VoiceSectionProps> = ({
                 </div>
               )}
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      </WorkflowStyleCard>
     </div>
   );
 };

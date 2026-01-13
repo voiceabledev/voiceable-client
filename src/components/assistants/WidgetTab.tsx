@@ -16,7 +16,7 @@ import {
   Layout,
 } from "lucide-react";
 import { TabSectionHeader } from "@/components/assistants/TabSectionHeader";
-import { TabSectionCard } from "@/components/assistants/TabSectionCard";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 import { Agent, apiKeysApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
@@ -47,6 +47,9 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const [copied, setCopied] = useState(false);
   const [previewTriggered, setPreviewTriggered] = useState(false);
   const [showContactSalesModal, setShowContactSalesModal] = useState(false);
+  const [designStudioExpanded, setDesignStudioExpanded] = useState(true);
+  const [integrationExpanded, setIntegrationExpanded] = useState(true);
+  const [guideExpanded, setGuideExpanded] = useState(false);
 
   // Fetch or create API key on mount
   const fetchOrCreateApiKey = useCallback(async (forceCreate = false) => {
@@ -374,98 +377,113 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
 
   return (
     <div className="space-y-6">
-        <TabSectionHeader icon={Layout} label="WIDGET" />
-
-        {/* Deployment Warning */}
-        {!agent?.elevenlabs_agent_id && (
-          <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm text-warning font-medium">
-                Deploy your agent first to use the widget
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                The widget requires a deployed agent. Click "Deploy" in the header to publish your agent.
-              </p>
-            </div>
+      {/* Deployment Warning */}
+      {!agent?.elevenlabs_agent_id && (
+        <div className="p-4 bg-warning/10 border border-warning/30 rounded-xl flex items-start gap-3 shadow-sm">
+          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-warning font-semibold">
+              Deploy your agent first to use the widget
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              The widget requires a deployed agent. Click "Deploy" in the header to publish your agent.
+            </p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Widget Configuration Section */}
-        <TabSectionCard
-          title="Widget Configuration"
-          description="Embed a voice widget on your website. Customize appearance, colors, and branding."
-          actionButton={
+      {/* Design Studio Card */}
+      <WorkflowStyleCard
+        title="Design Studio"
+        description="Customize your widget's appearance, colors, branding, and styling"
+        icon={Palette}
+        expanded={designStudioExpanded}
+        onToggle={() => setDesignStudioExpanded(!designStudioExpanded)}
+        actionButton={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePreviewWidget}
+            disabled={!agent?.elevenlabs_agent_id || !apiKey || apiKeyLoading}
+          >
+            <Phone className="h-4 w-4 mr-2" />
+            Preview Widget
+          </Button>
+        }
+      >
+        {/* Design Studio Content */}
+        <div className="relative text-center py-8 px-4">
+          {/* Gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl" />
+
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4 shadow-sm">
+              <Palette className="h-12 w-12 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Customize Your Widget</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+              Open the Design Studio to customize colors, branding, positioning, and more. See live previews as you make changes.
+            </p>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePreviewWidget}
-              disabled={!agent?.elevenlabs_agent_id || !apiKey || apiKeyLoading}
+              variant="default"
+              size="lg"
+              onClick={handleOpenDesignStudio}
+              disabled={!agent?.id && !agentId}
+              className="shadow-sm hover:shadow-md transition-all"
             >
-              <Phone className="h-4 w-4 mr-2" />
-              Preview
+              Open Design Studio
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-          }
-        >
-          <div className="space-y-4">
-            {/* Design Studio */}
-            <div className="border border-border rounded-lg p-4 bg-gradient-to-br from-primary/5 to-primary/10">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Palette className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm mb-1">Design Studio</h4>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Customize your widget's appearance, colors, branding, and styling. See live previews as you make changes.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleOpenDesignStudio}
-                    disabled={!agent?.id && !agentId}
-                  >
-                    Open Design Studio
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
+          </div>
+        </div>
+      </WorkflowStyleCard>
+
+      {/* Integration Setup Card */}
+      <WorkflowStyleCard
+        title="Integration Setup"
+        description="API key and embed code for your website"
+        icon={Code}
+        expanded={integrationExpanded}
+        onToggle={() => setIntegrationExpanded(!integrationExpanded)}
+      >
+        <div className="space-y-6">
+          {/* API Key Subsection */}
+          <div className="border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-semibold text-sm">Widget API Key</h4>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshApiKey}
+                disabled={apiKeyLoading || apiKeyRefreshing}
+                className="h-8"
+              >
+                {apiKeyRefreshing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                <span className="ml-2">Refresh</span>
+              </Button>
             </div>
 
-            {/* API Key Section */}
-            <div className="border border-border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-muted-foreground" />
-                  <h4 className="font-semibold text-sm">Widget API Key</h4>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefreshApiKey}
-                  disabled={apiKeyLoading || apiKeyRefreshing}
-                >
-                  {apiKeyRefreshing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  <span className="ml-2">Refresh</span>
-                </Button>
-              </div>
-              
+            <div className="p-4">
               {apiKeyLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Generating API key...</span>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Input
                       value={apiKey}
                       readOnly
-                      className="bg-secondary/50 font-mono text-sm"
+                      className="bg-secondary/50 font-mono text-sm h-10"
                     />
                     <Button
                       variant="outline"
@@ -474,76 +492,113 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
                         await navigator.clipboard.writeText(apiKey);
                         toast({ title: 'Copied!', description: 'API key copied to clipboard' });
                       }}
+                      className="h-10 w-10 flex-shrink-0"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    This key is used to authenticate widget requests. Keep it secure and refresh if compromised.
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    This key authenticates widget requests. Keep it secure and refresh if compromised.
                   </p>
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Embed Code */}
-            <div className="border border-border rounded-lg overflow-hidden">
-              <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Code className="h-4 w-4 text-muted-foreground" />
-                  <h4 className="font-semibold text-sm">Embed Code</h4>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyCode}
-                  disabled={!agent?.elevenlabs_agent_id || !apiKey}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy Code
-                    </>
-                  )}
-                </Button>
+          {/* Embed Code Subsection */}
+          <div className="border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Code className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-semibold text-sm">Embed Code</h4>
               </div>
-              <div className="p-4">
-                <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto text-xs font-mono">
-                  <code>{generateEmbedCode()}</code>
-                </pre>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Add this code to your website before the closing <code className="bg-muted px-1 rounded">&lt;/body&gt;</code> tag.
-                </p>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyCode}
+                disabled={!agent?.elevenlabs_agent_id || !apiKey}
+                className="h-8"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 mr-2" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 mr-2" />
+                    Copy Code
+                  </>
+                )}
+              </Button>
             </div>
 
-            {/* Instructions */}
-            <div className="border border-border rounded-lg p-4">
-              <h4 className="font-semibold text-sm mb-3">How to use</h4>
-              <ol className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex gap-2">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">1</span>
-                  <span>Deploy your agent using the "Deploy" button</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">2</span>
-                  <span>Customize the widget appearance in the Design Studio</span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center">3</span>
-                  <span>Copy the embed code and paste it into your website</span>
-                </li>
-              </ol>
-              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-                An API key is automatically generated for widget authentication. Refresh it if compromised.
+            <div className="p-4">
+              <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto text-xs font-mono shadow-sm">
+                <code>{generateEmbedCode()}</code>
+              </pre>
+              <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                Add this code to your website before the closing <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">&lt;/body&gt;</code> tag to embed the widget.
               </p>
             </div>
           </div>
-        </TabSectionCard>
-      </div>
+        </div>
+      </WorkflowStyleCard>
+
+      {/* Quick Start Guide Card */}
+      <WorkflowStyleCard
+        title="Quick Start Guide"
+        description="Get started with your widget in 3 simple steps"
+        icon={Layout}
+        expanded={guideExpanded}
+        onToggle={() => setGuideExpanded(!guideExpanded)}
+      >
+        <div className="space-y-4">
+          <ol className="space-y-4">
+            <li className="flex gap-3 items-start">
+              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center mt-0.5">
+                1
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm mb-1">Deploy Your Agent</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Click the "Deploy" button in the header to publish your agent and make it available for the widget.
+                </p>
+              </div>
+            </li>
+
+            <li className="flex gap-3 items-start">
+              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center mt-0.5">
+                2
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm mb-1">Customize Appearance</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Open the Design Studio to customize colors, branding, positioning, and styling. Preview changes in real-time.
+                </p>
+              </div>
+            </li>
+
+            <li className="flex gap-3 items-start">
+              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-semibold text-sm flex items-center justify-center mt-0.5">
+                3
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm mb-1">Embed on Your Website</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Copy the embed code from the Integration Setup section and paste it into your website's HTML before the closing <code className="bg-muted px-1.5 py-0.5 rounded text-xs">&lt;/body&gt;</code> tag.
+                </p>
+              </div>
+            </li>
+          </ol>
+
+          <div className="pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">Note:</strong> An API key is automatically generated for widget authentication. You can refresh it anytime if it's compromised.
+            </p>
+          </div>
+        </div>
+      </WorkflowStyleCard>
+    </div>
   );
 }

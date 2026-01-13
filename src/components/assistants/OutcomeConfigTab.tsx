@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { OutcomeDefinition } from '@/types/outcomes';
 import { EscalationRulesPanel, type EscalationRuleSettings } from './EscalationRulesPanel';
 import { PRIMARY_OUTCOMES } from '@/constants/outcomes';
+import { WorkflowStyleCard } from '@/components/assistants/WorkflowStyleCard';
 
 export interface OutcomeConfigTabRef {
   saveEscalationRules: (settings: EscalationRuleSettings) => Promise<void>;
@@ -524,34 +525,17 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-          <Target className="h-4 w-4" />
-          <span>CALL OUTCOMES</span>
-        </div>
-
         <div className="space-y-6">
           {/* Primary Goals Section */}
-          <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-            <button 
-              className="w-full flex items-start justify-between gap-2" 
-              onClick={() => setIsPrimaryOpen(!isPrimaryOpen)}
-            >
-              <div className="text-left flex-1">
-                <h3 className="text-base md:text-lg font-semibold">Primary Goals</h3>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  What are the main things you want your agent to accomplish in each call? You can select multiple goals.
-                </p>
-              </div>
-              <ChevronDown
-                className={cn(
-                  "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-                  isPrimaryOpen && "rotate-180"
-                )}
-              />
-            </button>
-
-            {isPrimaryOpen && (
-              <div className="mt-4 md:mt-6 space-y-4">
+          <WorkflowStyleCard
+            title="Primary Goals"
+            description="What are the main things you want your agent to accomplish in each call? You can select multiple goals."
+            icon={Target}
+            expanded={isPrimaryOpen}
+            onToggle={() => setIsPrimaryOpen(!isPrimaryOpen)}
+            count={primaryOutcomes.length}
+          >
+            <div className="space-y-4">
             <div>
               {/* <Label htmlFor="primary-outcomes">Primary Outcomes</Label> */}
               <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto border rounded-md p-3">
@@ -639,9 +623,8 @@ const OutcomeConfigTab = forwardRef<OutcomeConfigTabRef, OutcomeConfigTabProps>(
                 </div>
               </div>
             )}
-              </div>
-            )}
-          </div>
+            </div>
+          </WorkflowStyleCard>
         </div>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import React from "react";
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown, Info, MessageSquare } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 
 type FirstMessageSectionProps = {
   expanded: boolean;
@@ -24,24 +25,14 @@ export const FirstMessageSection: React.FC<FirstMessageSectionProps> = ({
   agentName,
 }) => {
   return (
-    <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-      <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
-        <div className="text-left flex-1">
-          <h3 className="text-base md:text-lg font-semibold">First Message Configuration</h3>
-          <p className="text-xs md:text-sm text-muted-foreground">
-            Configure how the assistant initiates conversations
-          </p>
-        </div>
-        <ChevronDown
-          className={cn(
-            "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-            expanded && "rotate-180"
-          )}
-        />
-      </button>
-
-      {expanded && (
-        <div className="mt-4 md:mt-6 space-y-5">
+    <WorkflowStyleCard
+      title="First Message Configuration"
+      description="Configure how the assistant initiates conversations"
+      icon={MessageSquare}
+      expanded={expanded}
+      onToggle={onToggleExpanded}
+    >
+      <div className="space-y-5">
           {/* First Message Mode */}
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -74,8 +65,7 @@ export const FirstMessageSection: React.FC<FirstMessageSectionProps> = ({
               className="bg-white border-border min-h-[80px] font-mono text-sm"
             />
           </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </WorkflowStyleCard>
   );
 };

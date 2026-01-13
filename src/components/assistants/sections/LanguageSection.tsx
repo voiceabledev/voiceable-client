@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { LanguageSelectorDialog } from "@/components/assistants/LanguageSelectorDialog";
 import { languageLabels, getFlagUrl, normalizeLanguage } from "@/constants/languages";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 
 type LanguageSectionProps = {
   expanded: boolean;
@@ -63,29 +64,15 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
 
   return (
     <div>
-      <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-        <Mic className="h-4 w-4" />
-        <span>LANGUAGE{selectedLanguages.length !== 1 ? 'S' : ''}</span>
-      </div>
-
-      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-        <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
-          <div className="text-left flex-1">
-            <h3 className="text-base md:text-lg font-semibold">Language</h3>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Select the language{selectedLanguages.length !== 1 ? 's' : ''} your agent will use for conversations.
-            </p>
-          </div>
-          <ChevronDown
-            className={cn(
-              "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-              expanded && "rotate-180"
-            )}
-          />
-        </button>
-
-        {expanded && (
-          <div className="mt-4 md:mt-6 space-y-4 md:space-y-6">
+      <WorkflowStyleCard
+        title="Language"
+        description={`Select the language${selectedLanguages.length !== 1 ? 's' : ''} your agent will use for conversations.`}
+        icon={Globe}
+        expanded={expanded}
+        onToggle={onToggleExpanded}
+        count={selectedLanguages.length}
+      >
+        <div className="space-y-4 md:space-y-6">
             <div>
               <Button
                 type="button"
@@ -149,10 +136,9 @@ export const LanguageSection: React.FC<LanguageSectionProps> = ({
                 </div>
               )}
             </div>
-          </div>
-        )}
-      </div>
-      
+        </div>
+      </WorkflowStyleCard>
+
       <LanguageSelectorDialog
         open={showLanguageSelector}
         onOpenChange={onShowLanguageSelectorChange}

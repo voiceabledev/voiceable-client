@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Plus, ChevronDown, Edit, Trash2, Sparkles } from "lucide-react";
+import { Plus, ChevronDown, Edit, Trash2, Sparkles, Brain } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { GenerateBehaviourModal } from "./modals/GenerateBehaviourModal";
 import { motion } from "framer-motion";
+import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -239,26 +240,20 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
     }
   };
 
+  // Calculate total count of all behaviour entries
+  const totalCount = cenarios.length + etapas.length + tomDeVoz.length;
+
   return (
     <>
-      <div className="bg-card border border-border rounded-lg p-4 md:p-6">
-        <button className="w-full flex items-start justify-between gap-2" onClick={onToggleExpanded}>
-          <div className="text-left flex-1">
-            <h3 className="text-base md:text-lg font-semibold">Agent Behaviour</h3>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Define how the assistant should behave by describing the scenarios, stages, and voice tone it must handle.
-            </p>
-          </div>
-          <ChevronDown
-            className={cn(
-              "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 mt-1",
-              expanded && "rotate-180"
-            )}
-          />
-        </button>
-
-      {expanded && (
-        <div className="mt-4 md:mt-6 space-y-5">
+      <WorkflowStyleCard
+        title="Agent Behaviour"
+        description="Define how the assistant should behave by describing the scenarios, stages, and voice tone it must handle."
+        icon={Brain}
+        expanded={expanded}
+        onToggle={onToggleExpanded}
+        count={totalCount}
+      >
+        <div className="space-y-5">
           <div className="flex items-center justify-end">
             <button
               onClick={handleGenerateClick}
@@ -325,7 +320,7 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
             })()}
           </div>
         </div>
-      )}
+      </WorkflowStyleCard>
       {agentId && (
         <>
           <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -352,7 +347,6 @@ export const SectionEditors: React.FC<SectionEditorsProps> = ({
           />
         </>
       )}
-    </div>
     </>
   );
 };
