@@ -845,7 +845,8 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
                   agentId={agentId}
                   onWorkflowUpdate={() => {
                     loadAgentFunctions();
-                    setFullscreenWorkflowId(null);
+                    // Don't exit fullscreen when workflow is updated - keep user in fullscreen view
+                    // setFullscreenWorkflowId(null);
                   }}
                   onConfigureCredentials={onOpenEditIntegrationModal}
                 />

@@ -96,6 +96,7 @@ const formatMethodName = (method: string, toolType?: string): string => {
   // Special formatting for specific methods
   const methodMap: Record<string, string> = {
     answer_questions: "Answer Questions",
+    qualify_leads: "Qualify leads",
     sms: "Send SMS",
   };
   
@@ -277,7 +278,7 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
         </div>
 
         {/* Account / Credentials */}
-        {!isConditionalTool(tool) && (
+        {!isConditionalTool(tool) && tool.type !== 'search_knowledge_base' && (
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase text-muted-foreground text-red-500 flex gap-1">
               Account <span className="text-red-500">*</span>
@@ -431,10 +432,15 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
               <SelectItem value="answer_questions">
                 Answer Questions
               </SelectItem>
+              <SelectItem value="qualify_leads">
+                Qualify leads
+              </SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Answer questions and provide information based on attached files (guides, policies, scripts, templates, etc.)
+            {currentMethod === 'qualify_leads' 
+              ? 'Qualify leads and guide the qualification process based on knowledge base content.'
+              : 'Answer questions and provide information based on attached files (guides, policies, scripts, templates, etc.)'}
           </p>
         </div>
       );
@@ -843,20 +849,6 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
             }}
           />
         </div>
-
-        <div>
-          <Label htmlFor="query-preset">Preset Query (Optional)</Label>
-          <Input
-            id="query-preset"
-            placeholder="e.g., What are our product features?"
-            value={(regularConfig.query || toolConfig?.query || '') as string}
-            onChange={(e) => setConfig({ ...regularConfig, query: e.target.value })}
-            className="mt-1"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Optional: Set a default query. Otherwise uses conversation context.
-          </p>
-        </div>
       </div>
     );
   };
@@ -891,8 +883,17 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <Dialog open={open} onOpenChange={onClose} modal={true}>
+        <DialogContent
+          className="max-w-3xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => {
+            // Prevent focus restoration when closing - this can cause fullscreen to exit
+            // especially for knowledge base modal
+            e.preventDefault();
+          }}
+        >
 
           {/* Header */}
           <div className="px-6 py-4 border-b flex items-center justify-between bg-background z-10">

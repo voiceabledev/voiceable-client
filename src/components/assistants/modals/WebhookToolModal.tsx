@@ -323,7 +323,11 @@ export const WebhookToolModal: React.FC<WebhookToolModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+      <DialogContent
+        className="max-w-4xl max-h-[90vh] flex flex-col p-0"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <div className="p-6 border-b">
           <DialogHeader>
             <div className="flex items-center gap-3">
