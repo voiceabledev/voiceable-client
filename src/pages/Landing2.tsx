@@ -150,13 +150,13 @@ const Landing = () => {
 
   const responsesCategories = [
     {
-      id: "scheduling",
-      label: "Scheduling",
-      title: "Scheduling",
-      description: "Seamlessly schedule appointments, meetings, and calls in real-time with calendar integration.",
-      message: "Hi, I'd like to book an appointment for next week. What times are available?",
-      icon: Calendar,
-      emoji: "📅",
+      id: "product-information",
+      label: "Product Information",
+      title: "Product Information",
+      description: "Answers technical questions about integrations, pricing tiers, feature comparisons, and use cases from your knowledge base.",
+      message: "Yes, we integrate with HubSpot and Cal.com. Our Starter plan is $99/month with API access and webhooks. Would you like to schedule a demo?",
+      icon: Package,
+      emoji: "📦",
     },
     {
       id: "qa",
@@ -177,6 +177,15 @@ const Landing = () => {
       emoji: "📋",
     },
     {
+      id: "scheduling",
+      label: "Scheduling",
+      title: "Scheduling",
+      description: "Seamlessly schedule appointments, meetings, and calls in real-time with calendar integration.",
+      message: "Hi, I'd like to book an appointment for next week. What times are available?",
+      icon: Calendar,
+      emoji: "📅",
+    },
+    {
       id: "call-transfer",
       label: "Call Transfer",
       title: "Call Transfer",
@@ -184,15 +193,6 @@ const Landing = () => {
       message: "Can I speak with someone about pricing and custom solutions? I have some specific requirements.",
       icon: PhoneForwarded,
       emoji: "📞",
-    },
-    {
-      id: "follow-up",
-      label: "Follow-up",
-      title: "Follow-up",
-      description: "Automated follow-ups and reminders to nurture leads and maintain relationships.",
-      message: "I wanted to follow up on our conversation from last week. Are you still interested in scheduling a demo?",
-      icon: RefreshCw,
-      emoji: "🔄",
     },
   ];
 

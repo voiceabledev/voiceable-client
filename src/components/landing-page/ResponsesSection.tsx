@@ -242,7 +242,7 @@ const ResponsesSection = ({ categories = defaultCategories }: ResponsesSectionPr
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed break-words">
+                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed break-words text-left">
                     {activeCategoryData.message}
                   </p>
                 </div>
