@@ -130,10 +130,10 @@ export default function AdminPricingSettings() {
   const handleSaveCommissionMarkup = async () => {
     const markupValue = parseFloat(commissionMarkupInput);
     
-    if (isNaN(markupValue) || markupValue < 0 || markupValue > 100) {
+    if (isNaN(markupValue) || markupValue < 0 || markupValue > 1000) {
       toast({
         title: "Validation Error",
-        description: "Commission markup must be between 0 and 100%.",
+        description: "Commission markup must be between 0 and 1000%.",
         variant: "destructive",
       });
       return;
@@ -324,7 +324,7 @@ export default function AdminPricingSettings() {
                 <Input
                   type="number"
                   min="0"
-                  max="100"
+                  max="1000"
                   step="0.01"
                   value={commissionMarkupInput}
                   onChange={(e) => {

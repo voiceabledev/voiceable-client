@@ -244,7 +244,7 @@ export function ModelStep({
         if (response.data?.commission_markup !== undefined) {
           const markup = Number(response.data.commission_markup);
           // Only update if it's a valid number
-          if (!isNaN(markup) && markup >= 0 && markup <= 1) {
+          if (!isNaN(markup) && markup >= 0 && markup <= 10) {
             setCommissionMarkup(markup);
           }
         }
