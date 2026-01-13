@@ -70,79 +70,79 @@ const Landing = () => {
   ];
 
   const solutionsContent = [
-    {
-      id: "clinics",
-      label: "Clinics",
-      icon: Stethoscope,
-      title: "Appointment Scheduling & Patient Q&A Agent",
-      description: "Handle appointment bookings, patient inquiries, intake forms, and follow-ups 24/7. Sync with your practice management system and never miss a patient call.",
-      features: [
-        {
-          icon: Calendar,
-          title: "Automated Appointment Booking",
-          description: "Patients book appointments directly through phone calls. Syncs with your calendar system, sends confirmations, and handles rescheduling automatically."
-        },
-        {
-          icon: MessageCircle,
-          title: "Patient Q&A & Intake",
-          description: "Answers questions about services, insurance, hours, and collects patient information before appointments. Reduces front desk workload significantly."
-        }
-      ]
-    },
-    {
-      id: "real-estate",
-      label: "Real Estate",
-      icon: Home,
-      title: "Property Inquiries & Viewing Scheduling Agent",
-      description: "Handle property inquiries, schedule viewings, qualify leads, and sync everything to your CRM. Never miss a potential buyer or renter.",
-      features: [
-        {
-          icon: MessageCircle,
-          title: "Property Information & Q&A",
-          description: "Answers questions about properties, neighborhoods, pricing, and availability. Provides detailed information instantly, 24/7."
-        },
-        {
-          icon: Calendar,
-          title: "Viewing Scheduling & Lead Qualification",
-          description: "Books property viewings, qualifies leads, and automatically syncs all information to your CRM. Follows up with prospects automatically."
-        }
-      ]
-    },
-    {
-      id: "logistics",
-      label: "Logistics",
-      icon: TruckIcon,
-      title: "Delivery Scheduling & Customer Support Agent",
-      description: "Handle delivery scheduling, tracking inquiries, and customer support 24/7. Syncs with your logistics system and keeps customers informed every step.",
-      features: [
-        {
-          icon: Calendar,
-          title: "Delivery Scheduling",
-          description: "Customers schedule deliveries, reschedule appointments, and get real-time updates. Integrates with your logistics platform automatically."
-        },
-        {
-          icon: MessageCircle,
-          title: "Tracking & Support Q&A",
-          description: "Answers questions about delivery status, provides tracking information, and handles customer inquiries instantly, reducing support ticket volume."
-        }
-      ]
-    },
+    // {
+    //   id: "clinics",
+    //   label: "Clinics",
+    //   icon: Stethoscope,
+    //   title: "Appointment Scheduling & Patient Q&A Agent",
+    //   description: "Handle appointment bookings, patient inquiries, intake forms, and follow-ups 24/7. Sync with your practice management system and never miss a patient call.",
+    //   features: [
+    //     {
+    //       icon: Calendar,
+    //       title: "Automated Appointment Booking",
+    //       description: "Patients book appointments directly through phone calls. Syncs with your calendar system, sends confirmations, and handles rescheduling automatically."
+    //     },
+    //     {
+    //       icon: MessageCircle,
+    //       title: "Patient Q&A & Intake",
+    //       description: "Answers questions about services, insurance, hours, and collects patient information before appointments. Reduces front desk workload significantly."
+    //     }
+    //   ]
+    // },
+    // {
+    //   id: "real-estate",
+    //   label: "Real Estate",
+    //   icon: Home,
+    //   title: "Property Inquiries & Viewing Scheduling Agent",
+    //   description: "Handle property inquiries, schedule viewings, qualify leads, and sync everything to your CRM. Never miss a potential buyer or renter.",
+    //   features: [
+    //     {
+    //       icon: MessageCircle,
+    //       title: "Property Information & Q&A",
+    //       description: "Answers questions about properties, neighborhoods, pricing, and availability. Provides detailed information instantly, 24/7."
+    //     },
+    //     {
+    //       icon: Calendar,
+    //       title: "Viewing Scheduling & Lead Qualification",
+    //       description: "Books property viewings, qualifies leads, and automatically syncs all information to your CRM. Follows up with prospects automatically."
+    //     }
+    //   ]
+    // },
+    // {
+    //   id: "logistics",
+    //   label: "Logistics",
+    //   icon: TruckIcon,
+    //   title: "Delivery Scheduling & Customer Support Agent",
+    //   description: "Handle delivery scheduling, tracking inquiries, and customer support 24/7. Syncs with your logistics system and keeps customers informed every step.",
+    //   features: [
+    //     {
+    //       icon: Calendar,
+    //       title: "Delivery Scheduling",
+    //       description: "Customers schedule deliveries, reschedule appointments, and get real-time updates. Integrates with your logistics platform automatically."
+    //     },
+    //     {
+    //       icon: MessageCircle,
+    //       title: "Tracking & Support Q&A",
+    //       description: "Answers questions about delivery status, provides tracking information, and handles customer inquiries instantly, reducing support ticket volume."
+    //     }
+    //   ]
+    // },
     {
       id: "saas-support",
-      label: "SaaS Support",
+      label: "B2B SaaS Support",
       icon: Code,
-      title: "Technical Q&A & Demo Scheduling Agent",
-      description: "Handle technical questions, schedule product demos, qualify leads, and sync to your CRM. Perfect for SaaS teams managing high call volumes.",
+      title: "Your 24/7 AI SDR for inbound demo calls",
+      description: "Turn inbound calls into booked demos, without hiring SDRs. Qualifies leads, books demos directly into Cal.com, syncs context to your CRM, and answers technical questions. Perfect for B2B SaaS teams with $10k–$200k MRR managing high inbound volume.",
       features: [
+        {
+          icon: Calendar,
+          title: "Qualify Leads & Book Demos",
+          description: "Qualifies leads based on budget and use case, books product demos directly into Cal.com, and syncs all information to your CRM. Converts inbound calls into qualified demos automatically, even outside business hours."
+        },
         {
           icon: MessageCircle,
           title: "Technical Q&A & Support",
-          description: "Answers technical questions, provides product information, and handles common support inquiries. Reduces support team workload significantly."
-        },
-        {
-          icon: Calendar,
-          title: "Demo Scheduling & Lead Qualification",
-          description: "Books product demos, qualifies leads based on needs, and syncs all information to your CRM. Follows up automatically to convert more leads."
+          description: "Answers technical questions like 'Can you integrate with X?' and provides product information. Handles common support inquiries, reducing support team workload while keeping leads engaged."
         }
       ]
     },
