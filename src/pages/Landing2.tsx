@@ -226,12 +226,12 @@ const Landing = () => {
       description: "Captures lead information, qualifies prospects based on your criteria, and routes them to the right team member or workflow automatically.",
       Icon: UserPlus,
     },
-    {
-      id: "follow-up-automation",
-      title: "Follow-up Automation",
-      description: "Automated follow-ups, reminders, and nurturing sequences ensure no lead is forgotten. Customizable workflows for your sales process.",
-      Icon: RefreshCw,
-    },
+    // {
+    //   id: "follow-up-automation",
+    //   title: "Follow-up Automation",
+    //   description: "Automated follow-ups, reminders, and nurturing sequences ensure no lead is forgotten. Customizable workflows for your sales process.",
+    //   Icon: RefreshCw,
+    // },
     {
       id: "warm-transfers",
       title: "Warm Transfers",
