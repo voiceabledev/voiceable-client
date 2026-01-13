@@ -215,16 +215,16 @@ const Landing = () => {
       Icon: Calendar,
     },
     {
-      id: "crm-sync",
-      title: "CRM Sync",
-      description: "Automatically syncs leads, conversations, and appointment data to HubSpot, Salesforce, Pipedrive, and other CRMs. No manual data entry required.",
-      Icon: Users,
-    },
-    {
       id: "lead-capture",
       title: "Lead Capture & Qualification",
       description: "Captures lead information, qualifies prospects based on your criteria, and routes them to the right team member or workflow automatically.",
       Icon: UserPlus,
+    },
+    {
+      id: "crm-sync",
+      title: "CRM Sync",
+      description: "Automatically syncs leads, conversations, and appointment data to HubSpot, Salesforce, Pipedrive, and other CRMs. No manual data entry required.",
+      Icon: Users,
     },
     // {
     //   id: "follow-up-automation",
@@ -233,16 +233,16 @@ const Landing = () => {
     //   Icon: RefreshCw,
     // },
     {
-      id: "warm-transfers",
-      title: "Warm Transfers",
-      description: "Seamlessly hand live calls from the voice agent to your team with full context. No dropped calls, no repeating information.",
-      Icon: ArrowRightLeft,
-    },
-    {
       id: "call-recording",
       title: "Call Recording & Analytics",
       description: "Every conversation is automatically captured, transcribed, and indexed so you can search, audit, and improve service quality.",
       Icon: InfinityIcon,
+    },
+    {
+      id: "warm-transfers",
+      title: "Warm Transfers",
+      description: "Seamlessly hand live calls from the voice agent to your team with full context. No dropped calls, no repeating information.",
+      Icon: ArrowRightLeft,
     },
     {
       id: "test-before-launch",
