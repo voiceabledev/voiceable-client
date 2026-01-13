@@ -1471,7 +1471,8 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
     const minStep = 0; // Template step is first
     const maxStep = 5; // Integrations step is the last step
 
-    if ((currentStep === minStep && direction === -1) || (currentStep === maxStep && direction === 1)) {
+    // Prevent going back from step 0 or step 1 to step 0
+    if ((currentStep === minStep && direction === -1) || (currentStep === 1 && direction === -1) || (currentStep === maxStep && direction === 1)) {
       return;
     }
 
@@ -2368,6 +2369,10 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
       return actions;
     })(),
     navigateToStep: (step: number) => {
+      // Prevent navigating to step 0 from step 1
+      if (currentStep === 1 && step === 0) {
+        return;
+      }
       if (step >= 0 && step < steps.length) {
         setCurrentStep(step);
       }
@@ -2522,7 +2527,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             <Button
               variant="outline"
               onClick={() => handleSetStep(-1)}
-              disabled={currentStep === 0 || saving}
+              disabled={currentStep === 0 || currentStep === 1 || saving}
               data-wizard-action="back"
               id="wizard-back-button"
             >
