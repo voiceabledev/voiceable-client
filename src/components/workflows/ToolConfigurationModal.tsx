@@ -886,8 +886,6 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
       <Dialog open={open} onOpenChange={onClose} modal={true}>
         <DialogContent
           className="max-w-3xl h-[80vh] flex flex-col p-0 gap-0 overflow-hidden"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => {
             // Prevent focus restoration when closing - this can cause fullscreen to exit
             // especially for knowledge base modal

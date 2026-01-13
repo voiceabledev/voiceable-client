@@ -33,6 +33,20 @@ type SystemToolSettingsPanelProps = {
   isFullscreen?: boolean;
 };
 
+// Map tool keys to their default display names
+const getDefaultToolName = (key: SystemToolKey): string => {
+  const nameMap: Record<SystemToolKey, string> = {
+    end_call: "End Call",
+    detect_language: "Detect Language",
+    skip_turn: "Skip Turn",
+    transfer_to_agent: "Transfer to Agent",
+    transfer_to_number: "Transfer to Number",
+    play_keypad_touch_tone: "Play Keypad Touch Tone",
+    voicemail_detection: "Voicemail Detection",
+  };
+  return nameMap[key] || key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
 export const SystemToolSettingsPanel: React.FC<SystemToolSettingsPanelProps> = ({
   toolKey,
   settings,
@@ -46,6 +60,15 @@ export const SystemToolSettingsPanel: React.FC<SystemToolSettingsPanelProps> = (
 }) => {
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
+
+  // Ensure name is populated with default display name if empty or matches the key
+  useEffect(() => {
+    const defaultName = getDefaultToolName(toolKey);
+    // If name is empty or matches the raw key (e.g., "end_call"), use the display name
+    if (!settings.name || settings.name.trim() === "" || settings.name === toolKey) {
+      onUpdate({ name: defaultName });
+    }
+  }, [toolKey, settings.name, onUpdate]);
 
   // Fetch agents when transfer_to_agent tool is selected
   useEffect(() => {
@@ -316,7 +339,7 @@ The reason must include a specific reference to the wording in the user message 
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Name</label>
                 <Input
-                  value={settings.name || ""}
+                  value={settings.name || getDefaultToolName(toolKey)}
                   onChange={(e) => onUpdate({ name: e.target.value })}
                   className="bg-secondary/20 border-transparent focus:border-primary/30"
                   placeholder="Tool name"
