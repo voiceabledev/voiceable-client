@@ -14,9 +14,9 @@ export const AGENT_TYPE_CONFIGS: Record<AgentType, AgentTypeConfig> = {
     behaviorPrompt: "Create a customer support agent that can handle inquiries, troubleshoot issues, and escalate complex problems to human agents. The agent should be empathetic, patient, and solution-oriented.",
   },
   lead_generation: {
-    name: "Lead Generation Agent",
+    name: "Lead Qualification Specialist",
     primaryGoals: ["lead_qualified", "lead_captured", "appointment_booked"],
-    behaviorPrompt: "Build a lead generation agent that qualifies prospects, collects contact information, and schedules follow-up meetings. The agent should be engaging, ask strategic questions, and build rapport.",
+    behaviorPrompt: "Build a lead qualification specialist that qualifies prospects, collects contact information, and schedules follow-up meetings. The agent should be engaging, ask strategic questions, and build rapport.",
   },
   sales_calls: {
     name: "Sales Agent",

@@ -24,7 +24,7 @@ export async function detectAgentType(description: string): Promise<AgentTypeDet
 
   const systemPrompt = `You are an AI assistant that classifies agent descriptions into one of these 6 types:
 1. customer_support - For handling customer inquiries, troubleshooting issues, and providing support
-2. lead_generation - For qualifying prospects, collecting contact information, and generating leads
+2. lead_qualification - For qualifying prospects, collecting contact information, and generating leads
 3. sales_calls - For presenting products, handling objections, and closing deals
 4. appointment_booking - For scheduling meetings, checking availability, and managing appointments
 5. product_information - For providing product specs, pricing, availability, and recommendations
@@ -79,7 +79,7 @@ Respond with ONLY the type name (e.g., "customer_support") and nothing else.`;
     if (lowerDescription.includes("customer support") || lowerDescription.includes("customer service") || lowerDescription.includes("support agent")) {
       return { type: "customer_support", confidence: "medium" };
     }
-    if (lowerDescription.includes("lead generation") || lowerDescription.includes("qualify") || lowerDescription.includes("prospect")) {
+    if (lowerDescription.includes("lead qualification") || lowerDescription.includes("qualify") || lowerDescription.includes("prospect")) {
       return { type: "lead_generation", confidence: "medium" };
     }
     if (lowerDescription.includes("sales") || lowerDescription.includes("close") || lowerDescription.includes("deal")) {
@@ -103,7 +103,7 @@ Respond with ONLY the type name (e.g., "customer_support") and nothing else.`;
     if (lowerDescription.includes("customer support") || lowerDescription.includes("customer service")) {
       return { type: "customer_support", confidence: "low" };
     }
-    if (lowerDescription.includes("lead generation") || lowerDescription.includes("qualify")) {
+    if (lowerDescription.includes("lead qualification") || lowerDescription.includes("qualify")) {
       return { type: "lead_generation", confidence: "low" };
     }
     if (lowerDescription.includes("sales")) {

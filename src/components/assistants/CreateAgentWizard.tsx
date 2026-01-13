@@ -1662,7 +1662,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
           // Auto-generate workflow if agent was created from AssistantsList with agent type
           // Skip workflow inference for types that have backend defaults
           if (initialData?.agentType && savedAgentId) {
-            const typesWithBackendDefaults = ['appointment_booking', 'lead_generation'];
+            const typesWithBackendDefaults = ['appointment_booking', 'lead_generation', 'product_information'];
             if (typesWithBackendDefaults.includes(initialData.agentType)) {
               // Backend will create default workflows, skip frontend inference
               console.log('[CreateAgentWizard] Skipping frontend workflow inference for', initialData.agentType, '- backend will create defaults');
@@ -1672,7 +1672,6 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                 const validAgentTypes = [
                   "customer_support",
                   "sales_calls",
-                  "product_information",
                   "technical_support",
                 ] as const;
 

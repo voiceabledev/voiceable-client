@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { Input } from "../ui/input";
-import { ChevronDown, Edit, Plus, Trash2, Loader2, Check, X, Maximize2, Minimize2, Bot, Calendar, Database, Phone, Mail, MessageSquare, Zap, Workflow as WorkflowIcon } from "lucide-react";
+import { ChevronDown, Edit, Plus, Trash2, Loader2, Check, X, Maximize2, Minimize2, Bot, Calendar, Database, Phone, Mail, MessageSquare, Zap, Workflow as WorkflowIcon, BookOpen } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { IntegrationFunctionCard } from "../assistants/IntegrationFunctionCard";
 import type { AgentFunction, Function } from "@/types/functions";
@@ -394,6 +394,12 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
         bgColor: "bg-orange-50",
         borderColor: "border-orange-200"
       },
+      "Knowledge Base": {
+        icon: <BookOpen className="h-4 w-4" />,
+        color: "text-indigo-600",
+        bgColor: "bg-indigo-50",
+        borderColor: "border-indigo-200"
+      },
       "Other": {
         icon: <WorkflowIcon className="h-4 w-4" />,
         color: "text-gray-600",
@@ -413,6 +419,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
       "CRM": [],
       "Communication": [],
       "Information": [],
+      "Knowledge Base": [],
       "Other": []
     };
 
@@ -422,6 +429,21 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
     const knowledgeTypes = ['pinecone', 'search_knowledge_base'];
 
     workflows.forEach(workflow => {
+      // Check if this is a Knowledge Base workflow by name or description
+      const workflowName = workflow.workflow_name || workflow.workflow_config?.name || '';
+      const workflowDescription = workflow.workflow_description || workflow.workflow_config?.description || '';
+      const isKnowledgeBaseWorkflow = 
+        workflowName.toLowerCase().includes('product information') ||
+        workflowDescription.toLowerCase().includes('product information') ||
+        workflowName.toLowerCase().includes('qualification process') ||
+        workflowDescription.toLowerCase().includes('qualification process');
+
+      // If it's a Knowledge Base workflow, categorize it as Knowledge Base
+      if (isKnowledgeBaseWorkflow) {
+        groups["Knowledge Base"].push(workflow);
+        return;
+      }
+
       let type = workflow.function?.integration_type;
 
       // If custom workflow, try to guess type from tool chain
@@ -460,7 +482,7 @@ export const AgentIntegrationToolsSection: React.FC<AgentIntegrationToolsSection
 
     // Remove empty groups and sort order
     const orderedGroups: Record<string, AgentFunction[]> = {};
-    const order = ["Scheduling", "CRM", "Communication", "Information", "Other"];
+    const order = ["Scheduling", "CRM", "Communication", "Information", "Knowledge Base", "Other"];
 
     order.forEach(key => {
       if (groups[key].length > 0) {

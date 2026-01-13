@@ -27,12 +27,12 @@ type GenerateBehaviourModalProps = {
 };
 
 const SUGGESTED_BEHAVIORS = [
-  { label: "Customer Support", icon: "🛠️", prompt: "Create a customer support agent that can handle inquiries, troubleshoot issues, and escalate complex problems to human agents." },
-  { label: "Lead Generation", icon: "📊", prompt: "Build a lead generation agent that qualifies prospects, collects contact information, and schedules follow-up meetings." },
-  { label: "Sales Calls", icon: "📞", prompt: "Design a sales agent that presents products, answers questions, handles objections, and closes deals over the phone." },
+  // { label: "Customer Support", icon: "🛠️", prompt: "Create a customer support agent that can handle inquiries, troubleshoot issues, and escalate complex problems to human agents." },
+  { label: "Lead Qualification", icon: "📊", prompt: "Build a lead qualification specialist that qualifies prospects, collects contact information, and schedules follow-up meetings." },
+  // { label: "Sales Calls", icon: "📞", prompt: "Design a sales agent that presents products, answers questions, handles objections, and closes deals over the phone." },
   { label: "Appointment Booking", icon: "📅", prompt: "Create an appointment booking agent that checks availability, schedules meetings, sends confirmations, and handles rescheduling." },
   { label: "Product Information", icon: "📦", prompt: "Build a product information agent that provides detailed product specs, pricing, availability, and recommendations." },
-  { label: "Technical Support", icon: "💻", prompt: "Design a technical support agent that troubleshoots issues, provides step-by-step solutions, and escalates when needed." },
+  // { label: "Technical Support", icon: "💻", prompt: "Design a technical support agent that troubleshoots issues, provides step-by-step solutions, and escalates when needed." },
 ];
 
 export const GenerateBehaviourModal: React.FC<GenerateBehaviourModalProps> = ({

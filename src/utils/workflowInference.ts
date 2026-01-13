@@ -97,7 +97,7 @@ export function inferWorkflowFromAgentType(
         method: "create_deal",
         config: {},
       });
-      description = `Lead generation workflow for ${agentName} that qualifies prospects via SMS and creates deals in Pipedrive.`;
+      description = `Lead qualification workflow for ${agentName} that qualifies prospects via SMS and creates deals in Pipedrive.`;
       triggerPhrases = ["interested", "qualify", "lead", "prospect", "inquiry"];
       break;
 
@@ -138,6 +138,8 @@ export function inferWorkflowFromAgentType(
       break;
 
     case "appointment_booking":
+      // Note: Appointment booking workflows explicitly exclude CRM tools (e.g. Pipedrive, HubSpot)
+      // to keep the workflow focused purely on scheduling.
       toolChain.push(
         {
           type: "calcom",
@@ -163,29 +165,14 @@ export function inferWorkflowFromAgentType(
       break;
 
     case "product_information":
-      toolChain.push(
-        {
-          type: "calcom",
-          role: "scheduling",
-          method: "get_event_types",
-          config: {},
-        },
-        {
-          type: "calcom",
-          role: "scheduling",
-          method: "get_available_slots",
-          config: {},
-        },
-        {
-          type: "calcom",
-          role: "scheduling",
-          method: "create_booking",
-          config: {},
-        }
-      );
+      toolChain.push({
+        type: "search_knowledge_base",
+        role: "knowledge",
+        config: {}
+      });
 
-      description = `Product information workflow for ${agentName} that handles product inquiries via SMS.`;
-      triggerPhrases = ["product", "information", "specs", "pricing", "availability"];
+      description = `Product information workflow for ${agentName} that searches knowledge base to provide product information, specs, pricing, and availability.`;
+      triggerPhrases = ["product", "information", "specs", "pricing", "availability", "inquiry", "what is", "tell me about"];
       break;
 
     case "technical_support":
