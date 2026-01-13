@@ -25,10 +25,10 @@ const Landing = () => {
 
   // Content configuration for scheduling, Q&A, and CRM sync focus
   const heroContent = {
-    badgeText: "Never miss a lead, 24/7",
+    badgeText: "Never miss a demo call, 24/7",
     headline: "Convert leads & book appointments with a 24/7 AI assistant",
-    subtitle: "Voiceable answers every call, books appointments automatically, syncs with your CRM, and qualifies leads 24/7. Perfect for clinics, real estate, logistics, and SaaS support teams.",
-    socialProofText: "Trusted by SMBs & Operations Teams"
+    subtitle: "Your 24/7 AI SDR that qualifies leads, books demos directly into Cal.com, syncs context to your CRM, and answers technical questions. Perfect for B2B SaaS teams with $10k–$200k MRR managing high inbound volume.",
+    socialProofText: "Trusted by B2B SaaS Teams"
   };
 
   const featuresContent = [
@@ -129,7 +129,7 @@ const Landing = () => {
     // },
     {
       id: "saas-support",
-      label: "B2B SaaS Support",
+      label: "B2B SaaS",
       icon: Code,
       title: "Your 24/7 AI SDR for inbound demo calls",
       description: "Turn inbound calls into booked demos, without hiring SDRs. Qualifies leads, books demos directly into Cal.com, syncs context to your CRM, and answers technical questions. Perfect for B2B SaaS teams with $10k–$200k MRR managing high inbound volume.",
