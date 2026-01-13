@@ -47,8 +47,8 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const [copied, setCopied] = useState(false);
   const [previewTriggered, setPreviewTriggered] = useState(false);
   const [showContactSalesModal, setShowContactSalesModal] = useState(false);
-  const [designStudioExpanded, setDesignStudioExpanded] = useState(true);
-  const [integrationExpanded, setIntegrationExpanded] = useState(true);
+  const [designStudioExpanded, setDesignStudioExpanded] = useState(false);
+  const [integrationExpanded, setIntegrationExpanded] = useState(false);
   const [guideExpanded, setGuideExpanded] = useState(false);
 
   // Fetch or create API key on mount
