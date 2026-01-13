@@ -308,7 +308,7 @@ const Landing = () => {
     appointment_booking: {
       user: {
         name: "Michael",
-        location: "Patient",
+        location: "Lead",
         time: "10:30 AM EST",
         avatar: "M",
         message: "Hi, I'd like to schedule an appointment for next week. I'm available Tuesday or Wednesday afternoon. What times do you have?"
