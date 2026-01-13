@@ -2484,7 +2484,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
           {currentStep === 5 ? (
             // Main content
-            <div className="w-full mx-auto">
+            <div className="max-w-7xl mx-auto">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold mb-2">
                   {steps[currentStep]?.label}
