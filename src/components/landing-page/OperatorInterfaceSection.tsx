@@ -471,52 +471,75 @@ const OperatorInterfaceSection = ({
                   {/* Audio Player - At Top */}
                   <div className="p-4 md:p-6 border-b border-border">
                     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
-                      <motion.button 
-                        onClick={() => {
-                          if (!audioRef.current) return;
-                          
-                          if (isPlaying) {
-                            audioRef.current.pause();
-                          } else {
-                            audioRef.current.play().catch((error) => {
-                              console.error('Error playing audio:', error);
-                              setIsPlaying(false);
-                            });
-                          }
-                        }}
-                        animate={{
-                          scale: isPlaying ? [1, 1.05, 1] : 1,
-                          boxShadow: isPlaying 
-                            ? [
-                                '0 0 0px hsl(160 84% 39% / 0)',
-                                '0 0 20px hsl(160 84% 39% / 0.4)',
-                                '0 0 0px hsl(160 84% 39% / 0)'
-                              ]
-                            : '0 0 0px hsl(160 84% 39% / 0)'
-                        }}
-                        transition={{
-                          scale: {
-                            duration: 2,
-                            repeat: isPlaying ? Infinity : 0,
-                            ease: "easeInOut"
-                          },
-                          boxShadow: {
-                            duration: 2,
-                            repeat: isPlaying ? Infinity : 0,
-                            ease: "easeInOut"
-                          }
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                        whileHover={{ scale: 1.05 }}
-                        className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors flex-shrink-0 relative"
-                        aria-label={isPlaying ? "Pause audio" : "Play audio"}
-                      >
-                        {isPlaying ? (
-                          <Pause className="w-4 h-4 text-foreground fill-foreground" />
-                        ) : (
-                          <Play className="w-4 h-4 text-foreground fill-foreground ml-0.5" />
+                      <div className="relative flex-shrink-0">
+                        {/* Pulsing ring when paused to catch attention */}
+                        {!isPlaying && (
+                          <motion.div
+                            className="absolute inset-0 rounded-full border-2 border-primary/40"
+                            animate={{
+                              scale: [1, 1.3, 1],
+                              opacity: [0.6, 0, 0.6],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                          />
                         )}
-                      </motion.button>
+                        <motion.button 
+                          onClick={() => {
+                            if (!audioRef.current) return;
+                            
+                            if (isPlaying) {
+                              audioRef.current.pause();
+                            } else {
+                              audioRef.current.play().catch((error) => {
+                                console.error('Error playing audio:', error);
+                                setIsPlaying(false);
+                              });
+                            }
+                          }}
+                          animate={{
+                            scale: isPlaying 
+                              ? [1, 1.05, 1] 
+                              : [1, 1.08, 1], // Gentle pulse when paused to catch attention
+                            boxShadow: isPlaying 
+                              ? [
+                                  '0 0 0px hsl(160 84% 39% / 0)',
+                                  '0 0 20px hsl(160 84% 39% / 0.4)',
+                                  '0 0 0px hsl(160 84% 39% / 0)'
+                                ]
+                              : [
+                                  '0 0 0px hsl(160 84% 39% / 0)',
+                                  '0 0 15px hsl(160 84% 39% / 0.3)',
+                                  '0 0 0px hsl(160 84% 39% / 0)'
+                                ]
+                          }}
+                          transition={{
+                            scale: {
+                              duration: isPlaying ? 2 : 1.5,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            },
+                            boxShadow: {
+                              duration: isPlaying ? 2 : 1.5,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }
+                          }}
+                          whileTap={{ scale: 0.95 }}
+                          whileHover={{ scale: 1.05 }}
+                          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors relative z-10"
+                          aria-label={isPlaying ? "Pause audio" : "Play audio"}
+                        >
+                          {isPlaying ? (
+                            <Pause className="w-4 h-4 text-foreground fill-foreground" />
+                          ) : (
+                            <Play className="w-4 h-4 text-foreground fill-foreground ml-0.5" />
+                          )}
+                        </motion.button>
+                      </div>
                       <div className="flex-1 flex items-center gap-2 min-w-0">
                         <div 
                           className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden cursor-pointer hover:bg-muted/80 transition-colors relative group"
