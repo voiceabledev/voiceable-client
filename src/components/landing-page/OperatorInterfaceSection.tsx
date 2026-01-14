@@ -471,7 +471,7 @@ const OperatorInterfaceSection = ({
                   {/* Audio Player - At Top */}
                   <div className="p-4 md:p-6 border-b border-border">
                     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
-                      <button 
+                      <motion.button 
                         onClick={() => {
                           if (!audioRef.current) return;
                           
@@ -484,7 +484,31 @@ const OperatorInterfaceSection = ({
                             });
                           }
                         }}
-                        className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors flex-shrink-0"
+                        animate={{
+                          scale: isPlaying ? [1, 1.05, 1] : 1,
+                          boxShadow: isPlaying 
+                            ? [
+                                '0 0 0px hsl(160 84% 39% / 0)',
+                                '0 0 20px hsl(160 84% 39% / 0.4)',
+                                '0 0 0px hsl(160 84% 39% / 0)'
+                              ]
+                            : '0 0 0px hsl(160 84% 39% / 0)'
+                        }}
+                        transition={{
+                          scale: {
+                            duration: 2,
+                            repeat: isPlaying ? Infinity : 0,
+                            ease: "easeInOut"
+                          },
+                          boxShadow: {
+                            duration: 2,
+                            repeat: isPlaying ? Infinity : 0,
+                            ease: "easeInOut"
+                          }
+                        }}
+                        whileTap={{ scale: 0.95 }}
+                        whileHover={{ scale: 1.05 }}
+                        className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors flex-shrink-0 relative"
                         aria-label={isPlaying ? "Pause audio" : "Play audio"}
                       >
                         {isPlaying ? (
@@ -492,7 +516,7 @@ const OperatorInterfaceSection = ({
                         ) : (
                           <Play className="w-4 h-4 text-foreground fill-foreground ml-0.5" />
                         )}
-                      </button>
+                      </motion.button>
                       <div className="flex-1 flex items-center gap-2 min-w-0">
                         <div 
                           className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden cursor-pointer hover:bg-muted/80 transition-colors relative group"
