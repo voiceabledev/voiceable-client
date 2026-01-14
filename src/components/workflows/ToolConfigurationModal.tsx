@@ -321,6 +321,9 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
     // This contains the parameters mapping (fields)
     // Reuse existing logic but strip out the method selection parts
 
+    // Don't show "Save & Close" button for knowledge base tool
+    const isKnowledgeBase = tool && !isConditionalTool(tool) && tool.type === 'search_knowledge_base';
+
     return (
       <div className="space-y-6 py-4">
         <div className="space-y-4">
@@ -328,14 +331,16 @@ export const ToolConfigurationModal: React.FC<ToolConfigurationModalProps> = ({
           {renderToolFields()}
         </div>
 
-        <div className="pt-4">
-          <Button className="w-full" onClick={() => {
-            handleSave();
-            onClose();
-          }}>
-            Save & Close
-          </Button>
-        </div>
+        {!isKnowledgeBase && (
+          <div className="pt-4">
+            <Button className="w-full" onClick={() => {
+              handleSave();
+              onClose();
+            }}>
+              Save & Close
+            </Button>
+          </div>
+        )}
       </div>
     );
   };

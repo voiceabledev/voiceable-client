@@ -564,6 +564,14 @@ export const agentsApi = {
     return response;
   },
 
+  generateKnowledgeBase: async (id: string, prompt: string) => {
+    const response = await apiClient.post<{ content: string }>(
+      `/agents/${id}/generate_knowledge_base`,
+      { prompt }
+    );
+    return response;
+  },
+
   delete: async (id: string) => {
     const response = await apiClient.delete(`/agents/${id}`);
     return response;
@@ -845,6 +853,21 @@ export const agentFilesApi = {
     }
 
     const response = await apiClient.post<AgentFile>(`/agent_files/create_and_sync`, requestBody);
+    return response;
+  },
+
+  update: async (agentId: string, fileId: number, file_name: string) => {
+    const response = await apiClient.patch<AgentFile>(`/agents/${agentId}/agent_files/${fileId}`, {
+      file_name,
+    });
+    return response;
+  },
+
+  updateContent: async (agentId: string, fileId: number, file_name: string, file_content: string) => {
+    const response = await apiClient.patch<AgentFile>(
+      `/agents/${agentId}/agent_files/${fileId}/update_content`,
+      { file_name, file_content }
+    );
     return response;
   },
 
