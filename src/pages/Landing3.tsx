@@ -427,7 +427,7 @@ const Landing3 = () => {
   const operatorTabExamples = {
     initial_screening: {
       user: {
-        name: "James",
+        name: "John",
         location: "Candidate",
         time: "2:30 PM EST",
         avatar: "J",
@@ -435,7 +435,7 @@ const Landing3 = () => {
       },
       ai: {
         audioDuration: "01:15",
-        message: "Hi James! Thank you for your interest in the warehouse position. I'd be happy to conduct an initial screening interview with you right now. This will take about 10-15 minutes and will help us understand your experience and availability. Are you ready to begin, or would you prefer to schedule this for later?"
+        message: "Hi John! Thank you for your interest in the warehouse position. I'd be happy to conduct an initial screening interview with you right now. This will take about 10-15 minutes and will help us understand your experience and availability. Are you ready to begin, or would you prefer to schedule this for later?"
       },
       metadata: {
         status: "Screening In Progress",
