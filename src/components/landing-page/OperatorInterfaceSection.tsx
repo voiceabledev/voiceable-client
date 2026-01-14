@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { ShoppingBag, Phone, Sparkles, ArrowRight, Heart, Home, Play, Pause, CheckCircle2, FileText, AlertCircle, Meh, Smile, Frown, RotateCcw, LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -260,6 +261,8 @@ const OperatorInterfaceSection = ({
 }: OperatorInterfaceSectionProps) => {
   const [activeTab, setActiveTab] = useState(segments[0]?.tabs[0]?.id || "triage");
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentExample = tabExamples[activeTab] || tabExamples[Object.keys(tabExamples)[0]];
 
   const handleTabChange = (tabId: string) => {
@@ -267,10 +270,69 @@ const OperatorInterfaceSection = ({
     setIsPlaying(false); // Reset audio when switching tabs
   };
 
+  // Initialize audio element
+  useEffect(() => {
+    // Initialize audio element
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/landing-page-audio.mp3');
+      audioRef.current.preload = 'auto';
+    }
+
+    // Set up progress tracking
+    const audio = audioRef.current;
+    const updateProgress = () => {
+      if (audio.duration) {
+        setAudioProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setAudioProgress(0);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+    };
+  }, []);
+
   // Reset audio when tab changes
   useEffect(() => {
     setIsPlaying(false);
+    // Reset audio when tab changes
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setAudioProgress(0);
+    }
   }, [activeTab]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup audio on unmount
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // Helper function to determine if status should be highlighted
   const isStatusHighlighted = (tabId: string, status: string) => {
@@ -385,7 +447,18 @@ const OperatorInterfaceSection = ({
                   <div className="p-4 md:p-6 border-b border-border">
                     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
                       <button 
-                        onClick={() => setIsPlaying(!isPlaying)}
+                        onClick={() => {
+                          if (!audioRef.current) return;
+                          
+                          if (isPlaying) {
+                            audioRef.current.pause();
+                          } else {
+                            audioRef.current.play().catch((error) => {
+                              console.error('Error playing audio:', error);
+                              setIsPlaying(false);
+                            });
+                          }
+                        }}
                         className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors flex-shrink-0"
                         aria-label={isPlaying ? "Pause audio" : "Play audio"}
                       >
@@ -399,7 +472,7 @@ const OperatorInterfaceSection = ({
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-primary rounded-full transition-all duration-300"
-                            style={{ width: isPlaying ? '45%' : '0%' }}
+                            style={{ width: `${audioProgress}%` }}
                           />
                         </div>
                         <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
@@ -467,7 +540,7 @@ const OperatorInterfaceSection = ({
 
               {/* Right Side - Metadata Content */}
               <div className="col-span-12 md:col-span-6 flex flex-col">
-                <div className="flex-1 p-4 md:p-6 overflow-y-auto min-h-[400px] md:min-h-[500px] flex flex-col justify-end">
+                <div className="flex-1 p-4 md:p-6 overflow-y-auto min-h-[400px] md:min-h-[500px]">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeTab}
@@ -475,118 +548,127 @@ const OperatorInterfaceSection = ({
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -10 }}
                       transition={{ duration: 0.3 }}
-                      className="space-y-4"
+                      className="space-y-6"
                     >
-                      {/* Status, Priority, Sentiment - Same Row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {/* Status Button */}
-                        <button className={`
-                          flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold
-                          transition-all duration-200 relative
-                          ${isStatusHighlighted(activeTab, currentExample.metadata.status)
-                            ? "bg-gradient-to-r from-primary/30 via-primary/20 to-primary/10 text-primary border-2 border-primary/50 shadow-lg shadow-primary/20"
-                            : "bg-muted/70 text-foreground border border-border hover:bg-muted"
-                          }
-                        `}>
-                          {isStatusHighlighted(activeTab, currentExample.metadata.status) && (
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg" />
-                          )}
-                          <RotateCcw className={`w-5 h-5 flex-shrink-0 ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : "text-foreground/70"}`} />
-                          <div className="flex flex-col items-start min-w-0 flex-1">
-                            <span className="text-xs font-normal text-muted-foreground">Status</span>
-                            <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.status}</span>
-                          </div>
-                        </button>
+                      {/* Status, Priority, Sentiment - Card Group */}
+                      <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {/* Status Button */}
+                          <button className={`
+                            flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold
+                            transition-all duration-200 relative
+                            ${isStatusHighlighted(activeTab, currentExample.metadata.status)
+                              ? "bg-primary/10 text-primary border border-primary/30 shadow-sm"
+                              : "bg-muted/50 text-foreground border border-border/50 hover:bg-muted hover:border-border"
+                            }
+                          `}>
+                            <RotateCcw className={`w-5 h-5 flex-shrink-0 ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : "text-muted-foreground"}`} />
+                            <div className="flex flex-col items-start min-w-0 flex-1">
+                              <span className="text-xs font-normal text-muted-foreground">Status</span>
+                              <span className={`text-sm font-semibold truncate w-full text-left ${isStatusHighlighted(activeTab, currentExample.metadata.status) ? "text-primary" : ""}`}>
+                                {currentExample.metadata.status}
+                              </span>
+                            </div>
+                          </button>
 
-                        {/* Priority Button */}
-                        <button className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold bg-muted/70 text-foreground border border-border hover:bg-muted transition-all duration-200">
-                          <AlertCircle className="w-5 h-5 text-foreground/70 flex-shrink-0" />
-                          <div className="flex flex-col items-start min-w-0 flex-1">
-                            <span className="text-xs font-normal text-muted-foreground">Priority</span>
-                            <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.priority}</span>
-                          </div>
-                        </button>
+                          {/* Priority Button */}
+                          <button className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold bg-muted/50 text-foreground border border-border/50 hover:bg-muted hover:border-border transition-all duration-200">
+                            <AlertCircle className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                            <div className="flex flex-col items-start min-w-0 flex-1">
+                              <span className="text-xs font-normal text-muted-foreground">Priority</span>
+                              <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.priority}</span>
+                            </div>
+                          </button>
 
-                        {/* Sentiment Button */}
-                        <button className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold bg-muted/70 text-foreground border border-border hover:bg-muted transition-all duration-200">
-                          {(() => {
-                            const SentimentIcon = currentExample.metadata.sentimentIcon;
-                            return <SentimentIcon className="w-5 h-5 text-foreground/70 flex-shrink-0" />;
-                          })()}
-                          <div className="flex flex-col items-start min-w-0 flex-1">
-                            <span className="text-xs font-normal text-muted-foreground">Sentiment</span>
-                            <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.sentiment}</span>
-                          </div>
-                        </button>
+                          {/* Sentiment Button */}
+                          <button className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-base font-semibold bg-muted/50 text-foreground border border-border/50 hover:bg-muted hover:border-border transition-all duration-200">
+                            {(() => {
+                              const SentimentIcon = currentExample.metadata.sentimentIcon;
+                              return <SentimentIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />;
+                            })()}
+                            <div className="flex flex-col items-start min-w-0 flex-1">
+                              <span className="text-xs font-normal text-muted-foreground">Sentiment</span>
+                              <span className="text-sm font-semibold truncate w-full text-left">{currentExample.metadata.sentiment}</span>
+                            </div>
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="space-y-2 pt-2">
-                        {currentExample.metadata.actions.map((action, index) => {
-                          const isChecked = isActionHighlighted(activeTab, action);
-                          return (
-                            <button
-                              key={index}
-                              className={`
-                                w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                                transition-all duration-200 relative
-                                ${isChecked
-                                  ? "bg-gradient-to-r from-green-500/30 via-green-500/20 to-green-500/10 text-green-600 dark:text-green-400 border-2 border-green-500/50 shadow-lg shadow-green-500/20"
-                                  : "bg-muted/50 text-foreground border border-border hover:bg-muted"
-                                }
-                              `}
-                            >
-                              {isChecked && (
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded-l-lg" />
-                              )}
-                              <CheckCircle2 className={`w-4 h-4 ${isChecked ? "text-green-600 dark:text-green-400 fill-green-500/30" : "text-muted-foreground"}`} />
-                              <span className="text-left flex-1">
-                                {action.includes("Action:") ? (
-                                  <>
-                                    Action: <span className="font-medium">{action.replace("Action: ", "")}</span>
-                                  </>
-                                ) : (
-                                  action
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
+                      {/* Actions Section */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold text-foreground">Actions</h3>
+                        </div>
+                        <div className="space-y-2">
+                          {currentExample.metadata.actions.map((action, index) => {
+                            const isChecked = isActionHighlighted(activeTab, action);
+                            return (
+                              <button
+                                key={index}
+                                className={`
+                                  w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm
+                                  transition-all duration-200
+                                  ${isChecked
+                                    ? "bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 shadow-sm"
+                                    : "bg-muted/30 text-foreground border border-border/50 hover:bg-muted/50 hover:border-border"
+                                  }
+                                `}
+                              >
+                                <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${isChecked ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`} />
+                                <span className="text-left flex-1 font-medium">
+                                  {action.includes("Action:") ? (
+                                    <>
+                                      <span className="font-normal text-muted-foreground">Action: </span>
+                                      {action.replace("Action: ", "")}
+                                    </>
+                                  ) : (
+                                    action
+                                  )}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
-                      {/* Documents */}
-                      <div className="space-y-2 pt-2">
-                        {currentExample.metadata.documents.map((doc, index) => {
-                          const isChecked = isDocumentHighlighted(activeTab, doc);
-                          return (
-                            <button
-                              key={index}
-                              className={`
-                                w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                                transition-all duration-200 relative
-                                ${isChecked
-                                  ? "bg-gradient-to-r from-blue-500/30 via-blue-500/20 to-blue-500/10 text-blue-600 dark:text-blue-400 border-2 border-blue-500/50 shadow-lg shadow-blue-500/20"
-                                  : "bg-muted/50 text-foreground border border-border hover:bg-muted"
-                                }
-                              `}
-                            >
-                              {isChecked && (
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-lg" />
-                              )}
-                              <FileText className={`w-4 h-4 ${isChecked ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"}`} />
-                              <span className="text-left flex-1">
-                                {doc.includes("Docs:") ? (
-                                  <>
-                                    Docs: <span className="font-medium">{doc.replace("Docs: ", "")}</span>
-                                  </>
-                                ) : (
-                                  <span className="font-medium">{doc}</span>
-                                )}
-                              </span>
-                              {isChecked && <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 fill-blue-500/30" />}
-                            </button>
-                          );
-                        })}
+                      {/* Documents Section */}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText className="w-4 h-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+                        </div>
+                        <div className="space-y-2">
+                          {currentExample.metadata.documents.map((doc, index) => {
+                            const isChecked = isDocumentHighlighted(activeTab, doc);
+                            return (
+                              <button
+                                key={index}
+                                className={`
+                                  w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm
+                                  transition-all duration-200
+                                  ${isChecked
+                                    ? "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 shadow-sm"
+                                    : "bg-muted/30 text-foreground border border-border/50 hover:bg-muted/50 hover:border-border"
+                                  }
+                                `}
+                              >
+                                <FileText className={`w-4 h-4 flex-shrink-0 ${isChecked ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"}`} />
+                                <span className="text-left flex-1 font-medium">
+                                  {doc.includes("Docs:") ? (
+                                    <>
+                                      <span className="font-normal text-muted-foreground">Docs: </span>
+                                      {doc.replace("Docs: ", "")}
+                                    </>
+                                  ) : (
+                                    doc
+                                  )}
+                                </span>
+                                {isChecked && <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </motion.div>
                   </AnimatePresence>

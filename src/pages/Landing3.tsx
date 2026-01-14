@@ -630,7 +630,7 @@ const Landing3 = () => {
         message: "I wanted to follow up on my interview from last week. Have you made a decision yet?"
       },
       ai: {
-        audioDuration: "00:45",
+        audioDuration: "2:02",
         message: "Hi David! Thank you for following up. I can see your interview from last week is still under review. The hiring team is currently evaluating all candidates and expects to make a decision by the end of this week. I'll make sure you're notified as soon as there's an update. In the meantime, I can send you a summary of your interview performance if you'd like."
       },
       metadata: {

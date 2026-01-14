@@ -307,15 +307,15 @@ const Landing = () => {
   const operatorTabExamples = {
     appointment_booking: {
       user: {
-        name: "Michael",
+        name: "Jason",
         location: "Lead",
         time: "10:30 AM EST",
         avatar: "M",
         message: "Hi, I'd like to schedule an appointment for next week. I'm available Tuesday or Wednesday afternoon. What times do you have?"
       },
       ai: {
-        audioDuration: "00:45",
-        message: "Hi Michael! I'd be happy to help you schedule an appointment. I can see we have availability on Tuesday afternoon at 2:00 PM or 3:30 PM, and Wednesday at 1:00 PM or 4:00 PM. Which time works best for you? I'll send you a confirmation email and calendar invite once we confirm."
+        audioDuration: "2:02",
+        message: "Hi Jason! I'd be happy to help you schedule an appointment. I can see we have availability on Tuesday afternoon at 2:00 PM or 3:30 PM, and Wednesday at 1:00 PM or 4:00 PM. Which time works best for you? I'll send you a confirmation email and calendar invite once we confirm."
       },
       metadata: {
         status: "Appointment Scheduled",
