@@ -262,8 +262,17 @@ const OperatorInterfaceSection = ({
   const [activeTab, setActiveTab] = useState(segments[0]?.tabs[0]?.id || "triage");
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentExample = tabExamples[activeTab] || tabExamples[Object.keys(tabExamples)[0]];
+
+  const formatTime = (seconds: number): string => {
+    if (!seconds || !isFinite(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -283,12 +292,20 @@ const OperatorInterfaceSection = ({
     const updateProgress = () => {
       if (audio.duration) {
         setAudioProgress((audio.currentTime / audio.duration) * 100);
+        setCurrentTime(audio.currentTime);
+      }
+    };
+
+    const handleLoadedMetadata = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration);
       }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
       setAudioProgress(0);
+      setCurrentTime(0);
     };
 
     const handlePlay = () => {
@@ -300,12 +317,19 @@ const OperatorInterfaceSection = ({
     };
 
     audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
 
+    // Check if duration is already available
+    if (audio.duration && isFinite(audio.duration)) {
+      setDuration(audio.duration);
+    }
+
     return () => {
       audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
@@ -320,6 +344,7 @@ const OperatorInterfaceSection = ({
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setAudioProgress(0);
+      setCurrentTime(0);
     }
   }, [activeTab]);
 
@@ -469,14 +494,29 @@ const OperatorInterfaceSection = ({
                         )}
                       </button>
                       <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden cursor-pointer hover:bg-muted/80 transition-colors relative group"
+                          onClick={(e) => {
+                            if (!audioRef.current || !duration) return;
+                            
+                            const progressBar = e.currentTarget;
+                            const rect = progressBar.getBoundingClientRect();
+                            const clickX = e.clientX - rect.left;
+                            const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+                            const newTime = percentage * duration;
+                            
+                            audioRef.current.currentTime = newTime;
+                            setCurrentTime(newTime);
+                            setAudioProgress(percentage * 100);
+                          }}
+                        >
                           <div 
                             className="h-full bg-primary rounded-full transition-all duration-300"
                             style={{ width: `${audioProgress}%` }}
                           />
                         </div>
                         <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                          {currentExample.ai.audioDuration}
+                          {formatTime(currentTime)} / {duration > 0 ? formatTime(duration) : '2:02'}
                         </span>
                       </div>
                     </div>
