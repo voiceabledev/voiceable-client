@@ -47,6 +47,7 @@ interface TabExample {
 interface OperatorInterfaceSectionProps {
   segments?: Segment[];
   tabExamples?: Record<string, TabExample>;
+  audioSrc?: string;
 }
 
 // Default segments structure
@@ -257,7 +258,8 @@ const defaultTabExamples: Record<string, TabExample> = {
 
 const OperatorInterfaceSection = ({ 
   segments = defaultSegments, 
-  tabExamples = defaultTabExamples 
+  tabExamples = defaultTabExamples,
+  audioSrc = '/landing-page-audio.mp3'
 }: OperatorInterfaceSectionProps) => {
   const [activeTab, setActiveTab] = useState(segments[0]?.tabs[0]?.id || "triage");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -281,14 +283,25 @@ const OperatorInterfaceSection = ({
 
   // Initialize audio element
   useEffect(() => {
-    // Initialize audio element
-    if (!audioRef.current) {
-      audioRef.current = new Audio('/landing-page-audio.mp3');
-      audioRef.current.preload = 'auto';
+    // Clean up existing audio if it exists
+    const previousAudio = audioRef.current;
+    if (previousAudio) {
+      previousAudio.pause();
+      previousAudio.src = '';
     }
 
+    // Reset state
+    setIsPlaying(false);
+    setAudioProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+
+    // Create new audio element
+    const audio = new Audio(audioSrc);
+    audio.preload = 'auto';
+    audioRef.current = audio;
+
     // Set up progress tracking
-    const audio = audioRef.current;
     const updateProgress = () => {
       if (audio.duration) {
         setAudioProgress((audio.currentTime / audio.duration) * 100);
@@ -333,8 +346,10 @@ const OperatorInterfaceSection = ({
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.pause();
+      audio.src = '';
     };
-  }, []);
+  }, [audioSrc]);
 
   // Reset audio when tab changes
   useEffect(() => {

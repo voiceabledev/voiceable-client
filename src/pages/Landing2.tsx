@@ -551,6 +551,7 @@ const Landing = () => {
         <OperatorInterfaceSection
           segments={operatorSegments}
           tabExamples={operatorTabExamples}
+          audioSrc="/landing-page-audio.mp3"
         />
         <FeaturesSection features={featuresContent} />
         <LiveCallsSection calls={liveCallsContent} />
