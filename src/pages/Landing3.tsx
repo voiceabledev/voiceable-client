@@ -191,25 +191,6 @@ const Landing3 = () => {
       ]
     },
     {
-      id: "airports",
-      label: "Airports",
-      icon: Plane,
-      title: "Airport Staffing & Ground Crew Hiring",
-      description: "Recruit airport staff, ground crew, and customer service agents efficiently. Handle high-volume hiring for seasonal and year-round positions with AI interviews.",
-      features: [
-        {
-          icon: Clock,
-          title: "Round-the-Clock Interviews",
-          description: "Interview candidates across all time zones. Perfect for airports operating 24/7 with diverse shift requirements."
-        },
-        {
-          icon: UserCheck,
-          title: "Multi-Language Screening",
-          description: "Conduct interviews in multiple languages to match your diverse passenger base. Screen candidates for language skills and cultural fit."
-        }
-      ]
-    },
-    {
       id: "manufacturers",
       label: "Manufacturers",
       icon: Factory,

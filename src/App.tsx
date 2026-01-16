@@ -15,6 +15,7 @@ import { AdminRoute } from "@/components/AdminRoute";
 import Landing2 from "./pages/Landing2";
 import Landing from "./pages/Landing";
 import Landing3 from "./pages/Landing3";
+import Landing4 from "./pages/Landing4";
 import Login from "@/pages/auth/Login";
 import SignUp from "@/pages/auth/SignUp";
 import NotFound from "@/pages/NotFound";
@@ -92,6 +93,7 @@ const App = () => (
                 <Route path="/" element={<Landing2 />} />
                 <Route path="/retail-ecommerce" element={<Landing />} />
                 <Route path="/recruitment" element={<Landing3 />} />
+                <Route path="/small-business" element={<Landing4 />} />
                 <Route path="/sign-up" element={<SignUp />} />
                 <Route path="/reset-password" element={<Suspense fallback={<LoadingFallback />}><ResetPassword /></Suspense>} />
                 <Route path="/reset-password-confirm" element={<Suspense fallback={<LoadingFallback />}><ResetPasswordConfirm /></Suspense>} />

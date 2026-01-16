@@ -73,9 +73,9 @@ export function Navigation() {
             Home
           </Link>
           {/* <AgentsDropdown /> */}
-          <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          {/* <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Pricing
-          </Link>
+          </Link> */}
           {/* <a 
             href="https://docs.voiceable.dev/" 
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

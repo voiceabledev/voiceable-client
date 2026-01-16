@@ -15,7 +15,7 @@ import CTASection from "@/components/landing-page/CTASection";
 import Footer from "@/components/landing-page/Footer";
 import OperatorInterfaceSection from "@/components/landing-page/OperatorInterfaceSection";
 import { SEO } from "@/components/SEO";
-import { MessageCircle, Calendar, UserPlus, PhoneForwarded, RefreshCw, Check, Clock, Smile, Globe, ArrowRightLeft, AlertTriangle, Calendar as CalendarIcon, CreditCard, Wrench, Package, Truck, ShoppingBag, Box, Building2, Stethoscope, Home, Truck as TruckIcon, Code, Phone, Sparkles, ArrowRight, Heart, Play, Pause, CheckCircle2, FileText, Meh, Frown, RotateCcw, Layers, Brain, Cloud, Users, CloudLightning, Mail, Infinity as InfinityIcon, ShieldCheck } from "lucide-react";
+import { MessageCircle, Calendar, UserPlus, PhoneForwarded, RefreshCw, Check, Clock, Smile, Globe, ArrowRightLeft, AlertTriangle, Calendar as CalendarIcon, CreditCard, Wrench, Package, Truck, ShoppingBag, Box, Building2, Stethoscope, Home, Truck as TruckIcon, Code, Phone, Sparkles, ArrowRight, Heart, Play, Pause, CheckCircle2, FileText, Meh, Frown, RotateCcw, Layers, Brain, Cloud, Users, CloudLightning, Mail, Infinity as InfinityIcon, ShieldCheck, UserCheck, TrendingUp, BarChart3, Zap } from "lucide-react";
 
 const Landing = () => {
   const [activeFeature, setActiveFeature] = useState("assistant");
@@ -23,126 +23,126 @@ const Landing = () => {
   const baseUrl = "https://voice-agent-ai-4288599ce3fe.herokuapp.com";
   const currentUrl = `${baseUrl}${location.pathname}`;
 
-  // Content configuration for scheduling, Q&A, and CRM sync focus
+  // Content configuration for AI Call Center / Sales & Support - Service Companies Focus
   const heroContent = {
-    badgeText: "Never miss a demo call, 24/7",
-    headline: "Convert leads & book appointments with a 24/7 AI assistant",
-    subtitle: "Your 24/7 AI SDR that qualifies leads, books demos directly into Cal.com, syncs context to your CRM, and answers technical questions. Perfect for B2B SaaS teams managing high inbound volume.",
-    socialProofText: "Trusted by B2B SaaS Teams"
+    badgeText: "Never miss a job, 24/7",
+    headline: "24/7 AI call center for service companies",
+    subtitle: "Plumbing. HVAC. Electrical. Contracting. When the phone rings, jobs get booked or lost. Voiceable ensures every call is answered, every lead qualified, and every job scheduled, day or night.",
+    socialProofText: "Trusted by Service Companies"
   };
 
   const featuresContent = [
     {
-      title: "Answer Questions",
-      description: "Responds 24/7 to common inquiries about services, pricing, availability, and business hours. Voiceable pulls answers from your knowledge base and handles FAQs instantly, freeing your team for high-value conversations.",
-      benefits: ["Reduce call volume by 60%", "Instant answers to common questions"],
+      title: "Answer Every Call, 24/7",
+      description: "Nights, weekends, holidays — we never clock out. Voiceable answers instantly with natural, human-like voice AI. No voicemails. No missed opportunities. Every call gets answered, day or night.",
+      benefits: ["24/7 coverage, never miss a call", "Natural human-like responses"],
       gradient: "from-primary/20 via-emerald-500/10 to-transparent",
-      icon: MessageCircle,
+      icon: Phone,
     },
     {
-      title: "Book Appointments",
-      description: "Prospects book appointments in a single call. Voiceable syncs with your calendar (Google Calendar, Outlook, Calendly), sends confirmations and reminders, and follows up automatically, so no lead falls through the cracks.",
-      benefits: ["Convert more leads to appointments", "Reduce missed connections"],
+      title: "Qualify Real Leads",
+      description: "We gather job details, filter out tire-kickers, and prioritize real customers. Voiceable asks the right questions, assesses urgency, and only passes job-ready leads to your team. No wasted time on unqualified calls.",
+      benefits: ["Job-ready leads only", "Filter out tire-kickers"],
       gradient: "from-green/20 via-emerald-500/10 to-transparent",
+      icon: UserCheck,
+    },
+    {
+      title: "Book Jobs Automatically",
+      description: "Job-ready leads with details sent straight to your CSR or CRM system. Voiceable schedules appointments directly on your calendar, captures all job details, and syncs everything automatically. Turn every call into a booked job.",
+      benefits: ["Direct calendar booking", "Automatic job scheduling"],
+      gradient: "from-amber/20 via-orange-500/10 to-transparent",
       icon: Calendar,
     },
     {
-      title: "Collect Information",
-      description: "Automatically captures lead information, qualifies prospects, and syncs everything to your CRM (HubSpot, Salesforce, Pipedrive). No manual data entry, no lost leads, complete visibility into every interaction.",
-      benefits: ["100% lead capture rate", "Automatic CRM sync"],
-      gradient: "from-amber/20 via-orange-500/10 to-transparent",
-      icon: UserPlus,
-    },
-    {
-      title: "Transfer Calls",
-      description: "Seamlessly hand live calls from the AI to your team with full context. No dropped calls, no repeating information - your team gets complete conversation history and can pick up exactly where the AI left off.",
-      benefits: ["Zero dropped calls", "Full context handoff"],
+      title: "Lower Costs",
+      description: "Replace expensive call centers with AI. Voiceable handles after-hours calls, weekend emergencies, and overflow without adding staff. Reduce overhead while improving coverage and response times.",
+      benefits: ["Replace expensive call centers", "Reduce overhead costs"],
       gradient: "from-purple/20 via-pink-500/10 to-transparent",
-      icon: PhoneForwarded,
+      icon: TrendingUp,
     },
     {
-      title: "Follow Up",
-      description: "Automated follow-ups ensure no lead is forgotten. Voiceable sends reminders, checks in on scheduled appointments, and nurtures prospects through your sales funnel automatically.",
-      benefits: ["Never miss a follow-up", "Automated lead nurturing"],
+      title: "Peace of Mind",
+      description: "Focus on running your business while we handle the phones. Voiceable ensures every call is answered, every lead is qualified, and every job opportunity is captured. Never lose revenue to missed calls again.",
+      benefits: ["Never miss a job opportunity", "Focus on your business"],
       gradient: "from-blue/20 via-cyan-500/10 to-transparent",
-      icon: RefreshCw,
+      icon: ShieldCheck,
     },
   ];
 
   const solutionsContent = [
-    // {
-    //   id: "clinics",
-    //   label: "Clinics",
-    //   icon: Stethoscope,
-    //   title: "Appointment Scheduling & Patient Q&A Agent",
-    //   description: "Handle appointment bookings, patient inquiries, intake forms, and follow-ups 24/7. Sync with your practice management system and never miss a patient call.",
-    //   features: [
-    //     {
-    //       icon: Calendar,
-    //       title: "Automated Appointment Booking",
-    //       description: "Patients book appointments directly through phone calls. Syncs with your calendar system, sends confirmations, and handles rescheduling automatically."
-    //     },
-    //     {
-    //       icon: MessageCircle,
-    //       title: "Patient Q&A & Intake",
-    //       description: "Answers questions about services, insurance, hours, and collects patient information before appointments. Reduces front desk workload significantly."
-    //     }
-    //   ]
-    // },
-    // {
-    //   id: "real-estate",
-    //   label: "Real Estate",
-    //   icon: Home,
-    //   title: "Property Inquiries & Viewing Scheduling Agent",
-    //   description: "Handle property inquiries, schedule viewings, qualify leads, and sync everything to your CRM. Never miss a potential buyer or renter.",
-    //   features: [
-    //     {
-    //       icon: MessageCircle,
-    //       title: "Property Information & Q&A",
-    //       description: "Answers questions about properties, neighborhoods, pricing, and availability. Provides detailed information instantly, 24/7."
-    //     },
-    //     {
-    //       icon: Calendar,
-    //       title: "Viewing Scheduling & Lead Qualification",
-    //       description: "Books property viewings, qualifies leads, and automatically syncs all information to your CRM. Follows up with prospects automatically."
-    //     }
-    //   ]
-    // },
-    // {
-    //   id: "logistics",
-    //   label: "Logistics",
-    //   icon: TruckIcon,
-    //   title: "Delivery Scheduling & Customer Support Agent",
-    //   description: "Handle delivery scheduling, tracking inquiries, and customer support 24/7. Syncs with your logistics system and keeps customers informed every step.",
-    //   features: [
-    //     {
-    //       icon: Calendar,
-    //       title: "Delivery Scheduling",
-    //       description: "Customers schedule deliveries, reschedule appointments, and get real-time updates. Integrates with your logistics platform automatically."
-    //     },
-    //     {
-    //       icon: MessageCircle,
-    //       title: "Tracking & Support Q&A",
-    //       description: "Answers questions about delivery status, provides tracking information, and handles customer inquiries instantly, reducing support ticket volume."
-    //     }
-    //   ]
-    // },
     {
-      id: "saas-support",
-      label: "B2B SaaS",
-      icon: Code,
-      title: "Your 24/7 AI Assistant for inbound demo calls",
-      description: "Turn inbound calls into booked demos, without hiring SDRs. Qualifies leads, books demos directly into Cal.com, syncs context to your CRM, and answers technical questions. Perfect for B2B SaaS teams managing high inbound volume.",
+      id: "plumbing",
+      label: "Plumbing",
+      icon: Wrench,
+      title: "Plumbing Service Call Center",
+      description: "Never miss a plumbing job, day or night. Voiceable answers every call, qualifies emergency vs. routine jobs, and schedules appointments directly to your calendar. Handle after-hours emergencies and weekend calls without adding staff.",
       features: [
         {
-          icon: Calendar,
-          title: "Qualify Leads & Book Demos",
-          description: "Qualifies leads based on budget and use case, books product demos directly into Cal.com, and syncs all information to your CRM. Converts inbound calls into qualified demos automatically, even outside business hours."
+          icon: Phone,
+          title: "24/7 Emergency Coverage",
+          description: "Answer every call, even after hours and weekends. Qualify emergency jobs and route them appropriately. Never lose revenue to missed calls."
         },
         {
-          icon: MessageCircle,
-          title: "Technical Q&A & Support",
-          description: "Answers technical questions like 'Can you integrate with X?' and provides product information. Handles common support inquiries, reducing support team workload while keeping leads engaged."
+          icon: Calendar,
+          title: "Automatic Job Scheduling",
+          description: "Book appointments directly to your calendar. Capture job details, location, and urgency. Only pass job-ready leads to your team."
+        }
+      ]
+    },
+    {
+      id: "hvac",
+      label: "HVAC",
+      icon: Cloud,
+      title: "HVAC Service Booking Agent",
+      description: "Handle HVAC service calls 24/7. Voiceable qualifies leads, schedules maintenance appointments, and books emergency repairs. Turn every call into a booked job, even when your office is closed.",
+      features: [
+        {
+          icon: Clock,
+          title: "Round-the-Clock Availability",
+          description: "Answer calls nights, weekends, and holidays. Qualify emergency AC/heat repairs and schedule routine maintenance. Never miss a service opportunity."
+        },
+        {
+          icon: UserCheck,
+          title: "Smart Lead Qualification",
+          description: "Filter out tire-kickers and prioritize real customers. Gather system details, assess urgency, and only pass qualified leads to your technicians."
+        }
+      ]
+    },
+    {
+      id: "electrical",
+      label: "Electrical",
+      icon: Zap,
+      title: "Electrical Contractor Call Center",
+      description: "Book electrical jobs 24/7 without missing a call. Voiceable handles inquiries, qualifies projects, and schedules appointments. Perfect for electricians handling residential and commercial work.",
+      features: [
+        {
+          icon: Phone,
+          title: "Always-On Call Handling",
+          description: "Answer every call instantly, even after hours. Qualify electrical projects, assess scope, and schedule estimates. Turn inquiries into booked jobs."
+        },
+        {
+          icon: Calendar,
+          title: "Direct Calendar Booking",
+          description: "Schedule appointments directly to your calendar or CRM. Capture project details, location, and customer information automatically."
+        }
+      ]
+    },
+    {
+      id: "contracting",
+      label: "Contracting",
+      icon: Home,
+      title: "General Contractor Call Center",
+      description: "Never miss a contracting opportunity. Voiceable answers calls, qualifies projects, and books estimates 24/7. Handle residential and commercial inquiries even when your office is closed.",
+      features: [
+        {
+          icon: Phone,
+          title: "24/7 Project Inquiries",
+          description: "Answer every call, day or night. Qualify project scope, budget, and timeline. Only pass serious prospects to your team."
+        },
+        {
+          icon: UserCheck,
+          title: "Qualified Lead Capture",
+          description: "Filter out unqualified leads and focus on real opportunities. Gather project details and schedule estimates automatically."
         }
       ]
     },
@@ -150,312 +150,340 @@ const Landing = () => {
 
   const responsesCategories = [
     {
-      id: "product-information",
-      label: "Product Information",
-      title: "Product Information",
-      description: "Answers technical questions about integrations, pricing tiers, feature comparisons, and use cases from your knowledge base.",
-      message: "Yes, we integrate with HubSpot and Cal.com. Our Starter plan is $99/month with API access and webhooks. Would you like to schedule a demo?",
-      icon: Package,
-      emoji: "📦",
-    },
-    {
-      id: "qa",
-      label: "Q&A",
-      title: "Q&A",
-      description: "Answer questions about services, pricing, hours, and business information instantly.",
-      message: "What are your business hours and what services do you offer? I'm looking for more information.",
-      icon: MessageCircle,
-      emoji: "💬",
-    },
-    {
-      id: "lead-collection",
-      label: "Lead Collection",
-      title: "Lead Collection",
-      description: "Collect and qualify lead information, then sync automatically to your CRM.",
-      message: "I'm interested in learning more about your services. Can you tell me more and help me get started?",
-      icon: UserPlus,
-      emoji: "📋",
-    },
-    {
-      id: "scheduling",
-      label: "Scheduling",
-      title: "Scheduling",
-      description: "Seamlessly schedule appointments, meetings, and calls in real-time with calendar integration.",
-      message: "Hi, I'd like to book an appointment for next week. What times are available?",
+      id: "job-booking",
+      label: "Job Booking",
+      title: "Job Booking",
+      description: "Answer calls, qualify leads, and book jobs directly to your calendar 24/7.",
+      message: "Hi, I need a plumber. My kitchen sink is leaking and I need someone to come out today if possible.",
       icon: Calendar,
       emoji: "📅",
     },
     {
-      id: "call-transfer",
-      label: "Call Transfer",
-      title: "Call Transfer",
-      description: "Warm transfers with full context to your team when human assistance is needed.",
-      message: "Can I speak with someone about pricing and custom solutions? I have some specific requirements.",
-      icon: PhoneForwarded,
-      emoji: "📞",
+      id: "lead-qualification",
+      label: "Lead Qualification",
+      title: "Lead Qualification",
+      description: "Gather job details, filter out tire-kickers, and prioritize real customers.",
+      message: "I'm calling about getting an estimate for a bathroom renovation. What's your availability?",
+      icon: UserCheck,
+      emoji: "🎯",
+    },
+    {
+      id: "emergency-calls",
+      label: "Emergency Calls",
+      title: "Emergency Calls",
+      description: "Handle after-hours emergencies and urgent service requests instantly.",
+      message: "My AC stopped working and it's 90 degrees in here. Can someone come out tonight?",
+      icon: AlertTriangle,
+      emoji: "🚨",
+    },
+    {
+      id: "service-inquiries",
+      label: "Service Inquiries",
+      title: "Service Inquiries",
+      description: "Answer questions about services, pricing, availability, and scheduling.",
+      message: "What are your rates for a routine HVAC maintenance check? When can you schedule it?",
+      icon: MessageCircle,
+      emoji: "💬",
+    },
+    {
+      id: "job-details",
+      label: "Job Details",
+      title: "Job Details",
+      description: "Capture complete job information and send job-ready leads to your team.",
+      message: "I need electrical work done. Can you tell me more about your services and schedule an estimate?",
+      icon: FileText,
+      emoji: "📋",
     },
   ];
 
   const liveCallsContent = [
-    { type: "Lead", location: "in San Francisco", topic: "Appointment Booking", status: "Resolved" as const, time: "11 min ago", duration: "260 sec" },
-    { type: "Prospect", location: "in Portland", topic: "Service Q&A", status: "Unresolved" as const, time: "26 min ago", duration: "205 sec" },
-    { type: "Customer", location: "in New York", topic: "Follow-up Call", status: "Unresolved" as const, time: "14 min ago", duration: "339 sec" },
-    { type: "Lead", location: "in Austin", topic: "Lead Qualification", status: "Unresolved" as const, time: "16 min ago", duration: "3518 sec" },
-    { type: "Prospect", location: "in Chicago", topic: "Demo Scheduling", status: "Resolved" as const, time: "16 min ago", duration: "249 sec" },
-    { type: "Customer", location: "in Miami", topic: "Appointment Reschedule", status: "Unresolved" as const, time: "23 min ago", duration: "1807 sec" },
-    { type: "Lead", location: "in Seattle", topic: "Information Request", status: "Resolved" as const, time: "13 min ago", duration: "207 sec" },
-    { type: "Prospect", location: "in Boston", topic: "Call Transfer", status: "In Progress" as const, time: "8 min ago", duration: "292 sec" },
+    { type: "Customer", location: "in San Francisco", topic: "Plumbing Emergency", status: "Resolved" as const, time: "11 min ago", duration: "260 sec" },
+    { type: "Lead", location: "in Portland", topic: "HVAC Service", status: "Unresolved" as const, time: "26 min ago", duration: "205 sec" },
+    { type: "Customer", location: "in New York", topic: "Electrical Estimate", status: "Unresolved" as const, time: "14 min ago", duration: "339 sec" },
+    { type: "Lead", location: "in Austin", topic: "Contracting Project", status: "Unresolved" as const, time: "16 min ago", duration: "3518 sec" },
+    { type: "Customer", location: "in Chicago", topic: "Job Booked", status: "Resolved" as const, time: "16 min ago", duration: "249 sec" },
+    { type: "Lead", location: "in Miami", topic: "After-Hours Call", status: "Unresolved" as const, time: "23 min ago", duration: "1807 sec" },
+    { type: "Customer", location: "in Seattle", topic: "Service Inquiry", status: "Resolved" as const, time: "13 min ago", duration: "207 sec" },
+    { type: "Lead", location: "in Boston", topic: "Weekend Emergency", status: "In Progress" as const, time: "8 min ago", duration: "292 sec" },
   ];
 
   const seamlessSetupFeatures = [
     {
       id: "calendar-integration",
       title: "Calendar Integration",
-      description: "Syncs with Google Calendar, Outlook, and Calendly to book appointments automatically. Real-time availability checking and conflict resolution.",
+      description: "Syncs with Google Calendar, Outlook, and your scheduling system to book jobs automatically. Real-time availability checking and automatic conflict resolution.",
       Icon: Calendar,
-    },
-    {
-      id: "lead-capture",
-      title: "Lead Capture & Qualification",
-      description: "Captures lead information, qualifies prospects based on your criteria, and routes them to the right team member or workflow automatically.",
-      Icon: UserPlus,
     },
     {
       id: "crm-sync",
       title: "CRM Sync",
-      description: "Automatically syncs leads, conversations, and appointment data to HubSpot, Salesforce, Pipedrive, and other CRMs. No manual data entry required.",
+      description: "Automatically syncs leads, job details, and customer data to your CRM system. Job-ready leads flow directly into your pipeline without manual data entry.",
       Icon: Users,
     },
-    // {
-    //   id: "follow-up-automation",
-    //   title: "Follow-up Automation",
-    //   description: "Automated follow-ups, reminders, and nurturing sequences ensure no lead is forgotten. Customizable workflows for your sales process.",
-    //   Icon: RefreshCw,
-    // },
     {
-      id: "call-recording",
-      title: "Call Recording & Analytics",
-      description: "Every conversation is automatically captured, transcribed, and indexed so you can search, audit, and improve service quality.",
-      Icon: InfinityIcon,
+      id: "24-7-coverage",
+      title: "24/7 Coverage",
+      description: "Nights, weekends, holidays — we never clock out. Answer every call, even when your office is closed. Never miss a job opportunity again.",
+      Icon: Clock,
     },
     {
-      id: "warm-transfers",
-      title: "Warm Transfers",
-      description: "Seamlessly hand live calls from the voice agent to your team with full context. No dropped calls, no repeating information.",
-      Icon: ArrowRightLeft,
+      id: "lead-qualification",
+      title: "Automated Lead Qualification",
+      description: "Gathers job details, filters out tire-kickers, and prioritizes real customers. Only job-ready leads get passed to your team, saving you time and money.",
+      Icon: UserCheck,
+    },
+    {
+      id: "job-booking",
+      title: "Automatic Job Booking",
+      description: "Books jobs directly to your calendar or CRM. Captures all job details, location, and customer information automatically. Turn every call into a booked job.",
+      Icon: CheckCircle2,
+    },
+    {
+      id: "call-analytics",
+      title: "Call Analytics & Reporting",
+      description: "Track call volume, job booking rates, lead quality, and revenue from calls. Measure ROI and improve operations with data-driven insights.",
+      Icon: BarChart3,
     },
     {
       id: "test-before-launch",
       title: "Test Before Launch",
-      description: "Run real-world call simulations to stress-test workflows and fix gaps before customers ever call.",
+      description: "Run real-world call simulations to test your workflows, job booking process, and qualification criteria before going live.",
       Icon: ShieldCheck,
     },
   ];
 
   const assistantContent = {
-    headline: "Upgrade your voicemail to an AI assistant that books appointments and qualifies leads",
-    description: "Voiceable handles each call uniquely based on the caller and scenario. It books appointments, answers questions, qualifies leads, and syncs everything to your CRM automatically."
+    headline: "Your always-on call center, powered by AI",
+    description: "Voiceable works around the clock to answer inbound calls, qualify real leads, and schedule jobs directly on your calendar or CRM. No voicemails. No missed opportunities. Just booked jobs, 24/7."
   };
 
   const ctaContent = {
-    title: "Voice Agent",
-    description: "Staff your phone line with an agent available 24/7 that books appointments, answers questions, and syncs to your CRM",
+    title: "24/7 AI Call Center",
+    description: "Stop losing jobs to missed calls. Let Voiceable be your 24/7 call center and turn every call into revenue",
     features: [
       "100% uptime over the last 30 days",
-      "24/7 availability, day & night",
-      "Instant human-like responses",
-      "Integrate with any CRM or calendar"
+      "24/7 coverage, nights, weekends, holidays",
+      "Job-ready leads only",
+      "Direct calendar and CRM integration"
     ]
   };
 
-  // Operator Interface segments for scheduling/Q&A/CRM focus
+  // Operator Interface segments for service companies - job booking focus
   const operatorSegments = [
     {
-      id: "scheduling",
-      label: "Scheduling",
+      id: "call-answering",
+      label: "Call Answering",
       tabs: [
-        { id: "appointment_booking", label: "Appointment Booking", icon: Calendar },
+        { id: "call_comes_in", label: "Call Comes In", icon: Phone },
+        { id: "after_hours", label: "After Hours", icon: Clock },
+      ]
+    },
+    {
+      id: "lead-qualification",
+      label: "Lead Qualification",
+      tabs: [
+        { id: "qualify_lead", label: "Qualify Lead", icon: UserCheck },
+        { id: "job_details", label: "Job Details", icon: FileText },
+      ]
+    },
+    {
+      id: "job-booking",
+      label: "Job Booking",
+      tabs: [
+        { id: "book_job", label: "Book Job", icon: Calendar },
         { id: "calendar_sync", label: "Calendar Sync", icon: CalendarIcon },
       ]
     },
     {
-      id: "qa-support",
-      label: "Q&A & Support",
+      id: "crm-integration",
+      label: "CRM Integration",
       tabs: [
-        { id: "questions", label: "Questions", icon: MessageCircle },
-        { id: "information", label: "Information", icon: Globe },
-      ]
-    },
-    {
-      id: "lead-management",
-      label: "Lead Management",
-      tabs: [
-        { id: "lead_collection", label: "Lead Collection", icon: UserPlus },
         { id: "crm_sync", label: "CRM Sync", icon: Users },
-      ]
-    },
-    {
-      id: "call-handling",
-      label: "Call Handling",
-      tabs: [
-        { id: "call_transfer", label: "Call Transfer", icon: PhoneForwarded },
-        { id: "follow_up", label: "Follow-up", icon: RefreshCw },
+        { id: "job_ready_leads", label: "Job-Ready Leads", icon: CheckCircle2 },
       ]
     },
   ];
 
   const operatorTabExamples = {
-    appointment_booking: {
+    call_comes_in: {
       user: {
-        name: "James",
-        location: "Lead",
+        name: "Michael",
+        location: "Customer",
         time: "10:30 AM EST",
         avatar: "M",
-        message: "Hi, I'd like to schedule an appointment for next week. I'm available Tuesday or Wednesday afternoon. What times do you have?"
+        message: "Hi, I need a plumber. My kitchen sink is leaking and I need someone to come out today if possible."
       },
       ai: {
-        audioDuration: "2:02",
-        message: "Hi James! I'd be happy to help you schedule an appointment. I can see we have availability on Tuesday afternoon at 2:00 PM or 3:30 PM, and Wednesday at 1:00 PM or 4:00 PM. Which time works best for you? I'll send you a confirmation email and calendar invite once we confirm."
+        audioDuration: "00:35",
+        message: "Hi Michael! I'd be happy to help you with your plumbing issue. I can see this is urgent since your sink is leaking. Let me gather a few quick details so I can get you scheduled right away. What's the address where you need service, and what's the best phone number to reach you? I'll get a plumber scheduled for you today."
       },
       metadata: {
-        status: "Appointment Scheduled",
+        status: "Call Answered",
         statusColor: "bg-green-500",
+        priority: "High",
+        sentiment: "Urgent",
+        sentimentIcon: AlertTriangle,
+        actions: [
+          "Action: Call Answered Instantly",
+          "Emergency Job Identified"
+        ],
+        documents: [
+          "Docs: Service Call Protocol",
+          "Emergency_Response_Guide.pdf"
+        ]
+      }
+    },
+    after_hours: {
+      user: {
+        name: "Sarah",
+        location: "Customer",
+        time: "11:45 PM EST",
+        avatar: "S",
+        message: "My AC stopped working and it's really hot in here. Can someone come out tonight?"
+      },
+      ai: {
+        audioDuration: "00:42",
+        message: "Hi Sarah! I understand this is an emergency situation. Even though it's after hours, I can help you get service tonight. Let me get your address and contact information, and I'll dispatch an HVAC technician to your location. This is exactly the kind of emergency we handle 24/7. Can you provide your address?"
+      },
+      metadata: {
+        status: "After-Hours Emergency",
+        statusColor: "bg-red-500",
+        priority: "High",
+        sentiment: "Urgent",
+        sentimentIcon: AlertTriangle,
+        actions: [
+          "Action: After-Hours Call Handled",
+          "Emergency Technician Dispatched"
+        ],
+        documents: [
+          "Docs: After-Hours Protocol",
+          "Emergency_Dispatch_Log.pdf"
+        ]
+      }
+    },
+    qualify_lead: {
+      user: {
+        name: "Jennifer",
+        location: "Lead",
+        time: "11:20 AM EST",
+        avatar: "J",
+        message: "I'm calling about getting an estimate for a bathroom renovation. What's your availability?"
+      },
+      ai: {
+        audioDuration: "00:52",
+        message: "Hi Jennifer! I'd be happy to help you with your bathroom renovation project. To give you the most accurate estimate, I'd like to ask a few questions. What's the scope of the renovation - are you looking at a full remodel or specific updates? What's your timeline, and what's your approximate budget range? Once I have these details, I can schedule an in-person estimate with one of our contractors."
+      },
+      metadata: {
+        status: "Lead Qualifying",
+        statusColor: "bg-blue-500",
         priority: "Medium",
         sentiment: "Interested",
         sentimentIcon: Smile,
         actions: [
-          "Action: Appointment Booked",
-          "Calendar Invite Sent"
+          "Action: Qualification Started",
+          "Project Details Gathered"
         ],
         documents: [
-          "Docs: Calendar Integration",
-          "Appointment_Confirmation.pdf"
+          "Docs: Qualification Criteria",
+          "Lead_Profile.pdf"
         ]
       }
     },
-    calendar_sync: {
-      user: {
-        name: "Sarah",
-        location: "Client",
-        time: "2:15 PM EST",
-        avatar: "S",
-        message: "I need to reschedule my appointment from tomorrow to next Friday. Can you check what's available?"
-      },
-      ai: {
-        audioDuration: "00:38",
-        message: "Hi Sarah! I can help you reschedule. Let me check our calendar for next Friday. I see we have openings at 10:00 AM, 2:00 PM, or 3:30 PM. Which time works best for you? I'll update your appointment and send you a new confirmation."
-      },
-      metadata: {
-        status: "Rescheduled",
-        statusColor: "bg-blue-500",
-        priority: "Low",
-        sentiment: "Neutral",
-        sentimentIcon: Meh,
-        actions: [
-          "Action: Appointment Rescheduled",
-          "Calendar Updated"
-        ],
-        documents: [
-          "Docs: Calendar Sync",
-          "Updated_Appointment.pdf"
-        ]
-      }
-    },
-    questions: {
-      user: {
-        name: "Jennifer",
-        location: "Prospect",
-        time: "11:20 AM EST",
-        avatar: "J",
-        message: "What are your business hours and what services do you offer? I'm looking for more information before scheduling."
-      },
-      ai: {
-        audioDuration: "00:52",
-        message: "Hi Jennifer! We're open Monday through Friday from 9 AM to 6 PM, and Saturday from 10 AM to 2 PM. We offer a range of services including consultations, follow-up appointments, and specialized treatments. I can provide more details about any specific service you're interested in, or I'd be happy to schedule a consultation to discuss your needs in more detail."
-      },
-      metadata: {
-        status: "Answered",
-        statusColor: "bg-blue-500",
-        priority: "Low",
-        sentiment: "Interested",
-        sentimentIcon: Smile,
-        actions: [
-          "Action: Information Provided",
-          "Service Details Shared"
-        ],
-        documents: [
-          "Docs: Service Information",
-          "Business_Hours_Guide.pdf"
-        ]
-      }
-    },
-    information: {
+    job_details: {
       user: {
         name: "David",
         location: "Customer",
         time: "3:45 PM EST",
         avatar: "D",
-        message: "Can you tell me about your pricing and payment options? I'm considering your services."
+        message: "I need electrical work done. Can you tell me more about your services and schedule an estimate?"
       },
       ai: {
         audioDuration: "00:48",
-        message: "Hi David! I'd be happy to provide pricing information. Our consultation fee is $150, and follow-up appointments are $100. We accept all major credit cards, and we also offer payment plans for larger packages. I can email you a detailed pricing sheet, or if you'd like, I can schedule a consultation where we can discuss pricing in more detail based on your specific needs."
+        message: "Hi David! I'd be happy to help you with your electrical work. We handle everything from panel upgrades and wiring to lighting installation and electrical repairs. To schedule an estimate, I'll need a few details. What type of electrical work do you need - is it for a new installation, repair, or upgrade? What's the address, and when would be a good time for one of our electricians to come out?"
       },
       metadata: {
-        status: "Information Provided",
-        statusColor: "bg-blue-500",
-        priority: "Low",
-        sentiment: "Interested",
-        sentimentIcon: Smile,
-        actions: [
-          "Action: Pricing Info Shared",
-          "Email Sent"
-        ],
-        documents: [
-          "Docs: Pricing Guide",
-          "Payment_Options.pdf"
-        ]
-      }
-    },
-    lead_collection: {
-      user: {
-        name: "Robert",
-        location: "Lead",
-        time: "9:15 AM EST",
-        avatar: "R",
-        message: "I'm interested in learning more about your services. Can you help me get started and collect my information?"
-      },
-      ai: {
-        audioDuration: "00:55",
-        message: "Hi Robert! I'd be happy to help you get started. To better assist you, I'll need some basic information. Can you provide your name, email address, and phone number? Also, what specific service are you most interested in? Once I have this information, I can send you detailed materials and schedule a consultation if you'd like."
-      },
-      metadata: {
-        status: "Lead Captured",
+        status: "Job Details Captured",
         statusColor: "bg-green-500",
         priority: "Medium",
         sentiment: "Interested",
         sentimentIcon: Smile,
         actions: [
-          "Action: Lead Information Collected",
-          "CRM Sync Initiated"
+          "Action: Job Details Collected",
+          "Estimate Scheduled"
         ],
         documents: [
-          "Docs: Lead Details",
-          "CRM_Entry_Created.pdf"
+          "Docs: Job Information",
+          "Customer_Details.pdf"
+        ]
+      }
+    },
+    book_job: {
+      user: {
+        name: "Robert",
+        location: "Customer",
+        time: "9:15 AM EST",
+        avatar: "R",
+        message: "I need HVAC maintenance. When can you schedule it? I'm available next week."
+      },
+      ai: {
+        audioDuration: "00:45",
+        message: "Hi Robert! I can schedule your HVAC maintenance right away. I can see we have availability next week on Tuesday morning, Wednesday afternoon, or Thursday morning. Which day works best for you? Once we confirm the time, I'll book it directly to your calendar and send you a confirmation. Our technician will arrive with all the details about your system."
+      },
+      metadata: {
+        status: "Job Booked",
+        statusColor: "bg-green-500",
+        priority: "Medium",
+        sentiment: "Positive",
+        sentimentIcon: Smile,
+        actions: [
+          "Action: Job Scheduled",
+          "Calendar Updated"
+        ],
+        documents: [
+          "Docs: Booking System",
+          "Job_Confirmation.pdf"
+        ]
+      }
+    },
+    calendar_sync: {
+      user: {
+        name: "Emily",
+        location: "Customer",
+        time: "1:30 PM EST",
+        avatar: "E",
+        message: "I just booked a service appointment. Can you make sure it's saved in your system?"
+      },
+      ai: {
+        audioDuration: "00:35",
+        message: "Hi Emily! Absolutely, I've already synced your appointment to our calendar system. Your service appointment for next Tuesday at 2:00 PM is confirmed and visible in our scheduling system. You should have received a confirmation email and text. Your technician will have all the job details when they arrive. Is there anything specific you'd like me to verify or update?"
+      },
+      metadata: {
+        status: "Synced to Calendar",
+        statusColor: "bg-green-500",
+        priority: "Low",
+        sentiment: "Positive",
+        sentimentIcon: Smile,
+        actions: [
+          "Action: Calendar Sync Complete",
+          "Appointment Confirmed"
+        ],
+        documents: [
+          "Docs: Calendar Integration",
+          "Appointment_Details.pdf"
         ]
       }
     },
     crm_sync: {
       user: {
-        name: "Emily",
-        location: "Prospect",
-        time: "1:30 PM EST",
-        avatar: "E",
-        message: "I just completed a consultation call. Can you make sure all my information is saved in your system?"
+        name: "Thomas",
+        location: "Lead",
+        time: "4:20 PM EST",
+        avatar: "T",
+        message: "I just spoke with someone about getting an estimate. Can you make sure all my information is saved?"
       },
       ai: {
-        audioDuration: "00:42",
-        message: "Hi Emily! Absolutely, I've already synced all the information from our conversation to your CRM profile. Your contact details, consultation notes, and preferences have been automatically updated. You should see everything reflected in your account. Is there anything specific you'd like me to verify or update?"
+        audioDuration: "00:35",
+        message: "Hi Thomas! Absolutely, I've already synced all the information from our conversation to your CRM profile. Your contact details, project information, qualification notes, and scheduled estimate have been automatically updated in our system. Your project manager can see everything in real-time. Is there anything specific you'd like me to verify or update?"
       },
       metadata: {
         status: "Synced to CRM",
@@ -465,67 +493,39 @@ const Landing = () => {
         sentimentIcon: Smile,
         actions: [
           "Action: CRM Sync Complete",
-          "Profile Updated"
+          "Lead Profile Updated"
         ],
         documents: [
           "Docs: CRM Integration",
-          "Profile_Update_Confirmation.pdf"
+          "Lead_Profile_Update.pdf"
         ]
       }
     },
-    call_transfer: {
-      user: {
-        name: "Thomas",
-        location: "Client",
-        time: "4:20 PM EST",
-        avatar: "T",
-        message: "I have some specific questions about pricing and custom solutions. Can I speak with someone from your sales team?"
-      },
-      ai: {
-        audioDuration: "00:35",
-        message: "Hi Thomas! I'd be happy to connect you with our sales team. Let me transfer you to one of our specialists who can discuss pricing and custom solutions in detail. I'll make sure they have all the context from our conversation so you don't have to repeat anything."
-      },
-      metadata: {
-        status: "Transferring",
-        statusColor: "bg-yellow-500",
-        priority: "Medium",
-        sentiment: "Interested",
-        sentimentIcon: Smile,
-        actions: [
-          "Action: Call Transfer Initiated",
-          "Context Shared"
-        ],
-        documents: [
-          "Docs: Call History",
-          "Transfer_Notes.pdf"
-        ]
-      }
-    },
-    follow_up: {
+    job_ready_leads: {
       user: {
         name: "Lisa",
-        location: "Prospect",
+        location: "Customer",
         time: "10:00 AM EST",
         avatar: "L",
-        message: "I wanted to follow up on our conversation from last week. Are you still interested in scheduling a consultation?"
+        message: "I need a plumber for a leaky pipe. It's urgent and I need someone today."
       },
       ai: {
         audioDuration: "00:40",
-        message: "Hi Lisa! Thank you for following up. I can see we discussed scheduling a consultation last week. I have availability this week on Tuesday at 2 PM or Thursday at 10 AM. Would either of those times work for you? I can also check next week's availability if you prefer."
+        message: "Hi Lisa! I understand this is urgent. I've gathered all the job details - you have a leaky pipe that needs immediate attention. I've qualified this as a high-priority job and it's been sent directly to your plumber with all the details: your address, contact information, and the nature of the emergency. They'll be in touch shortly to confirm arrival time. This job is now in your system and ready to go."
       },
       metadata: {
-        status: "Follow-up Active",
-        statusColor: "bg-blue-500",
-        priority: "Medium",
-        sentiment: "Interested",
-        sentimentIcon: Smile,
+        status: "Job-Ready Lead",
+        statusColor: "bg-green-500",
+        priority: "High",
+        sentiment: "Urgent",
+        sentimentIcon: AlertTriangle,
         actions: [
-          "Action: Follow-up Initiated",
-          "Appointment Offered"
+          "Action: Job-Ready Lead Created",
+          "Technician Notified"
         ],
         documents: [
-          "Docs: Follow-up Campaign",
-          "Previous_Conversation_Notes.pdf"
+          "Docs: Job Details",
+          "Job_Ready_Lead_Report.pdf"
         ]
       }
     },
@@ -534,9 +534,9 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <SEO
-        title="AI Voice Agents for Scheduling, Q&A & CRM Sync | Voiceable"
-        description="Transform your phone line with AI voice agents that answer questions, book appointments, collect lead information, and sync to your CRM 24/7. Perfect for clinics, real estate, logistics, and SaaS support teams."
-        keywords="AI voice agents, appointment scheduling, lead management, CRM sync, AI receptionist, automated scheduling, lead qualification, voice AI for SMB, AI phone answering, automated appointment booking, CRM integration, lead capture automation"
+        title="24/7 AI Call Center for Service Companies | Voiceable"
+        description="Never miss a job. Voiceable answers every call, qualifies leads, and books jobs 24/7. Perfect for plumbing, HVAC, electrical, and contracting companies. Turn every call into revenue."
+        keywords="AI call center, service company AI, plumbing call center, HVAC booking, electrical contractor AI, contracting call center, 24/7 call answering, job booking AI, service business automation, after-hours call handling, lead qualification AI, automated job scheduling"
         url={currentUrl}
         image="/og-image.png"
       />

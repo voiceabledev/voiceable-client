@@ -2493,7 +2493,7 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
                   Connect integrations to enable additional features for your assistant.
                 </p>
               </div>
-              <div className="bg-card border border-border rounded-lg p-6">
+              <div className="">
                 {renderStepContent()}
               </div>
             </div>

@@ -24,11 +24,11 @@ const Header = () => {
 
   // Show full navigation on home page and landing pages
   const isHomePage = location.pathname === "/";
-  const isLandingPage = location.pathname === "/" || location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment";
+  const isLandingPage = location.pathname === "/" || location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment" || location.pathname === "/small-business";
   const showFullNav = isHomePage || isLandingPage;
-  // For Landing.tsx (/retail-ecommerce) and Landing3.tsx (/recruitment), only show calendar modal (no login/dashboard/pricing)
+  // For Landing.tsx (/retail-ecommerce), Landing3.tsx (/recruitment), and Landing4.tsx (/small-business), only show calendar modal (no login/dashboard/pricing)
   // Landing2.tsx (/) should show login and demo call buttons
-  const isCalendarOnlyPage = location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment";
+  const isCalendarOnlyPage = location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment" || location.pathname === "/small-business";
 
   return (
     <>
@@ -51,9 +51,9 @@ const Header = () => {
                 <a href="#solutions" className="nav-pill">Use Cases</a>
               </>
             )}
-            {!isCalendarOnlyPage && (
+            {/* {!isCalendarOnlyPage && (
               <a href="/pricing" className="nav-pill">Pricing</a>
-            )}
+            )} */}
           </nav>
 
           {/* Desktop CTAs */}
