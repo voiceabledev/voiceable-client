@@ -200,7 +200,7 @@ const HeroSection = ({
         <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
           <div className="flex-1 overflow-hidden min-h-0">
             <iframe
-              src="https://cal.com/vitoroliveira/30min?overlayCalendar=true"
+              src="https://cal.com/voiceabledev/30min?overlayCalendar=true"
               className="w-full h-full border-0"
               title="Calendly Scheduling"
               allow="camera; microphone; geolocation"
