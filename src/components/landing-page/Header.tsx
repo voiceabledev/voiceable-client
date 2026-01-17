@@ -51,9 +51,9 @@ const Header = () => {
                 <a href="#solutions" className="nav-pill">Use Cases</a>
               </>
             )}
-            {/* {!isCalendarOnlyPage && (
+            {!isCalendarOnlyPage && (
               <a href="/pricing" className="nav-pill">Pricing</a>
-            )} */}
+            )}
           </nav>
 
           {/* Desktop CTAs */}
@@ -70,9 +70,9 @@ const Header = () => {
                 </Button>
               ) : (
                 <>
-                  {/* <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
+                  <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
                     Login
-                  </Button> */}
+                  </Button>
                   <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
                     <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
                     Demo Call
