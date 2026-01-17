@@ -65,7 +65,7 @@ const CTASection = ({
                   </Button>
                   {!showCalendarOnly && (
                     <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
-                      window.location.href = "/login";
+                      window.location.href = "/sign-up";
                     }}>
                       <span>Start for free</span>
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
