@@ -381,9 +381,6 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
                       <span className="text-sm font-semibold tracking-tight">
                         {phoneNumber.phone_number}
                       </span>
-                      <Badge variant="secondary" className="text-xs capitalize">
-                        {phoneNumber.provider}
-                      </Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       {phoneNumber.label && (
