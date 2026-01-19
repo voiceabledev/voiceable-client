@@ -65,24 +65,29 @@
     <!-- Preload LCP image for better performance -->
     <link rel="preload" as="image" href="/voiceable_logo.png" />
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VK99QS0YEF"></script>
+    <!-- Google tag (gtag.js) - Only load in production, not on localhost -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+      // Only load Google Analytics if not on localhost
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        // Google Analytics
+        const gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-VK99QS0YEF';
+        document.head.appendChild(gaScript);
 
-      gtag('config', 'G-VK99QS0YEF');
-    </script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-VK99QS0YEF');
 
-    <!-- Google tag (gtag.js) - Google Ads -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17854479211"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+        // Google Ads
+        const adsScript = document.createElement('script');
+        adsScript.async = true;
+        adsScript.src = 'https://www.googletagmanager.com/gtag/js?id=AW-17854479211';
+        document.head.appendChild(adsScript);
 
-      gtag('config', 'AW-17854479211');
+        gtag('config', 'AW-17854479211');
+      }
     </script>
   </head>
 
