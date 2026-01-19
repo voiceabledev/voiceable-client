@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { PhoneOff } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,6 +83,130 @@ const WIDGET_SIZES = {
 interface WidgetPreviewProps {
   config: CustomWidgetConfig;
   agentName?: string;
+}
+
+// Call-only widget preview (minimal, no chat interface)
+function CallOnlyWidgetPreview({ config }: WidgetPreviewProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const getIconComponent = (type: string) => {
+    switch (type) {
+      case 'chat': return MessageSquare;
+      case 'headphones': return Headphones;
+      case 'custom': return ImageIcon;
+      default: return Phone;
+    }
+  };
+
+  const Icon = getIconComponent(config.iconType);
+  const size = WIDGET_SIZES[config.widgetSize];
+  
+  // Position styling - icon button at bottom
+  const isBottomRight = config.position === 'bottom-right';
+  const iconPosition = isBottomRight 
+    ? { bottom: 24, right: 24 }
+    : { bottom: 24, left: 24 };
+  
+  // Panel positioned above the icon button (smaller for call-only)
+  const panelPosition = isBottomRight
+    ? { bottom: size.icon + 32, right: 24 }
+    : { bottom: size.icon + 32, left: 24 };
+
+  // Call-only widget panel dimensions
+  const callOnlyPanelHeight = 80;
+  const callOnlyPanelWidth = 200;
+
+  return (
+    <div className="relative w-full h-full p-4">
+      {/* Expanded Panel - Shows when clicked */}
+      {isOpen && (
+        <div 
+          className="absolute flex items-center shadow-2xl overflow-hidden"
+          style={{
+            width: `${callOnlyPanelWidth}px`,
+            height: `${callOnlyPanelHeight}px`,
+            backgroundColor: config.backgroundColor,
+            borderRadius: config.borderRadius,
+            border: `1px solid ${config.borderColor}`,
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            ...panelPosition,
+            zIndex: 9,
+          }}
+        >
+          {/* Person Avatar on left - Always shows User icon or custom image */}
+          <div 
+            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ml-3"
+            style={{
+              backgroundColor: config.iconType === 'custom' && config.customIconUrl 
+                ? 'transparent' 
+                : config.primaryColor,
+              color: config.primaryTextColor,
+            }}
+          >
+            {config.iconType === 'custom' && config.customIconUrl ? (
+              <img 
+                src={config.customIconUrl} 
+                alt="Agent" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <User className="w-6 h-6" style={{ color: config.primaryTextColor }} />
+            )}
+          </div>
+
+          {/* End Button on right */}
+          <div className="flex-1 flex items-center justify-end pr-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+              }}
+              className="px-4 py-2 rounded-full border border-border cursor-pointer flex items-center gap-2 transition-opacity hover:opacity-90 bg-white"
+              style={{
+                color: config.textColor,
+              }}
+              aria-label="End call"
+            >
+              <PhoneOff className="w-4 h-4" />
+              <span className="text-sm font-medium">End</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Button - Initial state (shown when panel is closed) */}
+      <div 
+        onClick={() => setIsOpen(true)}
+        className="absolute rounded-full flex items-center justify-center shadow-lg cursor-pointer transition-transform hover:scale-110"
+        style={{
+          width: `${size.icon}px`,
+          height: `${size.icon}px`,
+          backgroundColor: config.primaryColor,
+          color: config.primaryTextColor,
+          ...iconPosition,
+          zIndex: 10,
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        }}
+        title={config.buttonText}
+      >
+        {config.iconType === 'custom' && config.customIconUrl ? (
+          <img 
+            src={config.customIconUrl} 
+            alt="Widget icon" 
+            style={{ width: 24, height: 24, objectFit: 'contain' }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        ) : (
+          <Icon className="w-6 h-6" style={{ color: config.primaryTextColor }} />
+        )}
+      </div>
+    </div>
+  );
 }
 
 function WidgetPreview({ config, agentName }: WidgetPreviewProps) {
@@ -382,11 +507,11 @@ export default function WidgetDesignStudio() {
     setHasChanges(currentConfig !== initialConfigRef.current);
   }, [config]);
 
-  const updateConfig = useCallback((key: keyof CustomWidgetConfig, value: string) => {
+  const updateConfig = useCallback((key: keyof CustomWidgetConfig, value: string | 'chat' | 'call-only') => {
     setConfig(prev => ({ ...prev, [key]: value }));
     
     // Clear validation error when user starts typing
-    if (key === 'welcomeMessage' && value.trim().length > 0) {
+    if (key === 'welcomeMessage' && typeof value === 'string' && value.trim().length > 0) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors.welcomeMessage;
@@ -591,6 +716,48 @@ export default function WidgetDesignStudio() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Configuration */}
         <div className="w-[400px] border-r border-border overflow-y-auto p-6 space-y-4">
+          {/* Widget Type Selection */}
+          <div className="border border-border rounded-lg overflow-hidden p-4">
+            <div>
+              <h3 className="text-base font-semibold mb-2">Widget Type</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Choose between a full chat widget or a minimal call-only widget
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => updateConfig('widgetType', 'chat')}
+                  className={cn(
+                    "flex flex-col items-start p-4 rounded-lg border-2 transition-all text-left",
+                    config.widgetType === 'chat'
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <MessageSquare className="h-5 w-5 mb-2" />
+                  <span className="text-sm font-medium">Chat Widget</span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    Full interface with messages and text input
+                  </span>
+                </button>
+                <button
+                  onClick={() => updateConfig('widgetType', 'call-only')}
+                  className={cn(
+                    "flex flex-col items-start p-4 rounded-lg border-2 transition-all text-left",
+                    config.widgetType === 'call-only'
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <Phone className="h-5 w-5 mb-2" />
+                  <span className="text-sm font-medium">Call Only</span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    Minimal widget focused on voice calls
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Branding Section */}
           <div className="border border-border rounded-lg overflow-hidden p-4">
             <SectionHeader
@@ -861,7 +1028,11 @@ export default function WidgetDesignStudio() {
               
               {/* Preview Content */}
               <div className="h-[calc(100%-32px)] relative bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-                <WidgetPreview config={config} agentName={agent?.name} />
+                {config.widgetType === 'call-only' ? (
+                  <CallOnlyWidgetPreview config={config} agentName={agent?.name} />
+                ) : (
+                  <WidgetPreview config={config} agentName={agent?.name} />
+                )}
               </div>
             </div>
           </div>

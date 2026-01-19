@@ -449,6 +449,7 @@ export interface PaginatedAgentsResponse {
 }
 
 export interface WidgetConfig {
+  widgetType?: 'chat' | 'call-only';
   title?: string;
   subtitle?: string;
   buttonText?: string;
@@ -2200,6 +2201,14 @@ export const agentMetricsApi = {
     const queryString = params.toString();
     const endpoint = `/agents/${agentId}/optimization_suggestions${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<{ data: { high_impact: OptimizationSuggestion[]; medium_impact: OptimizationSuggestion[] } }>(endpoint);
+    return response;
+  },
+};
+
+// Demo Calls API (public endpoint, no auth required)
+export const demoCallsApi = {
+  create: async (data: { fullName: string; email: string; phone: string }) => {
+    const response = await apiClient.post<{ message: string }>('/demo_calls', data);
     return response;
   },
 };

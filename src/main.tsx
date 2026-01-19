@@ -2,8 +2,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Load Microsoft Clarity only in production, deferred to reduce forced reflows
-if (import.meta.env.MODE === "production") {
+// Load Microsoft Clarity only in production and not on localhost, deferred to reduce forced reflows
+if (import.meta.env.MODE === "production" && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
   // Defer Clarity loading until after initial render to prevent forced reflows
   const loadClarity = () => {
     (function(c: Record<string, unknown>, l: Document, a: string, r: string, i: string) {

@@ -95,6 +95,8 @@ interface EmbeddableWidgetProps {
 }
 
 export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetProps) {
+  console.log('[Widget] EmbeddableWidget component mounted', { config, apiBaseUrl });
+  
   // Merge with defaults
   const fullConfig: EmbeddableWidgetConfig = {
     ...DEFAULT_WIDGET_CONFIG,
@@ -104,6 +106,8 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
       ...config.colors,
     },
   };
+  
+  console.log('[Widget] Full config:', fullConfig);
 
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<WidgetStatus>('idle');
@@ -112,6 +116,11 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
   const [callDuration, setCallDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [textInput, setTextInput] = useState('');
+
+  // Debug: Log when component renders
+  useEffect(() => {
+    console.log('[Widget] EmbeddableWidget rendered', { isOpen, status, textInput });
+  }, [isOpen, status, textInput]);
   
   const conversationRef = useRef<Conversation | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -265,14 +274,33 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
   }, [isMuted]);
 
   const sendTextMessage = useCallback(async () => {
+    console.log('[Widget] sendTextMessage called', { 
+      textInput, 
+      status, 
+      hasConversation: !!conversationRef.current 
+    });
+    
     const trimmedText = textInput.trim();
     const active = status !== 'idle';
-    if (!trimmedText || !conversationRef.current || !active) {
+    
+    if (!trimmedText) {
+      console.log('[Widget] No text to send');
+      return;
+    }
+    
+    if (!conversationRef.current) {
+      console.log('[Widget] No conversation reference');
+      return;
+    }
+    
+    if (!active) {
+      console.log('[Widget] Conversation not active, status:', status);
       return;
     }
 
     // Ensure conversation is connected before sending
     if (status === 'connecting') {
+      console.log('[Widget] Still connecting, cannot send yet');
       setError('Please wait for the connection to be established');
       return;
     }
@@ -290,39 +318,87 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
     try {
       const conversation = conversationRef.current;
       
-      // ElevenLabs Conversation API: Use sendText method with the text string
-      // The sendText method sends text that the agent will process and respond to
-      if (typeof (conversation as any).sendText === 'function') {
-        await (conversation as any).sendText(trimmedText);
-      } 
+      if (!conversation) {
+        throw new Error('Conversation not initialized');
+      }
+
+      // Ensure conversation is connected (status should be 'connected', 'speaking', or 'listening')
+      if (status !== 'connected' && status !== 'speaking' && status !== 'listening') {
+        throw new Error(`Cannot send message. Conversation status is: ${status}`);
+      }
+
+      console.log('[Widget] Attempting to send text message:', trimmedText);
+      console.log('[Widget] Conversation object:', conversation);
+      console.log('[Widget] Conversation type:', conversation.constructor?.name);
+      
+      // ElevenLabs Conversation API: Use sendUserMessage method with the text string
+      // The sendUserMessage method sends text that the agent will process and respond to
+      // According to ElevenLabs SDK documentation, sendUserMessage is the correct method
+      // Note: sendUserMessage returns void (not a Promise), so we don't await it
+      
+      // Direct call - sendUserMessage is defined on BaseConversation class
+      try {
+        console.log('[Widget] Calling sendUserMessage directly');
+        // Call it directly on the conversation object
+        (conversation as any).sendUserMessage(trimmedText);
+        console.log('[Widget] sendUserMessage called successfully');
+        return; // Success, exit early
+      } catch (methodError: any) {
+        console.error('[Widget] Error calling sendUserMessage directly:', methodError);
+        console.error('[Widget] Error details:', {
+          message: methodError?.message,
+          stack: methodError?.stack,
+          name: methodError?.name
+        });
+        
+        // Log conversation object structure for debugging
+        console.log('[Widget] Conversation object structure:', {
+          hasSendUserMessage: 'sendUserMessage' in conversation,
+          sendUserMessageType: typeof (conversation as any).sendUserMessage,
+          prototypeMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(conversation)),
+          ownProperties: Object.keys(conversation),
+        });
+        
+        // Continue to fallbacks
+      }
+      
       // Fallback: Try interrupt method (sends text that interrupts current speech)
-      else if (typeof (conversation as any).interrupt === 'function') {
-        await (conversation as any).interrupt({ text: trimmedText });
+      if (typeof (conversation as any).interrupt === 'function') {
+        console.log('[Widget] Using interrupt method as fallback');
+        (conversation as any).interrupt({ text: trimmedText });
+        return;
       }
+      
       // Fallback: Try send method with text property
-      else if (typeof (conversation as any).send === 'function') {
-        await (conversation as any).send({ text: trimmedText });
+      if (typeof (conversation as any).send === 'function') {
+        console.log('[Widget] Using send method as fallback');
+        (conversation as any).send({ text: trimmedText });
+        return;
       }
-      // Fallback: Try direct WebSocket send (if conversation has ws property)
-      else if ((conversation as any).ws && typeof (conversation as any).ws.send === 'function') {
-        // Send as JSON message to WebSocket
-        (conversation as any).ws.send(JSON.stringify({ 
-          type: 'text', 
+      
+      // Fallback: Try direct WebSocket send (if conversation has connection property)
+      const connection = (conversation as any).connection;
+      if (connection && connection.ws && typeof connection.ws.send === 'function') {
+        console.log('[Widget] Using WebSocket send as fallback');
+        connection.ws.send(JSON.stringify({ 
+          type: 'user_message',
           text: trimmedText 
         }));
+        return;
       }
-      else {
-        // Log available methods for debugging
-        const conversationKeys = Object.keys(conversation);
-        const availableMethods = conversationKeys.filter(key => 
-          typeof (conversation as any)[key] === 'function'
-        );
-        console.error('No text sending method found. Conversation object keys:', conversationKeys);
-        console.error('Available methods:', availableMethods);
-        throw new Error('Unable to send text message. Please check the console for available methods.');
-      }
+      
+      // If we get here, no method was found
+      console.error('[Widget] No text sending method found on conversation object');
+      const conversationKeys = Object.keys(conversation || {});
+      const availableMethods = conversationKeys.filter(key => 
+        typeof (conversation as any)?.[key] === 'function'
+      );
+      console.error('[Widget] Conversation object keys:', conversationKeys);
+      console.error('[Widget] Available methods:', availableMethods);
+      console.error('[Widget] Conversation prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(conversation)));
+      throw new Error('Unable to send text message. sendUserMessage method not available.');
     } catch (err) {
-      console.error('Error sending text message:', err);
+      console.error('[Widget] Error sending text message:', err);
       setError(err instanceof Error ? err.message : 'Failed to send message');
       // Remove the message if sending failed
       setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
@@ -697,14 +773,20 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
 
             {/* Text Input */}
             <div style={styles.textInputContainer}>
+              {console.log('[Widget] Rendering text input section', { isOpen, isActive, status, textInput })}
               <input
                 ref={textInputRef}
                 type="text"
                 value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
+                onChange={(e) => {
+                  console.log('[Widget] Text input onChange:', e.target.value);
+                  setTextInput(e.target.value);
+                }}
                 onKeyPress={(e) => {
+                  console.log('[Widget] KeyPress event:', e.key, { isActive, textInput });
                   if (e.key === 'Enter' && !e.shiftKey && isActive) {
                     e.preventDefault();
+                    console.log('[Widget] Enter key pressed, calling sendTextMessage');
                     sendTextMessage();
                   }
                 }}
@@ -722,7 +804,11 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
                 }}
               />
               <button
-                onClick={sendTextMessage}
+                onClick={(e) => {
+                  console.log('[Widget] Send button clicked', { isActive, textInput, disabled: !isActive || !textInput.trim() });
+                  e.preventDefault();
+                  sendTextMessage();
+                }}
                 disabled={!isActive || !textInput.trim()}
                 style={{
                   ...styles.sendButton,

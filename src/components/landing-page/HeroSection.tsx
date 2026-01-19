@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { DemoCallModal } from "./DemoCallModal";
 
 interface HeroSectionProps {
   badgeText?: string;
@@ -23,6 +24,7 @@ const HeroSection = ({
   socialProofText = "Trusted by Retailers & E-commerces"
 }: HeroSectionProps) => {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showDemoCallModal, setShowDemoCallModal] = useState(false);
 
   return (
     <>
@@ -67,9 +69,11 @@ const HeroSection = ({
             variant="ghost"
             className="text-foreground hover:bg-secondary/50 group animate-slide-up border-2 border-foreground"
             style={{ animationDelay: "0.2s" }}
-            onClick={() => setShowCalendarModal(true)}
+            onClick={() => {
+              setShowDemoCallModal(true);
+            }}
           >
-            Schedule a demo
+            Talk to Voiceable Agent
             <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
           </Button>
 
@@ -158,7 +162,7 @@ const HeroSection = ({
                   {[
                     { name: "Salesforce", logo: "https://cdn.simpleicons.org/salesforce/00A1E0", color: "#00A1E0" },
                     { name: "HubSpot", logo: "https://cdn.simpleicons.org/hubspot/FF7A59", color: "#FF7A59" },
-                    { name: "Slack", logo: "https://cdn.simpleicons.org/slack/4A154B", color: "#4A154B" },
+                    { name: "Slack", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/slack.svg", color: "#4A154B" },
                     { name: "Zapier", logo: "https://cdn.simpleicons.org/zapier/FF4A00", color: "#FF4A00" },
                     { name: "Google", logo: "https://cdn.simpleicons.org/google/4285F4", color: "#4285F4" },
                     { name: "Microsoft", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/microsoft.svg", color: "#00A4EF" },
@@ -208,6 +212,17 @@ const HeroSection = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Demo Call Modal */}
+      <DemoCallModal
+        open={showDemoCallModal}
+        onOpenChange={setShowDemoCallModal}
+        onSubmit={(data) => {
+          console.log("Demo call requested:", data);
+          // TODO: Send data to backend API to trigger the call
+          // You can add API call here to submit the form data
+        }}
+      />
     </>
   );
 };

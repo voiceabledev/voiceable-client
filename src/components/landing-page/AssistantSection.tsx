@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { ChevronRight, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DemoCallModal } from "./DemoCallModal";
 
 interface AssistantSectionProps {
   headline?: string;
@@ -19,7 +14,7 @@ const AssistantSection = ({
   description = "Voiceable handles each issue uniquely based on the user and scenario. It greets by name, recalls previous issues, and follows up until each case is resolved.",
   showCalendarOnly = true
 }: AssistantSectionProps) => {
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showDemoCallModal, setShowDemoCallModal] = useState(false);
 
   return (
     <section id="assistant" className="py-32 relative">
@@ -62,7 +57,7 @@ const AssistantSection = ({
 
           <Button variant="ghost" className="text-foreground group border-2 border-foreground" onClick={() => {
             if (showCalendarOnly) {
-              setShowScheduleModal(true);
+              setShowDemoCallModal(true);
             } else {
               window.location.href = "/login";
             }
@@ -73,20 +68,16 @@ const AssistantSection = ({
         </div>
       </div>
 
-      {/* Schedule Call Modal */}
+      {/* Demo Call Modal */}
       {showCalendarOnly && (
-        <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
-          <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-            <div className="flex-1 overflow-hidden min-h-0">
-              <iframe
-                src="https://cal.com/voiceabledev/30min?overlayCalendar=true"
-                className="w-full h-full border-0"
-                title="Calendly Scheduling"
-                allow="camera; microphone; geolocation"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <DemoCallModal
+          open={showDemoCallModal}
+          onOpenChange={setShowDemoCallModal}
+          onSubmit={(data) => {
+            console.log("Demo call requested:", data);
+            // TODO: Send data to backend API to trigger the call
+          }}
+        />
       )}
     </section>
   );

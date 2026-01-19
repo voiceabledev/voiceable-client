@@ -10,6 +10,7 @@ export type { WidgetConfig };
 
 // Extended config with all required fields (for internal use)
 export interface CustomWidgetConfig {
+  widgetType: 'chat' | 'call-only';
   title: string;
   subtitle: string;
   buttonText: string;
@@ -29,6 +30,7 @@ export interface CustomWidgetConfig {
 }
 
 export const DEFAULT_CONFIG: CustomWidgetConfig = {
+  widgetType: 'chat',
   title: 'Need help?',
   subtitle: 'Talk to our AI assistant',
   buttonText: 'Start a call',
@@ -56,6 +58,7 @@ export function toFullConfig(config?: WidgetConfig | null): CustomWidgetConfig {
   }
 
   return {
+    widgetType: config.widgetType ?? DEFAULT_CONFIG.widgetType,
     title: config.title ?? DEFAULT_CONFIG.title,
     subtitle: config.subtitle ?? DEFAULT_CONFIG.subtitle,
     buttonText: config.buttonText ?? DEFAULT_CONFIG.buttonText,
@@ -80,6 +83,7 @@ export function toFullConfig(config?: WidgetConfig | null): CustomWidgetConfig {
  */
 export function toApiConfig(config: CustomWidgetConfig): WidgetConfig {
   return {
+    widgetType: config.widgetType,
     title: config.title,
     subtitle: config.subtitle,
     buttonText: config.buttonText,

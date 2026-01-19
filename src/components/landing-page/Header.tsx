@@ -14,12 +14,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { DemoCallModal } from "./DemoCallModal";
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, loading } = useAuth();
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showDemoCallModal, setShowDemoCallModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Show full navigation on home page and landing pages
@@ -39,7 +40,7 @@ const Header = () => {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
           >
-            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" fetchpriority="high" />
+            <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" />
           </button>
 
           {/* Desktop Navigation */}
@@ -60,7 +61,7 @@ const Header = () => {
           {!loading && (
             <div className="hidden md:flex items-center gap-3">
               {isCalendarOnlyPage ? (
-                <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
+                <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowDemoCallModal(true)}>
                   <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
                   Book a Demo
                 </Button>
@@ -73,7 +74,7 @@ const Header = () => {
                   <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
                     Login
                   </Button>
-                  <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowCalendarModal(true)}>
+                  <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowDemoCallModal(true)}>
                     <Circle className="w-3 h-3 fill-primary text-primary mr-2" />
                     Demo Call
                   </Button>
@@ -136,7 +137,7 @@ const Header = () => {
                       <Button
                         className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full"
                         onClick={() => {
-                          setShowCalendarModal(true);
+                          setShowDemoCallModal(true);
                           setMobileMenuOpen(false);
                         }}
                       >
@@ -168,7 +169,7 @@ const Header = () => {
                         <Button
                           className="w-full bg-secondary hover:bg-muted text-foreground border border-border rounded-full"
                           onClick={() => {
-                            setShowCalendarModal(true);
+                            setShowDemoCallModal(true);
                             setMobileMenuOpen(false);
                           }}
                         >
@@ -185,19 +186,15 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Calendar Modal */}
-      <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
-        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <div className="flex-1 overflow-hidden min-h-0">
-            <iframe
-              src="https://cal.com/voiceabledev/30min?overlayCalendar=true"
-              className="w-full h-full border-0"
-              title="Calendly Scheduling"
-              allow="camera; microphone; geolocation"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Demo Call Modal */}
+      <DemoCallModal
+        open={showDemoCallModal}
+        onOpenChange={setShowDemoCallModal}
+        onSubmit={(data) => {
+          console.log("Demo call requested:", data);
+          // TODO: Send data to backend API to trigger the call
+        }}
+      />
     </>
   );
 };

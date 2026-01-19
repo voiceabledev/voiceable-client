@@ -301,11 +301,19 @@ async function init() {
   }
   
   // Mount React component
+  console.log('[VoiceWidget] About to mount EmbeddableWidget', { finalConfig, apiBaseUrl });
   const root = createRoot(container);
-  root.render(
-    createElement(EmbeddableWidget, { config: finalConfig, apiBaseUrl })
-  );
   
+  try {
+    root.render(
+      createElement(EmbeddableWidget, { config: finalConfig, apiBaseUrl })
+    );
+    console.log('[VoiceWidget] EmbeddableWidget mounted successfully');
+  } catch (error) {
+    console.error('[VoiceWidget] Error mounting widget:', error);
+    throw error;
+  }
+
   console.log('[VoiceWidget] Initialized successfully');
 }
 
