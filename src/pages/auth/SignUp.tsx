@@ -178,22 +178,20 @@ export default function SignUp() {
         {/* Testimonial Card */}
         <div className="relative z-10 max-w-md mx-8 p-6 bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
-              D
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold">
+              P
             </div>
             <div>
-              <div className="font-semibold text-white">Deepgram</div>
-              <div className="text-sm text-slate-400">@DeepgramAI</div>
+              <div className="font-semibold text-white">Pluga.co</div>
+              <div className="text-sm text-slate-400">@PlugaCo</div>
             </div>
           </div>
           <p className="text-slate-300 text-sm leading-relaxed">
-            <span className="text-primary">@voiceable</span> thank you for making my end to end journey easier by:
+            <span className="text-primary">Voiceable</span> has been a game-changer for our automation platform. The voice integration capabilities have allowed us to create seamless experiences for our users.
           </p>
-          <ol className="text-slate-300 text-sm leading-relaxed mt-3 space-y-2 list-decimal list-inside">
-            <li>Optimizing streaming and colocating servers that shave off every possible millisecond of latency</li>
-            <li>Customizing by allowing to connect to WebRTC stream through Web, iOS and Python clients</li>
-            <li>Easy Scaling</li>
-          </ol>
+          <p className="text-slate-300 text-sm leading-relaxed mt-3">
+            The API is intuitive, the documentation is clear, and the support team is incredibly responsive. It's rare to find a service that just works out of the box, but Voiceable delivers exactly that.
+          </p>
         </div>
       </div>
     </div>

@@ -1,13 +1,8 @@
 import { useState } from "react";
 import { Sparkles, Star, Check, ChevronRight, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DemoCallModal } from "./DemoCallModal";
 
 interface CTASectionProps {
   title?: string;
@@ -27,7 +22,7 @@ const CTASection = ({
   ],
   showCalendarOnly = false
 }: CTASectionProps) => {
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showDemoCallModal, setShowDemoCallModal] = useState(false);
 
   return (
     <section className="py-20 relative overflow-hidden">
@@ -54,7 +49,7 @@ const CTASection = ({
 
                 <div className="flex flex-wrap gap-3">
                   <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6 py-6 flex items-center gap-3" onClick={() => {
-                    setShowScheduleModal(true);
+                    setShowDemoCallModal(true);
                   }}>
                     <Avatar className="w-6 h-6 border-2 border-purple/30 shadow-md flex-shrink-0">
                       <AvatarFallback className="bg-gradient-to-br from-purple via-pink to-purple text-background flex items-center justify-center">
@@ -73,7 +68,7 @@ const CTASection = ({
                   )}
                   {showCalendarOnly && (
                     <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
-                      setShowScheduleModal(true);
+                      setShowDemoCallModal(true);
                     }}>
                       <span>Book a demo</span>
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
@@ -91,7 +86,7 @@ const CTASection = ({
                       <Star key={i} className="w-4 h-4 fill-amber text-amber" />
                     ))}
                   </div>
-                  <span className="text-sm">152 reviews</span>
+                  <span className="text-sm">10+ reviews</span>
                 </div>
 
                 {/* Features list */}
@@ -113,19 +108,15 @@ const CTASection = ({
         </div>
       </div>
 
-      {/* Schedule Call Modal */}
-      <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
-        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <div className="flex-1 overflow-hidden min-h-0">
-            <iframe
-              src="https://cal.com/voiceabledev/30min?overlayCalendar=true"
-              className="w-full h-full border-0"
-              title="Calendly Scheduling"
-              allow="camera; microphone; geolocation"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Demo Call Modal */}
+      <DemoCallModal
+        open={showDemoCallModal}
+        onOpenChange={setShowDemoCallModal}
+        onSubmit={(data) => {
+          console.log("Demo call requested:", data);
+          // TODO: Send data to backend API to trigger the call
+        }}
+      />
     </section>
   );
 };
