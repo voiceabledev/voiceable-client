@@ -90,7 +90,7 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
-                <Route path="/" element={<Landing2 />} />
+                <Route path="/" element={<Landing3 />} />
                 <Route path="/retail-ecommerce" element={<Landing />} />
                 <Route path="/recruitment" element={<Landing3 />} />
                 <Route path="/small-business" element={<Landing4 />} />
