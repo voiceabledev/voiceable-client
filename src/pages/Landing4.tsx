@@ -73,7 +73,7 @@ const Landing4 = () => {
   // Content configuration for small businesses - appointment booking and customer service
   const heroContent = {
     badgeText: "Never miss a booking, 24/7",
-    headline: "Book appointments & serve customers with an AI assistant that never sleeps",
+    headline: "Convert leads & resolve issues with a 24/7 support line",
     subtitle: "Voiceable handles every call, books appointments automatically, answers customer questions, and manages your schedule 24/7. Perfect for salons, spas, barbershops, fitness studios, and restaurants.",
     socialProofText: "Trusted by Small Business Owners"
   };
