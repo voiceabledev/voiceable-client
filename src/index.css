@@ -411,6 +411,21 @@
     animation: slide-up 0.6s ease-out forwards;
     opacity: 0;
   }
+
+  /* Smooth hero body copy — fade, lift, subtle de-blur */
+  .animate-hero-text {
+    animation: heroTextReveal 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-hero-text {
+      animation: none;
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
   
   .animate-scroll-left {
     animation: scroll-left 30s linear infinite;
@@ -475,6 +490,19 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes heroTextReveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 

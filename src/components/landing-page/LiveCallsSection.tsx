@@ -11,6 +11,8 @@ interface Call {
 
 interface LiveCallsSectionProps {
   calls?: Call[];
+  title?: string;
+  subtitle?: string;
 }
 
 const defaultCalls: Call[] = [
@@ -24,13 +26,22 @@ const defaultCalls: Call[] = [
   { type: "Customer", location: "in Chicago", topic: "Special Request", status: "In Progress", time: "8 min ago", duration: "292 sec" },
 ];
 
-const LiveCallsSection = ({ calls = defaultCalls }: LiveCallsSectionProps) => {
+const LiveCallsSection = ({
+  calls = defaultCalls,
+  title = "Real calls happening right now...",
+  subtitle,
+}: LiveCallsSectionProps) => {
   return (
-    <section className="overflow-hidden">
-      <div className="container mx-auto px-6 mb-12">
-        <h2 className="text-2xl md:text-3xl font-semibold text-center text-muted-foreground">
-          Real calls happening right now...
+    <section id="live-activity" className="overflow-hidden scroll-mt-28 py-12 md:py-16">
+      <div className="container mx-auto px-6 mb-10 md:mb-12">
+        <h2 className="text-2xl md:text-3xl font-semibold text-center text-foreground">
+          {title}
         </h2>
+        {subtitle && (
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto mt-3 text-sm md:text-base">
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {/* Scrolling calls */}

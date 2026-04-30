@@ -27,8 +27,8 @@ const Header = () => {
   const isHomePage = location.pathname === "/";
   const isLandingPage = location.pathname === "/" || location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment" || location.pathname === "/small-business";
   const showFullNav = isHomePage || isLandingPage;
-  // For Landing.tsx (/retail-ecommerce), Landing3.tsx (/recruitment), and Landing4.tsx (/small-business), only show calendar modal (no login/dashboard/pricing)
-  // Landing2.tsx (/) should show login and demo call buttons
+  // Industry landing pages use demo-focused CTAs instead of login/dashboard/pricing links.
+  // The root route shares this header but keeps the full navigation.
   const isCalendarOnlyPage = location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment" || location.pathname === "/small-business";
 
   return (
@@ -48,7 +48,7 @@ const Header = () => {
             <a href="/" className="nav-pill">Home</a>
             {showFullNav && (
               <>
-                <a href="#features" className="nav-pill">How it Works</a>
+                <a href="#how-it-works" className="nav-pill">How it Works</a>
                 <a href="#solutions" className="nav-pill">Use Cases</a>
               </>
             )}
@@ -104,7 +104,7 @@ const Header = () => {
                   {showFullNav && (
                     <>
                       <a
-                        href="#features"
+                        href="#how-it-works"
                         className="text-foreground hover:text-primary transition-colors py-2"
                         onClick={() => setMobileMenuOpen(false)}
                       >

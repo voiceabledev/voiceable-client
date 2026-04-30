@@ -4,12 +4,17 @@ interface Feature {
   title: string;
   description: string;
   benefits: string[];
+  /** Short line under bullets (e.g. a punchy closer from the narrative). */
+  closing?: string;
   gradient: string;
   icon: LucideIcon;
 }
 
 interface FeaturesSectionProps {
   features?: Feature[];
+  eyebrow?: string;
+  title?: string;
+  description?: string;
 }
 
 const defaultFeatures: Feature[] = [
@@ -36,11 +41,19 @@ const defaultFeatures: Feature[] = [
   },
 ];
 
-const FeaturesSection = ({ features = defaultFeatures }: FeaturesSectionProps) => {
+const FeaturesSection = ({ features = defaultFeatures, eyebrow, title, description }: FeaturesSectionProps) => {
   return (
-    <section id="features" className="py-16 md:py-32">
+    <section id="features" className="py-16 md:py-32 scroll-mt-28">
       <div className="container mx-auto px-4 md:px-6">
-        <h2 className="sr-only">Features</h2>
+        {title ? (
+          <div className="text-center max-w-3xl mx-auto mb-12 md:mb-16">
+            {eyebrow && <p className="text-primary font-medium mb-3">{eyebrow}</p>}
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">{title}</h2>
+            {description && <p className="text-lg text-muted-foreground">{description}</p>}
+          </div>
+        ) : (
+          <h2 className="sr-only">Features</h2>
+        )}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {features.map((feature, index) => {
             const Icon = feature.icon;
@@ -76,6 +89,11 @@ const FeaturesSection = ({ features = defaultFeatures }: FeaturesSectionProps) =
                     </div>
                   ))}
                 </div>
+                {feature.closing && (
+                  <p className="mt-4 pt-4 border-t border-border text-sm font-medium text-foreground/90">
+                    {feature.closing}
+                  </p>
+                )}
               </div>
             </div>
             );

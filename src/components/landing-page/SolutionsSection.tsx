@@ -19,6 +19,14 @@ interface Solution {
 
 interface SolutionsSectionProps {
   solutions?: Solution[];
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  activeEyebrow?: string;
+  chartTitle?: string;
+  chartValue?: string;
+  chartXAxisLabel?: string;
+  sectionClassName?: string;
 }
 
 const defaultSolutions: Solution[] = [
@@ -43,13 +51,30 @@ const defaultSolutions: Solution[] = [
   },
 ];
 
-const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProps) => {
+const SolutionsSection = ({
+  solutions = defaultSolutions,
+  eyebrow,
+  title,
+  description,
+  activeEyebrow = "Voiceable is your...",
+  chartTitle = "Requests Handled",
+  chartValue = "87",
+  chartXAxisLabel = "Number of Requests Automated",
+  sectionClassName = ""
+}: SolutionsSectionProps) => {
   const [activeTab, setActiveTab] = useState(solutions[0]?.id || "retail");
   const activeSolution = solutions.find(s => s.id === activeTab) || solutions[0];
 
   return (
-    <section id="solutions" className="py-32">
+    <section id="solutions" className={`py-32 scroll-mt-28 ${sectionClassName}`.trim()}>
       <div className="container mx-auto px-6">
+        {title && (
+          <div className="text-center max-w-2xl mx-auto mb-12 md:mb-16">
+            {eyebrow && <p className="text-primary font-medium mb-3">{eyebrow}</p>}
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">{title}</h2>
+            {description && <p className="text-lg text-muted-foreground">{description}</p>}
+          </div>
+        )}
         {/* Tabs */}
         <div className="w-full mb-8 md:mb-16 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
           <div className="flex items-center gap-2 min-w-max justify-center md:justify-center">
@@ -83,7 +108,7 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
           {/* Left side - Text content */}
           <div className="animate-fade-in px-4 md:px-0">
             <p className="text-primary mb-2 text-sm md:text-base">
-              <span className="text-primary">Voiceable</span> is your...
+              {activeEyebrow}
             </p>
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 md:mb-6">
               {activeSolution?.title}
@@ -114,7 +139,7 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
           {/* Right side - Chart */}
           <div className="bg-card rounded-3xl border border-border p-4 md:p-6 mx-4 md:mx-0">
             <div className="flex items-center justify-between mb-4 md:mb-6">
-              <h3 className="font-semibold text-sm md:text-base">Requests Handled</h3>
+              <h3 className="font-semibold text-sm md:text-base">{chartTitle}</h3>
               <div className="flex items-center gap-2">
                 <button className="px-2 md:px-3 py-1 text-xs rounded-full bg-secondary">Daily</button>
                 <button className="px-2 md:px-3 py-1 text-xs rounded-full text-muted-foreground">Monthly</button>
@@ -169,13 +194,13 @@ const SolutionsSection = ({ solutions = defaultSolutions }: SolutionsSectionProp
                 {/* Current value indicator */}
                 <div className="absolute right-0 top-2 md:top-4 flex items-center gap-1.5 md:gap-2">
                   <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-purple animate-pulse" />
-                  <span className="text-xl md:text-2xl font-bold">87</span>
+                  <span className="text-xl md:text-2xl font-bold">{chartValue}</span>
                 </div>
               </div>
 
               {/* X-axis label */}
               <div className="absolute bottom-0 left-8 md:left-10 right-0 text-center text-[10px] md:text-xs text-muted-foreground px-2">
-                Number of Requests Automated
+                {chartXAxisLabel}
               </div>
             </div>
           </div>

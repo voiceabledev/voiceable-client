@@ -3,12 +3,18 @@ import { Sparkles, Star, Check, ChevronRight, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DemoCallModal } from "./DemoCallModal";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface CTASectionProps {
   title?: string;
   description?: string;
   features?: string[];
   showCalendarOnly?: boolean;
+  primaryButtonLabel?: string;
+  primaryButtonAction?: "demo" | "calendar";
+  secondaryButtonLabel?: string;
+  secondaryButtonAction?: "demo" | "calendar" | "signup";
+  secondaryButtonHref?: string;
 }
 
 const CTASection = ({
@@ -20,9 +26,31 @@ const CTASection = ({
     "Instant human-like responses",
     "Integrate with any system"
   ],
-  showCalendarOnly = false
+  showCalendarOnly = false,
+  primaryButtonLabel = "Call Voice Agent",
+  primaryButtonAction = "demo",
+  secondaryButtonLabel,
+  secondaryButtonAction,
+  secondaryButtonHref = "/sign-up"
 }: CTASectionProps) => {
   const [showDemoCallModal, setShowDemoCallModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const resolvedSecondaryLabel = secondaryButtonLabel ?? (showCalendarOnly ? "Book a demo" : "Start for free");
+  const resolvedSecondaryAction = secondaryButtonAction ?? (showCalendarOnly ? "demo" : "signup");
+
+  const handleAction = (action: "demo" | "calendar" | "signup") => {
+    if (action === "calendar") {
+      setShowCalendarModal(true);
+      return;
+    }
+
+    if (action === "signup") {
+      window.location.href = secondaryButtonHref;
+      return;
+    }
+
+    setShowDemoCallModal(true);
+  };
 
   return (
     <section className="py-20 relative overflow-hidden">
@@ -48,32 +76,18 @@ const CTASection = ({
                 </p>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6 py-6 flex items-center gap-3" onClick={() => {
-                    setShowDemoCallModal(true);
-                  }}>
+                  <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-6 py-6 flex items-center gap-3" onClick={() => handleAction(primaryButtonAction)}>
                     <Avatar className="w-6 h-6 border-2 border-purple/30 shadow-md flex-shrink-0">
                       <AvatarFallback className="bg-gradient-to-br from-purple via-pink to-purple text-background flex items-center justify-center">
                         <Mic className="w-3.5 h-3.5" />
                       </AvatarFallback>
                     </Avatar>
-                    <span>Call Voice Agent</span>
+                    <span>{primaryButtonLabel}</span>
                   </Button>
-                  {!showCalendarOnly && (
-                    <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
-                      window.location.href = "/sign-up";
-                    }}>
-                      <span>Start for free</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
-                    </Button>
-                  )}
-                  {showCalendarOnly && (
-                    <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => {
-                      setShowDemoCallModal(true);
-                    }}>
-                      <span>Book a demo</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
-                    </Button>
-                  )}
+                  <Button variant="ghost" className="text-foreground group flex items-center gap-2" onClick={() => handleAction(resolvedSecondaryAction)}>
+                    <span>{resolvedSecondaryLabel}</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+                  </Button>
                 </div>
               </div>
 
@@ -117,6 +131,18 @@ const CTASection = ({
           // TODO: Send data to backend API to trigger the call
         }}
       />
+      <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
+          <div className="flex-1 overflow-hidden min-h-0">
+            <iframe
+              src="https://cal.com/voiceabledev/30min?overlayCalendar=true"
+              className="w-full h-full border-0"
+              title="Calendly Scheduling"
+              allow="camera; microphone; geolocation"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

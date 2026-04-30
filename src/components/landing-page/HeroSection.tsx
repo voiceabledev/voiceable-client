@@ -14,17 +14,53 @@ interface HeroSectionProps {
   badgeText?: string;
   headline?: string;
   subtitle?: string;
+  tagline?: string;
   socialProofText?: string;
+  showBadge?: boolean;
+  primaryCtaLabel?: string;
+  primaryCtaAction?: "demo" | "calendar";
+  secondaryCtaLabel?: string;
+  secondaryCtaAction?: "demo" | "calendar" | "anchor";
+  secondaryAnchorId?: string;
+  previewName?: string;
+  previewMeta?: string;
+  previewStatus?: string;
 }
 
 const HeroSection = ({
   badgeText = "Answer every call, 24/7",
   headline = "Convert leads & resolve\nissues with a 24/7 support\nline",
   subtitle = "Voiceable is purpose-built to automate customer service for retail & e-commerce. Powered by AI and humans, it works seamlessly with phone lines & systems to handle orders, inquiries, and support - 24/7, day or night.",
-  socialProofText = "Trusted by Retailers & E-commerces"
+  tagline,
+  socialProofText = "Trusted by Retailers & E-commerces",
+  showBadge = true,
+  primaryCtaLabel = "Talk to Voiceable Agent",
+  primaryCtaAction = "demo",
+  secondaryCtaLabel,
+  secondaryCtaAction = "demo",
+  secondaryAnchorId = "demo",
+  previewName = "Sarah",
+  previewMeta = "Order #12345 - Delivery status",
+  previewStatus = "Order updated in system"
 }: HeroSectionProps) => {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showDemoCallModal, setShowDemoCallModal] = useState(false);
+
+  const handleCta = (action: "demo" | "calendar" | "anchor") => {
+    if (action === "calendar") {
+      setShowCalendarModal(true);
+      return;
+    }
+
+    if (action === "anchor") {
+      document.getElementById(secondaryAnchorId)?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    setShowDemoCallModal(true);
+  };
+
+  const headlineLines = headline.split("\n");
 
   return (
     <>
@@ -33,17 +69,18 @@ const HeroSection = ({
         <div className="hero-glow" />
 
         <div className="container mx-auto px-6 text-center relative z-10">
-          {/* Y Combinator badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 mb-8 animate-fade-in">
-            <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center">
-              <span className="text-[10px] font-bold text-primary-foreground">✨</span>
+          {showBadge && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 mb-8 animate-fade-in">
+              <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center">
+                <span className="text-[10px] font-bold text-primary-foreground">✨</span>
+              </div>
+              <span className="text-sm text-primary font-medium">{badgeText}</span>
             </div>
-            <span className="text-sm text-primary font-medium">{badgeText}</span>
-          </div>
+          )}
 
           {/* Main headline */}
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-slide-up">
-            {headline.split('\n').map((line, i) => {
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 animate-slide-up">
+            {headlineLines.map((line, i) => {
               const parts = line.split('24/7');
               return (
                 <span key={i}>
@@ -53,32 +90,51 @@ const HeroSection = ({
                       {j < parts.length - 1 && <span className="text-gradient-amber">24/7</span>}
                     </span>
                   ))}
-                  {i < headline.split('\n').length - 1 && <br />}
+                  {i < headlineLines.length - 1 && <br />}
                 </span>
               );
             })}
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          {/* Subtitle — smooth staged reveal */}
+          <p
+            className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-6 md:mb-7 animate-hero-text"
+            style={{ animationDelay: "140ms" }}
+          >
             {subtitle}
           </p>
+          {tagline && (
+            <p
+              className="text-base text-muted-foreground/90 md:text-lg font-medium tracking-tight max-w-3xl mx-auto mb-8 animate-hero-text"
+              style={{ animationDelay: "300ms" }}
+            >
+              {tagline}
+            </p>
+          )}
 
           {/* CTA */}
-          <Button
-            variant="ghost"
-            className="text-foreground hover:bg-secondary/50 group animate-slide-up border-2 border-foreground"
-            style={{ animationDelay: "0.2s" }}
-            onClick={() => {
-              setShowDemoCallModal(true);
-            }}
-          >
-            Talk to Voiceable Agent
-            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-slide-up" style={{ animationDelay: "480ms" }}>
+            <Button
+              className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-7 py-6"
+              onClick={() => handleCta(primaryCtaAction)}
+            >
+              {primaryCtaLabel}
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+            {secondaryCtaLabel && (
+              <Button
+                variant="ghost"
+                className="text-foreground hover:bg-secondary/50 group border-2 border-foreground rounded-full px-7 py-6"
+                onClick={() => handleCta(secondaryCtaAction)}
+              >
+                {secondaryCtaLabel}
+                <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            )}
+          </div>
 
           {/* Hero visual area */}
-          <div className="mt-8 md:mt-32 flex flex-col md:flex-row items-center justify-center gap-8 animate-slide-up" style={{ animationDelay: "0.3s" }}>
+          <div className="mt-8 md:mt-32 flex flex-col md:flex-row items-center justify-center gap-8 animate-slide-up" style={{ animationDelay: "560ms" }}>
             {/* Phone mockup placeholder */}
             <div className="relative w-full max-w-[280px] md:w-72">
               <div className="w-full aspect-[9/16] max-h-[500px] rounded-[2rem] md:rounded-[3rem] bg-gradient-to-b from-card to-background border border-border overflow-hidden shadow-2xl">
@@ -109,15 +165,15 @@ const HeroSection = ({
                   {/* Message preview */}
                   <div className="mt-8 bg-card rounded-2xl p-4 border border-border">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Sarah</span>
+                      <span className="font-medium">{previewName}</span>
                       <span className="text-xs text-muted-foreground">7:31 PM</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">Order #12345 - Delivery status</p>
+                    <p className="text-sm text-muted-foreground mb-2">{previewMeta}</p>
                     <div className="flex items-center gap-2 text-green text-xs">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
-                      Order updated in system
+                      {previewStatus}
                     </div>
                   </div>
                 </div>
