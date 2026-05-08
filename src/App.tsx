@@ -64,8 +64,11 @@ const AdminPhoneNumbers = lazy(() => import("@/pages/admin/PhoneNumbers"));
 const AdminApiKeys = lazy(() => import("@/pages/admin/ApiKeys"));
 const AdminFinancialSimulation = lazy(() => import("@/pages/admin/FinancialSimulation"));
 const AdminTemplates = lazy(() => import("@/pages/admin/Templates"));
+const AdminBlogPosts = lazy(() => import("@/pages/admin/BlogPosts"));
 const AdminBehaviours = lazy(() => import("@/pages/admin/Behaviours"));
 const AdminPricingSettings = lazy(() => import("@/pages/admin/PricingSettings"));
+const BlogIndex = lazy(() => import("@/pages/blog/BlogIndex"));
+const BlogPost = lazy(() => import("@/pages/blog/BlogPost"));
 
 // Loading component for lazy routes
 const LoadingFallback = () => (
@@ -100,6 +103,8 @@ const App = () => (
                 <Route path="/login" element={<Login />} />
                 <Route path="/custom-agents" element={<Suspense fallback={<LoadingFallback />}><CustomAgents /></Suspense>} />
                 <Route path="/pricing" element={<Suspense fallback={<LoadingFallback />}><Pricing /></Suspense>} />
+                <Route path="/blog" element={<Suspense fallback={<LoadingFallback />}><BlogIndex /></Suspense>} />
+                <Route path="/blog/:slug" element={<Suspense fallback={<LoadingFallback />}><BlogPost /></Suspense>} />
                 <Route path="/privacy" element={<Suspense fallback={<LoadingFallback />}><Privacy /></Suspense>} />
                 <Route path="/terms" element={<Suspense fallback={<LoadingFallback />}><Terms /></Suspense>} />
                 <Route path="/assistants/:id/widget/design" element={<ProtectedRoute><Suspense fallback={<LoadingFallback />}><WidgetDesignStudio /></Suspense></ProtectedRoute>} />
@@ -143,6 +148,7 @@ const App = () => (
                   <Route path="users" element={<Suspense fallback={<LoadingFallback />}><AdminUsers /></Suspense>} />
                   <Route path="agents" element={<Suspense fallback={<LoadingFallback />}><AdminAgents /></Suspense>} />
                   <Route path="templates" element={<Suspense fallback={<LoadingFallback />}><AdminTemplates /></Suspense>} />
+                  <Route path="blog-posts" element={<Suspense fallback={<LoadingFallback />}><AdminBlogPosts /></Suspense>} />
                   <Route path="behaviours" element={<Suspense fallback={<LoadingFallback />}><AdminBehaviours /></Suspense>} />
                   <Route path="integrations" element={<Suspense fallback={<LoadingFallback />}><AdminIntegrations /></Suspense>} />
                   <Route path="campaigns" element={<Suspense fallback={<LoadingFallback />}><AdminCampaigns /></Suspense>} />

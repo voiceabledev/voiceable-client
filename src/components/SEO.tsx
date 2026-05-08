@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { SITE_URL } from "@/constants/site";
 
 interface SEOProps {
   title?: string;
@@ -16,13 +17,16 @@ export function SEO({
   description = "Handle calls, qualify leads, and book appointments with AI agents you create by describing the job — not engineering the AI. No prompts. No scripts. No fragile configurations.",
   keywords = "AI voice agents, voice assistants, conversational AI, AI receptionist, lead qualification, appointment scheduling, voice automation, AI telephony, business automation",
   image = "/og-image.png",
-  url = "https://voice-agent-ai-4288599ce3fe.herokuapp.com",
+  url = SITE_URL,
   type = "website",
   siteName = "Voiceable Studio",
   twitterHandle = "@voiceaistudio",
 }: SEOProps) {
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
   const fullUrl = url;
+  const absoluteImage = image.startsWith("http")
+    ? image
+    : `${SITE_URL}${image.startsWith("/") ? image : `/${image}`}`;
 
   return (
     <Helmet>
@@ -42,7 +46,7 @@ export function SEO({
       <meta property="og:url" content={fullUrl} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
-      <meta property="og:image" content={image.startsWith("http") ? image : `${fullUrl}${image}`} />
+      <meta property="og:image" content={absoluteImage} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:site_name" content={siteName} />
@@ -53,7 +57,7 @@ export function SEO({
       <meta name="twitter:url" content={fullUrl} />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image.startsWith("http") ? image : `${fullUrl}${image}`} />
+      <meta name="twitter:image" content={absoluteImage} />
       {twitterHandle && <meta name="twitter:creator" content={twitterHandle} />}
       {twitterHandle && <meta name="twitter:site" content={twitterHandle} />}
 
@@ -82,7 +86,7 @@ export function SEO({
             "ratingCount": "250000"
           },
           "description": description,
-          "url": fullUrl,
+          "url": SITE_URL,
           "author": {
             "@type": "Organization",
             "name": siteName
@@ -96,8 +100,8 @@ export function SEO({
           "@context": "https://schema.org",
           "@type": "Organization",
           "name": siteName,
-          "url": fullUrl,
-          "logo": image.startsWith("http") ? image : `${fullUrl}${image}`,
+          "url": SITE_URL,
+          "logo": absoluteImage,
           "sameAs": [
             "https://github.com",
             "https://twitter.com",
@@ -117,12 +121,12 @@ export function SEO({
           "@context": "https://schema.org",
           "@type": "WebSite",
           "name": siteName,
-          "url": fullUrl,
+          "url": SITE_URL,
           "potentialAction": {
             "@type": "SearchAction",
             "target": {
               "@type": "EntryPoint",
-              "urlTemplate": `${fullUrl}/search?q={search_term_string}`
+              "urlTemplate": `${SITE_URL}/search?q={search_term_string}`
             },
             "query-input": "required name=search_term_string"
           }

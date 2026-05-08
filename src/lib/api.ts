@@ -32,7 +32,7 @@ export function normalizeApiBaseUrl(url: string): string {
  * 3. Auto-detect based on current hostname (for production)
  * 4. Localhost fallback (for development)
  */
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   // Use env var if available (set at build time)
   if (import.meta.env.VITE_API_BASE_URL) {
     return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
@@ -1671,6 +1671,22 @@ export interface PaginationMeta {
   has_more: boolean;
 }
 
+export interface AdminBlogPost {
+  id: number;
+  slug: string;
+  title: string;
+  description: string | null;
+  body: string;
+  published_at: string | null;
+  updated_at: string;
+  created_at: string;
+  author: string;
+  tags: string[];
+  canonical: string | null;
+  og_image: string | null;
+  draft: boolean;
+}
+
 export const adminApi = {
   users: {
     list: async (params?: { page?: number; per_page?: number }) => {
@@ -1944,6 +1960,32 @@ export const adminApi = {
     },
     destroy: async (id: number) => {
       const response = await apiClient.delete(`/admin/agent_behaviours/${id}`);
+      return response;
+    },
+  },
+  blogPosts: {
+    list: async () => {
+      const response = await apiClient.get<AdminBlogPost[]>('/admin/blog_posts');
+      return response;
+    },
+    show: async (id: number) => {
+      const response = await apiClient.get<{ data: AdminBlogPost }>(`/admin/blog_posts/${id}`);
+      return response;
+    },
+    create: async (data: Record<string, unknown>) => {
+      const response = await apiClient.post<{ data: AdminBlogPost }>('/admin/blog_posts', {
+        blog_post: data,
+      });
+      return response;
+    },
+    update: async (id: number, data: Record<string, unknown>) => {
+      const response = await apiClient.patch<{ data: AdminBlogPost }>(`/admin/blog_posts/${id}`, {
+        blog_post: data,
+      });
+      return response;
+    },
+    destroy: async (id: number) => {
+      const response = await apiClient.delete(`/admin/blog_posts/${id}`);
       return response;
     },
   },

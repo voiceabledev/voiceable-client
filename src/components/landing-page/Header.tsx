@@ -52,9 +52,8 @@ const Header = () => {
                 <a href="#solutions" className="nav-pill">Use Cases</a>
               </>
             )}
-            {!isCalendarOnlyPage && (
-              <a href="/pricing" className="nav-pill">Pricing</a>
-            )}
+            <a href="/blog" className="nav-pill">Blog</a>
+            {!isCalendarOnlyPage && <a href="/pricing" className="nav-pill">Pricing</a>}
           </nav>
 
           {/* Desktop CTAs */}
@@ -119,6 +118,13 @@ const Header = () => {
                       </a>
                     </>
                   )}
+                  <a
+                    href="/blog"
+                    className="text-foreground hover:text-primary transition-colors py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Blog
+                  </a>
                   {!isCalendarOnlyPage && (
                     <a
                       href="/pricing"

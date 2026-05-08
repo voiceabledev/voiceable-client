@@ -9,6 +9,7 @@ const footerLinks = {
     // { name: "Leads Reviver", href: "/leads-reviver" },
     // { name: "Appointment Confirmation", href: "/confirmation" },
     { name: "Pricing", href: "/pricing" },
+    { name: "Blog", href: "/blog" },
     // { name: "Documentation", href: "https://docs.voiceable.dev/" }
   ],
   company: [
