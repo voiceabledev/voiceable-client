@@ -1,10 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { pricingSettingsApi, PricingSetting } from "@/lib/api";
+import { useState } from "react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { Check, ChevronDown, Database, DollarSign, Phone, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
@@ -12,783 +31,365 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import {
-  Check,
-  Minus,
-  TrendingUp,
-  DollarSign,
-  Layers,
-  Phone,
-  Database,
-  Shield,
-  Headphones,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import Header from "@/components/landing-page/Header";
 import Footer from "@/components/landing-page/Footer";
 
-// Constants
-const TOKENS_PER_MINUTE = 4066.667; // Average tokens per minute of conversation
+/** Voice top-up tiers: prices include markup vs internal base; rounded to whole dollars. */
+const VOICE_TOP_UPS: { quantity: number; priceUsd: number }[] = [
+  { quantity: 250, priceUsd: 41 },
+  { quantity: 500, priceUsd: 83 },
+  { quantity: 1000, priceUsd: 166 },
+  { quantity: 1500, priceUsd: 248 },
+  { quantity: 3000, priceUsd: 497 },
+  { quantity: 6000, priceUsd: 992 },
+  { quantity: 12000, priceUsd: 1985 },
+];
 
-// Default fallback values (used if API fails)
-const DEFAULT_HOSTING_COST_PER_MIN = 0.05;
-const DEFAULT_TTS_COST_PER_MIN = 0.036;
-const DEFAULT_STT_COST_PER_MIN = 0.00667;
-const DEFAULT_TRANSPORT_COSTS: Record<string, number> = {
-  "twilio-inbound": 0.008,
-  "twilio-outbound": 0.014,
-};
+/** Per-minute rate shown in copy: $0.15 × 1.05², rounded to cents. */
+const UNIT_RATE_USD = Math.round(0.15 * 1.05 * 1.05 * 100) / 100;
 
-const Pricing = () => {
-  const router = useRouter();
-  const [callsPerMonth, setCallsPerMonth] = useState("100");
-  const [callLength, setCallLength] = useState("10");
-  const [promptTokens, setPromptTokens] = useState("1000");
-  const [commissionMarkup, setCommissionMarkup] = useState<number>(0.70); // Default fallback
-  const [selectedTransport, setSelectedTransport] = useState("twilio-inbound");
-  const [selectedLLM, setSelectedLLM] = useState<string>("gpt-4.1");
-  const [showContactSalesModal, setShowContactSalesModal] = useState(false);
+const MAX_MINUTES = Math.max(...VOICE_TOP_UPS.map((t) => t.quantity));
 
-  // Collapsible sections state
-  const [isTransportOpen, setIsTransportOpen] = useState(true);
-  const [isLLMOpen, setIsLLMOpen] = useState(true);
+function formatUsd(n: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(n);
+}
 
-  // Pricing settings from API
-  const [pricingSettings, setPricingSettings] = useState<PricingSetting[]>([]);
-  const [loadingPricing, setLoadingPricing] = useState(true);
+function formatUsdPerMinute(n: number, fractionDigits: 2 | 3 = 2) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(n);
+}
 
-  // Fetch pricing settings
-  useEffect(() => {
-    const fetchPricing = async () => {
-      try {
-        const response = await pricingSettingsApi.list();
-        if (response.data) {
-          const settings = response.data || [];
-          console.log("Response:", response);
-          console.log("Fetched pricing settings:", settings.length, "items");
-          console.log("LLM settings:", settings.filter(s => s.category === 'llm').length);
-          setPricingSettings(settings);
-        }
-      } catch (error) {
-        console.error("Error fetching pricing settings:", error);
-        // Continue with default values if API fails
-      } finally {
-        setLoadingPricing(false);
-      }
-    };
-    fetchPricing();
-  }, []);
+const easeOut = [0.22, 1, 0.36, 1] as const;
 
-  // Fetch commission markup
-  useEffect(() => {
-    const fetchCommissionMarkup = async () => {
-      try {
-        const response = await pricingSettingsApi.getCommissionMarkup();
-        if (response.data?.commission_markup !== undefined) {
-          setCommissionMarkup(response.data.commission_markup);
-        }
-      } catch (error) {
-        console.error("Error fetching commission markup:", error);
-        // Fallback to default 0.70 if API fails
-        setCommissionMarkup(0.70);
-      }
-    };
-    fetchCommissionMarkup();
-  }, []);
+/** Shown in comparison table for PAYG hosting line. */
+const HOSTING_COST_PER_MIN_USD = 0.0525;
 
-  // Organize pricing settings by category and provider
-  const organizePricingSettings = () => {
-    const organized: {
-      llm: Record<string, Array<{ id: string; name: string; cost: number }>>;
-      transport: Array<{ id: string; name: string; cost: number }>;
-      hosting: number;
-      tts: number;
-      stt: number;
-    } = {
-      llm: {},
-      transport: [],
-      hosting: DEFAULT_HOSTING_COST_PER_MIN,
-      tts: DEFAULT_TTS_COST_PER_MIN,
-      stt: DEFAULT_STT_COST_PER_MIN,
-    };
+/** One-time setup when provisioning a Voiceable phone number (not required for web-only voice). */
+const PHONE_NUMBER_SETUP_FEE_USD = 5;
 
-    pricingSettings.forEach((setting) => {
-      if (!setting.active) return;
+const PRICING_FAQ_ITEMS: { q: string; a: string }[] = [
+  {
+    q: "Can I try for free?",
+    a: "We periodically offer trials and pilots depending on your use case. Create an account to see what is available today, or contact sales if you need a guided evaluation or demo environment.",
+  },
+  {
+    q: "Can I get fixed monthly pricing instead of pay-as-you-go?",
+    a: "Yes, we offer enterprise plans with fixed monthly pricing. Contact our sales team to discuss your needs.",
+  },
+  {
+    q: "Can I get volume discounts?",
+    a: "Yes. Larger prepaid bundles improve effective rates; committed volume and enterprise agreements include additional discounts. Contact sales for a quote tailored to your traffic.",
+  },
+  {
+    q: "What does pricing look like at scale?",
+    a: "Beyond standard bundles, pricing moves to volume agreements: committed minutes, optional SLAs, and tailored support. We will model total cost with you based on traffic, regions, and channels.",
+  },
+  {
+    q: "How can I get more than 14 days of call history?",
+    a: "Default retention for call history is 14 days on standard bundles. Longer retention, exports, and compliance-friendly storage are available on enterprise plans. Contact sales to extend retention.",
+  },
+];
 
-      if (setting.category === 'llm' && setting.model_id && setting.cost_per_million_tokens !== null && setting.cost_per_million_tokens !== undefined) {
-        // Capitalize provider name properly (e.g., "elevenlabs" -> "ElevenLabs", "openai" -> "OpenAI")
-        const providerName = setting.provider;
-        const provider = providerName === 'elevenlabs' ? 'ElevenLabs' :
-          providerName === 'openai' ? 'OpenAI' :
-            providerName === 'anthropic' ? 'Anthropic' :
-              providerName === 'google' ? 'Google' :
-                providerName === 'meta' ? 'Meta' :
-                  providerName === 'mistral' ? 'Mistral' :
-                    providerName === 'cohere' ? 'Cohere' :
-                      providerName === 'groq' ? 'Groq' :
-                        providerName === 'perplexity' ? 'Perplexity' :
-                          providerName.charAt(0).toUpperCase() + providerName.slice(1);
-        if (!organized.llm[provider]) {
-          organized.llm[provider] = [];
-        }
-        organized.llm[provider].push({
-          id: setting.model_id,
-          name: setting.name,
-          cost: setting.cost_per_million_tokens,
-        });
-      } else if (setting.category === 'transport' && setting.cost_per_minute) {
-        organized.transport.push({
-          id: setting.model_id || setting.provider,
-          name: setting.name,
-          cost: setting.cost_per_minute,
-        });
-      } else if (setting.category === 'hosting' && setting.cost_per_minute) {
-        organized.hosting = setting.cost_per_minute;
-      } else if (setting.category === 'tts' && setting.cost_per_minute) {
-        organized.tts = setting.cost_per_minute;
-      } else if (setting.category === 'stt' && setting.cost_per_minute) {
-        organized.stt = setting.cost_per_minute;
-      }
-    });
-
-    return organized;
-  };
-
-  const pricingData = organizePricingSettings();
-
-  // Debug logging
-  useEffect(() => {
-    if (pricingSettings.length > 0) {
-      console.log("Pricing data organized:", {
-        llmProviders: Object.keys(pricingData.llm),
-        llmCount: Object.values(pricingData.llm).reduce((sum, models) => sum + models.length, 0),
-        transportCount: pricingData.transport.length,
-      });
-    }
-  }, [pricingSettings, pricingData]);
-
-  // Calculate costs
-  const calculateCosts = () => {
-    const calls = parseInt(callsPerMonth) || 0;
-    const length = parseFloat(callLength) || 0;
-    const tokens = parseInt(promptTokens) || 0;
-
-    const totalMinutes = calls * length;
-
-    // Find selected LLM cost per million tokens
-    let llmCostPerMillion = 0.0057; // Default fallback
-    for (const providerModels of Object.values(pricingData.llm)) {
-      const llm = providerModels.find(l => l.id === selectedLLM);
-      if (llm) {
-        llmCostPerMillion = llm.cost;
-        break;
-      }
-    }
-
-    // Find selected transport
-    const transport = pricingData.transport.find(t => t.id === selectedTransport);
-    const transportCostPerMin = transport?.cost || DEFAULT_TRANSPORT_COSTS[selectedTransport] || 0.008;
-
-    // Base costs (at cost)
-    const hostingCost = totalMinutes * pricingData.hosting;
-    const transportCostBase = totalMinutes * transportCostPerMin;
-    const ttsCostBase = totalMinutes * pricingData.tts;
-    const sttCostBase = totalMinutes * pricingData.stt;
-
-    // Calculate LLM tokens: (total minutes * tokens per minute) + (calls * prompt tokens)
-    const llmTokens = (totalMinutes * TOKENS_PER_MINUTE) + (calls * tokens);
-    const llmCostBase = (llmTokens / 1_000_000) * llmCostPerMillion;
-
-    // Apply commission markup to provider costs
-    const providerCostsBase = transportCostBase + ttsCostBase + sttCostBase + llmCostBase;
-    const providerRevenue = providerCostsBase * (1 + commissionMarkup);
-
-    // Total cost includes hosting (no commission) + provider revenue (with commission)
-    const totalCost = hostingCost + providerRevenue;
-
-    return {
-      hostingCost,
-      transportCostBase,
-      ttsCostBase,
-      sttCostBase,
-      llmCostBase,
-      providerCostsBase,
-      providerRevenue,
-      transportCost: transportCostBase * (1 + commissionMarkup),
-      ttsCost: ttsCostBase * (1 + commissionMarkup),
-      sttCost: sttCostBase * (1 + commissionMarkup),
-      llmCost: llmCostBase * (1 + commissionMarkup),
-      totalCost,
-      totalMinutes,
-      llmTokens,
-    };
-  };
-
-  const costs = calculateCosts();
-
-  const comparisonData = {
-    usageAndScale: [
-      { feature: "Call Minutes", paygo: "Usage based", enterprise: "Custom" },
-      {
-        feature: "Call Concurrency",
-        paygo: "10 included + $5 / line / mo",
-        enterprise: "Custom",
-      },
-    ],
-    hostingCost: [
-      { feature: "Calls", paygo: "$0.05 / min", enterprise: "Volume based" },
-      // { feature: "SMS/Chat", paygo: "$0.005 / msg", enterprise: "Volume based" },
-    ],
-    modelProvider: [
-      { feature: "Calls", paygo: "At cost", enterprise: "Included" },
-      // { feature: "SMS/Chat", paygo: "At cost", enterprise: "Included" },
-    ],
-    channels: [
-      { feature: "Calls", paygo: true, enterprise: true },
-      // { feature: "SMS/Chat", paygo: true, enterprise: true },
-      // { feature: "Custom SIP", paygo: false, enterprise: true },
-    ],
-    dataRetention: [
-      { feature: "Call history", paygo: "14 days", enterprise: "Custom" },
-      // { feature: "Chat history", paygo: "30 days", enterprise: "Custom" },
-    ],
-    security: [
-      // { feature: "SSO", paygo: false, enterprise: true },
-      // { feature: "RBAC", paygo: false, enterprise: true },
-      // { feature: "SOC2", paygo: false, enterprise: true },
-      // {
-      //   feature: "HIPAA Zero Data Retention",
-      //   paygo: "Add-on $1000/mo",
-      //   enterprise: true,
-      // },
-    ],
-    support: [
-      { feature: "Infra SLA", paygo: "—", enterprise: "Enterprise Grade, 99.99%" },
-      { feature: "Support SLA", paygo: "—", enterprise: "Custom Support SLA" },
-      { feature: "Named Support Engineer", paygo: false, enterprise: true },
-      { feature: "Account Manager", paygo: false, enterprise: true },
-      { feature: "Priority Support", paygo: false, enterprise: true },
-      {
-        feature: "Support",
-        paygo: "Community Discord, Email",
-        enterprise: "Private Slack, Email",
-      },
-    ],
-  };
-
-  const faqs = [
-    {
-      question: "Can I try for free?",
-      answer:
-        "Yes! You can start with $10 free credit to test our platform. No credit card required.",
-    },
-    {
-      question: "Can I get fixed monthly pricing instead of pay-as-you-go?",
-      answer:
-        "Yes, we offer enterprise plans with fixed monthly pricing. Contact our sales team to discuss your needs.",
-    },
-    {
-      question: "Can I get volume discounts?",
-      answer:
-        "Absolutely! Enterprise customers receive volume-based pricing. The more you use, the more you save.",
-    },
-    {
-      question: "What does pricing look like at scale?",
-      answer:
-        "At scale, enterprise customers benefit from custom pricing, dedicated support, and volume discounts. Contact sales for a personalized quote.",
-    },
-    // {
-    //   question: "How does credit equate to minutes?",
-    //   answer:
-    //     "Credits are based on usage. The hosting cost is $0.05 per minute, plus model provider costs which vary based on the LLM, TTS, and STT providers you choose.",
-    // },
-    // {
-    //   question: "How much does Chat cost?",
-    //   answer:
-    //     "Chat messages cost $0.005 per message for hosting, plus model provider costs. Enterprise customers get volume-based pricing.",
-    // },
-    {
-      question: "How can I get more than 14 days of call history?",
-      answer:
-        "Enterprise plans include custom data retention periods. Contact sales to discuss your requirements.",
-    },
-    // {
-    //   question: "What is Hosting Cost?",
-    //   answer:
-    //     "Hosting cost covers the infrastructure to run your voice agents, including real-time processing, low-latency connections, and reliability.",
-    // },
-    // {
-    //   question: "Does Hosting Cost include model providers?",
-    //   answer:
-    //     "No, model provider costs (LLM, TTS, STT) are separate and charged at cost for pay-as-you-go, or included for enterprise customers.",
-    // },
-    // {
-    //   question: "If I use my own Model Provider keys, am I still charged?",
-    //   answer:
-    //     "You'll only pay the hosting cost. Model provider charges will go directly to your provider account.",
-    // },
-  ];
-
-  const renderValue = (value: boolean | string) => {
-    if (value === true) {
-      return (
-        <div className="flex justify-center">
-          <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-            <Check className="w-3 h-3 text-primary" />
-          </div>
+function ComparisonSectionHeader({ icon: Icon, label }: { icon: typeof TrendingUp; label: string }) {
+  return (
+    <TableRow className="border-b-0 hover:bg-transparent">
+      <TableCell colSpan={3} className="bg-emerald-500/[0.09] dark:bg-emerald-500/15 px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+          <Icon className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+          {label}
         </div>
-      );
-    }
-    if (value === false) {
-      return (
-        <div className="flex justify-center">
-          <Minus className="w-4 h-4 text-muted-foreground" />
-        </div>
-      );
-    }
-    return <span className="text-muted-foreground">{value}</span>;
-  };
-
-  const renderSection = (
-    title: string,
-    icon: React.ReactNode,
-    items: { feature: string; paygo: boolean | string; enterprise: boolean | string }[]
-  ) => (
-    <>
-      <tr className="bg-muted/30">
-        <td className="py-4 px-6 font-semibold flex items-center gap-2">
-          {icon}
-          {title}
-        </td>
-        <td></td>
-        <td></td>
-      </tr>
-      {items.map((item, index) => (
-        <tr key={index} className="border-b border-border/50">
-          <td className="py-4 px-6 text-foreground/80">{item.feature}</td>
-          <td className="py-4 px-6 text-center">{renderValue(item.paygo)}</td>
-          <td className="py-4 px-6 text-center">{renderValue(item.enterprise)}</td>
-        </tr>
-      ))}
-    </>
+      </TableCell>
+    </TableRow>
   );
+}
+
+export default function Pricing() {
+  const [showTalkCalendar, setShowTalkCalendar] = useState(false);
+  const [bundlesOpen, setBundlesOpen] = useState(false);
+  const reducedMotionPreference = useReducedMotion();
+  const prefersReducedMotion = reducedMotionPreference === true;
+
+  const heroTransition = prefersReducedMotion ? { duration: 0 } : { duration: 0.55, ease: easeOut };
+  const blockTransition = prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.06, ease: easeOut };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-16 px-6 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/30 mb-8">
-            <div className="w-4 h-4 bg-primary rounded-sm flex items-center justify-center">
-              <span className="text-[10px] font-bold text-primary-foreground">$</span>
-            </div>
-            <span className="text-sm text-primary font-medium">Transparent Pricing</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 max-w-4xl mx-auto">
-            Simple, scalable{" "}
-            <span className="text-gradient-amber">pricing</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-            Pay only for what you use. No hidden fees, no surprises.
-          </p>
-        </div>
-      </section>
-
-      {/* Plan Headers */}
-      <section className="py-16 px-6 border-t border-border/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-            {/* Pay As You Go */}
-            <div className="text-center space-y-6">
-              <h2 className="text-4xl md:text-5xl font-bold">Pay As You Go</h2>
-              <p className="text-lg text-muted-foreground">Usage based pricing</p>
-              <Button
-                variant="outline"
-                className="rounded-full px-8 py-6 text-base border-2 border-foreground hover:bg-secondary/50"
-                onClick={() => router.push("/sign-up")}
-              >
-                Start with $10 Free
-              </Button>
-            </div>
-
-            {/* Enterprise */}
-            <div className="text-center space-y-6">
-              <h2 className="text-4xl md:text-5xl font-bold">Enterprise</h2>
-              <p className="text-lg text-muted-foreground">Annual contract with custom pricing</p>
-              <Button
-                className="rounded-full px-8 py-6 text-base bg-foreground text-background hover:bg-foreground/90"
-                onClick={() => setShowContactSalesModal(true)}
-              >
-                Contact Sales
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison Table */}
-      <section className="py-8 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-4 px-6 font-medium text-muted-foreground w-1/2"></th>
-                  <th className="text-center py-4 px-6 font-medium text-muted-foreground">
-                    Pay As You Go
-                  </th>
-                  <th className="text-center py-4 px-6 font-medium text-muted-foreground">
-                    Enterprise
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {renderSection(
-                  "Usage and Scale",
-                  <TrendingUp className="w-4 h-4 text-primary" />,
-                  comparisonData.usageAndScale
-                )}
-                {renderSection(
-                  "Hosting Cost",
-                  <DollarSign className="w-4 h-4 text-primary" />,
-                  comparisonData.hostingCost
-                )}
-                {/* {renderSection(
-                  "Model Provider Cost (STT, LLM, TTS)",
-                  <Layers className="w-4 h-4 text-primary" />,
-                  comparisonData.modelProvider
-                )} */}
-                {renderSection(
-                  "Channels",
-                  <Phone className="w-4 h-4 text-primary" />,
-                  comparisonData.channels
-                )}
-                {renderSection(
-                  "Data Retention",
-                  <Database className="w-4 h-4 text-primary" />,
-                  comparisonData.dataRetention
-                )}
-                {/* {renderSection(
-                  "Security and Compliance",
-                  <Shield className="w-4 h-4 text-primary" />,
-                  comparisonData.security
-                )} */}
-                {/* {renderSection(
-                  "Reliability and Support",
-                  <Headphones className="w-4 h-4 text-primary" />,
-                  comparisonData.support
-                )} */}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* Usage Calculator */}
-      <section className="py-24 px-6 bg-card/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-primary font-semibold uppercase tracking-wider text-sm">
-              Usage Calculator
-            </span>
-            <h2 className="text-4xl md:text-5xl font-bold mt-4">
-              Estimate your <span className="text-gradient-amber">cost</span>
-            </h2>
-            <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
-              Calculate your monthly costs based on your expected usage
-            </p>
-          </div>
-
-          {/* Calculator Inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Calls per month</label>
-              <Input
-                type="number"
-                value={callsPerMonth}
-                onChange={(e) => setCallsPerMonth(e.target.value)}
-                className="bg-background/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Call length (mins)</label>
-              <Input
-                type="number"
-                value={callLength}
-                onChange={(e) => setCallLength(e.target.value)}
-                className="bg-background/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Prompt tokens</label>
-              <Input
-                type="number"
-                value={promptTokens}
-                onChange={(e) => setPromptTokens(e.target.value)}
-                className="bg-background/50"
-              />
-            </div>
-          </div>
-
-          {/* Cost Breakdown */}
-          <div className="space-y-6">
-            {/* Hosting */}
-            <div className="flex justify-between items-center py-4 border-b border-border/50">
-              <div>
-                <h3 className="font-medium">Voiceable Hosting</h3>
-                <p className="text-sm text-muted-foreground">
-                  Container hosting for your agents
-                </p>
-              </div>
-              <span className="font-medium">${pricingData.hosting.toFixed(4)} / min</span>
-            </div>
-
-            {/* Transport */}
-            <div className="py-4 border-b border-border/50">
-              <button
-                onClick={() => setIsTransportOpen(!isTransportOpen)}
-                className="flex items-start w-full mb-4 hover:opacity-80 transition-opacity text-left"
-              >
-                <div className="flex-1">
-                  <h3 className="font-medium text-left">Transport</h3>
-                  {!isTransportOpen && selectedTransport ? (
-                    <div className="mt-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {pricingData.transport.find(t => t.id === selectedTransport)?.name || 'Transport'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        ${(() => {
-                          const transport = pricingData.transport.find(t => t.id === selectedTransport);
-                          const baseCost = transport?.cost || DEFAULT_TRANSPORT_COSTS[selectedTransport] || 0.008;
-                          return (baseCost * (1 + commissionMarkup)).toFixed(4);
-                        })()} / min (includes commission)
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-left">
-                      Network and data transport services (Charged by provider)
-                    </p>
-                  )}
-                </div>
-                {isTransportOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
-                )}
-              </button>
-              {isTransportOpen && (
-                <RadioGroup
-                  value={selectedTransport}
-                  onValueChange={(value) => {
-                    setSelectedTransport(value);
-                    setIsTransportOpen(false);
-                  }}
-                >
-                  <div className="space-y-2">
-                    {pricingData.transport.length > 0 ? (
-                      pricingData.transport.map((option) => {
-                        const priceWithCommission = option.cost * (1 + commissionMarkup);
-                        return (
-                          <div key={option.id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
-                            <Label htmlFor={option.id} className="flex items-center gap-2 cursor-pointer flex-1">
-                              <RadioGroupItem value={option.id} id={option.id} />
-                              <span>{option.name}</span>
-                            </Label>
-                            <span className="font-medium">${priceWithCommission.toFixed(4)} / min</span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      // Fallback to default transport options if API data not available
-                      Object.entries(DEFAULT_TRANSPORT_COSTS).map(([id, cost]) => {
-                        const priceWithCommission = cost * (1 + commissionMarkup);
-                        return (
-                          <div key={id} className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
-                            <Label htmlFor={id} className="flex items-center gap-2 cursor-pointer flex-1">
-                              <RadioGroupItem value={id} id={id} />
-                              <span>{id === 'twilio-inbound' ? 'Inbound' : 'Outbound'}</span>
-                            </Label>
-                            <span className="font-medium">${priceWithCommission.toFixed(4)} / min</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </RadioGroup>
-              )}
-            </div>
-
-            {/* LLM */}
-            <div className="py-4 border-b border-border/50">
-              <button
-                onClick={() => setIsLLMOpen(!isLLMOpen)}
-                className="flex items-start w-full mb-4 hover:opacity-80 transition-opacity text-left"
-              >
-                <div className="flex-1">
-                  <h3 className="font-medium text-left">Large Language Model (LLM)</h3>
-                  {!isLLMOpen && selectedLLM ? (
-                    <div className="mt-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {(() => {
-                          for (const providerModels of Object.values(pricingData.llm)) {
-                            const model = providerModels.find(m => m.id === selectedLLM);
-                            if (model) return model.name;
-                          }
-                          return "";
-                        })()}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        ${(() => {
-                          for (const providerModels of Object.values(pricingData.llm)) {
-                            const model = providerModels.find(m => m.id === selectedLLM);
-                            if (model) return (model.cost * (1 + commissionMarkup)).toFixed(4);
-                          }
-                          return "0.00";
-                        })()} / 1M tokens (includes commission)
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-left">
-                      Advanced language processing and generation
-                    </p>
-                  )}
-                </div>
-                {isLLMOpen ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground ml-4 flex-shrink-0 mt-1" />
-                )}
-              </button>
-              {isLLMOpen && (
-                <RadioGroup
-                  value={selectedLLM}
-                  onValueChange={(value) => {
-                    setSelectedLLM(value);
-                    setIsLLMOpen(false);
-                  }}
-                >
-                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                    {Object.keys(pricingData.llm).length > 0 ? (
-                      Object.entries(pricingData.llm).map(([provider, models]) => (
-                        <fieldset key={provider} className="border-0 p-0 m-0">
-                          <legend className="text-sm font-semibold text-muted-foreground mb-2 pl-1">
-                            {provider}
-                          </legend>
-                          <div className="space-y-2 ml-4">
-                            {models.map((model) => {
-                              const priceWithCommission = model.cost * (1 + commissionMarkup);
-                              return (
-                                <div
-                                  key={model.id}
-                                  className="flex items-center justify-between px-5 py-4 border border-border rounded-lg hover:bg-secondary/30 transition-colors"
-                                >
-                                  <Label htmlFor={model.id} className="flex items-center gap-2 cursor-pointer flex-1">
-                                    <RadioGroupItem value={model.id} id={model.id} />
-                                    <span>{model.name}</span>
-                                  </Label>
-                                  <span className="font-medium">${priceWithCommission.toFixed(4)} / 1M tokens</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </fieldset>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        {loadingPricing ? "Loading pricing..." : "No LLM models available. Please configure pricing in admin settings."}
-                      </div>
-                    )}
-                  </div>
-                </RadioGroup>
-              )}
-            </div>
-
-            {/* TTS */}
-            <div className="flex justify-between items-center py-4 border-b border-border/50">
-              <div>
-                <h3 className="font-medium">Text-to-Speech (TTS)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Natural, high-quality speech synthesis
-                </p>
-              </div>
-              <span className="font-medium">${(pricingData.tts * (1 + commissionMarkup)).toFixed(4)} / min</span>
-            </div>
-
-            {/* STT */}
-            <div className="flex justify-between items-center py-4 border-b border-border/50">
-              <div>
-                <h3 className="font-medium">Speech-to-Text (STT)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Accurate, high-speed speech recognition
-                </p>
-              </div>
-              <span className="font-medium">${(pricingData.stt * (1 + commissionMarkup)).toFixed(4)} / min</span>
-            </div>
-
-            {/* Total */}
-            <div className="flex justify-between items-center py-6 border-t-2 border-border">
-              <h3 className="text-xl font-medium">Total Monthly Cost</h3>
-              <span className="text-2xl font-semibold">
-                ${costs.totalCost.toFixed(2)}
+      <main className="bg-background">
+        {/* Hero — minimal, reference layout */}
+        <section className="relative pt-28 pb-16 px-6">
+          <div className="relative max-w-3xl mx-auto text-center space-y-5">
+            <motion.div
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={heroTransition}
+              className="flex justify-center"
+            >
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-3.5 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200">
+                <DollarSign className="h-3.5 w-3.5" aria-hidden />
+                Transparent Pricing
               </span>
-            </div>
+            </motion.div>
+            <motion.h1
+              className="text-4xl md:text-5xl font-bold tracking-tight text-balance text-foreground"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...heroTransition, delay: prefersReducedMotion ? 0 : 0.04 }}
+            >
+              Simple, scalable{" "}
+              <span className="text-orange-500 dark:text-orange-400">pricing</span>
+            </motion.h1>
+            <motion.p
+              className="text-base md:text-lg text-muted-foreground leading-relaxed text-balance max-w-xl mx-auto"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...heroTransition, delay: prefersReducedMotion ? 0 : 0.1 }}
+            >
+              Pay only for what you use. No hidden fees, no surprises.
+            </motion.p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* FAQ Section */}
-      <section className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold mb-12 text-center">
-            Frequently Asked Questions
-          </h2>
+        {/* Two-column plans */}
+        <section className="px-6 pb-16">
+          <div className="mx-auto max-w-4xl">
+            <motion.div
+              className="grid gap-6 sm:grid-cols-2 sm:gap-8"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={blockTransition}
+            >
+              <div className="flex flex-col rounded-2xl border border-border bg-card px-8 py-10 text-center shadow-sm">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Pay As You Go</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Usage based pricing</p>
+                <div className="mt-8">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full px-8 font-semibold border-foreground/20 hover:bg-muted/50"
+                  >
+                    <Link href="/sign-up">Start with $10 Free</Link>
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col rounded-2xl border border-border bg-card px-8 py-10 text-center shadow-sm">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Enterprise</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Annual contract with custom pricing</p>
+                <div className="mt-8">
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="rounded-full px-8 font-semibold bg-foreground text-background hover:bg-foreground/90"
+                    onClick={() => setShowTalkCalendar(true)}
+                  >
+                    Contact Sales
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
 
-          <Accordion type="single" collapsible className="space-y-4">
-            {faqs.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="border-b border-border/50 pb-4"
+        {/* Comparison table */}
+        <section className="px-6 pb-20">
+          <motion.div
+            className="mx-auto max-w-4xl overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.45, ease: easeOut }}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b hover:bg-transparent">
+                  <TableHead className="w-[40%] font-semibold text-foreground bg-muted/30" />
+                  <TableHead className="text-center font-semibold text-foreground bg-muted/30">
+                    Pay As You Go
+                  </TableHead>
+                  <TableHead className="text-center font-semibold text-foreground bg-muted/30">Enterprise</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <ComparisonSectionHeader icon={TrendingUp} label="Usage and Scale" />
+                <TableRow className="border-border/80">
+                  <TableCell className="font-medium text-foreground">Call minutes</TableCell>
+                  <TableCell className="text-center text-muted-foreground">Usage based</TableCell>
+                  <TableCell className="text-center text-muted-foreground">Custom</TableCell>
+                </TableRow>
+                <ComparisonSectionHeader icon={Database} label="Platform" />
+                <TableRow className="border-border/80">
+                  <TableCell className="font-medium text-foreground">Hosting (calls)</TableCell>
+                  <TableCell className="text-center tabular-nums text-muted-foreground">
+                    {formatUsdPerMinute(HOSTING_COST_PER_MIN_USD, 3)} / min
+                  </TableCell>
+                  <TableCell className="text-center text-muted-foreground">Custom</TableCell>
+                </TableRow>
+                <TableRow className="border-border/80">
+                  <TableCell className="align-top">
+                    <span className="font-medium text-foreground">Phone number setup</span>
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground leading-snug">
+                      Per number if you use a Voiceable phone line.
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center align-middle tabular-nums text-muted-foreground">
+                    {formatUsd(PHONE_NUMBER_SETUP_FEE_USD)} / number
+                  </TableCell>
+                  <TableCell className="text-center align-middle text-muted-foreground">Custom</TableCell>
+                </TableRow>
+                <TableRow className="border-border/80">
+                  <TableCell className="font-medium text-foreground">Channels</TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex justify-center" aria-label="Included">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      </span>
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex justify-center" aria-label="Included">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      </span>
+                    </span>
+                  </TableCell>
+                </TableRow>
+                <TableRow className="border-0">
+                  <TableCell className="font-medium text-foreground">Call history</TableCell>
+                  <TableCell className="text-center tabular-nums text-muted-foreground">14 days</TableCell>
+                  <TableCell className="text-center text-muted-foreground">Extended options</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </motion.div>
+
+          {/* Bundles — collapsed by default to match simpler page; still available */}
+          <motion.div
+            className="mx-auto max-w-4xl mt-10"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, ease: easeOut }}
+          >
+            <Collapsible open={bundlesOpen} onOpenChange={setBundlesOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-xl border border-border/80 bg-muted/20 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/35"
+                >
+                  <span>Prepaid minute bundles ({VOICE_TOP_UPS.length} tiers)</span>
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${bundlesOpen ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="overflow-hidden">
+                <Card className="mt-3 border-border/80 shadow-none">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Bundles</CardTitle>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Minutes cover inbound, outbound, and web voice. Above{" "}
+                      <span className="tabular-nums font-medium text-foreground">
+                        {MAX_MINUTES.toLocaleString("en-US")}
+                      </span>{" "}
+                      minutes, use Enterprise for volume pricing. Adding a Voiceable phone number includes a{" "}
+                      <span className="font-medium text-foreground">
+                        {formatUsd(PHONE_NUMBER_SETUP_FEE_USD)} setup fee per number
+                      </span>
+                      ; web-only assistants do not incur this charge.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Minutes included</TableHead>
+                          <TableHead className="text-right">Bundle price</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {VOICE_TOP_UPS.map((row) => (
+                          <TableRow key={row.quantity}>
+                            <TableCell className="font-medium tabular-nums">{row.quantity.toLocaleString("en-US")}</TableCell>
+                            <TableCell className="text-right tabular-nums font-medium">{formatUsd(row.priceUsd)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
+            <div className="mt-6 flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center sm:gap-4">
+              <p className="text-sm text-muted-foreground max-sm:w-full">
+                Need volume or terms beyond these bundles?
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="rounded-full px-8 font-semibold border-foreground/20 shrink-0"
+                onClick={() => setShowTalkCalendar(true)}
               >
-                <AccordionTrigger className="text-left hover:no-underline text-lg font-medium">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pt-4">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-      </section>
+                Contact sales for custom pricing
+              </Button>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* FAQ — centered, minimal chrome */}
+        <section className="px-6 pb-24">
+          <motion.div
+            className="mx-auto max-w-2xl"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.45, ease: easeOut }}
+          >
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-center text-foreground mb-12">
+              Frequently Asked Questions
+            </h2>
+            <Accordion type="single" collapsible className="w-full">
+              {PRICING_FAQ_ITEMS.map((item, index) => (
+                <AccordionItem key={item.q} value={`faq-${index}`} className="border-border">
+                  <AccordionTrigger className="text-left text-[15px] font-medium text-foreground hover:no-underline py-5 [&[data-state=open]]:text-foreground">
+                    {item.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground text-[15px] leading-relaxed pb-6 pt-0">
+                    {item.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </motion.div>
+        </section>
+      </main>
 
       <Footer />
 
-      {/* Contact Sales Modal */}
-      <Dialog open={showContactSalesModal} onOpenChange={setShowContactSalesModal}>
-        <DialogContent className="max-w-7xl w-full h-[90vh] max-h-[800px] p-0 flex flex-col">
-          <div className="flex-1 overflow-hidden min-h-0">
+      <Dialog open={showTalkCalendar} onOpenChange={setShowTalkCalendar}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] max-h-[720px] p-0 flex flex-col gap-0">
+          <DialogTitle className="sr-only">Schedule a call with Voiceable</DialogTitle>
+          <div className="flex-1 overflow-hidden min-h-0 rounded-b-lg">
             <iframe
               src="https://cal.com/voiceabledev/30min?overlayCalendar=true"
-              className="w-full h-full border-0"
-              title="Calendly Scheduling"
+              className="w-full h-full min-h-[480px] border-0"
+              title="Schedule a call with Voiceable"
               allow="camera; microphone; geolocation"
             />
           </div>
@@ -796,6 +397,4 @@ const Pricing = () => {
       </Dialog>
     </div>
   );
-};
-
-export default Pricing;
+}

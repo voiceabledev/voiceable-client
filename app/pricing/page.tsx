@@ -5,9 +5,15 @@ import { marketingMetadata } from "@/lib/marketing-metadata";
 export const metadata: Metadata = marketingMetadata({
   title: "Pricing | Voiceable",
   description:
-    "Transparent pricing for AI voice agents—estimate hosting, transport, speech, and model costs for your call volume.",
+    "Prepaid minute bundles for AI voice agents on Voiceable: transparent usage pricing, then volume quotes when you scale.",
   path: "/pricing",
-  keywords: ["Voiceable pricing", "AI voice cost", "conversation pricing", "telephony rates"],
+  keywords: [
+    "Voiceable pricing",
+    "AI voice agent pricing",
+    "prepaid voice minutes",
+    "usage-based voice",
+    "enterprise voice AI",
+  ],
 });
 
 export default function PricingPage() {
