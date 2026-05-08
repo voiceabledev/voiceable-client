@@ -35,9 +35,18 @@ const STATIC_ROUTES = [
 
 function normalizeApiBase(url) {
   const trimmed = String(url).trim().replace(/\/+$/, "");
-  return trimmed
-    .replace(/\/api\/v1$/, "/voiceable-api")
-    .replace(/\/voiceable_api$/, "/voiceable-api");
+  if (trimmed.startsWith("/")) {
+    return /\/voiceable-api$/i.test(trimmed)
+      ? trimmed
+      : `${trimmed.replace(/\/+$/, "")}/voiceable-api`;
+  }
+  let normalized = trimmed
+    .replace(/\/api\/v1$/i, "/voiceable-api")
+    .replace(/\/voiceable_api$/i, "/voiceable-api");
+  if (!/\/voiceable-api$/i.test(normalized)) {
+    normalized = `${normalized}/voiceable-api`;
+  }
+  return normalized;
 }
 
 function isoDate(d) {

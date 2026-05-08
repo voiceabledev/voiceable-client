@@ -18,10 +18,24 @@ import type { Function, AgentFunction, FunctionsByIntegration, ToolInChain } fro
  * Deploy envs sometimes use `/api/v1`, or confuse the Ruby module name and use `/voiceable_api`.
  */
 export function normalizeApiBaseUrl(url: string): string {
-  const trimmed = url.trim().replace(/\/+$/, '');
-  return trimmed
-    .replace(/\/api\/v1$/, '/voiceable-api')
-    .replace(/\/voiceable_api$/, '/voiceable-api');
+  const trimmed = url.trim().replace(/\/+$/, "");
+
+  // Same-origin mount (e.g. "/voiceable-api") — already a path prefix
+  if (trimmed.startsWith("/")) {
+    return /\/voiceable-api$/i.test(trimmed) ? trimmed : `${trimmed.replace(/\/+$/, "")}/voiceable-api`;
+  }
+
+  let normalized = trimmed
+    .replace(/\/api\/v1$/i, "/voiceable-api")
+    .replace(/\/voiceable_api$/i, "/voiceable-api");
+
+  // Rails mounts all JSON routes under `/voiceable-api` (see voiceable-api/config/routes.rb).
+  // If env is only an origin like https://api.example.com, append the scope so `/blog_posts` is not requested at root.
+  if (!/\/voiceable-api$/i.test(normalized)) {
+    normalized = `${normalized}/voiceable-api`;
+  }
+
+  return normalized;
 }
 
 /**

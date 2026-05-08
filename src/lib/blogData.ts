@@ -1,5 +1,6 @@
-import type { BlogPostEntry } from "@/types/blog";
+import type { BlogPostEntry, BlogPostsManifest } from "@/types/blog";
 import { getApiBaseUrl } from "@/lib/api";
+import blogPostsManifest from "@/generated/blogPosts.json";
 
 interface BlogPostApiRow {
   slug: string;
@@ -23,6 +24,16 @@ interface BlogListEnvelope {
 interface BlogShowEnvelope {
   status: { code: number; message?: string };
   data?: BlogPostApiRow;
+}
+
+const FALLBACK_MANIFEST = blogPostsManifest as BlogPostsManifest;
+
+function publishedFallbackPosts(): BlogPostEntry[] {
+  return FALLBACK_MANIFEST.posts.filter((p) => !p.draft);
+}
+
+function fallbackPostBySlug(slug: string): BlogPostEntry | undefined {
+  return publishedFallbackPosts().find((p) => p.slug === slug);
 }
 
 function mapRowToEntry(row: BlogPostApiRow): BlogPostEntry {
@@ -57,7 +68,16 @@ async function publicGetJson<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       json = JSON.parse(text);
     } catch {
-      throw new Error("Invalid JSON from blog API");
+      const hint =
+        res.status >= 400
+          ? ` (${res.status}). If the URL is wrong you often get an HTML error page.`
+          : "";
+      const preview = text.slice(0, 120).replace(/\s+/g, " ");
+      const err = new Error(
+        `Blog API returned non-JSON${hint} Request: ${url}. Body starts with: ${preview}`,
+      );
+      (err as Error & { status?: number }).status = res.status;
+      throw err;
     }
   }
 
@@ -78,10 +98,14 @@ async function publicGetJson<T>(path: string, init?: RequestInit): Promise<T> {
  * Fetches published blog posts from the public API (no auth).
  */
 export async function fetchPublishedPosts(init?: RequestInit): Promise<BlogPostEntry[]> {
-  const json = await publicGetJson<BlogListEnvelope>("/blog_posts", init);
-  const rows = json.data;
-  if (!Array.isArray(rows)) return [];
-  return rows.map(mapRowToEntry);
+  try {
+    const json = await publicGetJson<BlogListEnvelope>("/blog_posts", init);
+    const rows = json.data;
+    if (!Array.isArray(rows)) return [];
+    return rows.map(mapRowToEntry);
+  } catch {
+    return publishedFallbackPosts();
+  }
 }
 
 /**
@@ -91,11 +115,14 @@ export async function fetchPostBySlug(slug: string, init?: RequestInit): Promise
   const path = `/blog_posts/${encodeURIComponent(slug)}`;
   try {
     const json = await publicGetJson<BlogShowEnvelope>(path, init);
-    if (!json.data) return null;
-    return mapRowToEntry(json.data);
+    if (json.data) return mapRowToEntry(json.data);
   } catch (e) {
+    const fromManifest = fallbackPostBySlug(slug);
+    if (fromManifest) return fromManifest;
     const status = (e as Error & { status?: number }).status;
     if (status === 404) return null;
     throw e;
   }
+  const fromManifest = fallbackPostBySlug(slug);
+  return fromManifest ?? null;
 }
