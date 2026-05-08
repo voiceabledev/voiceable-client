@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi, apiClient } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';

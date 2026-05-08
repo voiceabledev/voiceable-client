@@ -1,8 +1,10 @@
+"use client";
+
 import { FileText, MessageCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,13 +23,13 @@ interface HeaderProps {
 
 export function Header({ title, showDocs = true, rightContent }: HeaderProps) {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const userInitials = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
 
   const handleSignOut = async () => {
     const redirectPath = await signOut();
     if (redirectPath) {
-      navigate(redirectPath);
+      router.push(redirectPath);
     }
   };
 

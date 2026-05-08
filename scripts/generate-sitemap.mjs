@@ -10,7 +10,11 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const SITE_URL = (process.env.VITE_SITE_URL || "https://www.voiceable.dev").replace(/\/+$/, "");
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.VITE_SITE_URL ||
+  "https://www.voiceable.dev"
+).replace(/\/+$/, "");
 const manifestPath = path.join(root, "src", "generated", "blogPosts.json");
 const outFile = path.join(root, "public", "sitemap.xml");
 
@@ -54,7 +58,10 @@ function urlEntry(locPath, lastmod, changefreq, priority) {
 }
 
 async function loadPostsFromApi() {
-  const raw = process.env.SITEMAP_BLOG_API_URL || process.env.VITE_API_BASE_URL;
+  const raw =
+    process.env.SITEMAP_BLOG_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.VITE_API_BASE_URL;
   if (!raw) return [];
 
   const base = normalizeApiBase(raw).replace(/\/+$/, "");

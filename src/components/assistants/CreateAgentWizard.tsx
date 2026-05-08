@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useRouterSearchParams } from "@/hooks/use-router-search-params";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,7 +64,7 @@ import { inferWorkflowFromAgentType } from "@/utils/workflowInference";
 
 export default function CreateAgentWizard({ onComplete, voices: propVoices, loadingVoices: propLoadingVoices, initialData }: CreateAgentWizardProps) {
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useRouterSearchParams();
 
   // Get agent slug from URL params (for persistence across refreshes)
   const urlAgentSlug = searchParams.get('slug');

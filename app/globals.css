@@ -1,0 +1,536 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Enhanced Design System with vibrant colors and premium feel */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 160 84% 39%;
+
+    --radius: 0.75rem;
+
+    /* Custom brand colors */
+    --emerald: 160 84% 39%;
+    --emerald-light: 158 64% 52%;
+    --violet: 262 83% 58%;
+    --violet-light: 270 91% 65%;
+    --amber: 38 92% 50%;
+    --rose: 346 77% 50%;
+    
+    /* Landing page specific colors (from landing-page project) */
+    --amber-glow: 36 100% 60%;
+    --purple: 270 60% 60%;
+    --purple-light: 280 80% 70%;
+    --green: 142 70% 45%;
+    --pink: 330 80% 60%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%), hsl(158 64% 52%));
+    --gradient-accent: linear-gradient(135deg, hsl(262 83% 58%), hsl(270 91% 65%));
+    --gradient-warm: linear-gradient(135deg, hsl(38 92% 50%), hsl(346 77% 50%));
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 40% 98%));
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-glow: 0 0 40px hsl(160 84% 39% / 0.3);
+    --shadow-glow-accent: 0 0 40px hsl(262 83% 58% / 0.3);
+
+    /* Enterprise Workflow Colors */
+    --workflow-role-communication: 217 91% 60%;    /* Blue */
+    --workflow-role-knowledge: 262 83% 58%;        /* Purple */
+    --workflow-role-scheduling: 142 76% 36%;       /* Green */
+    --workflow-role-crm: 24 95% 53%;               /* Orange */
+    --workflow-role-control: 215 20% 45%;          /* Slate */
+
+    /* Workflow Shadow System */
+    --shadow-workflow-sm: 0 2px 4px -1px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+    --shadow-workflow-md: 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --shadow-workflow-lg: 0 8px 12px -4px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+
+    /* Branch Path Colors */
+    --workflow-branch-true: 142 76% 36%;           /* Green */
+    --workflow-branch-false: 0 72% 51%;            /* Red */
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 223 47% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 223 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 160 84% 45%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 217.2 32.6% 12%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 12%;
+    --muted-foreground: 215 20.2% 55%;
+
+    --accent: 262 83% 65%;
+    --accent-foreground: 222 47% 6%;
+
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 15%;
+    --input: 217.2 32.6% 15%;
+    --ring: 160 84% 45%;
+
+    /* Dark mode custom colors */
+    --emerald: 160 84% 45%;
+    --emerald-light: 158 64% 55%;
+    --violet: 262 83% 65%;
+    --violet-light: 270 91% 72%;
+    --amber: 38 92% 55%;
+    --rose: 346 77% 55%;
+    
+    /* Landing page specific colors (dark mode) */
+    --amber-glow: 36 100% 65%;
+    --purple: 270 60% 65%;
+    --purple-light: 280 80% 72%;
+    --green: 142 70% 50%;
+    --pink: 330 80% 65%;
+  }
+  
+  /* Landing page specific dark theme (matches original landing-page design) */
+  .landing-page-theme {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 36 100% 50%;
+    --primary-foreground: 0 0% 4%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 270 60% 60%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 36 100% 50%;
+    
+    /* Landing page specific colors */
+    --amber: 36 100% 50%;
+    --amber-glow: 36 100% 60%;
+    --purple: 270 60% 60%;
+    --purple-light: 280 80% 70%;
+    --green: 142 70% 45%;
+    --pink: 330 80% 60%;
+    
+    /* Dark gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(160 84% 45%), hsl(158 64% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(262 83% 65%), hsl(270 91% 72%));
+    
+    /* Dark shadows */
+    --shadow-glow: 0 0 60px hsl(160 84% 45% / 0.25);
+    --shadow-glow-accent: 0 0 60px hsl(262 83% 65% / 0.25);
+
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 160 84% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217.2 32.6% 12%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 217.2 32.6% 15%;
+    --sidebar-ring: 160 84% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Elegant scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-item-active {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground font-semibold;
+  }
+
+  .metric-card {
+    @apply bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-2 px-3;
+  }
+  
+  /* Landing page specific components */
+  .hero-glow {
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 1200px;
+    height: 600px;
+    background: radial-gradient(ellipse 70% 50% at 50% 30%, hsl(36 100% 50% / 0.2), hsl(25 100% 45% / 0.1) 50%, transparent 80%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .feature-pill {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium;
+    @apply bg-secondary text-foreground;
+    @apply border border-border;
+  }
+
+  .nav-pill {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
+    @apply text-muted-foreground;
+  }
+
+  .nav-pill:hover {
+    @apply text-foreground bg-secondary;
+  }
+
+  .nav-pill.active {
+    @apply text-foreground bg-secondary;
+  }
+
+  .conversation-bubble {
+    @apply rounded-2xl p-4;
+    @apply bg-primary/10 border border-primary/20;
+  }
+
+  .conversation-bubble-light {
+    @apply rounded-2xl p-4;
+    @apply bg-muted;
+  }
+
+  /* Elegant button hover effects */
+  .btn-elegant {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+
+  .btn-elegant::after {
+    content: '';
+    @apply absolute inset-0 bg-white/10 opacity-0 transition-opacity duration-300;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .btn-elegant:hover::after {
+    @apply opacity-100;
+  }
+
+  /* BeamInput mask support for cross-browser compatibility */
+  .mask-with-browser-support {
+    mask: linear-gradient(black, black), linear-gradient(black, black);
+    mask-clip: content-box, border-box;
+    mask-composite: exclude;
+    -webkit-mask:
+      linear-gradient(black, black) content-box,
+      linear-gradient(black, black);
+    -webkit-mask-clip: content-box, border-box;
+    -webkit-mask-composite: xor;
+  }
+
+
+  /* Subtle hover scale */
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+  }
+}
+
+@layer utilities {
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-emerald-light bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-accent {
+    @apply bg-gradient-to-r from-accent to-violet-light bg-clip-text text-transparent;
+  }
+  
+  .bg-gradient-hero {
+    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+  }
+  
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  
+  .glass {
+    @apply bg-background/80 backdrop-blur-xl border border-border/50;
+  }
+  
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-border/30 shadow-lg;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
+  
+  /* Landing page specific utilities */
+  .text-gradient-amber {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(36 100% 60%), hsl(25 100% 50%));
+  }
+
+  .text-gradient-purple {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(280 80% 70%), hsl(320 80% 60%));
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 60px 20px hsl(36 100% 50% / 0.15);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 40px 10px hsl(270 60% 50% / 0.2);
+  }
+
+  .glass-dark {
+    @apply backdrop-blur-xl;
+    @apply bg-background/90 border border-border/50;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  /* Smooth hero body copy — fade, lift, subtle de-blur */
+  .animate-hero-text {
+    animation: heroTextReveal 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-hero-text {
+      animation: none;
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+  
+  .animate-scroll-left {
+    animation: scroll-left 30s linear infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+  to {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.5);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroTextReveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes scroll-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Enterprise Workflow Animation Keyframes */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

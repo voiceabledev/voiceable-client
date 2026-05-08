@@ -41,13 +41,14 @@ function mapRowToEntry(row: BlogPostApiRow): BlogPostEntry {
   };
 }
 
-async function publicGetJson<T>(path: string): Promise<T> {
+async function publicGetJson<T>(path: string, init?: RequestInit): Promise<T> {
   const base = getApiBaseUrl().replace(/\/+$/, "");
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },
     credentials: "omit",
+    ...init,
   });
 
   const text = await res.text();
@@ -76,8 +77,8 @@ async function publicGetJson<T>(path: string): Promise<T> {
 /**
  * Fetches published blog posts from the public API (no auth).
  */
-export async function fetchPublishedPosts(): Promise<BlogPostEntry[]> {
-  const json = await publicGetJson<BlogListEnvelope>("/blog_posts");
+export async function fetchPublishedPosts(init?: RequestInit): Promise<BlogPostEntry[]> {
+  const json = await publicGetJson<BlogListEnvelope>("/blog_posts", init);
   const rows = json.data;
   if (!Array.isArray(rows)) return [];
   return rows.map(mapRowToEntry);
@@ -86,10 +87,10 @@ export async function fetchPublishedPosts(): Promise<BlogPostEntry[]> {
 /**
  * Fetches a single published post by slug. Returns null if not found (404).
  */
-export async function fetchPostBySlug(slug: string): Promise<BlogPostEntry | null> {
+export async function fetchPostBySlug(slug: string, init?: RequestInit): Promise<BlogPostEntry | null> {
   const path = `/blog_posts/${encodeURIComponent(slug)}`;
   try {
-    const json = await publicGetJson<BlogShowEnvelope>(path);
+    const json = await publicGetJson<BlogShowEnvelope>(path, init);
     if (!json.data) return null;
     return mapRowToEntry(json.data);
   } catch (e) {

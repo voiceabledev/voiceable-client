@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -42,11 +42,11 @@ interface CreateWorkflowModalProps {
 export function CreateWorkflowModal({ isOpen, onClose }: CreateWorkflowModalProps) {
   const [selectedTemplate, setSelectedTemplate] = useState("lead-qualification");
   const [workflowName, setWorkflowName] = useState("");
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleCreate = () => {
     onClose();
-    navigate("/workflows-v1/new");
+    router.push("/workflows-v1/new");
   };
 
   return (

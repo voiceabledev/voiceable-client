@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +50,7 @@ interface PhoneNumbersTabProps {
 }
 
 export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
@@ -313,7 +313,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
         title="Phone Numbers Require Membership"
         description="Phone number purchases require at least one successful payment. You can use the widget to test your agent without purchasing a phone number. Please make a purchase to unlock phone number functionality."
         primaryButtonText="Buy Credits"
-        primaryButtonAction={() => navigate("/settings/billing")}
+        primaryButtonAction={() => router.push("/settings/billing")}
       />
     );
   }
@@ -325,7 +325,7 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
         title="Membership Expired"
         description="Your membership has expired. Please renew your membership to purchase new phone numbers. You can still use the widget to test your agent."
         primaryButtonText="Renew Membership"
-        primaryButtonAction={() => navigate("/settings/billing")}
+        primaryButtonAction={() => router.push("/settings/billing")}
       />
     );
   }

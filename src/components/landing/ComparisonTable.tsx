@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -89,7 +89,7 @@ export function ComparisonTable({
 
           <div className="mt-8 text-center">
             <Button size="lg" variant="outline" className="rounded-full" asChild>
-              <Link to="/sign-up">
+              <Link href="/sign-up">
                 Start Measuring Results
               </Link>
             </Button>

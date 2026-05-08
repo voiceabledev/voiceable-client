@@ -1,5 +1,5 @@
 import type { UserIntegration, IntegrationSchema, IntegrationConfig } from '@/types/integrations';
-import type { WorkflowNode } from '@/pages/WorkflowEditor';
+import type { WorkflowNode } from '@/views/WorkflowEditor';
 import type { WorkflowConnection } from '@/components/workflows/WorkflowCanvas';
 import type {
   OutcomeDefinition,
@@ -25,21 +25,24 @@ export function normalizeApiBaseUrl(url: string): string {
 }
 
 /**
- * Determines the API base URL at runtime.
+ * Determines the API base URL at runtime (browser + Next.js server).
  * Priority:
- * 1. VITE_API_BASE_URL env var (if set at build time)
- * 2. Runtime env var from window (for Heroku/dynamic configs)
- * 3. Auto-detect based on current hostname (for production)
- * 4. Localhost fallback (for development)
+ * 1. NEXT_PUBLIC_API_BASE_URL (Next/Vercel and local .env)
+ * 2. Runtime global on window (Heroku/dynamic configs)
+ * 3. Auto-detect from hostname in the browser
+ * 4. Localhost fallback (SSR without env uses this)
  */
 export function getApiBaseUrl(): string {
-  // Use env var if available (set at build time)
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
+  const envBase =
+    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_BASE_URL
+      ? process.env.NEXT_PUBLIC_API_BASE_URL
+      : undefined;
+  if (envBase) {
+    return normalizeApiBaseUrl(envBase);
   }
 
   // Check for runtime config (useful for Heroku where env vars might not be available at build time)
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     // Check if there's a runtime config set via a script tag or global variable
     const runtimeConfig = (window as any).__API_BASE_URL__;
     if (runtimeConfig) {
@@ -89,20 +92,25 @@ class ApiClient {
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    this.token = localStorage.getItem('auth_token');
+    this.token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   }
 
   setToken(token: string | null) {
     this.token = token;
+    if (typeof window === "undefined") return;
     if (token) {
-      localStorage.setItem('auth_token', token);
+      localStorage.setItem("auth_token", token);
     } else {
-      localStorage.removeItem('auth_token');
+      localStorage.removeItem("auth_token");
     }
   }
 
   getToken(): string | null {
-    return this.token || localStorage.getItem('auth_token');
+    if (typeof window !== "undefined") {
+      return this.token || localStorage.getItem("auth_token");
+    }
+    return this.token;
   }
 
   private async request<T>(

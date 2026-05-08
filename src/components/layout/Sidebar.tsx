@@ -1,5 +1,8 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink } from "@/components/NavLink";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -63,8 +66,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMobileMenuChange }: SidebarProps) {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut, isAdmin } = useAuth();
   const [currentBalance, setCurrentBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
@@ -118,18 +121,18 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
     if (isMobile && onMobileMenuChange) {
       onMobileMenuChange(false);
     }
-  }, [location.pathname, isMobile, onMobileMenuChange]);
+  }, [pathname, isMobile, onMobileMenuChange]);
 
   const handleSignOut = async () => {
     const redirectPath = await signOut();
     if (redirectPath) {
-      navigate(redirectPath);
+      router.push(redirectPath);
     }
   };
   
   const renderNavItem = (item: { icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; label: string; path: string; badge?: string }) => {
     const Icon = item.icon;
-    const isActive = location.pathname === item.path;
+    const isActive = pathname === item.path;
     // On mobile, always show full content (not collapsed)
     const showFullContent = isMobile || !isCollapsed;
 
@@ -220,7 +223,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           }}
           className={cn(
             "sidebar-item",
-            location.pathname === "/" && "sidebar-item-active",
+            pathname === "/" && "sidebar-item-active",
             !showFullContent && "justify-center"
           )}
           title={!showFullContent ? "Overview" : undefined}
@@ -342,7 +345,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           onOpenChange={setShowPaymentMethodModal}
           onSuccess={() => {
             // Redirect to billing page after successful payment
-            navigate("/settings/billing");
+            router.push("/settings/billing");
           }}
         />
       </>
@@ -363,7 +366,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
         onOpenChange={setShowPaymentMethodModal}
         onSuccess={() => {
           // Redirect to billing page after successful payment
-          navigate("/settings/billing");
+          router.push("/settings/billing");
         }}
       />
     </>

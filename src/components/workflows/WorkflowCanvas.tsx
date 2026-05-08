@@ -13,7 +13,7 @@ import {
   Copy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { WorkflowNode } from "@/pages/WorkflowEditor";
+import type { WorkflowNode } from "@/views/WorkflowEditor";
 
 export interface WorkflowConnection {
   from: string;

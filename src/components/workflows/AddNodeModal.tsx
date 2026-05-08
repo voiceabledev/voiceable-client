@@ -5,7 +5,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MessageSquare, Zap, PhoneForwarded, PhoneOff, Wrench, User } from "lucide-react";
-import type { WorkflowNode } from "@/pages/WorkflowEditor";
+import type { WorkflowNode } from "@/views/WorkflowEditor";
 
 interface AddNodeModalProps {
   isOpen: boolean;

@@ -1,7 +1,9 @@
+"use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Circle, Menu, X } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -17,19 +19,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DemoCallModal } from "./DemoCallModal";
 
 const Header = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated, loading } = useAuth();
   const [showDemoCallModal, setShowDemoCallModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Show full navigation on home page and landing pages
-  const isHomePage = location.pathname === "/";
-  const isLandingPage = location.pathname === "/" || location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment" || location.pathname === "/small-business";
+  const isHomePage = pathname === "/";
+  const isLandingPage = pathname === "/" || pathname === "/retail-ecommerce" || pathname === "/recruitment" || pathname === "/small-business";
   const showFullNav = isHomePage || isLandingPage;
   // Industry landing pages use demo-focused CTAs instead of login/dashboard/pricing links.
   // The root route shares this header but keeps the full navigation.
-  const isCalendarOnlyPage = location.pathname === "/retail-ecommerce" || location.pathname === "/recruitment" || location.pathname === "/small-business";
+  const isCalendarOnlyPage = pathname === "/retail-ecommerce" || pathname === "/recruitment" || pathname === "/small-business";
 
   return (
     <>
@@ -37,7 +39,7 @@ const Header = () => {
         <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
           {/* Logo */}
           <button
-            onClick={() => navigate("/")}
+            onClick={() => router.push("/")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
           >
             <img src="/voiceable_logo.png" alt="Voiceable" className="h-5 md:h-6 w-auto" />
@@ -65,12 +67,12 @@ const Header = () => {
                   Book a Demo
                 </Button>
               ) : isAuthenticated ? (
-                <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-5" onClick={() => navigate("/assistants")}>
+                <Button className="bg-foreground text-background hover:bg-foreground/90 rounded-full px-5" onClick={() => router.push("/assistants")}>
                   Dashboard
                 </Button>
               ) : (
                 <>
-                  <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => navigate("/login")}>
+                  <Button variant="ghost" className="text-foreground hover:bg-secondary" onClick={() => router.push("/login")}>
                     Login
                   </Button>
                   <Button className="bg-secondary hover:bg-muted text-foreground border border-border rounded-full px-5" onClick={() => setShowDemoCallModal(true)}>
@@ -154,7 +156,7 @@ const Header = () => {
                       <Button
                         className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full"
                         onClick={() => {
-                          navigate("/assistants");
+                          router.push("/assistants");
                           setMobileMenuOpen(false);
                         }}
                       >
@@ -166,7 +168,7 @@ const Header = () => {
                           variant="ghost"
                           className="w-full justify-start text-foreground hover:bg-secondary"
                           onClick={() => {
-                            navigate("/login");
+                            router.push("/login");
                             setMobileMenuOpen(false);
                           }}
                         >

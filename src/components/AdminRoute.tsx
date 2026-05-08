@@ -1,4 +1,7 @@
-import { Navigate } from "react-router-dom";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminRouteProps {
@@ -7,6 +10,18 @@ interface AdminRouteProps {
 
 export function AdminRoute({ children }: AdminRouteProps) {
   const { isAuthenticated, isAdmin, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
+    }
+    if (!isAdmin) {
+      router.replace("/assistants");
+    }
+  }, [isAuthenticated, isAdmin, loading, router]);
 
   if (loading) {
     return (
@@ -16,14 +31,13 @@ export function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/assistants" replace />;
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return <>{children}</>;
 }
-

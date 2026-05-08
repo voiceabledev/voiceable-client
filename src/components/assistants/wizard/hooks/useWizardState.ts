@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useRouterSearchParams } from "@/hooks/use-router-search-params";
 import { SectionEntry } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 import type { AgentTemplate, AgentBehaviour } from "@/lib/api";
@@ -10,7 +12,7 @@ import type { CreateAgentWizardProps } from "../types";
 import { generateSystemPrompt } from "../helpers";
 
 export function useWizardState(initialData?: CreateAgentWizardProps["initialData"]) {
-  const [searchParams] = useSearchParams();
+  const [searchParams] = useRouterSearchParams();
   const urlAgentSlug = searchParams.get('slug');
   const savedStep = searchParams.get('step');
   

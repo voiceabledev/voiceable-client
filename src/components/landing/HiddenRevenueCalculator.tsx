@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { DollarSign, TrendingUp, Target } from "lucide-react";
 
 export function HiddenRevenueCalculator() {
@@ -139,12 +139,12 @@ export function HiddenRevenueCalculator() {
           
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-8" asChild>
-              <Link to="/sign-up">
+              <Link href="/sign-up">
                 Unlock Hidden Revenue
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="rounded-full px-8" asChild>
-              <Link to="/sign-up">
+              <Link href="/sign-up">
                 Start Free Trial
               </Link>
             </Button>

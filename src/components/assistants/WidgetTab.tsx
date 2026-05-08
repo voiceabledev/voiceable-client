@@ -1,5 +1,8 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import { useRouterSearchParams } from "@/hooks/use-router-search-params";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,8 +41,8 @@ interface WidgetTabProps {
 export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const router = useRouter();
+  const [searchParams, setSearchParams] = useRouterSearchParams();
   const [apiKey, setApiKey] = useState<string>('');
   const [apiKeyId, setApiKeyId] = useState<number | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(true);
@@ -303,9 +306,9 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
 
   const handleOpenDesignStudio = () => {
     if (agent?.id) {
-      navigate(`/assistants/${agent.id}/widget/design`);
+      router.push(`/assistants/${agent.id}/widget/design`);
     } else if (agentId) {
-      navigate(`/assistants/${agentId}/widget/design`);
+      router.push(`/assistants/${agentId}/widget/design`);
     }
   };
 

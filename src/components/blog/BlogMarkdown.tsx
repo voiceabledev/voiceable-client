@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 interface BlogMarkdownProps {
   markdown: string;
@@ -64,7 +64,7 @@ export function BlogMarkdown({ markdown }: BlogMarkdownProps) {
         a: ({ href, children, className, ...rest }) => {
           if (href?.startsWith("/")) {
             return (
-              <Link to={href} className={className} {...rest}>
+              <Link href={href} className={className} {...rest}>
                 {children}
               </Link>
             );

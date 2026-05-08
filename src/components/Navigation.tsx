@@ -1,7 +1,9 @@
+"use client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 
 const AGENTS = [
@@ -64,19 +66,19 @@ export function Navigation() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
             <img src="/voiceable_logo.png" alt="Voiceable" className="w-[123px] h-full" />
         </Link>
         
         <div className="hidden md:flex items-center gap-8">
-          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Home
           </Link>
-          <Link to="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Blog
           </Link>
           {/* <AgentsDropdown /> */}
-          {/* <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          {/* <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Pricing
           </Link> */}
           {/* <a 
@@ -89,7 +91,7 @@ export function Navigation() {
           </a> */}
         </div>
         
-        <Link to="/assistants">
+        <Link href="/assistants">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
             Open Dashboard
           </Button>

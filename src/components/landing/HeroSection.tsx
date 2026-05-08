@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Phone, ArrowRight, LucideIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
 interface HeroIcon {
   icon: LucideIcon;
@@ -85,7 +85,7 @@ export function HeroSection({
             className="font-semibold px-10 py-7 text-lg rounded-full border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-300" 
             asChild
           >
-            <Link to={secondaryCtaLink}>
+            <Link href={secondaryCtaLink}>
               {secondaryCta} <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>

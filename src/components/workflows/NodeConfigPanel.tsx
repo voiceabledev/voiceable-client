@@ -26,7 +26,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import type { WorkflowNode } from "@/pages/WorkflowEditor";
+import type { WorkflowNode } from "@/views/WorkflowEditor";
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;

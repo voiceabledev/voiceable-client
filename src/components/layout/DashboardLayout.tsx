@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 
-export function DashboardLayout() {
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -31,9 +30,7 @@ export function DashboardLayout() {
             </Button>
           </div>
         )}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <Outlet />
-        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
       </main>
     </div>
   );
