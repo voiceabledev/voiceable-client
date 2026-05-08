@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Writes public/sitemap.xml from static routes plus optional blog URLs from the API.
- * Blog URLs are included when SITEMAP_BLOG_API_URL or VITE_API_BASE_URL is set (GET …/blog_posts).
+ * Blog URLs are included when SITEMAP_BLOG_API_URL or NEXT_PUBLIC_API_BASE_URL / VITE_API_BASE_URL is set
+ * (GET `{base}/{NEXT_PUBLIC_BLOG_POSTS_API_PATH or blog_posts}` under normalized `/voiceable-api`).
  * Otherwise only the static /blog route is listed (no individual post URLs).
  */
 import fs from "fs";
@@ -74,7 +75,12 @@ async function loadPostsFromApi() {
   if (!raw) return [];
 
   const base = normalizeApiBase(raw).replace(/\/+$/, "");
-  const url = `${base}/blog_posts`;
+  const blogSegment = (
+    process.env.NEXT_PUBLIC_BLOG_POSTS_API_PATH || "blog_posts"
+  )
+    .trim()
+    .replace(/^\/+|\/+$/g, "") || "blog_posts";
+  const url = `${base}/${blogSegment}`;
 
   try {
     const res = await fetch(url, {

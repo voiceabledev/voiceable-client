@@ -1,6 +1,6 @@
-import type { BlogPostEntry, BlogPostsManifest } from "@/types/blog";
+import type { BlogPostEntry } from "@/types/blog";
+import { blogPostShowApiPath, blogPostsIndexApiPath } from "@/constants/blogApi";
 import { getApiBaseUrl } from "@/lib/api";
-import blogPostsManifest from "@/generated/blogPosts.json";
 
 interface BlogPostApiRow {
   slug: string;
@@ -24,16 +24,6 @@ interface BlogListEnvelope {
 interface BlogShowEnvelope {
   status: { code: number; message?: string };
   data?: BlogPostApiRow;
-}
-
-const FALLBACK_MANIFEST = blogPostsManifest as BlogPostsManifest;
-
-function publishedFallbackPosts(): BlogPostEntry[] {
-  return FALLBACK_MANIFEST.posts.filter((p) => !p.draft);
-}
-
-function fallbackPostBySlug(slug: string): BlogPostEntry | undefined {
-  return publishedFallbackPosts().find((p) => p.slug === slug);
 }
 
 function mapRowToEntry(row: BlogPostApiRow): BlogPostEntry {
@@ -98,31 +88,24 @@ async function publicGetJson<T>(path: string, init?: RequestInit): Promise<T> {
  * Fetches published blog posts from the public API (no auth).
  */
 export async function fetchPublishedPosts(init?: RequestInit): Promise<BlogPostEntry[]> {
-  try {
-    const json = await publicGetJson<BlogListEnvelope>("/blog_posts", init);
-    const rows = json.data;
-    if (!Array.isArray(rows)) return [];
-    return rows.map(mapRowToEntry);
-  } catch {
-    return publishedFallbackPosts();
-  }
+  const json = await publicGetJson<BlogListEnvelope>(blogPostsIndexApiPath(), init);
+  const rows = json.data;
+  if (!Array.isArray(rows)) return [];
+  return rows.map(mapRowToEntry);
 }
 
 /**
  * Fetches a single published post by slug. Returns null if not found (404).
  */
 export async function fetchPostBySlug(slug: string, init?: RequestInit): Promise<BlogPostEntry | null> {
-  const path = `/blog_posts/${encodeURIComponent(slug)}`;
+  const path = blogPostShowApiPath(slug);
   try {
     const json = await publicGetJson<BlogShowEnvelope>(path, init);
-    if (json.data) return mapRowToEntry(json.data);
+    if (!json.data) return null;
+    return mapRowToEntry(json.data);
   } catch (e) {
-    const fromManifest = fallbackPostBySlug(slug);
-    if (fromManifest) return fromManifest;
     const status = (e as Error & { status?: number }).status;
     if (status === 404) return null;
     throw e;
   }
-  const fromManifest = fallbackPostBySlug(slug);
-  return fromManifest ?? null;
 }
