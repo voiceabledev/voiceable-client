@@ -12,6 +12,14 @@ import type {
   FailureBreakdownData,
 } from '@/types/outcomes';
 import type { Function, AgentFunction, FunctionsByIntegration, ToolInChain } from '@/types/functions';
+import { SITE_URL } from '@/constants/site';
+
+/** Rails host for production Voiceable marketing (www is Next.js only; JSON API is on api.*). */
+const VOICEABLE_PRODUCTION_API_ORIGIN = 'https://api.voiceable.dev';
+
+function isVoiceableMarketingHostname(hostname: string): boolean {
+  return hostname === 'www.voiceable.dev' || hostname === 'voiceable.dev';
+}
 
 /**
  * Normalizes API base URL for Rails routes (path is `voiceable-api` with a hyphen).
@@ -43,8 +51,10 @@ export function normalizeApiBaseUrl(url: string): string {
  * Priority:
  * 1. NEXT_PUBLIC_API_BASE_URL (Next/Vercel and local .env)
  * 2. Runtime global on window (Heroku/dynamic configs)
- * 3. Auto-detect from hostname in the browser
- * 4. Localhost fallback (SSR without env uses this)
+ * 3. Voiceable marketing hosts (www / apex) → api.voiceable.dev (Rails is not same-origin as Next)
+ * 4. Auto-detect from hostname in the browser
+ * 5. SSR: infer from NEXT_PUBLIC_SITE_URL when it is voiceable marketing → api.voiceable.dev
+ * 6. Localhost fallback
  */
 export function getApiBaseUrl(): string {
   const envBase =
@@ -66,6 +76,10 @@ export function getApiBaseUrl(): string {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
 
+    if (isVoiceableMarketingHostname(hostname)) {
+      return normalizeApiBaseUrl(VOICEABLE_PRODUCTION_API_ORIGIN);
+    }
+
     // If on Heroku or production domain, construct API URL
     if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
       // For same-domain deployments, use relative path
@@ -82,6 +96,15 @@ export function getApiBaseUrl(): string {
     // For other production domains, try to construct API URL
     // Assumes API is on same domain with /voiceable-api path
     return `${protocol}//${hostname}/voiceable-api`;
+  }
+
+  try {
+    const host = new URL(SITE_URL).hostname;
+    if (isVoiceableMarketingHostname(host)) {
+      return normalizeApiBaseUrl(VOICEABLE_PRODUCTION_API_ORIGIN);
+    }
+  } catch {
+    /* ignore invalid SITE_URL */
   }
 
   // Default fallback
