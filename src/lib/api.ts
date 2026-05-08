@@ -14,6 +14,17 @@ import type {
 import type { Function, AgentFunction, FunctionsByIntegration, ToolInChain } from '@/types/functions';
 
 /**
+ * Normalizes API base URL for Rails routes (path is `voiceable-api` with a hyphen).
+ * Deploy envs sometimes use `/api/v1`, or confuse the Ruby module name and use `/voiceable_api`.
+ */
+export function normalizeApiBaseUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  return trimmed
+    .replace(/\/api\/v1$/, '/voiceable-api')
+    .replace(/\/voiceable_api$/, '/voiceable-api');
+}
+
+/**
  * Determines the API base URL at runtime.
  * Priority:
  * 1. VITE_API_BASE_URL env var (if set at build time)
@@ -24,9 +35,7 @@ import type { Function, AgentFunction, FunctionsByIntegration, ToolInChain } fro
 function getApiBaseUrl(): string {
   // Use env var if available (set at build time)
   if (import.meta.env.VITE_API_BASE_URL) {
-    // Remove trailing slash if present
-    const url = import.meta.env.VITE_API_BASE_URL;
-    return url.endsWith('/') ? url.slice(0, -1) : url;
+    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   }
 
   // Check for runtime config (useful for Heroku where env vars might not be available at build time)
@@ -34,8 +43,7 @@ function getApiBaseUrl(): string {
     // Check if there's a runtime config set via a script tag or global variable
     const runtimeConfig = (window as any).__API_BASE_URL__;
     if (runtimeConfig) {
-      // Remove trailing slash if present
-      return runtimeConfig.endsWith('/') ? runtimeConfig.slice(0, -1) : runtimeConfig;
+      return normalizeApiBaseUrl(String(runtimeConfig));
     }
 
     const hostname = window.location.hostname;
@@ -46,21 +54,21 @@ function getApiBaseUrl(): string {
       // For same-domain deployments, use relative path
       // If your backend is on a different Heroku app, you'll need to set VITE_API_BASE_URL
       // or use a runtime config. For now, assume same domain or set via env var.
-      return '/api/v1';
+      return '/voiceable-api';
     }
 
     // For localhost development
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3000/api/v1';
+      return 'http://localhost:3000/voiceable-api';
     }
 
     // For other production domains, try to construct API URL
-    // Assumes API is on same domain with /api/v1 path
-    return `${protocol}//${hostname}/api/v1`;
+    // Assumes API is on same domain with /voiceable-api path
+    return `${protocol}//${hostname}/voiceable-api`;
   }
 
   // Default fallback
-  return 'http://localhost:3000/api/v1';
+  return 'http://localhost:3000/voiceable-api';
 }
 
 const API_BASE_URL = getApiBaseUrl();

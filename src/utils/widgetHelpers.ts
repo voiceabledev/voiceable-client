@@ -2,6 +2,7 @@
  * Shared utilities for widget loading across landing pages
  */
 
+import { normalizeApiBaseUrl } from "@/lib/api";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
 import { toFullConfig } from "@/utils/widgetConfig";
 
@@ -12,15 +13,14 @@ import { toFullConfig } from "@/utils/widgetConfig";
 function getApiBaseUrlForBackend(): string {
   // Use env var if available (set at build time)
   if (import.meta.env.VITE_API_BASE_URL) {
-    const url = import.meta.env.VITE_API_BASE_URL;
-    return url.endsWith('/') ? url.slice(0, -1) : url;
+    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   }
 
   // Check for runtime config (useful for Heroku/dynamic configs)
   if (typeof window !== 'undefined') {
     const runtimeConfig = (window as any).__API_BASE_URL__;
     if (runtimeConfig) {
-      return runtimeConfig.endsWith('/') ? runtimeConfig.slice(0, -1) : runtimeConfig;
+      return normalizeApiBaseUrl(String(runtimeConfig));
     }
 
     const hostname = window.location.hostname;
@@ -28,21 +28,21 @@ function getApiBaseUrlForBackend(): string {
     
     // If on Heroku or production domain, construct API URL
     if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
-      return '/api/v1';
+      return '/voiceable-api';
     }
     
     // For localhost development - check what port the frontend is on and infer backend
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       // Default to 3000, but can be overridden with VITE_API_BASE_URL
-      return 'http://localhost:3000/api/v1';
+      return 'http://localhost:3000/voiceable-api';
     }
     
     // For other production domains, try to construct API URL
-    return `${protocol}//${hostname}/api/v1`;
+    return `${protocol}//${hostname}/voiceable-api`;
   }
 
   // Default fallback
-  return 'http://localhost:3000/api/v1';
+  return 'http://localhost:3000/voiceable-api';
 }
 
 /**
@@ -51,8 +51,8 @@ function getApiBaseUrlForBackend(): string {
  */
 export function getBackendBaseUrl(): string {
   const apiBaseUrl = getApiBaseUrlForBackend();
-  // Remove /api/v1 suffix to get the base URL
-  return apiBaseUrl.replace(/\/api\/v1\/?$/, '');
+  // Remove API path suffix (/voiceable-api or legacy /api/v1) to get the origin
+  return apiBaseUrl.replace(/\/(api\/v1|voiceable-api|voiceable_api)\/?$/, '');
 }
 
 /**
@@ -83,7 +83,7 @@ export async function openWidgetWithConfig(
 
   try {
     // Fetch widget config from API
-    const configUrl = `${apiBaseUrl}/api/v1/widget/${apiKey}/${agentId}/config`;
+    const configUrl = `${apiBaseUrl}/voiceable-api/widget/${apiKey}/${agentId}/config`;
     const response = await fetch(configUrl);
     
     let config;

@@ -14,7 +14,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { conversationsApi, Conversation, phoneNumbersApi, PhoneNumber, apiKeysApi, ApiKey } from "@/lib/api";
+import { conversationsApi, Conversation, phoneNumbersApi, PhoneNumber, apiKeysApi, ApiKey, normalizeApiBaseUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -294,7 +294,9 @@ export default function ConversationsTab({
 
     const fetchAudioUrl = async () => {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+        const API_BASE_URL = normalizeApiBaseUrl(
+          import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/voiceable-api'
+        );
         const token = localStorage.getItem('auth_token');
         
         if (!token) {

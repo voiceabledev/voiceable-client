@@ -174,7 +174,7 @@ export function EmbeddableWidget({ config, apiBaseUrl = '' }: EmbeddableWidgetPr
 
   const getSignedUrl = useCallback(async (): Promise<string> => {
     const response = await fetch(
-      `${apiBaseUrl}/api/v1/widget/${fullConfig.apiKey}/${fullConfig.agentId}/signed_url`
+      `${apiBaseUrl}/voiceable-api/widget/${fullConfig.apiKey}/${fullConfig.agentId}/signed_url`
     );
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));

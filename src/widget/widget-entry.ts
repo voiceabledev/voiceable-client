@@ -69,7 +69,7 @@ async function fetchWidgetConfig(apiBaseUrl: string, apiKey: string, agentId: st
   // Create fetch promise
   const fetchPromise = (async () => {
     try {
-      const url = `${apiBaseUrl}/api/v1/widget/${apiKey}/${agentId}/config`;
+      const url = `${apiBaseUrl}/voiceable-api/widget/${apiKey}/${agentId}/config`;
       const response = await fetch(url);
       
       if (!response.ok) {

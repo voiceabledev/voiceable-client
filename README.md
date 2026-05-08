@@ -96,7 +96,8 @@ frontend/
 Create a `.env` file in the `frontend` directory:
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000/api/v1
+VITE_API_BASE_URL=http://localhost:3000/voiceable-api
+# Use the hyphenated path `voiceable-api` (not `voiceable_api` — that is only the Ruby folder name).
 VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 ```
 

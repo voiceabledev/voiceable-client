@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { AgentIntegrationTool, WebhookTool, WebhookHeader, WebhookQueryParam, Agent } from "@/types/assistant";
 import type { UserIntegration, IntegrationSchema } from "@/types/integrations";
-import { integrationsApi, agentsApi } from "@/lib/api";
+import { integrationsApi, agentsApi, normalizeApiBaseUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { displayNameToActionName, actionNameToDisplayName, INTEGRATION_TOOLS_DISPLAY } from "@/constants/assistant";
 
@@ -441,9 +441,11 @@ const createIntegrationWebhookTool = (
   const actionName = displayNameToActionName(displayName, integrationType);
 
   // Use the backend webhook endpoint for this integration
-  // Route: POST /api/v1/webhooks/:integration_type
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api/v1";
-  const webhookUrl = `${baseUrl.replace(/\/api\/v1\/?$/, "")}/api/v1/webhooks/${integrationType}`;
+  // Route: POST /voiceable-api/webhooks/:integration_type
+  const baseUrl = normalizeApiBaseUrl(
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/voiceable-api"
+  );
+  const webhookUrl = `${baseUrl.replace(/\/(api\/v1|voiceable-api|voiceable_api)\/?$/, "")}/voiceable-api/webhooks/${integrationType}`;
 
   // Create header with agent ID
   const agentIdHeader: WebhookHeader = {

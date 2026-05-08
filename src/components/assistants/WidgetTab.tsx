@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { TabSectionHeader } from "@/components/assistants/TabSectionHeader";
 import { WorkflowStyleCard } from "@/components/assistants/WorkflowStyleCard";
-import { Agent, apiKeysApi } from "@/lib/api";
+import { Agent, apiKeysApi, normalizeApiBaseUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
 import { toFullConfig } from "@/utils/widgetConfig";
@@ -159,8 +159,11 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const getBackendBaseUrl = useCallback(() => {
     // Use env var if available (set at build time)
     if (import.meta.env.VITE_API_BASE_URL) {
-      // Remove /api/v1 suffix to get the base URL
-      return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+      // Remove API path suffix (/voiceable-api or legacy /api/v1) to get the origin
+      return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL).replace(
+        /\/(api\/v1|voiceable-api|voiceable_api)\/?$/,
+        ""
+      );
     }
 
     const hostname = window.location.hostname;

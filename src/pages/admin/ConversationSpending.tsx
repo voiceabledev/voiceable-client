@@ -21,27 +21,27 @@ import {
   Play,
   Pause,
 } from "lucide-react";
-import { adminApi } from "@/lib/api";
+import { adminApi, normalizeApiBaseUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 // Get API base URL
 function getApiBaseUrl(): string {
   if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   }
   if (typeof window !== 'undefined') {
     const runtimeConfig = (window as any).__API_BASE_URL__;
     if (runtimeConfig) {
-      return runtimeConfig;
+      return normalizeApiBaseUrl(String(runtimeConfig));
     }
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3000/api/v1';
+      return 'http://localhost:3000/voiceable-api';
     }
-    return `${protocol}//${hostname}/api/v1`;
+    return `${protocol}//${hostname}/voiceable-api`;
   }
-  return 'http://localhost:3000/api/v1';
+  return 'http://localhost:3000/voiceable-api';
 }
 
 const API_BASE_URL = getApiBaseUrl();

@@ -1,3 +1,4 @@
+import { normalizeApiBaseUrl } from "@/lib/api";
 import { buildChatPrompt, type ChatMessage, type WizardContext } from "@/utils/setupAssistantPrompts";
 
 export type { ChatMessage };
@@ -5,22 +6,21 @@ export type { ChatMessage };
 // Get API base URL (same logic as api.ts)
 function getApiBaseUrl(): string {
   if (import.meta.env.VITE_API_BASE_URL) {
-    const url = import.meta.env.VITE_API_BASE_URL;
-    return url.endsWith('/') ? url.slice(0, -1) : url;
+    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   }
   if (typeof window !== 'undefined') {
     const runtimeConfig = (window as any).__API_BASE_URL__;
     if (runtimeConfig) {
-      return runtimeConfig.endsWith('/') ? runtimeConfig.slice(0, -1) : runtimeConfig;
+      return normalizeApiBaseUrl(String(runtimeConfig));
     }
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3000/api/v1';
+      return 'http://localhost:3000/voiceable-api';
     }
-    return `${protocol}//${hostname}/api/v1`;
+    return `${protocol}//${hostname}/voiceable-api`;
   }
-  return 'http://localhost:3000/api/v1';
+  return 'http://localhost:3000/voiceable-api';
 }
 
 const API_BASE_URL = getApiBaseUrl();
