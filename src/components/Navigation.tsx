@@ -72,6 +72,9 @@ export function Navigation() {
           <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Home
           </Link>
+          <Link to="/blog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Blog
+          </Link>
           {/* <AgentsDropdown /> */}
           {/* <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Pricing

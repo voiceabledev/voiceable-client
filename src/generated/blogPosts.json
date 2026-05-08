@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-05-08T18:32:24.381Z",
+  "posts": [
+    {
+      "slug": "voice-ai-seo-checklist-for-operators",
+      "title": "Voice AI in production: a short checklist for operators",
+      "description": "Before you scale outbound or inbound voice automation, use this checklist to cover disclosures, fallbacks, analytics, and handoff — without drowning in prompt tweaks.",
+      "publishedAt": "2025-05-06",
+      "updatedAt": "2025-05-06",
+      "author": "Voiceable",
+      "tags": [
+        "operations",
+        "voice AI",
+        "best practices"
+      ],
+      "canonical": "https://www.voiceable.dev/blog/voice-ai-seo-checklist-for-operators",
+      "ogImage": "/og-image.png",
+      "draft": false,
+      "body": "Operators ship voice AI faster when they treat agents like **systems**, not demos. Use this lightweight checklist before you scale traffic.\n\n## 1. Purpose and boundaries\n\n| Question | Why it matters |\n|----------|----------------|\n| What job does the agent own end-to-end? | Scope creep breaks transcripts and KPIs. |\n| When must it escalate to a human? | Clear rules reduce liability and angry callers. |\n\n## 2. Disclosure and consent\n\nState clearly that the caller is speaking with an **automated system** where regulations or carriers expect it. Keep the line short and repeatable.\n\n## 3. Measurable outcomes\n\nTrack **completion**, **escalation rate**, and **cost per successful outcome** — not just call volume. Tie definitions to business vocabulary (booked meeting, qualified lead, ticket opened).\n\n## 4. Knowledge and tools\n\nGround answers in **approved sources** and restrict tools to the smallest set that achieves the job. Fewer tools means fewer failure modes.\n\n---\n\nVoiceable helps teams define outcomes and workflows without writing prompts by hand. Explore [custom agents](/custom-agents) or jump to [pricing](/pricing)."
+    },
+    {
+      "slug": "welcome-to-the-voiceable-blog",
+      "title": "Welcome to the Voiceable blog",
+      "description": "Product updates, voice AI best practices, and how teams ship reliable agents without prompt engineering — from the Voiceable team.",
+      "publishedAt": "2025-05-01",
+      "updatedAt": "2025-05-01",
+      "author": "Voiceable",
+      "tags": [
+        "company",
+        "voice AI"
+      ],
+      "canonical": "https://www.voiceable.dev/blog/welcome-to-the-voiceable-blog",
+      "ogImage": "/og-image.png",
+      "draft": false,
+      "body": "We're building **Voiceable** so you can deploy AI voice agents that handle real calls — qualification, scheduling, and handoffs — without brittle prompt stacks.\n\nOn this blog we'll share:\n\n- **Shipping patterns** that keep agents reliable in production\n- **Integration and workflow** notes as we expand the platform\n- **Concrete guides** for operators moving from experiments to always-on voice\n\nReady to try it? See [pricing](/pricing) or [create an account](/sign-up)."
+    }
+  ]
+}

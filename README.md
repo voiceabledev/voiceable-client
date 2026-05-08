@@ -38,6 +38,8 @@ The application will be available at `http://localhost:5173` (or the next availa
 - `npm run preview` - Preview production build locally
 - `npm run lint` - Run ESLint to check code quality
 - `npm start` - Serve production build (requires `dist` folder)
+- `npm run blog:generate` - Optional: regenerate `src/generated/blogPosts.json` from Markdown under `content/blog/` (useful for one-off imports or legacy tooling)
+- `npm run sitemap:generate` - Regenerate `public/sitemap.xml` (runs automatically before `dev` / `build` via `predev` / `prebuild`)
 
 ## 🛠️ Technology Stack
 
@@ -99,7 +101,21 @@ Create a `.env` file in the `frontend` directory:
 VITE_API_BASE_URL=http://localhost:3000/voiceable-api
 # Use the hyphenated path `voiceable-api` (not `voiceable_api` — that is only the Ruby folder name).
 VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+# Canonical marketing URL for SEO (meta tags, JSON-LD, sitemap). Defaults to https://www.voiceable.dev
+# VITE_SITE_URL=https://www.voiceable.dev
+#
+# Optional: base URL for fetching published posts when generating the sitemap (defaults to VITE_API_BASE_URL).
+# Set in CI/build if the API is reachable during `npm run build`.
+# SITEMAP_BLOG_API_URL=https://api.example.com/voiceable-api
 ```
+
+### Blog (CMS)
+
+Public `/blog` pages load published posts from the Rails API (`GET /voiceable-api/blog_posts` and `GET /voiceable-api/blog_posts/:slug`) using **`VITE_API_BASE_URL`** (or same-origin `/voiceable-api` in production). No auth header is sent for those requests.
+
+Admins manage posts in the dashboard under **Blog posts** (`/admin/blog-posts`).
+
+**Sitemap:** `npm run sitemap:generate` lists static routes plus `/blog/:slug` for each published post when **`SITEMAP_BLOG_API_URL`** or **`VITE_API_BASE_URL`** is set and the blog index responds successfully. If neither is set or the API is unreachable, individual post URLs are omitted from the sitemap (the `/blog` route is still included); you can fall back to Markdown output by running **`npm run blog:generate`** first so `src/generated/blogPosts.json` exists, which the sitemap script will use when the API returns no posts.
 
 ### API Configuration
 
