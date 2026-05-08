@@ -115,7 +115,7 @@ export default function BlogPost() {
 
             <div
               className="prose prose-lg dark:prose-invert prose-headings:scroll-mt-24 max-w-none
-                prose-a:text-primary prose-img:rounded-lg"
+                prose-a:text-primary prose-img:rounded-lg prose-hr:border-border"
             >
               <BlogMarkdown markdown={post.body} />
             </div>
