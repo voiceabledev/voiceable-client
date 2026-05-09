@@ -1,4 +1,16 @@
-import { Phone, Heart, Rocket, FileText, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+
+const useCaseLinks = [
+  { label: "Small businesses", href: "/small-business" },
+  { label: "Recruitment", href: "/recruitment" },
+  { label: "Customer support", href: "/customer-support" },
+  { label: "Sales", href: "/" },
+] as const;
+
+const resourceLinks = [
+  { label: "Blog", href: "/blog" },
+  { label: "Pricing", href: "/pricing" },
+] as const;
 
 const Footer = () => {
   return (
@@ -50,32 +62,60 @@ const Footer = () => {
         </div> */}
 
         {/* Logo */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-10">
           <div className="flex items-center gap-2">
             <img src="/voiceable_logo.png" alt="Voiceable" className="h-8 w-auto" />
           </div>
         </div>
 
-        {/* Links */}
-        <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground mb-8">
-          <div className="flex items-center gap-1 hover:text-foreground transition-colors">
-            <span className="text-xs">©</span>
-            Voiceable Inc.
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-10 max-w-4xl mx-auto mb-12 text-sm">
+          <div className="col-span-2 sm:col-span-1 md:col-span-2">
+            <h3 className="font-semibold text-foreground mb-4">Use cases</h3>
+            <ul className="space-y-3 text-muted-foreground">
+              {useCaseLinks.map((item) => (
+                <li key={item.href + item.label}>
+                  <Link href={item.href} className="hover:text-foreground transition-colors">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
-          {/* <a href="#" className="flex items-center gap-1 hover:text-foreground transition-colors">
-            <Heart className="w-3 h-3" />
-            Built with grit from Vancouver
-          </a> */}
-          <a href="/terms" className="flex items-center gap-1 hover:text-foreground transition-colors">
-            <FileText className="w-3 h-3" />
-            Terms
-          </a>
+          <div>
+            <h3 className="font-semibold text-foreground mb-4">Resources</h3>
+            <ul className="space-y-3 text-muted-foreground">
+              {resourceLinks.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className="hover:text-foreground transition-colors">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground mb-4">Company</h3>
+            <ul className="space-y-3 text-muted-foreground">
+              <li>
+                <Link href="/privacy" className="hover:text-foreground transition-colors">
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-foreground transition-colors">
+                  Terms of use
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
 
-          <a href="/privacy" className="flex items-center gap-1 hover:text-foreground transition-colors">
-            <ShieldCheck className="w-3 h-3" />
-            Privacy
-          </a>
-        </nav>
+        <div className="flex justify-center pt-6 border-t border-border/40">
+          <p className="text-sm text-muted-foreground flex items-center gap-1">
+            <span className="text-xs">©</span>
+            {new Date().getFullYear()} Voiceable Inc.
+          </p>
+        </div>
       </div>
     </footer>
   );

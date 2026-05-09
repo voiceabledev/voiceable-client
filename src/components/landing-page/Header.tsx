@@ -27,11 +27,11 @@ const Header = () => {
 
   // Show full navigation on home page and landing pages
   const isHomePage = pathname === "/";
-  const isLandingPage = pathname === "/" || pathname === "/retail-ecommerce" || pathname === "/recruitment" || pathname === "/small-business";
+  const isLandingPage = pathname === "/" || pathname === "/retail-ecommerce" || pathname === "/recruitment" || pathname === "/small-business" || pathname === "/customer-support";
   const showFullNav = isHomePage || isLandingPage;
   // Industry landing pages use demo-focused CTAs instead of login/dashboard/pricing links.
   // The root route shares this header but keeps the full navigation.
-  const isCalendarOnlyPage = pathname === "/retail-ecommerce" || pathname === "/recruitment" || pathname === "/small-business";
+  const isCalendarOnlyPage = pathname === "/retail-ecommerce" || pathname === "/recruitment" || pathname === "/small-business" || pathname === "/customer-support";
 
   return (
     <>

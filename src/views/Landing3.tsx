@@ -8,6 +8,7 @@ import SolutionsSection from "@/components/landing-page/SolutionsSection";
 import CTASection from "@/components/landing-page/CTASection";
 import Footer from "@/components/landing-page/Footer";
 import OperatorInterfaceSection from "@/components/landing-page/OperatorInterfaceSection";
+import SecuritySection from "@/components/landing-page/SecuritySection";
 import {
   BarChart3,
   Briefcase,
@@ -372,6 +373,7 @@ const Landing3 = () => {
           subtitle="Snapshot of buyer moments teams are resolving with Voiceable right now."
           calls={liveCallsContent}
         />
+        <SecuritySection />
         <div className="pb-8 md:pb-12">
           <CTASection
             title={ctaContent.title}
