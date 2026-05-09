@@ -19,6 +19,7 @@ export function marketingMetadata(opts: {
   path: string;
   keywords?: string[];
   imagePath?: string;
+  robots?: Metadata["robots"];
 }): Metadata {
   const url = pageUrl(opts.path);
   const image = ogImageUrl(opts.imagePath ?? "/og-image.png");
@@ -26,6 +27,7 @@ export function marketingMetadata(opts: {
     title: opts.title,
     description: opts.description,
     ...(opts.keywords?.length ? { keywords: opts.keywords } : {}),
+    ...(opts.robots !== undefined ? { robots: opts.robots } : {}),
     alternates: { canonical: url },
     openGraph: {
       title: opts.title,

@@ -3,19 +3,18 @@ import Landing3 from "@/views/Landing3";
 import { marketingMetadata } from "@/lib/marketing-metadata";
 
 export const metadata: Metadata = marketingMetadata({
-  title: "Live Sales Voice AI for High-Intent Website Visitors | Voiceable",
+  title: "Voice AI for Recruitment & Hiring Teams | Voiceable",
   description:
-    "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
+    "Answer candidate questions, schedule interviews, and keep applicants engaged with real-time voice conversations — without slowing down your recruiting team.",
   path: "/recruitment",
   keywords: [
-    "live sales",
-    "voice AI sales",
-    "website conversion",
-    "high-intent visitors",
-    "real-time sales",
-    "AI sales assistant",
-    "conversion optimization",
-    "revenue automation",
+    "voice AI recruitment",
+    "hiring automation",
+    "candidate engagement",
+    "interview scheduling AI",
+    "recruiting voice assistant",
+    "talent acquisition AI",
+    "Voiceable",
   ],
 });
 

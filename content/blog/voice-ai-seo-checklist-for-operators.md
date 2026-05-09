@@ -37,4 +37,4 @@ Ground answers in **approved sources** and restrict tools to the smallest set th
 
 ---
 
-Voiceable helps teams define outcomes and workflows without writing prompts by hand. Explore [custom agents](/custom-agents) or jump to [pricing](/pricing).
+Voiceable helps teams define outcomes and workflows without writing prompts by hand. Learn more about [Voiceable](/) or jump to [pricing](/pricing).
