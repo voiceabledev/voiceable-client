@@ -13,13 +13,15 @@ interface SEOProps {
 }
 
 export function SEO({
-  title = "Create AI Voice Agents — Without Writing Prompts | Voiceable",
-  description = "Handle calls, qualify leads, and book appointments with AI agents you create by describing the job — not engineering the AI. No prompts. No scripts. No fragile configurations.",
-  keywords = "AI voice agents, voice assistants, conversational AI, AI receptionist, lead qualification, appointment scheduling, voice automation, AI telephony, business automation",
+  title = "Live Sales Voice AI for High-Intent Website Visitors | Voiceable",
+  description =
+    "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
+  keywords =
+    "live sales, voice AI sales, website conversion, high-intent visitors, real-time sales, AI sales assistant, conversion optimization, revenue automation",
   image = "/og-image.png",
   url = SITE_URL,
   type = "website",
-  siteName = "Voiceable Studio",
+  siteName = "Voiceable",
   twitterHandle = "@voiceaistudio",
 }: SEOProps) {
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
@@ -67,69 +69,49 @@ export function SEO({
       <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       <meta name="apple-mobile-web-app-title" content={siteName} />
       
-      {/* Structured Data - JSON-LD */}
       <script type="application/ld+json">
         {JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          "name": siteName,
-          "applicationCategory": "DeveloperApplication",
-          "operatingSystem": "Web",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-          },
-          "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.8",
-            "ratingCount": "250000"
-          },
-          "description": description,
-          "url": SITE_URL,
-          "author": {
+          name: siteName,
+          applicationCategory: "BusinessApplication",
+          operatingSystem: "Web",
+          description,
+          url: SITE_URL,
+          provider: {
             "@type": "Organization",
-            "name": siteName
-          }
+            name: siteName,
+            url: SITE_URL,
+          },
+          offers: {
+            "@type": "Offer",
+            url: `${SITE_URL}/pricing`,
+          },
         })}
       </script>
 
-      {/* Organization Schema */}
       <script type="application/ld+json">
         {JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          "name": siteName,
-          "url": SITE_URL,
-          "logo": absoluteImage,
-          "sameAs": [
-            "https://github.com",
-            "https://twitter.com",
-            "https://linkedin.com"
-          ],
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "contactType": "Customer Service",
-            "availableLanguage": ["English"]
-          }
+          name: siteName,
+          url: SITE_URL,
+          logo: absoluteImage,
         })}
       </script>
 
-      {/* Website Schema */}
       <script type="application/ld+json">
         {JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          "name": siteName,
-          "url": SITE_URL,
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": {
-              "@type": "EntryPoint",
-              "urlTemplate": `${SITE_URL}/search?q={search_term_string}`
-            },
-            "query-input": "required name=search_term_string"
-          }
+          name: siteName,
+          url: SITE_URL,
+          description,
+          publisher: {
+            "@type": "Organization",
+            name: siteName,
+            url: SITE_URL,
+          },
         })}
       </script>
     </Helmet>

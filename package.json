@@ -5,9 +5,6 @@
   "type": "module",
   "scripts": {
     "blog:generate": "node scripts/generate-blog-manifest.mjs",
-    "sitemap:generate": "node scripts/generate-sitemap.mjs",
-    "predev": "npm run sitemap:generate",
-    "prebuild": "npm run sitemap:generate",
     "dev": "next dev",
     "build": "next build",
     "build:vite": "vite build",

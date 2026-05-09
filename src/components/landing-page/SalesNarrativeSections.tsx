@@ -45,7 +45,7 @@ const staggerParentOpts = {
 };
 
 const staggerContainerVar = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
     transition: { staggerChildren: 0.09, delayChildren: 0.06 },
@@ -53,7 +53,7 @@ const staggerContainerVar = {
 };
 
 const staggerItemVar = {
-  hidden: { opacity: 0, y: 22 },
+  hidden: { opacity: 1, y: 0 },
   visible: {
     opacity: 1,
     y: 0,
@@ -62,7 +62,7 @@ const staggerItemVar = {
 };
 
 const fadeUpHeader = {
-  initial: { opacity: 0, y: 16 },
+  initial: { opacity: 1, y: 0 },
   whileInView: { opacity: 1, y: 0 },
   viewport,
   transition: { duration: 0.45, ease: easing },
@@ -163,7 +163,7 @@ export const CredibilitySection = () => (
     <div className="container mx-auto px-6">
       <motion.div
         className="max-w-5xl mx-auto rounded-3xl border border-border bg-gradient-to-b from-card via-card to-secondary/25 p-8 md:p-12 text-center shadow-sm relative overflow-hidden"
-        initial={{ opacity: 0, y: 32 }}
+        initial={{ opacity: 1, y: 0 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={viewport}
         transition={{ duration: 0.6, ease: easing }}
@@ -177,7 +177,7 @@ export const CredibilitySection = () => (
         </motion.p>
         <motion.h2
           className="text-3xl md:text-5xl font-bold tracking-tight mb-10"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
@@ -221,7 +221,7 @@ export const RevenueCriticalFlowsSection = () => (
     <motion.div
       aria-hidden
       className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-gradient-to-r from-transparent via-border to-transparent pointer-events-none"
-      initial={{ scaleX: 0, opacity: 0 }}
+      initial={{ scaleX: 1, opacity: 1 }}
       whileInView={{ scaleX: 1, opacity: 1 }}
       viewport={viewport}
       transition={{ duration: 0.8, ease: easing }}
@@ -233,7 +233,7 @@ export const RevenueCriticalFlowsSection = () => (
       </motion.div>
       <motion.h2
         className="text-4xl md:text-6xl font-bold tracking-tight mb-6"
-        initial={{ opacity: 0, y: 26 }}
+        initial={{ opacity: 1, y: 0 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={viewport}
         transition={{ duration: 0.55, delay: 0.06, ease: easing }}
@@ -242,7 +242,7 @@ export const RevenueCriticalFlowsSection = () => (
       </motion.h2>
       <motion.p
         className="text-lg text-muted-foreground max-w-3xl mx-auto"
-        initial={{ opacity: 0, y: 18 }}
+        initial={{ opacity: 1, y: 0 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={viewport}
         transition={{ duration: 0.5, delay: 0.12, ease: easing }}
@@ -264,7 +264,7 @@ export const HowItWorksSection = () => (
         </motion.div>
         <motion.h2
           className="text-4xl md:text-6xl font-bold tracking-tight mb-6"
-          initial={{ opacity: 0, y: 26 }}
+          initial={{ opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
@@ -273,7 +273,7 @@ export const HowItWorksSection = () => (
         </motion.h2>
         <motion.p
           className="text-lg text-muted-foreground"
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{ duration: 0.48, delay: 0.1, ease: easing }}
@@ -312,7 +312,7 @@ export const HowItWorksSection = () => (
                 <motion.div
                   aria-hidden
                   className="hidden md:flex absolute top-1/2 -right-3 z-10 -translate-y-1/2 w-7 h-7 rounded-full bg-background border border-border items-center justify-center shadow-sm"
-                  initial={{ opacity: 0, scale: 0.8 }}
+                  initial={{ opacity: 1, scale: 1 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={viewport}
                   transition={{ delay: 0.15 + index * 0.08, duration: 0.35, ease: easing }}
@@ -333,7 +333,7 @@ export const BehavioralShiftSection = () => (
     <div className="container mx-auto px-6">
       <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 md:gap-12 items-center max-w-6xl mx-auto">
         <motion.div
-          initial={{ opacity: 0, x: -24 }}
+          initial={{ opacity: 1, x: 0 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={viewport}
           transition={{ duration: 0.55, ease: easing }}
@@ -351,7 +351,7 @@ export const BehavioralShiftSection = () => (
         <motion.div
           className="space-y-4"
           variants={staggerContainerVar}
-          initial="hidden"
+          initial="visible"
           whileInView="visible"
           viewport={viewport}
         >
@@ -441,7 +441,7 @@ export const HybridScaleSection = () => (
         </motion.div>
         <motion.h2
           className="text-4xl md:text-6xl font-bold tracking-tight mb-6"
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{ duration: 0.55, delay: 0.06, ease: easing }}
@@ -481,7 +481,7 @@ export const MetricsProofSection = () => (
     <div className="container mx-auto px-6">
       <motion.div
         className="max-w-5xl mx-auto rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/10 via-transparent to-purple/10 p-[1px] shadow-md"
-        initial={{ opacity: 0, y: 28 }}
+        initial={{ opacity: 1, y: 0 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={viewport}
         transition={{ duration: 0.55, ease: easing }}
@@ -511,7 +511,7 @@ export const MetricsProofSection = () => (
           </motion.div>
           <motion.p
             className="text-xs text-muted-foreground mt-8 border-t border-border pt-8"
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             whileInView={{ opacity: 1 }}
             viewport={viewport}
             transition={{ duration: 0.45, delay: 0.2 }}
@@ -534,7 +534,7 @@ export const ContrastSection = () => (
         </motion.div>
         <motion.h2
           className="text-4xl md:text-6xl font-bold tracking-tight mb-4"
-          initial={{ opacity: 0, y: 22 }}
+          initial={{ opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{ duration: 0.52, delay: 0.05, ease: easing }}
@@ -543,7 +543,7 @@ export const ContrastSection = () => (
         </motion.h2>
         <motion.p
           className="text-lg text-muted-foreground"
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 1, y: 0 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{ duration: 0.45, delay: 0.1, ease: easing }}
@@ -554,7 +554,7 @@ export const ContrastSection = () => (
       <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-5xl mx-auto">
         <motion.div
           className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-sm"
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 1, x: 0 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={viewport}
           transition={{ duration: 0.5, ease: easing }}
@@ -569,7 +569,7 @@ export const ContrastSection = () => (
               return (
                 <motion.li
                   key={item.text}
-                  initial={{ opacity: 0, x: -12 }}
+                  initial={{ opacity: 1, x: 0 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={viewport}
                   transition={{ delay: i * 0.06, duration: 0.4, ease: easing }}
@@ -586,7 +586,7 @@ export const ContrastSection = () => (
         </motion.div>
         <motion.div
           className="rounded-3xl border border-primary/35 bg-gradient-to-br from-primary/18 to-purple/15 p-6 md:p-8 shadow-md ring-1 ring-primary/15"
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 1, x: 0 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={viewport}
           transition={{ duration: 0.5, ease: easing }}
@@ -601,7 +601,7 @@ export const ContrastSection = () => (
               return (
                 <motion.li
                   key={item.text}
-                  initial={{ opacity: 0, x: 12 }}
+                  initial={{ opacity: 1, x: 0 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={viewport}
                   transition={{ delay: i * 0.06, duration: 0.4, ease: easing }}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SITE_URL } from "@/constants/site";
 import "./globals.css";
 import { Providers } from "./providers";
+import { MarketingJsonLd } from "./components/MarketingJsonLd";
 import { MicrosoftClarity } from "./components/MicrosoftClarity";
 
 export const metadata: Metadata = {
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <MarketingJsonLd />
         <Providers>
           {children}
           <MicrosoftClarity />
