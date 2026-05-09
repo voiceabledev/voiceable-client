@@ -20,7 +20,7 @@ import {
 } from '@/components/integrations/IntegrationCard';
 
 export default function IntegrationLibrary() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
