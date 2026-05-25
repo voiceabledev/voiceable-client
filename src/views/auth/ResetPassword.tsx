@@ -76,7 +76,7 @@ export default function ResetPassword() {
           <div className="text-center">
             <div className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary font-medium hover:underline">
+              <Link href="/login" rel="nofollow" className="text-primary font-medium hover:underline">
                 Sign In
               </Link>
             </div>

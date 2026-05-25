@@ -37,13 +37,13 @@ function ProtectedRouteFallback({ message }: { message: string }) {
           <Link href="/pricing" className="text-muted-foreground transition-colors hover:text-foreground">
             Pricing
           </Link>
-          <Link href="/sign-up" className="text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/sign-up" rel="nofollow" className="text-muted-foreground transition-colors hover:text-foreground">
             Sign up
           </Link>
           <Link href="/blog" className="text-muted-foreground transition-colors hover:text-foreground">
             Blog
           </Link>
-          <Link href="/login" className="text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/login" rel="nofollow" className="text-muted-foreground transition-colors hover:text-foreground">
             Log in
           </Link>
         </nav>

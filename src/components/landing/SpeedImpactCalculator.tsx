@@ -144,12 +144,12 @@ export function SpeedImpactCalculator() {
           
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full px-8" asChild>
-              <Link href="/sign-up">
+              <Link href="/sign-up" rel="nofollow">
                 Stop Losing Leads
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="rounded-full px-8" asChild>
-              <Link href="/sign-up">
+              <Link href="/sign-up" rel="nofollow">
                 Start Free Trial
               </Link>
             </Button>

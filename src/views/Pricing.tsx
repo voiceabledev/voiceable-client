@@ -183,7 +183,7 @@ export default function Pricing() {
                     size="lg"
                     className="rounded-full px-8 font-semibold border-foreground/20 hover:bg-muted/50"
                   >
-                    <Link href="/sign-up">Start with $10 Free</Link>
+                    <Link href="/sign-up" rel="nofollow">Start with $10 Free</Link>
                   </Button>
                 </div>
               </div>

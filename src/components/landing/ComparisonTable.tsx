@@ -89,7 +89,7 @@ export function ComparisonTable({
 
           <div className="mt-8 text-center">
             <Button size="lg" variant="outline" className="rounded-full" asChild>
-              <Link href="/sign-up">
+              <Link href="/sign-up" rel="nofollow">
                 Start Measuring Results
               </Link>
             </Button>

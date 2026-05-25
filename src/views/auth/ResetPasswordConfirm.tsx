@@ -121,7 +121,7 @@ export default function ResetPasswordConfirm() {
         </form>
 
         <div className="text-center">
-          <Link href="/login" className="text-sm text-primary hover:underline">
+          <Link href="/login" rel="nofollow" className="text-sm text-primary hover:underline">
             Back to Sign In
           </Link>
         </div>

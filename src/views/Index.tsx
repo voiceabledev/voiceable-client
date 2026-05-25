@@ -502,7 +502,7 @@ export default function Home() {
             >
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button size="lg" variant="outline" className="font-semibold px-10 py-7 text-lg rounded-full border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200" asChild>
-                  <Link href="/sign-up">
+                  <Link href="/sign-up" rel="nofollow">
                     <BarChart3 className="w-5 h-5 mr-2" />
                     Sign Up
                   </Link>
@@ -698,7 +698,7 @@ export default function Home() {
               variants={fadeInUp}
             >
               <Button size="lg" variant="outline" className="rounded-full" asChild>
-                <Link href="/sign-up">
+                <Link href="/sign-up" rel="nofollow">
                   See Performance Dashboard Demo <BarChart3 className="ml-2 w-5 h-5" />
                 </Link>
               </Button>
@@ -1310,7 +1310,7 @@ export default function Home() {
               variants={fadeInUp}
             >
               <Button size="lg" variant="outline" className="rounded-full" asChild>
-                <Link href="/sign-up">
+                <Link href="/sign-up" rel="nofollow">
                   See Escalation Dashboard <BarChart3 className="ml-2 w-5 h-5" />
                 </Link>
               </Button>
@@ -1457,7 +1457,7 @@ export default function Home() {
               <div className="mt-8 text-center">
                 <p className="text-lg font-semibold text-foreground mb-4">Know exactly what your agent is accomplishing, every day.</p>
                 <Button size="lg" variant="outline" className="rounded-full" asChild>
-                  <Link href="/sign-up">
+                  <Link href="/sign-up" rel="nofollow">
                     See Live Dashboard <BarChart3 className="ml-2 w-5 h-5" />
                   </Link>
                 </Button>
@@ -1529,7 +1529,7 @@ export default function Home() {
 
               <div className="mt-8 text-center">
                 <Button size="lg" variant="outline" className="rounded-full" asChild>
-                  <Link href="/sign-up">
+                  <Link href="/sign-up" rel="nofollow">
                     Start Measuring Results <ArrowRight className="ml-2 w-5 h-5" />
                   </Link>
                 </Button>
@@ -1677,7 +1677,7 @@ export default function Home() {
             >
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button size="lg" variant="outline" className="font-semibold px-8 py-6 text-base rounded-full border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200" asChild>
-                  <Link href="/sign-up">
+                  <Link href="/sign-up" rel="nofollow">
                     <BarChart3 className="w-5 h-5 mr-2" />
                     Create Your Agent
                   </Link>

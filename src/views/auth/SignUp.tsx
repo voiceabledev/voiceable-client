@@ -146,7 +146,7 @@ export default function SignUp() {
             </Button> */}
             <div className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary font-medium hover:underline">
+              <Link href="/login" rel="nofollow" className="text-primary font-medium hover:underline">
                 Sign In
               </Link>
             </div>
