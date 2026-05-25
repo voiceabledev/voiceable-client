@@ -4,7 +4,13 @@ import BlogPost from "@/views/blog/BlogPost";
 import { fetchPostBySlug } from "@/lib/blogData";
 import { SITE_URL } from "@/constants/site";
 
-const SITE_NAME = "Voiceable Studio";
+const META_TITLE_OVERRIDES: Record<string, string> = {
+  "best-conversational-ai-platforms": "Best Conversational AI Platforms",
+};
+const META_DESCRIPTION_OVERRIDES: Record<string, string> = {
+  "best-conversational-ai-platforms":
+    "Compare the 12 best conversational AI platforms for 2026, including voice AI, contact centers, internal support, and website conversion tools.",
+};
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -21,15 +27,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Post not found" };
   }
   const canonical = post.canonical || `${SITE_URL}/blog/${post.slug}`;
-  const title = post.title.includes(SITE_NAME) ? post.title : `${post.title} | ${SITE_NAME}`;
+  const title = META_TITLE_OVERRIDES[post.slug] || post.title;
+  const description = META_DESCRIPTION_OVERRIDES[post.slug] || post.description || undefined;
   const image = absolutePostImage(post.ogImage);
   return {
     title,
-    description: post.description || undefined,
+    description,
     alternates: { canonical },
     openGraph: {
       title,
-      description: post.description || undefined,
+      description,
       url: canonical,
       type: "article",
       publishedTime: post.publishedAt || undefined,
@@ -39,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title,
-      description: post.description || undefined,
+      description,
       images: [image],
     },
   };
@@ -49,5 +56,5 @@ export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const post = await fetchPostBySlug(slug, { next: { revalidate: 300 } });
   if (!post) notFound();
-  return <BlogPost />;
+  return <BlogPost initialPost={post} />;
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const useCaseLinks = [
+  { label: "Retail & eCommerce", href: "/retail-ecommerce" },
   { label: "Small businesses", href: "/small-business" },
   { label: "Recruitment", href: "/recruitment" },
   { label: "Customer support", href: "/customer-support" },

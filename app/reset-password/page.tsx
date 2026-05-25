@@ -8,7 +8,6 @@ export const metadata: Metadata = marketingMetadata({
     "Request a secure link to reset your Voiceable account password.",
   path: "/reset-password",
   keywords: ["Voiceable password reset", "forgot password"],
-  robots: { index: false, follow: true },
 });
 
 export default function ResetPasswordPage() {

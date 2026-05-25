@@ -61,6 +61,11 @@ export function BlogMarkdown({ markdown }: BlogMarkdownProps) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
+        h1: ({ children, className, ...rest }) => (
+          <h2 className={className} {...rest}>
+            {children}
+          </h2>
+        ),
         a: ({ href, children, className, ...rest }) => {
           if (href?.startsWith("/")) {
             return (

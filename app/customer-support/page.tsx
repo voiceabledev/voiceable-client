@@ -3,9 +3,9 @@ import CustomerSupport from "@/views/CustomerSupport";
 import { marketingMetadata } from "@/lib/marketing-metadata";
 
 export const metadata: Metadata = marketingMetadata({
-  title: "AI Voice Agents for Customer Support — Resolve Issues 24/7 | Voiceable",
+  title: "AI Voice Agents for Support",
   description:
-    "Automate your front line with intelligent voice agents that handle common questions, troubleshoot problems, and escalate when needed — all in real time. Reduce handle time, improve first-call resolution, and lower support costs.",
+    "Automate customer support with AI voice agents that answer questions, troubleshoot issues, escalate when needed, and improve resolution 24/7.",
   path: "/customer-support",
   keywords: [
     "AI customer support",

@@ -12,14 +12,20 @@ import { fetchPostBySlug } from "@/lib/blogData";
 import type { BlogPostEntry } from "@/types/blog";
 import NotFound from "@/views/NotFound";
 
-export default function BlogPost() {
+interface BlogPostProps {
+  initialPost?: BlogPostEntry;
+}
+
+export default function BlogPost({ initialPost }: BlogPostProps) {
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPostEntry | null | undefined>(() =>
-    slug ? undefined : null
+    initialPost ?? (slug ? undefined : null)
   );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialPost) return;
+
     if (!slug) {
       setPost(null);
       return;
@@ -41,7 +47,7 @@ export default function BlogPost() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [initialPost, slug]);
 
   if (post === undefined && !error) {
     return (

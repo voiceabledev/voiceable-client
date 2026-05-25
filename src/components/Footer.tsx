@@ -3,6 +3,7 @@ import { Sparkles, Twitter, Linkedin, Github } from "lucide-react";
 const footerLinks = {
   product: [
     { name: "Home", href: "/" },
+    { name: "Retail & eCommerce", href: "/retail-ecommerce" },
     // { name: "Receptionist", href: "/receptionist" },
     // { name: "Recruiters", href: "/recruiters" },
     // { name: "Lead Qualifier", href: "/scheduler" },

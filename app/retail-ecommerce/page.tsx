@@ -5,7 +5,7 @@ import { marketingMetadata } from "@/lib/marketing-metadata";
 export const metadata: Metadata = marketingMetadata({
   title: "AI Voice Agents for Retail & E-commerce | Voiceable",
   description:
-    "Transform customer service with AI voice agents for retail stores and e-commerce businesses. Handle order tracking, delivery scheduling, returns, and customer inquiries 24/7 with intelligent voice automation.",
+    "Use AI voice agents for retail and e-commerce support, including order tracking, delivery scheduling, returns, and 24/7 customer inquiries.",
   path: "/retail-ecommerce",
   keywords: [
     "AI voice agents",

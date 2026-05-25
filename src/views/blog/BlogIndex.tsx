@@ -9,12 +9,19 @@ import { Footer } from "@/components/Footer";
 import { fetchPublishedPosts } from "@/lib/blogData";
 import type { BlogPostEntry } from "@/types/blog";
 
-export default function BlogIndex() {
-  const [posts, setPosts] = useState<BlogPostEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+interface BlogIndexProps {
+  initialPosts?: BlogPostEntry[];
+}
+
+export default function BlogIndex({ initialPosts }: BlogIndexProps) {
+  const hasInitialPosts = initialPosts !== undefined;
+  const [posts, setPosts] = useState<BlogPostEntry[]>(initialPosts ?? []);
+  const [loading, setLoading] = useState(!hasInitialPosts);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (hasInitialPosts) return;
+
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -33,7 +40,7 @@ export default function BlogIndex() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasInitialPosts]);
 
   return (
     <>
