@@ -1,6 +1,4 @@
-import type { NextConfig } from "next";
-import path from "path";
-import webpack from "webpack";
+import path from "node:path";
 
 /** Shim Vite's `import.meta.env` for code shared with the widget/Vite build. */
 const importMetaEnvShim = {
@@ -12,7 +10,8 @@ const importMetaEnvShim = {
   MODE: process.env.NODE_ENV === "production" ? "production" : "development",
 };
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   eslint: {
     // Existing codebase uses patterns Next's default ESLint pass flags; keep CI lint via `npm run lint` incrementally.
@@ -23,10 +22,10 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   transpilePackages: [],
-  webpack: (config) => {
+  webpack: (config, { webpack }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(process.cwd(), "src"),
     };
     config.plugins.push(
       new webpack.DefinePlugin({
