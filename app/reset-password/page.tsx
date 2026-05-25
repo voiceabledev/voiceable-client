@@ -5,9 +5,10 @@ import { marketingMetadata } from "@/lib/marketing-metadata";
 export const metadata: Metadata = marketingMetadata({
   title: "Reset password | Voiceable",
   description:
-    "Request a secure link to reset your Voiceable account password.",
+    "Reset your Voiceable account password with a secure email link and regain access to your AI voice agent workspace.",
   path: "/reset-password",
   keywords: ["Voiceable password reset", "forgot password"],
+  robots: { index: false, follow: false },
 });
 
 export default function ResetPasswordPage() {

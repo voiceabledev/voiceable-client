@@ -5,7 +5,7 @@ import { SITE_URL } from "@/constants/site";
 export const metadata: Metadata = {
   title: "Assistants | Voiceable",
   alternates: { canonical: `${SITE_URL}/assistants` },
-  robots: { index: false, follow: true },
+  robots: { index: false, follow: false },
 };
 
 export default AssistantsList;

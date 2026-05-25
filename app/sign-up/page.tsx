@@ -8,6 +8,7 @@ export const metadata: Metadata = marketingMetadata({
     "Create your Voiceable account to build AI voice agents, manage conversations, and connect voice experiences to your stack.",
   path: "/sign-up",
   keywords: ["Voiceable sign up", "create account", "voice AI platform"],
+  robots: { index: false, follow: false },
 });
 
 export default function SignUpPage() {

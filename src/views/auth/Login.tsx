@@ -132,7 +132,7 @@ export default function Login() {
                 Sign up
               </Link>
             </div>
-            <Link href="/reset-password" className="text-sm text-muted-foreground hover:underline block">
+            <Link href="/reset-password" rel="nofollow" className="text-sm text-muted-foreground hover:underline block">
               Forgot your password?
             </Link>
           </div>

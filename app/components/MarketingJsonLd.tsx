@@ -44,6 +44,8 @@ export function MarketingJsonLd() {
     offers: {
       "@type": "Offer",
       url: `${SITE_URL}/pricing`,
+      price: "0",
+      priceCurrency: "USD",
     },
   };
 

@@ -8,7 +8,7 @@ import { MicrosoftClarity } from "./components/MicrosoftClarity";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Live Sales Voice AI for High-Intent Website Visitors | Voiceable",
+    default: "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
     template: "%s | Voiceable",
   },
   description:
@@ -30,14 +30,14 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: SITE_URL,
     siteName: "Voiceable",
-    title: "Live Sales Voice AI for High-Intent Website Visitors | Voiceable",
+    title: "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
     description:
       "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
     images: [{ url: "/og-image.png" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Live Sales Voice AI for High-Intent Website Visitors | Voiceable",
+    title: "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
     description:
       "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
     images: ["/og-image.png"],

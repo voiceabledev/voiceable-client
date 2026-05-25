@@ -15,6 +15,7 @@ function ogImageUrl(imagePath: string): string {
 /** Shared SEO fields for marketing/legal pages (Next Metadata API). */
 export function marketingMetadata(opts: {
   title: string;
+  metadataTitle?: Metadata["title"];
   description: string;
   path: string;
   keywords?: string[];
@@ -24,7 +25,7 @@ export function marketingMetadata(opts: {
   const url = pageUrl(opts.path);
   const image = ogImageUrl(opts.imagePath ?? "/og-image.png");
   return {
-    title: opts.title,
+    title: opts.metadataTitle ?? opts.title,
     description: opts.description,
     ...(opts.keywords?.length ? { keywords: opts.keywords } : {}),
     ...(opts.robots !== undefined ? { robots: opts.robots } : {}),

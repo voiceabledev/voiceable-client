@@ -13,7 +13,7 @@ interface SEOProps {
 }
 
 export function SEO({
-  title = "Live Sales Voice AI for High-Intent Website Visitors | Voiceable",
+  title = "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
   description =
     "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
   keywords =

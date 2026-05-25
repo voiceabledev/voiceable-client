@@ -11,6 +11,7 @@ const footerLinks = {
     // { name: "Appointment Confirmation", href: "/confirmation" },
     { name: "Pricing", href: "/pricing" },
     { name: "Blog", href: "/blog" },
+    { name: "Conversational AI Guide", href: "/blog/best-conversational-ai-platforms" },
     // { name: "Documentation", href: "https://docs.voiceable.dev/" }
   ],
   company: [

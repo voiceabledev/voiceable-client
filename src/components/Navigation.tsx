@@ -91,7 +91,7 @@ export function Navigation() {
           </a> */}
         </div>
         
-        <Link href="/assistants">
+        <Link href="/assistants" rel="nofollow">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
             Open Dashboard
           </Button>
