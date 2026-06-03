@@ -725,6 +725,10 @@ export const getIntegrationFullDescription = (integrationType: string): string =
 import { getEmptyWebhookHeader, getEmptyWebhookQueryParam, getEmptyWebhookTool } from "@/utils/assistantHelpers";
 import type { WebhookTool, WebhookHeader, WebhookQueryParam } from "@/types/assistant";
 
+function getIntegrationWebhookApiKey(): string {
+  return import.meta.env.VITE_INTEGRATION_WEBHOOK_API_KEY ?? "";
+}
+
 export const createWebhookToolForIntegrationAction = (displayName: string, integrationType: string): WebhookTool => {
   const actionName = displayNameToActionName(displayName, integrationType);
   const webhookUrl = `https://api.voiceable.dev/webhook/${actionName}`;
@@ -733,7 +737,7 @@ export const createWebhookToolForIntegrationAction = (displayName: string, integ
     ...getEmptyWebhookHeader(),
     type: "secret",
     name: "X-API-Key",
-    value: "mQHjGa98PGSD1Geqo0nb",
+    value: getIntegrationWebhookApiKey(),
   };
 
   const idParam: WebhookQueryParam = {

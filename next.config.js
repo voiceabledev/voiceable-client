@@ -7,6 +7,8 @@ const importMetaEnvShim = {
   VITE_OPENAI_API_KEY: process.env.NEXT_PUBLIC_OPENAI_API_KEY ?? "",
   VITE_AGENT_ID: process.env.NEXT_PUBLIC_AGENT_ID ?? "",
   VITE_AGENT_API_KEY: process.env.NEXT_PUBLIC_AGENT_API_KEY ?? "",
+  VITE_INTEGRATION_WEBHOOK_API_KEY:
+    process.env.NEXT_PUBLIC_INTEGRATION_WEBHOOK_API_KEY ?? "",
   MODE: process.env.NODE_ENV === "production" ? "production" : "development",
 };
 

@@ -101,6 +101,8 @@ Create a `.env` file in the `frontend` directory:
 VITE_API_BASE_URL=http://localhost:3000/voiceable-api
 # Use the hyphenated path `voiceable-api` (not `voiceable_api` — that is only the Ruby folder name).
 VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+# X-API-Key for integration webhook tools (Next.js: NEXT_PUBLIC_INTEGRATION_WEBHOOK_API_KEY)
+# VITE_INTEGRATION_WEBHOOK_API_KEY=your_webhook_api_key
 # Canonical marketing URL for SEO (meta tags, JSON-LD, sitemap). Defaults to https://www.voiceable.dev
 # VITE_SITE_URL=https://www.voiceable.dev
 #
