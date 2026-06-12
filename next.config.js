@@ -1,14 +1,25 @@
 import path from "node:path";
 
-/** Shim Vite's `import.meta.env` for code shared with the widget/Vite build. */
+/**
+ * Shim Vite's `import.meta.env` for code shared with the widget/Vite build.
+ * Accepts both NEXT_PUBLIC_* and legacy VITE_* env names so Netlify sites
+ * configured with either set keep working.
+ */
 const importMetaEnvShim = {
-  VITE_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
-  VITE_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
-  VITE_OPENAI_API_KEY: process.env.NEXT_PUBLIC_OPENAI_API_KEY ?? "",
-  VITE_AGENT_ID: process.env.NEXT_PUBLIC_AGENT_ID ?? "",
-  VITE_AGENT_API_KEY: process.env.NEXT_PUBLIC_AGENT_API_KEY ?? "",
+  VITE_API_BASE_URL:
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.VITE_API_BASE_URL ?? "",
+  VITE_STRIPE_PUBLISHABLE_KEY:
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ??
+    process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "",
+  VITE_OPENAI_API_KEY:
+    process.env.NEXT_PUBLIC_OPENAI_API_KEY ?? process.env.VITE_OPENAI_API_KEY ?? "",
+  VITE_AGENT_ID:
+    process.env.NEXT_PUBLIC_AGENT_ID ?? process.env.VITE_AGENT_ID ?? "",
+  VITE_AGENT_API_KEY:
+    process.env.NEXT_PUBLIC_AGENT_API_KEY ?? process.env.VITE_AGENT_API_KEY ?? "",
   VITE_INTEGRATION_WEBHOOK_API_KEY:
-    process.env.NEXT_PUBLIC_INTEGRATION_WEBHOOK_API_KEY ?? "",
+    process.env.NEXT_PUBLIC_INTEGRATION_WEBHOOK_API_KEY ??
+    process.env.VITE_INTEGRATION_WEBHOOK_API_KEY ?? "",
   MODE: process.env.NODE_ENV === "production" ? "production" : "development",
 };
 
