@@ -75,6 +75,18 @@ export function useChangeTracker(): UseChangeTrackerReturn {
       return;
     }
 
+    // outcomeState only exists while the Performance tab is mounted. Its first
+    // appearance after the baseline was captured is tab mounting, not a user
+    // edit — adopt it into the baseline instead of flagging a change.
+    if (baseline.outcomeState == null && currentState.outcomeState != null) {
+      setBaseline((prev) =>
+        prev
+          ? { ...prev, outcomeState: JSON.parse(JSON.stringify(currentState.outcomeState)) }
+          : prev,
+      );
+      return;
+    }
+
     // Compare each tracked field
     const changes = [
       !compareValues(currentState.webhookTools, baseline.webhookTools),
@@ -99,8 +111,10 @@ export function useChangeTracker(): UseChangeTrackerReturn {
       !compareValues(currentState.agent?.default_language, baseline.agent?.default_language),
       // Compare conversation config (for system prompt template and other config)
       !compareValues(currentState.conversationConfig?.system_prompt_template, baseline.conversationConfig?.system_prompt_template),
-      // Compare outcome state
-      !compareValues(currentState.outcomeState, baseline.outcomeState),
+      // Compare outcome state — skip when the Performance tab is unmounted
+      // (currentState.outcomeState null), since the ref going away isn't an edit.
+      currentState.outcomeState != null &&
+        !compareValues(currentState.outcomeState, baseline.outcomeState),
     ];
 
     setHasChanges(changes.some(hasChange => hasChange));

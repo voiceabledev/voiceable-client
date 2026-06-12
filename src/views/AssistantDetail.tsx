@@ -119,17 +119,18 @@ export default function AssistantDetail() {
   // Track if there are undeployed changes (saved but not deployed)
   const [hasUndeployedChanges, setHasUndeployedChanges] = useState(false);
 
-  // Sync activeTab with URL
+  // Sync activeTab with URL (back/forward, external links). While a local tab
+  // change is in flight (lastSetTabRef set), the URL is momentarily stale —
+  // ignore it instead of reverting, and clear the ref once the URL catches up.
   useEffect(() => {
     const currentTab = searchParams.get("tab");
-    if (currentTab && VALID_TABS.includes(currentTab as (typeof VALID_TABS)[number])) {
-      if (currentTab === lastSetTabRef.current) {
-        lastSetTabRef.current = null;
-        return;
-      }
-      if (currentTab !== activeTab) {
-        setActiveTab(currentTab);
-      }
+    if (!currentTab || !VALID_TABS.includes(currentTab as (typeof VALID_TABS)[number])) return;
+    if (lastSetTabRef.current) {
+      if (currentTab === lastSetTabRef.current) lastSetTabRef.current = null;
+      return;
+    }
+    if (currentTab !== activeTab) {
+      setActiveTab(currentTab);
     }
   }, [searchParams, activeTab]);
 
