@@ -176,9 +176,8 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <img src="/voiceable_icon.png" alt="Voiceable" className="w-[30px] h-full" />
               {showFullContent && (
-                <span className="text-xl font-bold tracking-tight text-foreground truncate">Voiceable</span>
+                <span className="text-xl font-bold tracking-tight text-foreground truncate">Upriser</span>
               )}
             </div>
             {!isMobile && (
