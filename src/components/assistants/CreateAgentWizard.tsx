@@ -1538,12 +1538,11 @@ export default function CreateAgentWizard({ onComplete, voices: propVoices, load
             voiceTone: serializedTone,
           },
           transcriber: {
-            provider: "elevenlabs",
+            provider: "scribe_realtime",
             languages: selectedLanguages.length > 0 ? selectedLanguages.map(normalizeLanguage) : ["en"],
             default_language: defaultLanguage ? normalizeLanguage(defaultLanguage) : (selectedLanguages.length > 0 ? normalizeLanguage(selectedLanguages[0]) : "en"),
             // Keep language for backward compatibility
             language: defaultLanguage ? normalizeLanguage(defaultLanguage) : (selectedLanguages.length > 0 ? normalizeLanguage(selectedLanguages[0]) : "en"),
-            model: "flux-general",
           },
           // Always include languages array at top level (required for Voice and Language steps)
           ...(selectedLanguages.length > 0 ? {
