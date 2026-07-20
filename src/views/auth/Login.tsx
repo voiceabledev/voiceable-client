@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
+import { AuthBrandLink } from "@/components/auth/AuthBrandLink";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -38,9 +39,7 @@ export default function Login() {
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
-          <Link href="/login" className="text-2xl font-bold text-foreground">
-            Upriser
-          </Link>
+          <AuthBrandLink href="/" />
         </div>
 
         <div className="w-full max-w-md space-y-8">

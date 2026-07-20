@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { stashCreateAgentWizardState } from "@/lib/create-agent-wizard-state";
 import { AGENT_TYPE_CONFIGS } from "@/constants/agentTypeConfigs";
 import { markOnboardingWidgetTourPending } from "@/lib/onboarding-tour";
+import { AuthBrandLink } from "@/components/auth/AuthBrandLink";
 
 const ONBOARDING_STEPS = [
   {
@@ -91,9 +92,7 @@ export default function Registration() {
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
-          <Link href="/" className="text-2xl font-bold text-foreground">
-            Upriser
-          </Link>
+          <AuthBrandLink href="/" />
         </div>
 
         <div className="w-full max-w-md space-y-8">
