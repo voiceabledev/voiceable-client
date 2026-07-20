@@ -13,6 +13,12 @@ describe("normalizeApiBaseUrl", () => {
       "https://api.voiceable.dev/voiceable-api",
     );
   });
+
+  it("upgrades http://api.voiceable.dev to https to avoid CORS preflight redirects", () => {
+    expect(normalizeApiBaseUrl("http://api.voiceable.dev/voiceable-api")).toBe(
+      "https://api.voiceable.dev/voiceable-api",
+    );
+  });
 });
 
 describe("getApiBaseUrl", () => {
@@ -42,6 +48,16 @@ describe("getApiBaseUrl", () => {
       location: {
         hostname: "voiceable.netlify.app",
         protocol: "https:",
+      },
+    });
+    expect(getApiBaseUrl()).toBe("https://api.voiceable.dev/voiceable-api");
+  });
+
+  it("points Upriser hosts at https api.voiceable.dev", () => {
+    vi.stubGlobal("window", {
+      location: {
+        hostname: "video.upriser.ai",
+        protocol: "http:",
       },
     });
     expect(getApiBaseUrl()).toBe("https://api.voiceable.dev/voiceable-api");

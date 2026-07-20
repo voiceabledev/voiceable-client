@@ -1,7 +1,7 @@
 /**
- * Tracks the /registration onboarding hand-off across page navigations.
+ * Tracks the /signup-demo onboarding hand-off across page navigations.
  *
- * Flow: /registration -> agent wizard -> agent detail page (guided tour) ->
+ * Flow: /signup-demo -> agent wizard -> agent detail page (guided tour) ->
  * on tour completion, jump to the Widget tab and run the Design Studio tour.
  *
  * Uses sessionStorage so the flag dies with the tab and never re-fires for a

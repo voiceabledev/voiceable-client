@@ -28,6 +28,11 @@ function isVoiceableMarketingHostname(hostname: string): boolean {
   );
 }
 
+/** Upriser voice/video frontends (voice.upriser.ai, video.upriser.ai, etc.). */
+function isUpriserHostname(hostname: string): boolean {
+  return hostname === "upriser.ai" || hostname.endsWith(".upriser.ai");
+}
+
 function readEnvApiBaseUrl(): string | undefined {
   if (typeof process !== "undefined") {
     const nextPublic = process.env?.NEXT_PUBLIC_API_BASE_URL?.trim();
@@ -51,6 +56,7 @@ function readEnvApiBaseUrl(): string | undefined {
 /**
  * Normalizes API base URL for Rails routes (path is `voiceable-api` with a hyphen).
  * Deploy envs sometimes use `/api/v1`, or confuse the Ruby module name and use `/voiceable_api`.
+ * Production API hosts must be HTTPS — HTTP redirects break CORS preflight.
  */
 export function normalizeApiBaseUrl(url: string): string {
   const trimmed = url.trim().replace(/\/+$/, "");
@@ -66,6 +72,12 @@ export function normalizeApiBaseUrl(url: string): string {
     .replace(/\/api\/v1$/i, "/voiceable-api")
     .replace(/\/voiceable_api$/i, "/voiceable-api");
 
+  // Force HTTPS for known production API hosts (http→https redirect breaks OPTIONS).
+  normalized = normalized.replace(
+    /^http:\/\/(api\.voiceable\.dev|api\.foundingteam\.co)(?=\/|$)/i,
+    "https://$1",
+  );
+
   // Rails mounts all JSON routes under `/voiceable-api` (see voiceable-api/config/routes.rb).
   // If env is only an origin like https://api.example.com, append the scope so `/blog_posts` is not requested at root.
   if (!/\/voiceable-api$/i.test(normalized)) {
@@ -80,7 +92,7 @@ export function normalizeApiBaseUrl(url: string): string {
  * Priority:
  * 1. NEXT_PUBLIC_API_BASE_URL / VITE_API_BASE_URL (build-time env)
  * 2. Runtime global on window (Heroku/dynamic configs)
- * 3. Voiceable marketing / Netlify hosts → api.voiceable.dev (Rails is not same-origin)
+ * 3. Voiceable marketing / Upriser / Netlify hosts → api.voiceable.dev (Rails is not same-origin)
  * 4. Localhost fallback
  * 5. SSR: infer from NEXT_PUBLIC_SITE_URL when it is voiceable marketing → api.voiceable.dev
  */
@@ -100,7 +112,7 @@ export function getApiBaseUrl(): string {
 
     const hostname = window.location.hostname;
 
-    if (isVoiceableMarketingHostname(hostname)) {
+    if (isVoiceableMarketingHostname(hostname) || isUpriserHostname(hostname)) {
       return normalizeApiBaseUrl(VOICEABLE_PRODUCTION_API_ORIGIN);
     }
 
@@ -126,7 +138,7 @@ export function getApiBaseUrl(): string {
 
   try {
     const host = new URL(SITE_URL).hostname;
-    if (isVoiceableMarketingHostname(host)) {
+    if (isVoiceableMarketingHostname(host) || isUpriserHostname(host)) {
       return normalizeApiBaseUrl(VOICEABLE_PRODUCTION_API_ORIGIN);
     }
   } catch {

@@ -817,7 +817,7 @@ export default function AssistantDetail() {
   const [showTour, setShowTour] = useState(false);
   const [tourCompleted, setTourCompleted] = useState(false);
   const [checkingTour, setCheckingTour] = useState(true);
-  // Second tour, shown on the Widget tab for users arriving from /registration
+  // Second tour, shown on the Widget tab for users arriving from /signup-demo
   const [showWidgetTour, setShowWidgetTour] = useState(false);
   // Set before showWidgetTour so the Widget tab can expand its cards first.
   const [widgetTourArmed, setWidgetTourArmed] = useState(false);
@@ -2458,7 +2458,7 @@ export default function AssistantDetail() {
         />
       )}
 
-      {/* Widget/Design Studio Tour - onboarding hand-off from /registration */}
+      {/* Widget/Design Studio Tour - onboarding hand-off from /signup-demo */}
       {activeTab === "widget" && (
         <AssistantDetailTour
           open={showWidgetTour}

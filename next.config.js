@@ -26,6 +26,15 @@ const importMetaEnvShim = {
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: "/registration",
+        destination: "/signup-demo",
+        permanent: true,
+      },
+    ];
+  },
   eslint: {
     // Existing codebase uses patterns Next's default ESLint pass flags; keep CI lint via `npm run lint` incrementally.
     ignoreDuringBuilds: true,
