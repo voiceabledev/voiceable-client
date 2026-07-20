@@ -99,7 +99,7 @@ export default function Registration() {
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold text-foreground">
-              Launch your first Product Information Agent
+              Launch your first Agent
             </h1>
             <p className="text-muted-foreground text-sm">
               Create an account and we&apos;ll walk you straight through building a
