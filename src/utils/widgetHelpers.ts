@@ -2,7 +2,7 @@
  * Shared utilities for widget loading across landing pages
  */
 
-import { getApiBaseUrl, normalizeApiBaseUrl } from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/api";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
 import { toFullConfig } from "@/utils/widgetConfig";
 
