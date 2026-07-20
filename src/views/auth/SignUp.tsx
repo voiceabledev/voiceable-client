@@ -42,8 +42,8 @@ export default function SignUp() {
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
-          <Link href="/" className="text-2xl font-bold text-foreground">
-            Voiceable
+          <Link href="/login" className="text-2xl font-bold text-foreground">
+            Upriser
           </Link>
         </div>
 
@@ -154,7 +154,7 @@ export default function SignUp() {
         </div>
 
         <div className="absolute bottom-8 left-8 text-xs text-muted-foreground">
-          By using Voiceable you agree to our Terms of Service,<br />
+          By using Upriser you agree to our Terms of Service,<br />
           Privacy, and Security policies and practices.
         </div>
       </div>
@@ -190,10 +190,10 @@ export default function SignUp() {
             </div>
           </div>
           <p className="text-slate-300 text-sm leading-relaxed">
-            <span className="text-primary">Voiceable</span> has been a game-changer for our automation platform. The voice integration capabilities have allowed us to create seamless experiences for our users.
+            <span className="text-primary">Upriser</span> has been a game-changer for our automation platform. The voice integration capabilities have allowed us to create seamless experiences for our users.
           </p>
           <p className="text-slate-300 text-sm leading-relaxed mt-3">
-            The API is intuitive, the documentation is clear, and the support team is incredibly responsive. It's rare to find a service that just works out of the box, but Voiceable delivers exactly that.
+            The API is intuitive, the documentation is clear, and the support team is incredibly responsive. It's rare to find a service that just works out of the box, but Upriser delivers exactly that.
           </p>
         </div>
       </div>

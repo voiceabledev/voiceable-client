@@ -10,113 +10,104 @@ import Footer from "@/components/landing-page/Footer";
 import OperatorInterfaceSection from "@/components/landing-page/OperatorInterfaceSection";
 import SecuritySection from "@/components/landing-page/SecuritySection";
 import {
-  BarChart3,
+  Bot,
   Briefcase,
-  Building2,
+  CalendarCheck,
   Clock,
-  DollarSign,
-  Eye,
-  Landmark,
+  Globe,
+  Headphones,
   Mic,
   Phone,
-  Plane,
+  PhoneIncoming,
+  PhoneOutgoing,
   ShoppingBag,
   Smile,
-  Target,
-  TrendingUp,
+  Store,
   UserCheck,
-  Zap,
+  Users,
   Sparkles,
 } from "lucide-react";
-import {
-  BehavioralShiftSection,
-  ContrastSection,
-  CredibilitySection,
-  HowItWorksSection,
-  HybridScaleSection,
-  MetricsProofSection,
-} from "@/components/landing-page/SalesNarrativeSections";
+import { HowItWorksSection } from "@/components/landing-page/SalesNarrativeSections";
 
-const salesOperatorSegments = [
+const operatorSegments = [
   {
-    id: "intent-signals",
-    label: "Intent signals",
+    id: "phone-calls",
+    label: "Phone calls",
     tabs: [
-      { id: "pricing_intent", label: "Pricing page", icon: BarChart3 },
-      { id: "repeat_views", label: "Key pages", icon: Eye },
+      { id: "inbound_call", label: "Inbound call", icon: PhoneIncoming },
+      { id: "outbound_campaign", label: "Outbound campaign", icon: PhoneOutgoing },
     ],
   },
   {
-    id: "live-sales",
-    label: "Live sales",
+    id: "live-conversations",
+    label: "Live conversations",
     tabs: [
-      { id: "instant_voice", label: "Instant voice", icon: Mic },
-      { id: "rep_handoff", label: "Human handoff", icon: Phone },
+      { id: "web_widget", label: "Website widget", icon: Globe },
+      { id: "human_handoff", label: "Human handoff", icon: Phone },
     ],
   },
 ];
 
-const salesOperatorTabExamples = {
-  pricing_intent: {
+const operatorTabExamples = {
+  inbound_call: {
     user: {
       name: "Jordan",
-      location: "Enterprise pricing",
+      location: "Inbound call",
       time: "10:04 AM PST",
       avatar: "J",
       message:
-        "I have been comparing your Growth and Enterprise plans for ten minutes. I need someone to clarify SSO seats and onboarding before I pull the trigger this week.",
+        "Hi, I'm calling to ask about your opening hours this weekend and whether I can move my appointment to Saturday morning.",
     },
     ai: {
       audioDuration: "01:02",
       message:
-        "Hi Jordan — I see you have been on Enterprise pricing with strong engagement. I can connect you instantly over voice, walk through SSO and onboarding, and line up anything you still need today. Tap start when you are ready.",
+        "Of course, Jordan. We're open Saturday from 9 to 5. I can see your Thursday appointment — I have 9:30 or 11:00 AM available on Saturday. Which works better for you?",
     },
     metadata: {
-      status: "High intent detected",
-      statusColor: "bg-amber-500",
+      status: "Call answered instantly",
+      statusColor: "bg-green-500",
       priority: "High",
-      sentiment: "Ready to buy",
+      sentiment: "Positive",
       sentimentIcon: Smile,
-      actions: ["Action: Intent surfaced", "Action: Ready to connect"],
-      documents: ["Docs: Enterprise comparison", "SSO_and_seats.pdf"],
+      actions: ["Action: Appointment found", "Action: Reschedule offered"],
+      documents: ["Docs: Business hours", "Booking_calendar.pdf"],
     },
   },
-  repeat_views: {
+  outbound_campaign: {
     user: {
       name: "Sam",
-      location: "Returning visitor",
+      location: "Outbound campaign",
       time: "2:51 PM EST",
       avatar: "S",
-      message:
-        "This is my third visit to the product page today. Still deciding between tiers. What is realistic for onboarding if we kick off tomorrow?",
+      message: "Answered a reminder call from the appointment confirmation campaign.",
     },
     ai: {
       audioDuration: "00:54",
       message:
-        "Thanks for coming back — that repeat attention is helpful context. Voice is the quickest way to get you a definitive answer tied to how you intend to onboard. Shall we connect you live right now?",
+        "Hi Sam, this is a quick reminder about your appointment tomorrow at 2 PM. Can you still make it, or would you like me to find another time?",
     },
     metadata: {
-      status: "Returning sessions",
+      status: "Campaign running",
       statusColor: "bg-blue-500",
       priority: "Medium",
       sentiment: "Engaged",
       sentimentIcon: Smile,
-      actions: ["Action: Repeat browse tracked", "Action: Invite to live pitch"],
-      documents: ["Docs: SKU comparison", "Onboarding_calendar.pdf"],
+      actions: ["Action: Reminder delivered", "Action: Attendance confirmed"],
+      documents: ["Docs: Campaign list", "Appointment_schedule.pdf"],
     },
   },
-  instant_voice: {
+  web_widget: {
     user: {
       name: "Priya",
-      location: "Live session",
+      location: "Website widget",
       time: "4:22 PM IST",
       avatar: "P",
-      message: "Accepted the instant voice invitation from the calculator page.",
+      message: "Started a voice conversation from the widget on your pricing page.",
     },
     ai: {
       audioDuration: "00:58",
       message:
-        "Great — Priya from Voiceable Sales here. Walking you through rollout with your calculator inputs so you hit your internal targets without rework. Anything on security or SOC2 you still need?",
+        "Hi Priya! Happy to help you compare plans. Based on what you've described, the Growth plan covers your team — and I can answer anything about setup or billing right now.",
     },
     metadata: {
       status: "On live voice",
@@ -124,185 +115,184 @@ const salesOperatorTabExamples = {
       priority: "High",
       sentiment: "Progressing",
       sentimentIcon: Smile,
-      actions: ["Action: Session started", "Action: Talking points surfaced"],
-      documents: ["Docs: Mutual action plan", "Security_FAQ.pdf"],
+      actions: ["Action: Session started", "Action: Plan question answered"],
+      documents: ["Docs: Plan comparison", "Pricing_FAQ.pdf"],
     },
   },
-  rep_handoff: {
+  human_handoff: {
     user: {
       name: "Alex",
-      location: "Qualified AE handoff",
+      location: "Escalated to your team",
       time: "9:08 AM CET",
       avatar: "A",
-      message: "The assistant qualified budget and timeline. I am stepping in live to close this quarter expansion.",
+      message: "The assistant escalated a billing dispute that needed a human decision.",
     },
     ai: {
       audioDuration: "00:36",
       message:
-        "Summarizing Jordan for you: SSO for 520 seats needs legal review tomorrow. Prospect wants rollout in two phases. Routing full transcript and objections to CRM now.",
+        "Handing off to you with full context: customer was double-charged on the June invoice, wants a refund to the original card. Transcript and account details are attached.",
     },
     metadata: {
-      status: "Rep joined",
+      status: "Team member joined",
       statusColor: "bg-green-500",
       priority: "High",
-      sentiment: "Confident",
+      sentiment: "Resolved",
       sentimentIcon: Smile,
-      actions: ["Action: Rep notified", "Action: Brief delivered"],
-      documents: ["Docs: Conversation summary", "CRM_push_record.pdf"],
+      actions: ["Action: Escalation triggered", "Action: Context delivered"],
+      documents: ["Docs: Conversation summary", "Billing_history.pdf"],
     },
   },
 };
 
 const Landing3 = () => {
   const heroContent = {
-    badgeText: "Live sales for high-intent visitors",
-    headline: "AI voice sales for high-intent visitors",
-    subtitle:
-      "Every inbound call should be handled by your top sales rep.",
+    badgeText: "AI voice agents for your business",
+    headline: "AI voice agents that answer every call",
+    subtitle: "Every call should be handled like it's your best employee answering.",
     tagline: "Any time of day. Any day of the week.",
-    socialProofText: "Built for revenue teams and high-consideration sales",
+    socialProofText: "Built for support, bookings, and sales teams",
   };
 
   const featuresContent = [
     {
-      title: "Capture high-intent moments",
+      title: "Answer every call, 24/7",
       description:
-        "Know when someone is ready: pricing page visits, time spent on key pages, repeated product views. Trigger a conversation before they bounce.",
-      benefits: ["Pricing page visits", "Time spent on key pages", "Repeated product views"],
-      closing: "Trigger a real conversation before they bounce.",
+        "Connect a phone number and your AI assistant picks up instantly — answering questions, booking appointments, and resolving issues around the clock.",
+      benefits: ["Instant pickup, no hold music", "Books and reschedules appointments", "Trained on your business knowledge"],
+      closing: "Never miss a customer again.",
       gradient: "from-primary/20 via-emerald-500/10 to-transparent",
-      icon: Target,
+      icon: PhoneIncoming,
     },
     {
-      title: "Turn traffic into conversations",
+      title: "Talk to visitors on your website",
       description:
-        "Replace forms and delayed follow-ups with instant voice, real human or AI-assisted selling, and context-aware conversations.",
-      benefits: ["Instant voice connection", "Human or AI-assisted sales", "Context-aware conversations"],
+        "Add a voice widget to your site so visitors can ask questions out loud and get real answers — no forms, no waiting for an email reply.",
+      benefits: ["One-line embed on any site", "Real-time voice conversations", "Answers grounded in your docs"],
       closing: "No scheduling. No waiting.",
       gradient: "from-purple/20 via-pink-500/10 to-transparent",
       icon: Mic,
     },
     {
-      title: "Increase conversion and deal size",
+      title: "Escalate to humans when it matters",
       description:
-        "When you talk to buyers at the right moment, conversion rates climb, average order value expands, and sales cycles shorten.",
-      benefits: ["Conversion rates go up", "Average deal size increases", "Sales cycles shrink"],
+        "Your assistant handles the routine and hands off the rest — with full context, transcripts, and outcomes tracked for every conversation.",
+      benefits: ["Human handoff with full context", "Outbound campaigns and reminders", "Transcripts and outcome analytics"],
       gradient: "from-amber/20 via-orange-500/10 to-transparent",
-      icon: DollarSign,
+      icon: UserCheck,
     },
   ];
 
   const solutionsContent = [
     {
-      id: "high-ticket-ecommerce",
-      label: "High-ticket eCommerce",
-      icon: ShoppingBag,
-      title: "Live sales for high-ticket eCommerce",
+      id: "customer-support",
+      label: "Customer support",
+      icon: Headphones,
+      title: "AI voice agents for customer support",
       description:
-        "Give shoppers an instant expert voice when they are comparing options, asking sizing questions, or hesitating on a high-value cart.",
+        "Resolve common questions instantly and escalate complex issues to your team with full context — 24/7, without hold queues.",
       features: [
         {
-          icon: Eye,
-          title: "Spot purchase intent",
+          icon: Bot,
+          title: "Resolve on the first call",
           description:
-            "Watch behavior like repeated product views, time on product pages, and high-value cart activity.",
+            "Answers grounded in your knowledge base handle the questions your team sees every day.",
         },
         {
-          icon: DollarSign,
-          title: "Protect high-value carts",
+          icon: UserCheck,
+          title: "Escalate with context",
           description:
-            "Connect buyers to a human or AI sales assistant before the moment passes.",
+            "When a human is needed, your team gets the transcript and the situation — not a cold start.",
         },
       ],
     },
     {
-      id: "b2b-saas",
-      label: "B2B SaaS",
-      icon: Briefcase,
-      title: "Pricing and demo-page conversion for SaaS",
+      id: "small-business",
+      label: "Small business",
+      icon: Store,
+      title: "An AI receptionist for bookings and scheduling",
       description:
-        "Turn pricing-page hesitation into live qualification, routing, and deal guidance while buyers are actively evaluating.",
+        "Salons, spas, studios, and restaurants: take bookings, answer questions, and manage your schedule even when you're with a customer.",
       features: [
         {
-          icon: BarChart3,
-          title: "Qualify active demand",
+          icon: CalendarCheck,
+          title: "Book appointments by voice",
           description:
-            "Use page behavior and declared needs to route serious buyers to the right rep or AI flow.",
+            "Customers call, the assistant checks availability and books — no app, no back-and-forth.",
         },
         {
           icon: Clock,
-          title: "Shorten sales cycles",
+          title: "Cover every hour",
           description:
-            "Answer plan, security, and pricing questions immediately instead of waiting for a form response.",
+            "Evenings, weekends, and busy rushes are answered the same as a quiet Tuesday morning.",
         },
       ],
     },
     {
-      id: "financial-services",
-      label: "Financial services",
-      icon: Landmark,
-      title: "Trusted conversations for complex decisions",
+      id: "retail-ecommerce",
+      label: "Retail & eCommerce",
+      icon: ShoppingBag,
+      title: "Voice answers for shoppers who are deciding",
       description:
-        "Help prospects move forward when they need clarity, confidence, and a real answer before committing.",
+        "Give shoppers instant answers on products, orders, sizing, and returns — on the phone or right on your product pages.",
       features: [
         {
-          icon: UserCheck,
-          title: "Route high-value prospects",
+          icon: Globe,
+          title: "Help on the page",
           description:
-            "Use intent signals to identify who needs a specialist and when to bring one in.",
+            "The website widget answers product and order questions while the shopper is still looking.",
         },
         {
-          icon: TrendingUp,
-          title: "Increase decision confidence",
+          icon: PhoneIncoming,
+          title: "Order and return calls handled",
           description:
-            "Voice builds trust faster than passive pages, emails, and generic lead forms.",
+            "Routine order status and return questions are resolved without tying up your team.",
         },
       ],
     },
     {
-      id: "travel-real-estate",
-      label: "Travel & real estate",
-      icon: Plane,
-      title: "Conversation-led buying for considered purchases",
+      id: "recruitment",
+      label: "Recruitment",
+      icon: Briefcase,
+      title: "Screen and schedule candidates automatically",
       description:
-        "Support buyers who are comparing destinations, properties, availability, or packages and need help choosing.",
+        "Run outbound screening calls, answer candidate questions, and book interviews without your recruiters dialing all day.",
       features: [
         {
-          icon: Building2,
-          title: "Guide complex choices",
+          icon: PhoneOutgoing,
+          title: "Outbound screening at scale",
           description:
-            "Bring in the right context around inventory, preferences, budget, and timing.",
+            "Campaigns call candidate lists, ask your screening questions, and log outcomes.",
         },
         {
-          icon: Zap,
-          title: "Capture momentum",
+          icon: Users,
+          title: "Hand qualified candidates to recruiters",
           description:
-            "Turn active browsing into a live conversation before the buyer continues somewhere else.",
+            "Strong candidates get routed to your team with the full conversation attached.",
         },
       ],
     },
   ];
 
   const liveCallsContent = [
-    { type: "Buyer", location: "on Pricing", topic: "Plan Comparison", status: "Resolved" as const, time: "4 min ago", duration: "312 sec" },
-    { type: "Visitor", location: "in Demo Flow", topic: "Security Review", status: "In Progress" as const, time: "7 min ago", duration: "489 sec" },
-    { type: "Shopper", location: "on Product Page", topic: "High-Value Cart", status: "Resolved" as const, time: "11 min ago", duration: "266 sec" },
-    { type: "Prospect", location: "on Calculator", topic: "ROI Question", status: "Unresolved" as const, time: "15 min ago", duration: "205 sec" },
-    { type: "Buyer", location: "on Plans", topic: "Upgrade Path", status: "Resolved" as const, time: "17 min ago", duration: "339 sec" },
-    { type: "Visitor", location: "on Checkout", topic: "Financing", status: "In Progress" as const, time: "21 min ago", duration: "581 sec" },
-    { type: "Prospect", location: "on Case Study", topic: "Enterprise Fit", status: "Resolved" as const, time: "26 min ago", duration: "420 sec" },
-    { type: "Buyer", location: "on Booking Page", topic: "Availability", status: "Unresolved" as const, time: "29 min ago", duration: "198 sec" },
+    { type: "Customer", location: "Inbound Call", topic: "Appointment Booking", status: "Resolved" as const, time: "4 min ago", duration: "312 sec" },
+    { type: "Visitor", location: "Website Widget", topic: "Plan Comparison", status: "In Progress" as const, time: "7 min ago", duration: "489 sec" },
+    { type: "Shopper", location: "Inbound Call", topic: "Order Status", status: "Resolved" as const, time: "11 min ago", duration: "266 sec" },
+    { type: "Candidate", location: "Outbound Campaign", topic: "Screening Call", status: "Unresolved" as const, time: "15 min ago", duration: "205 sec" },
+    { type: "Customer", location: "Inbound Call", topic: "Reschedule Request", status: "Resolved" as const, time: "17 min ago", duration: "339 sec" },
+    { type: "Customer", location: "Escalation", topic: "Billing Question", status: "In Progress" as const, time: "21 min ago", duration: "581 sec" },
+    { type: "Visitor", location: "Website Widget", topic: "Product Question", status: "Resolved" as const, time: "26 min ago", duration: "420 sec" },
+    { type: "Customer", location: "Outbound Campaign", topic: "Appointment Reminder", status: "Resolved" as const, time: "29 min ago", duration: "198 sec" },
   ];
 
   const ctaContent = {
-    title: "Do not wait for leads. Talk to buyers when they are ready.",
+    title: "Stop missing calls. Let your AI assistant pick up.",
     description:
-      "Book a guided walkthrough or start a converting flow today — turn active intent into conversations your team can close.",
+      "Create an assistant, connect a phone number or embed the widget, and start handling real conversations today.",
     features: [
-      "Capture high-intent visitors in real time",
-      "Route qualified buyers to humans or AI",
-      "Shorten the distance from intent to close",
-      "Recover revenue already coming through paid traffic",
+      "Answer every call instantly, 24/7",
+      "Book appointments and resolve questions",
+      "Escalate to your team with full context",
+      "See transcripts and outcomes for every call",
     ],
   };
 
@@ -321,15 +311,14 @@ const Landing3 = () => {
           secondaryCtaLabel="See it in action"
           secondaryCtaAction="anchor"
           secondaryAnchorId="product-demo"
-          previewName="High-intent visitor"
-          previewMeta="Pricing — Enterprise comparison"
-          previewStatus="Live sales conversation triggered"
+          previewName="Incoming call"
+          previewMeta="Booking — Saturday appointment"
+          previewStatus="Answered by your AI assistant"
         />
-        <CredibilitySection />
         <FeaturesSection
-          eyebrow="Core value props"
-          title="Convert buying intent before it disappears."
-          description="Voiceable turns your best website moments into live sales conversations."
+          eyebrow="What Voiceable does"
+          title="Your best employee, on every call."
+          description="Voiceable answers your phone and your website with AI voice assistants trained on your business."
           features={featuresContent}
         />
         <section id="product-demo" aria-label="Product demo" className="scroll-mt-28">
@@ -340,37 +329,33 @@ const Landing3 = () => {
                 <span>See it in action</span>
               </div>
               <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
-                From intent signals to revenue conversations on your site.
+                From the first ring to a resolved conversation.
               </h2>
               <p className="text-lg text-muted-foreground">
-                Switch scenarios to preview how Voiceable reacts when pricing traffic spikes, shoppers return repeatedly, buyers accept instant voice, or your rep jumps in mid-flow.
+                Switch scenarios to preview how Voiceable handles inbound calls, outbound campaigns, website voice conversations, and handoffs to your team.
               </p>
             </div>
           </div>
           <OperatorInterfaceSection
-            segments={salesOperatorSegments}
-            tabExamples={salesOperatorTabExamples}
+            segments={operatorSegments}
+            tabExamples={operatorTabExamples}
             audioSrc="/landing-page-audio.mp3"
           />
         </section>
+        <HowItWorksSection />
         <SolutionsSection
-          eyebrow="Built for revenue-critical flows"
-          title="Voiceable is not for support tickets."
-          description="It is for moments where revenue is on the line, anywhere a conversation can unlock a decision."
+          eyebrow="Built for real conversations"
+          title="One assistant. Many jobs."
+          description="From support lines to booking desks to screening calls — wherever a conversation moves your business forward."
           activeEyebrow="Perfect for"
-          chartTitle="Intent captured"
+          chartTitle="Calls handled"
           chartValue="87"
-          chartXAxisLabel="High-intent moments engaged"
+          chartXAxisLabel="Conversations resolved this week"
           solutions={solutionsContent}
         />
-        <HowItWorksSection />
-        <BehavioralShiftSection />
-        <HybridScaleSection />
-        <MetricsProofSection />
-        <ContrastSection />
         <LiveCallsSection
-          title="Live conversations in motion across your funnel"
-          subtitle="Snapshot of buyer moments teams are resolving with Voiceable right now."
+          title="Live conversations across your business"
+          subtitle="A snapshot of the calls and voice chats Voiceable assistants are handling right now."
           calls={liveCallsContent}
         />
         <SecuritySection />
@@ -382,7 +367,7 @@ const Landing3 = () => {
             showCalendarOnly={true}
             primaryButtonLabel="Book a demo"
             primaryButtonAction="calendar"
-            secondaryButtonLabel="Start converting today"
+            secondaryButtonLabel="Get started free"
             secondaryButtonAction="signup"
           />
         </div>

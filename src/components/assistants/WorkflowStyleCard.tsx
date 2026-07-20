@@ -31,9 +31,17 @@ export const WorkflowStyleCard: React.FC<WorkflowStyleCardProps> = ({
       expanded && "shadow-md",
       className
     )}>
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full p-5 flex items-center gap-4 text-left hover:bg-muted/30 transition-colors"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className="w-full p-5 flex items-center gap-4 text-left hover:bg-muted/30 transition-colors cursor-pointer"
       >
         {/* Icon Box */}
         <div className={cn(
@@ -79,7 +87,7 @@ export const WorkflowStyleCard: React.FC<WorkflowStyleCardProps> = ({
         )}>
           <ChevronDown className="h-4 w-4" />
         </div>
-      </button>
+      </div>
 
       {/* Content Area */}
       {expanded && children && (

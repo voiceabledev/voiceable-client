@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { NavLink } from "@/components/NavLink";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,6 @@ import {
   FileText,
   MessageSquare,
   Search,
-  ArrowUp,
   PhoneOutgoing,
   Settings,
   LogOut,
@@ -26,12 +25,11 @@ import {
   Plug,
   BarChart3,
   AlertCircle,
+  Contact,
 } from "lucide-react";
-import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { paymentsApi } from "@/lib/api";
 
 const buildItems = [
   { icon: Users, label: "Agents", path: "/assistants" },
@@ -44,6 +42,10 @@ const buildItems = [
 
 const evaluateItems = [
   { icon: MessageSquare, label: "Conversations", path: "/conversations" },
+];
+
+const crmItems = [
+  { icon: Contact, label: "People", path: "/people" },
 ];
 
 const outboundItems = [
@@ -69,52 +71,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut, isAdmin } = useAuth();
-  const [currentBalance, setCurrentBalance] = useState(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const isMobile = useIsMobile();
-
-  // Fetch credit balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        setIsLoadingBalance(true);
-        const response = await paymentsApi.creditBalance();
-        if (response.data) {
-          setCurrentBalance(response.data.balance || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching credit balance:", error);
-        setCurrentBalance(0);
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    fetchBalance();
-    
-    // Refresh balance every 30 seconds
-    const interval = setInterval(fetchBalance, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  // Refresh balance when payment modal closes (in case a payment was made)
-  useEffect(() => {
-    if (!showPaymentMethodModal) {
-      const fetchBalance = async () => {
-        try {
-          const response = await paymentsApi.creditBalance();
-          if (response.data) {
-            setCurrentBalance(response.data.balance || 0);
-          }
-        } catch (error) {
-          console.error("Error fetching credit balance:", error);
-        }
-      };
-      fetchBalance();
-    }
-  }, [showPaymentMethodModal]);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -255,6 +212,14 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           </div>
         </div>
 
+        {/* CRM Section */}
+        <div>
+          {showFullContent && <p className="section-label">CRM</p>}
+          <div className="space-y-0.5">
+            {crmItems.map(renderNavItem)}
+          </div>
+        </div>
+
         {/* Settings Section */}
         <div>
           {showFullContent && <p className="section-label">Settings</p>}
@@ -276,38 +241,7 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
 
       {/* Footer */}
       <div className={cn("p-3 border-t border-sidebar-border space-y-2", !showFullContent && "px-2")}>
-        {showFullContent && (
-          <div className="flex items-center justify-between px-3 py-1">
-            <span className="text-xs bg-secondary px-2 py-1 rounded font-medium text-muted-foreground">WALLET</span>
-            <span className="text-sm text-foreground">
-              {isLoadingBalance ? (
-                <span className="text-muted-foreground">Loading...</span>
-              ) : (
-                <>
-                  <span className="font-medium">{currentBalance.toFixed(2)}</span>
-                  <span className="text-muted-foreground"> Credits</span>
-                </>
-              )}
-            </span>
-          </div>
-        )}
-        <button 
-          onClick={() => {
-            setShowPaymentMethodModal(true);
-            if (isMobile && onMobileMenuChange) {
-              onMobileMenuChange(false);
-            }
-          }}
-          className={cn(
-            "w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-md bg-secondary hover:bg-secondary/80 text-sm font-medium transition-colors",
-            !showFullContent && "px-2"
-          )}
-          title={!showFullContent ? "Buy Credits" : undefined}
-        >
-          <ArrowUp className="h-4 w-4 flex-shrink-0" />
-          {showFullContent && <span>Buy Credits</span>}
-        </button>
-        <button 
+        <button
           onClick={() => {
             handleSignOut();
             if (isMobile && onMobileMenuChange) {
@@ -339,14 +273,6 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
             </div>
           </SheetContent>
         </Sheet>
-        <PaymentMethodModal
-          open={showPaymentMethodModal}
-          onOpenChange={setShowPaymentMethodModal}
-          onSuccess={() => {
-            // Redirect to billing page after successful payment
-            router.push("/settings/billing");
-          }}
-        />
       </>
     );
   }
@@ -360,14 +286,6 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
       )}>
         <SidebarContent />
       </aside>
-      <PaymentMethodModal
-        open={showPaymentMethodModal}
-        onOpenChange={setShowPaymentMethodModal}
-        onSuccess={() => {
-          // Redirect to billing page after successful payment
-          router.push("/settings/billing");
-        }}
-      />
     </>
   );
 }

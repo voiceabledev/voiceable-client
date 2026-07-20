@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { 
   Settings as SettingsIcon,
   Building2,
-  CreditCard,
   Users,
   Link2,
   AudioLines,
@@ -13,14 +12,6 @@ import {
   Key
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const orgSettings = [
-  // { icon: Building2, label: "Org Settings", path: "/settings/org", description: "Manage your organization details and preferences" },
-  { icon: CreditCard, label: "Billing & Add-Ons", path: "/settings/billing", description: "Manage your subscription, payment methods, and add-ons" },
-  // { icon: TrendingUp, label: "Financial Simulation", path: "/settings/financial-simulation", description: "Project revenue, costs, and profitability based on user growth" },
-  // { icon: Users, label: "Members", path: "/settings/members", description: "Invite and manage team members" },
-  // { icon: Link2, label: "Integrations", path: "/settings/integrations", description: "Connect and configure third-party services" },
-];
 
 const developerSettings = [
   { icon: Key, label: "API Keys", path: "/settings/api-keys", description: "Manage your API keys and authentication" },
@@ -77,16 +68,6 @@ export default function SettingsList() {
       {/* Settings List */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-5xl space-y-6 md:space-y-8">
-          {/* Org Settings */}
-          <div>
-            <h2 className="text-xs md:text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3 md:mb-4">
-              Org Settings
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {orgSettings.map(renderSettingCard)}
-            </div>
-          </div>
-
           {/* Developer */}
           <div>
             <h2 className="text-xs md:text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3 md:mb-4">

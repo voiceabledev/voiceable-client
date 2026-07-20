@@ -21,8 +21,6 @@ import {
   Edit,
   FileText,
   Phone,
-  CreditCard,
-  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -53,7 +51,6 @@ import { IntegrationConnectionModal } from "@/components/assistants/modals/Integ
 import { SectionEntryModal } from "@/components/assistants/modals/SectionEntryModal";
 import { PromptPreviewModal } from "@/components/assistants/modals/PromptPreviewModal";
 import { ChooseFilesDialog } from "@/components/assistants/modals/ChooseFilesDialog";
-import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 
 // Hooks
 import { useWebhookTools } from "@/hooks/assistants/useWebhookTools";
@@ -72,7 +69,7 @@ import {
   INTEGRATION_TOOLS_DISPLAY,
 } from "@/constants/assistant";
 import { getAvailableIntegrationTypes } from "@/constants/integrations";
-import { voicesApi, type Voice, adminApi, type AgentBehaviour, paymentsApi, agentsApi, authApi, phoneNumbersApi, type PhoneNumber } from "@/lib/api";
+import { voicesApi, type Voice, adminApi, type AgentBehaviour, agentsApi, authApi, phoneNumbersApi, type PhoneNumber } from "@/lib/api";
 import type { SystemToolsState, SystemToolSetting, SystemToolKey, TransferRule, HumanTransferRule, Agent } from "@/types/assistant";
 import type { BehaviourConfig } from "@/components/assistants/SectionEditors";
 
@@ -255,50 +252,7 @@ export default function AssistantDetail() {
   const [availableBehaviours, setAvailableBehaviours] = useState<AgentBehaviour[]>([]);
   const [loadingBehaviours, setLoadingBehaviours] = useState(false);
   const [selectedBehaviourId, setSelectedBehaviourId] = useState<number | undefined>(undefined);
-  const [creditBalance, setCreditBalance] = useState<number | null>(null);
-  const [loadingCredits, setLoadingCredits] = useState(false);
-  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [agentPhoneNumbers, setAgentPhoneNumbers] = useState<PhoneNumber[]>([]);
-
-  // Fetch credit balance when phone-number tab is active
-  useEffect(() => {
-    if (activeTab === "phone-number") {
-      const fetchCredits = async () => {
-        setLoadingCredits(true);
-        try {
-          const response = await paymentsApi.creditBalance();
-          if (response.data) {
-            setCreditBalance(response.data.balance || 0);
-          } else {
-            setCreditBalance(0);
-          }
-        } catch (error) {
-          console.error("Error fetching credit balance:", error);
-          setCreditBalance(0);
-        } finally {
-          setLoadingCredits(false);
-        }
-      };
-      fetchCredits();
-    }
-  }, [activeTab]);
-
-  // Refresh balance when payment modal closes (in case a payment was made)
-  useEffect(() => {
-    if (!showPaymentMethodModal && activeTab === "phone-number") {
-      const fetchCredits = async () => {
-        try {
-          const response = await paymentsApi.creditBalance();
-          if (response.data) {
-            setCreditBalance(response.data.balance || 0);
-          }
-        } catch (error) {
-          console.error("Error fetching credit balance:", error);
-        }
-      };
-      fetchCredits();
-    }
-  }, [showPaymentMethodModal, activeTab]);
 
   const agentData = useAgentData(
     id,
@@ -2021,39 +1975,7 @@ export default function AssistantDetail() {
               ) : activeTab === "widget" ? (
                 <WidgetTab agent={agentData.agent} agentId={agentId} />
               ) : activeTab === "phone-number" ? (
-                loadingCredits ? (
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Checking credits...</p>
-                    </div>
-                  </div>
-                ) : (creditBalance !== null && creditBalance > 0) ? (
-                  <PhoneNumbersTab agent={agentData.agent} agentId={agentId} />
-                ) : (
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                    <div className="bg-card border border-border rounded-lg p-8 md:p-12 max-w-2xl mx-auto">
-                      <div className="flex flex-col items-center text-center space-y-4">
-                        <div className="p-4 bg-muted/50 rounded-full">
-                          <Lock className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-2">
-                          <h3 className="text-xl md:text-2xl font-semibold">Phone Numbers Available for Paid Customers</h3>
-                          <p className="text-sm md:text-base text-muted-foreground max-w-md">
-                            Phone numbers are currently available for paid customers only. Please add credits to gain access to add a phone number to your agent.
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() => setShowPaymentMethodModal(true)}
-                          className="mt-4"
-                        >
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Add Credits
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )
+                <PhoneNumbersTab agent={agentData.agent} agentId={agentId} />
               ) : activeTab === "tools" ? (
                 <ToolsTab
                   systemTools={systemTools}
@@ -2468,11 +2390,6 @@ export default function AssistantDetail() {
         allAvailableFiles={filesHook.allAvailableFiles}
         attachedFiles={filesHook.attachedFiles}
         onSelectExistingFile={(fileId) => filesHook.handleSelectExistingFile(fileId, agentId)}
-      />
-
-      <PaymentMethodModal
-        open={showPaymentMethodModal}
-        onOpenChange={setShowPaymentMethodModal}
       />
 
       {/* Guided Tour */}

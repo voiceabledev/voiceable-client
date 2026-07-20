@@ -3,11 +3,6 @@ import { SITE_URL } from "@/constants/site";
 import { fetchPublishedPosts } from "@/lib/blogData";
 
 const STATIC: MetadataRoute.Sitemap = [
-  { url: `${SITE_URL}/`, changeFrequency: "weekly", priority: 1 },
-  { url: `${SITE_URL}/customer-support`, changeFrequency: "monthly", priority: 0.85 },
-  { url: `${SITE_URL}/retail-ecommerce`, changeFrequency: "monthly", priority: 0.8 },
-  { url: `${SITE_URL}/recruitment`, changeFrequency: "monthly", priority: 0.8 },
-  { url: `${SITE_URL}/small-business`, changeFrequency: "monthly", priority: 0.8 },
   { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.85 },
   { url: `${SITE_URL}/pricing`, changeFrequency: "monthly", priority: 0.9 },
   { url: `${SITE_URL}/privacy`, changeFrequency: "yearly", priority: 0.5 },

@@ -76,23 +76,23 @@ const intentMoments: { text: string; icon: LucideIcon }[] = [
 
 const howItWorksSteps: { title: string; description: string; icon: LucideIcon }[] = [
   {
-    title: "Detect intent",
-    description: "Identify high-value visitors based on behavior.",
+    title: "Create your assistant",
+    description: "Pick a voice and teach it your business with your docs and FAQs.",
     icon: Radar,
   },
   {
-    title: "Trigger conversation",
-    description: "Offer instant voice connection at the right moment.",
+    title: "Connect a number or widget",
+    description: "Attach a phone number or embed the voice widget on your site.",
     icon: PhoneOutgoing,
   },
   {
-    title: "Guide the decision",
-    description: "Sales reps or AI help users move forward with context.",
+    title: "Let it handle conversations",
+    description: "It answers calls, books appointments, and resolves questions 24/7.",
     icon: Gauge,
   },
   {
-    title: "Close in real time",
-    description: "No delays, no lost momentum.",
+    title: "Review and step in",
+    description: "See transcripts and outcomes, and take over live when it matters.",
     icon: BadgeCheck,
   },
 ];
@@ -269,7 +269,7 @@ export const HowItWorksSection = () => (
           viewport={viewport}
           transition={{ duration: 0.55, delay: 0.05, ease: easing }}
         >
-          From intent signal to live conversation.
+          Live on your phone line in minutes.
         </motion.h2>
         <motion.p
           className="text-lg text-muted-foreground"
@@ -278,7 +278,7 @@ export const HowItWorksSection = () => (
           viewport={viewport}
           transition={{ duration: 0.48, delay: 0.1, ease: easing }}
         >
-          Four steps from behavior on your site to revenue captured in the moment.
+          Four steps from sign-up to an assistant handling real conversations.
         </motion.p>
       </div>
       <motion.div

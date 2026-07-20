@@ -35,8 +35,8 @@ export default function ResetPassword() {
       {/* Left Side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-background">
         <div className="absolute top-8 left-8">
-          <Link href="/" className="text-2xl font-bold text-foreground">
-            Voiceable
+          <Link href="/login" className="text-2xl font-bold text-foreground">
+            Upriser
           </Link>
         </div>
 
@@ -84,7 +84,7 @@ export default function ResetPassword() {
         </div>
 
         <div className="absolute bottom-8 left-8 text-xs text-muted-foreground">
-          By using Voiceable you agree to our Terms of Service,<br />
+          By using Upriser you agree to our Terms of Service,<br />
           Privacy, and Security policies and practices.
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function ResetPassword() {
             </div>
           </div>
           <p className="text-slate-300 text-sm leading-relaxed">
-            Building a high-quality production-ready voice agent on <span className="text-primary">Voiceable</span> was incredibly easy for me.
+            Building a high-quality production-ready voice agent on <span className="text-primary">Upriser</span> was incredibly easy for me.
           </p>
           <p className="text-slate-300 text-sm leading-relaxed mt-3">
             I notice new features being released almost daily, and the support provided is exceptional. Keep up the excellent work!

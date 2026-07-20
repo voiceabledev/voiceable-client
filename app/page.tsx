@@ -1,28 +1,5 @@
-import type { Metadata } from "next";
-import Landing3 from "@/views/Landing3";
-import { marketingMetadata } from "@/lib/marketing-metadata";
-
-export const metadata: Metadata = marketingMetadata({
-  title: "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
-  metadataTitle: {
-    absolute: "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
-  },
-  description:
-    "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
-  path: "/",
-  keywords: [
-    "live sales",
-    "voice AI sales",
-    "website conversion",
-    "high-intent visitors",
-    "pricing page conversion",
-    "real-time sales",
-    "AI sales assistant",
-    "conversion optimization",
-    "revenue automation",
-  ],
-});
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  return <Landing3 />;
+  redirect("/login");
 }

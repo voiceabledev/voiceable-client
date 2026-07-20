@@ -6,7 +6,7 @@ import { marketingMetadata } from "@/lib/marketing-metadata";
 export const metadata: Metadata = marketingMetadata({
   title: "Voice AI Blog",
   description:
-    "Read Voiceable guides, product updates, and playbooks for live sales voice AI, real-time conversations, and reliable voice agents.",
+    "Read Upriser guides, product updates, and playbooks for live sales voice AI, real-time conversations, and reliable voice agents.",
   path: "/blog",
   keywords: [
     "voice AI blog",
@@ -15,7 +15,7 @@ export const metadata: Metadata = marketingMetadata({
     "conversational AI",
     "AI sales playbook",
     "website conversion",
-    "Voiceable",
+    "Upriser",
   ],
 });
 

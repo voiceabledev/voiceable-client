@@ -1,13 +1,5 @@
 import Link from "next/link";
 
-const useCaseLinks = [
-  { label: "Retail & eCommerce", href: "/retail-ecommerce" },
-  { label: "Small businesses", href: "/small-business" },
-  { label: "Recruitment", href: "/recruitment" },
-  { label: "Customer support", href: "/customer-support" },
-  { label: "Sales", href: "/" },
-] as const;
-
 const resourceLinks = [
   { label: "Blog", href: "/blog" },
   { label: "Pricing", href: "/pricing" },
@@ -70,18 +62,6 @@ const Footer = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-10 max-w-4xl mx-auto mb-12 text-sm">
-          <div className="col-span-2 sm:col-span-1 md:col-span-2">
-            <h3 className="font-semibold text-foreground mb-4">Use cases</h3>
-            <ul className="space-y-3 text-muted-foreground">
-              {useCaseLinks.map((item) => (
-                <li key={item.href + item.label}>
-                  <Link href={item.href} className="hover:text-foreground transition-colors">
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
           <div>
             <h3 className="font-semibold text-foreground mb-4">Resources</h3>
             <ul className="space-y-3 text-muted-foreground">

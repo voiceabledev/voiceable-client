@@ -20,9 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const orgSettings = [
+const orgSettings: { icon: LucideIcon; label: string; path: string }[] = [
   // { icon: Building2, label: "Org Settings", path: "/settings/org" },
-  { icon: CreditCard, label: "Billing & Add-Ons", path: "/settings/billing" },
   // { icon: Users, label: "Members", path: "/settings/members" },
   // { icon: Link2, label: "Integrations", path: "/settings/integrations" },
 ];

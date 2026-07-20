@@ -3,11 +3,11 @@ import Login from "@/views/auth/Login";
 import { marketingMetadata } from "@/lib/marketing-metadata";
 
 export const metadata: Metadata = marketingMetadata({
-  title: "Log in | Voiceable",
+  title: "Log in | Upriser",
   description:
-    "Sign in to Voiceable to manage assistants, workflows, billing, and voice conversations for your organization.",
+    "Sign in to Upriser to manage assistants, workflows, billing, and voice conversations for your organization.",
   path: "/login",
-  keywords: ["Voiceable login", "sign in", "voice AI dashboard"],
+  keywords: ["Upriser login", "sign in", "voice AI dashboard"],
   robots: { index: false, follow: true },
 });
 

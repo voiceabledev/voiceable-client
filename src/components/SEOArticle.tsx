@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 import { SITE_URL } from "@/constants/site";
 import type { BlogPostEntry } from "@/types/blog";
 
-const SITE_NAME = "Voiceable Studio";
+const SITE_NAME = "Upriser Studio";
 const TWITTER = "@voiceaistudio";
 
 interface SEOArticleProps {

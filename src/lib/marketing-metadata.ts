@@ -34,7 +34,7 @@ export function marketingMetadata(opts: {
       title: opts.title,
       description: opts.description,
       url,
-      siteName: "Voiceable",
+      siteName: "Upriser",
       images: [{ url: image }],
       type: "website",
     },

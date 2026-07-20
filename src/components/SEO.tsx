@@ -13,15 +13,15 @@ interface SEOProps {
 }
 
 export function SEO({
-  title = "Voiceable: Live Sales Voice AI for High-Intent Website Visitors",
+  title = "Upriser: Live Sales Voice AI for High-Intent Website Visitors",
   description =
-    "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
+    "Upriser helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.",
   keywords =
     "live sales, voice AI sales, website conversion, high-intent visitors, real-time sales, AI sales assistant, conversion optimization, revenue automation",
   image = "/og-image.png",
   url = SITE_URL,
   type = "website",
-  siteName = "Voiceable",
+  siteName = "Upriser",
   twitterHandle = "@voiceaistudio",
 }: SEOProps) {
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;

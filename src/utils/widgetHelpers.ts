@@ -2,47 +2,16 @@
  * Shared utilities for widget loading across landing pages
  */
 
-import { normalizeApiBaseUrl } from "@/lib/api";
+import { getApiBaseUrl, normalizeApiBaseUrl } from "@/lib/api";
 import { loadAndOpenWidget } from "@/utils/widgetLoader";
 import { toFullConfig } from "@/utils/widgetConfig";
 
 /**
- * Get the backend base URL for widget.js and API calls
- * Uses the same logic as the API client to ensure consistency
+ * Get the backend base URL for widget.js and API calls.
+ * Uses the shared API client resolver so Netlify/marketing hosts hit Rails.
  */
 function getApiBaseUrlForBackend(): string {
-  // Use env var if available (set at build time)
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
-  }
-
-  // Check for runtime config (useful for Heroku/dynamic configs)
-  if (typeof window !== 'undefined') {
-    const runtimeConfig = (window as any).__API_BASE_URL__;
-    if (runtimeConfig) {
-      return normalizeApiBaseUrl(String(runtimeConfig));
-    }
-
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    
-    // If on Heroku or production domain, construct API URL
-    if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
-      return '/voiceable-api';
-    }
-    
-    // For localhost development - check what port the frontend is on and infer backend
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      // Default to 3000, but can be overridden with VITE_API_BASE_URL
-      return 'http://localhost:3000/voiceable-api';
-    }
-    
-    // For other production domains, try to construct API URL
-    return `${protocol}//${hostname}/voiceable-api`;
-  }
-
-  // Default fallback
-  return 'http://localhost:3000/voiceable-api';
+  return getApiBaseUrl();
 }
 
 /**

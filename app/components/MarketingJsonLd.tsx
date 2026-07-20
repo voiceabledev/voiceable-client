@@ -1,7 +1,7 @@
 import { SITE_URL } from "@/constants/site";
 
 const DESCRIPTION =
-  "Voiceable helps revenue teams connect high-intent website visitors with real-time voice conversations, increasing conversion, deal size, and speed to close.";
+  "Upriser answers your phone and website with AI voice assistants that book appointments, resolve questions, run outbound campaigns, and hand off to your team — 24/7.";
 
 /** Organization + WebSite + SoftwareApplication for crawlers (App Router; no Helmet). */
 export function MarketingJsonLd() {
@@ -13,8 +13,8 @@ export function MarketingJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": orgId,
-    name: "Voiceable",
-    legalName: "Voiceable Studio",
+    name: "Upriser",
+    legalName: "Upriser Studio",
     url: SITE_URL,
     logo: {
       "@type": "ImageObject",
@@ -26,7 +26,7 @@ export function MarketingJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": websiteId,
-    name: "Voiceable",
+    name: "Upriser",
     url: SITE_URL,
     description: DESCRIPTION,
     publisher: { "@id": orgId },
@@ -35,7 +35,7 @@ export function MarketingJsonLd() {
   const softwareApplication = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Voiceable",
+    name: "Upriser",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: DESCRIPTION,

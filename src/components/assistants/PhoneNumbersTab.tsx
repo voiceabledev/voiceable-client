@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +49,6 @@ interface PhoneNumbersTabProps {
 }
 
 export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps) {
-  const router = useRouter();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
@@ -297,35 +295,6 @@ export default function PhoneNumbersTab({ agent, agentId }: PhoneNumbersTabProps
         status={membershipStatus}
         title={title}
         description={description}
-      />
-    );
-  }
-
-  // If user has phone numbers, show them (for active, trial, expired, free users)
-  if (agentPhoneNumbers.length > 0) {
-    // Will show phone numbers UI below
-  }
-  // Show membership required message only for trial and free users
-  else if (membershipStatus === 'trial' || membershipStatus === 'free') {
-    return (
-      <MembershipStatusMessage
-        status={membershipStatus}
-        title="Phone Numbers Require Membership"
-        description="Phone number purchases require at least one successful payment. You can use the widget to test your agent without purchasing a phone number. Please make a purchase to unlock phone number functionality."
-        primaryButtonText="Buy Credits"
-        primaryButtonAction={() => router.push("/settings/billing")}
-      />
-    );
-  }
-  // Show expired membership message
-  else if (membershipStatus === 'expired') {
-    return (
-      <MembershipStatusMessage
-        status="expired"
-        title="Membership Expired"
-        description="Your membership has expired. Please renew your membership to purchase new phone numbers. You can still use the widget to test your agent."
-        primaryButtonText="Renew Membership"
-        primaryButtonAction={() => router.push("/settings/billing")}
       />
     );
   }

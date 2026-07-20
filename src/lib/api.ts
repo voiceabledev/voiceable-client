@@ -15,10 +15,37 @@ import type { Function, AgentFunction, FunctionsByIntegration, ToolInChain } fro
 import { SITE_URL } from '@/constants/site';
 
 /** Rails host for production Voiceable marketing (www is Next.js only; JSON API is on api.*). */
-const VOICEABLE_PRODUCTION_API_ORIGIN = 'https://api.voiceable.dev';
+const VOICEABLE_PRODUCTION_API_ORIGIN = "https://api.voiceable.dev";
 
 function isVoiceableMarketingHostname(hostname: string): boolean {
-  return hostname === 'www.voiceable.dev' || hostname === 'voiceable.dev';
+  return (
+    hostname === "www.voiceable.dev" ||
+    hostname === "voiceable.dev" ||
+    hostname.endsWith(".voiceable.dev") ||
+    // Netlify previews / legacy deploys for this marketing app — API is never same-origin.
+    hostname === "voiceable.netlify.app" ||
+    hostname.endsWith(".netlify.app")
+  );
+}
+
+function readEnvApiBaseUrl(): string | undefined {
+  if (typeof process !== "undefined") {
+    const nextPublic = process.env?.NEXT_PUBLIC_API_BASE_URL?.trim();
+    if (nextPublic) return nextPublic;
+    const vite = process.env?.VITE_API_BASE_URL?.trim();
+    if (vite) return vite;
+  }
+  try {
+    // Vite / Next import.meta.env shim (see next.config.js)
+    const fromImportMeta = (import.meta as ImportMeta & { env?: Record<string, string> }).env
+      ?.VITE_API_BASE_URL;
+    if (typeof fromImportMeta === "string" && fromImportMeta.trim()) {
+      return fromImportMeta.trim();
+    }
+  } catch {
+    /* import.meta may be unavailable in some SSR paths */
+  }
+  return undefined;
 }
 
 /**
@@ -30,7 +57,9 @@ export function normalizeApiBaseUrl(url: string): string {
 
   // Same-origin mount (e.g. "/voiceable-api") — already a path prefix
   if (trimmed.startsWith("/")) {
-    return /\/voiceable-api$/i.test(trimmed) ? trimmed : `${trimmed.replace(/\/+$/, "")}/voiceable-api`;
+    return /\/voiceable-api$/i.test(trimmed)
+      ? trimmed
+      : `${trimmed.replace(/\/+$/, "")}/voiceable-api`;
   }
 
   let normalized = trimmed
@@ -49,18 +78,14 @@ export function normalizeApiBaseUrl(url: string): string {
 /**
  * Determines the API base URL at runtime (browser + Next.js server).
  * Priority:
- * 1. NEXT_PUBLIC_API_BASE_URL (Next/Vercel and local .env)
+ * 1. NEXT_PUBLIC_API_BASE_URL / VITE_API_BASE_URL (build-time env)
  * 2. Runtime global on window (Heroku/dynamic configs)
- * 3. Voiceable marketing hosts (www / apex) → api.voiceable.dev (Rails is not same-origin as Next)
- * 4. Auto-detect from hostname in the browser
+ * 3. Voiceable marketing / Netlify hosts → api.voiceable.dev (Rails is not same-origin)
+ * 4. Localhost fallback
  * 5. SSR: infer from NEXT_PUBLIC_SITE_URL when it is voiceable marketing → api.voiceable.dev
- * 6. Localhost fallback
  */
 export function getApiBaseUrl(): string {
-  const envBase =
-    typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_BASE_URL
-      ? process.env.NEXT_PUBLIC_API_BASE_URL
-      : undefined;
+  const envBase = readEnvApiBaseUrl();
   if (envBase) {
     return normalizeApiBaseUrl(envBase);
   }
@@ -74,28 +99,29 @@ export function getApiBaseUrl(): string {
     }
 
     const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
 
     if (isVoiceableMarketingHostname(hostname)) {
       return normalizeApiBaseUrl(VOICEABLE_PRODUCTION_API_ORIGIN);
     }
 
-    // If on Heroku or production domain, construct API URL
-    if (hostname.includes('herokuapp.com') || hostname.includes('vercel.app') || hostname.includes('netlify.app')) {
-      // For same-domain deployments, use relative path
-      // If your backend is on a different Heroku app, you'll need to set VITE_API_BASE_URL
-      // or use a runtime config. For now, assume same domain or set via env var.
-      return '/voiceable-api';
+    // Hosted frontends without a configured API env must not use same-origin
+    // `/voiceable-api` — Netlify/Vercel/Heroku static hosts do not serve Rails.
+    if (
+      hostname.includes("herokuapp.com") ||
+      hostname.includes("vercel.app") ||
+      hostname.includes("netlify.app")
+    ) {
+      return normalizeApiBaseUrl(VOICEABLE_PRODUCTION_API_ORIGIN);
     }
 
     // For localhost development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3000/voiceable-api';
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:3000/voiceable-api";
     }
 
     // For other production domains, try to construct API URL
     // Assumes API is on same domain with /voiceable-api path
-    return `${protocol}//${hostname}/voiceable-api`;
+    return `${window.location.protocol}//${hostname}/voiceable-api`;
   }
 
   try {
@@ -108,7 +134,7 @@ export function getApiBaseUrl(): string {
   }
 
   // Default fallback
-  return 'http://localhost:3000/voiceable-api';
+  return "http://localhost:3000/voiceable-api";
 }
 
 const API_BASE_URL = getApiBaseUrl();
