@@ -36,9 +36,11 @@ import { Building2 } from "lucide-react";
 interface WidgetTabProps {
   agent?: Agent | null;
   agentId?: string;
+  /** Onboarding tour needs the Design Studio and Integration cards open to spotlight them. */
+  expandForTour?: boolean;
 }
 
-export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
+export default function WidgetTab({ agent, agentId, expandForTour = false }: WidgetTabProps) {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -53,6 +55,13 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
   const [designStudioExpanded, setDesignStudioExpanded] = useState(false);
   const [integrationExpanded, setIntegrationExpanded] = useState(false);
   const [guideExpanded, setGuideExpanded] = useState(false);
+
+  // Open the cards the onboarding tour spotlights, so its targets are on screen.
+  useEffect(() => {
+    if (!expandForTour) return;
+    setDesignStudioExpanded(true);
+    setIntegrationExpanded(true);
+  }, [expandForTour]);
 
   // Fetch or create API key on mount
   const fetchOrCreateApiKey = useCallback(async (forceCreate = false) => {
@@ -396,6 +405,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
       )}
 
       {/* Design Studio Card */}
+      <div data-tour-target="widget-design-studio">
       <WorkflowStyleCard
         title="Design Studio"
         description="Customize your widget's appearance, colors, branding, and styling"
@@ -407,6 +417,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
             variant="outline"
             size="sm"
             onClick={handlePreviewWidget}
+            data-tour-target="widget-preview-button"
             disabled={!agent?.elevenlabs_agent_id || !apiKey || apiKeyLoading}
           >
             <Phone className="h-4 w-4 mr-2" />
@@ -432,6 +443,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
               variant="default"
               size="lg"
               onClick={handleOpenDesignStudio}
+              data-tour-target="widget-open-design-studio"
               disabled={!agent?.id && !agentId}
               className="shadow-sm hover:shadow-md transition-all"
             >
@@ -441,8 +453,10 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           </div>
         </div>
       </WorkflowStyleCard>
+      </div>
 
       {/* Integration Setup Card */}
+      <div data-tour-target="widget-integration-setup">
       <WorkflowStyleCard
         title="Integration Setup"
         description="API key and embed code for your website"
@@ -547,6 +561,7 @@ export default function WidgetTab({ agent, agentId }: WidgetTabProps) {
           </div>
         </div>
       </WorkflowStyleCard>
+      </div>
 
       {/* Quick Start Guide Card */}
       <WorkflowStyleCard

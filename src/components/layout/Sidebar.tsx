@@ -25,7 +25,7 @@ import {
   Plug,
   BarChart3,
   AlertCircle,
-  Contact,
+  // Contact,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -44,9 +44,10 @@ const evaluateItems = [
   { icon: MessageSquare, label: "Conversations", path: "/conversations" },
 ];
 
-const crmItems = [
-  { icon: Contact, label: "People", path: "/people" },
-];
+// CRM > People hidden for now
+// const crmItems = [
+//   { icon: Contact, label: "People", path: "/people" },
+// ];
 
 const outboundItems = [
   { icon: PhoneOutgoing, label: "Campaigns", path: "/outbound" },
@@ -212,13 +213,13 @@ export function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen = false, onMob
           </div>
         </div>
 
-        {/* CRM Section */}
-        <div>
+        {/* CRM Section — People hidden for now */}
+        {/* <div>
           {showFullContent && <p className="section-label">CRM</p>}
           <div className="space-y-0.5">
             {crmItems.map(renderNavItem)}
           </div>
-        </div>
+        </div> */}
 
         {/* Settings Section */}
         <div>

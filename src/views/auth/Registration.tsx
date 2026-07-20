@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { stashCreateAgentWizardState } from "@/lib/create-agent-wizard-state";
 import { AGENT_TYPE_CONFIGS } from "@/constants/agentTypeConfigs";
+import { markOnboardingWidgetTourPending } from "@/lib/onboarding-tour";
 
 const ONBOARDING_STEPS = [
   {
@@ -73,6 +74,9 @@ export default function Registration() {
           autoGenerateBehavior: true,
           skipNameStep: false,
         });
+        // After the agent-detail guided tour finishes, hand the user off to the
+        // Widget tab's Design Studio tour.
+        markOnboardingWidgetTourPending();
         router.push("/assistants/create");
       }
     } catch {

@@ -42,6 +42,7 @@ import CreateAgentWizard from "@/components/assistants/CreateAgentWizard";
 import OutcomeConfigTab, { type OutcomeConfigTabRef } from "@/components/assistants/OutcomeConfigTab";
 import { DashboardTab } from "@/components/assistants/DashboardTab";
 import { AssistantDetailTour, type TourStep } from "@/components/assistants/AssistantDetailTour";
+import { consumeOnboardingWidgetTourPending } from "@/lib/onboarding-tour";
 import { GuidedSetupChat } from "@/components/assistants/GuidedSetupChat";
 
 // Modals
@@ -816,6 +817,10 @@ export default function AssistantDetail() {
   const [showTour, setShowTour] = useState(false);
   const [tourCompleted, setTourCompleted] = useState(false);
   const [checkingTour, setCheckingTour] = useState(true);
+  // Second tour, shown on the Widget tab for users arriving from /registration
+  const [showWidgetTour, setShowWidgetTour] = useState(false);
+  // Set before showWidgetTour so the Widget tab can expand its cards first.
+  const [widgetTourArmed, setWidgetTourArmed] = useState(false);
 
   // Check if tour should be shown (tour not completed)
   useEffect(() => {
@@ -920,7 +925,50 @@ export default function AssistantDetail() {
     },
   ];
 
+  // Widget tab tour — explains the Design Studio and the live preview widget.
+  const widgetTourSteps: TourStep[] = [
+    {
+      id: "widget-design-studio",
+      target: "widget-design-studio",
+      title: "Design Studio",
+      description:
+        "This is where you shape how your widget looks on your site — colors, branding, position, and styling. Changes preview live as you make them.",
+    },
+    {
+      id: "widget-open-design-studio",
+      target: "widget-open-design-studio",
+      title: "Open the Design Studio",
+      description:
+        "Open the full editor to customize your widget end to end, then come back here when you're happy with it.",
+    },
+    {
+      id: "widget-preview",
+      target: "widget-preview-button",
+      title: "Try your agent",
+      description:
+        "Click Preview Widget to launch your agent exactly as your visitors will see it — then talk to it and hear it answer.",
+    },
+    {
+      id: "widget-embed",
+      target: "widget-integration-setup",
+      title: "Put it on your site",
+      description:
+        "When you're ready to go live, grab your API key and the embed snippet here and drop it into your website.",
+    },
+  ];
+
+  // Moves the user to the Widget tab and starts the Design Studio tour.
+  const startWidgetTour = () => {
+    setWidgetTourArmed(true);
+    setActiveTab("widget");
+    lastSetTabRef.current = "widget";
+    setSearchParams({ tab: "widget" });
+    // Let the Widget tab mount (and expand its cards) before spotlighting.
+    setTimeout(() => setShowWidgetTour(true), 400);
+  };
+
   const handleTourComplete = async () => {
+    const widgetTourPending = consumeOnboardingWidgetTourPending();
     try {
       await authApi.updateTourCompletion();
       // Save to local storage as backup
@@ -933,6 +981,10 @@ export default function AssistantDetail() {
       localStorage.setItem('assistant_detail_tour_completed', 'true');
       setTourCompleted(true);
       setShowTour(false);
+    }
+
+    if (widgetTourPending) {
+      startWidgetTour();
     }
   };
 
@@ -1973,7 +2025,11 @@ export default function AssistantDetail() {
                   }}
                 />
               ) : activeTab === "widget" ? (
-                <WidgetTab agent={agentData.agent} agentId={agentId} />
+                <WidgetTab
+                  agent={agentData.agent}
+                  agentId={agentId}
+                  expandForTour={widgetTourArmed}
+                />
               ) : activeTab === "phone-number" ? (
                 <PhoneNumbersTab agent={agentData.agent} agentId={agentId} />
               ) : activeTab === "tools" ? (
@@ -2399,6 +2455,16 @@ export default function AssistantDetail() {
           onClose={handleTourComplete}
           onComplete={handleTourComplete}
           steps={tourSteps}
+        />
+      )}
+
+      {/* Widget/Design Studio Tour - onboarding hand-off from /registration */}
+      {activeTab === "widget" && (
+        <AssistantDetailTour
+          open={showWidgetTour}
+          onClose={() => setShowWidgetTour(false)}
+          onComplete={() => setShowWidgetTour(false)}
+          steps={widgetTourSteps}
         />
       )}
 
