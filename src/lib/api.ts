@@ -2345,3 +2345,28 @@ export const demoCallsApi = {
     return response;
   },
 };
+
+// AI Receptionist ad funnel (public endpoints, no auth required)
+export type DemoSessionStatus = 'pending' | 'scraping' | 'ready' | 'failed' | 'busy';
+
+export interface DemoSession {
+  id: number;
+  status: DemoSessionStatus;
+  business_name: string | null;
+  suggested_questions: string[];
+  failure_reason: string | null;
+  demo_phone_number: string | null;
+  expires_at: string | null;
+}
+
+export const demoSessionsApi = {
+  create: async (data: { phone: string; website: string }) => {
+    const response = await apiClient.post<DemoSession>('/demo_sessions', data);
+    return response;
+  },
+
+  get: async (id: number) => {
+    const response = await apiClient.get<DemoSession>(`/demo_sessions/${id}`);
+    return response;
+  },
+};
