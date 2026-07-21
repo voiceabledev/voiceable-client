@@ -2356,6 +2356,8 @@ export interface DemoSession {
   suggested_questions: string[];
   failure_reason: string | null;
   demo_phone_number: string | null;
+  call_placed: boolean;
+  phone_e164: string | null;
   expires_at: string | null;
 }
 
@@ -2367,6 +2369,15 @@ export const demoSessionsApi = {
 
   get: async (id: number) => {
     const response = await apiClient.get<DemoSession>(`/demo_sessions/${id}`);
+    return response;
+  },
+
+  /** Rings the visitor. Idempotent unless `retry` is set. */
+  call: async (id: number, options?: { retry?: boolean }) => {
+    const response = await apiClient.post<DemoSession>(
+      `/demo_sessions/${id}/call`,
+      { retry: options?.retry ?? false },
+    );
     return response;
   },
 };

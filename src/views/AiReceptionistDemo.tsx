@@ -10,9 +10,9 @@ import { formatPhoneNumber, toE164, formatE164ForDisplay } from "@/lib/phone";
 import { AuthBrandLink } from "@/components/auth/AuthBrandLink";
 
 const STEPS = [
-  { title: "Enter your phone number", detail: "So your receptionist knows it's you calling." },
+  { title: "Enter your phone number", detail: "That's where we'll ring you." },
   { title: "Add your website", detail: "We read it to learn your hours, services and FAQs." },
-  { title: "Call and talk to it", detail: "Ask it anything about your business." },
+  { title: "Answer and talk to it", detail: "We call you in seconds. Ask it anything." },
 ];
 
 /** Copy shown while the build job runs. Deliberately mirrors the real stages. */
@@ -27,7 +27,12 @@ export default function AiReceptionistDemo() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [session, setSession] = useState<DemoSession | null>(null);
+  const [calling, setCalling] = useState(false);
+  const [callError, setCallError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Polling keeps firing while the call request is in flight, so guard the
+  // auto-trigger in a ref rather than on session state.
+  const callTriggeredRef = useRef(false);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -58,6 +63,28 @@ export default function AiReceptionistDemo() {
     return stopPolling;
   }, [session, stopPolling]);
 
+  const placeCall = useCallback(async (id: number, isRetry = false) => {
+    setCalling(true);
+    setCallError(null);
+    try {
+      const res = await demoSessionsApi.call(id, { retry: isRetry });
+      if (res.data) setSession(res.data);
+    } catch (err) {
+      setCallError(err instanceof Error ? err.message : "We couldn't place the call.");
+    } finally {
+      setCalling(false);
+    }
+  }, []);
+
+  // Ring the visitor as soon as the receptionist is ready.
+  useEffect(() => {
+    if (session?.status !== "ready") return;
+    if (session.call_placed || callTriggeredRef.current) return;
+
+    callTriggeredRef.current = true;
+    void placeCall(session.id);
+  }, [session, placeCall]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -85,8 +112,10 @@ export default function AiReceptionistDemo() {
 
   const reset = () => {
     stopPolling();
+    callTriggeredRef.current = false;
     setSession(null);
     setError(null);
+    setCallError(null);
   };
 
   const isWorking =
@@ -209,16 +238,43 @@ export default function AiReceptionistDemo() {
                 ? `Your receptionist for ${session.business_name} is ready`
                 : "Your receptionist is ready"}
             </h1>
-            <p className="mt-3 text-sm text-muted-foreground">Call this number now:</p>
 
-            <a
-              href={`tel:${session.demo_phone_number ?? ""}`}
-              className="mt-4 block text-4xl font-bold tracking-tight text-primary hover:underline sm:text-5xl"
-            >
-              {session.demo_phone_number
-                ? formatE164ForDisplay(session.demo_phone_number)
-                : "—"}
-            </a>
+            {calling && (
+              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Connecting your call…
+              </p>
+            )}
+
+            {!calling && session.call_placed && (
+              <>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  We&apos;re calling you now at
+                </p>
+                <p className="mt-2 text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+                  {session.phone_e164 ? formatE164ForDisplay(session.phone_e164) : ""}
+                </p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Answer your phone and start talking.
+                </p>
+              </>
+            )}
+
+            {callError && (
+              <div className="mt-4">
+                <p role="alert" className="text-sm text-destructive">
+                  {callError}
+                </p>
+                <Button
+                  onClick={() => placeCall(session.id, true)}
+                  variant="outline"
+                  className="mt-3"
+                  disabled={calling}
+                >
+                  Try calling me again
+                </Button>
+              </div>
+            )}
 
             {session.suggested_questions?.length > 0 && (
               <div className="mt-10 rounded-2xl border border-border bg-card p-6 text-left">
@@ -232,6 +288,17 @@ export default function AiReceptionistDemo() {
                   ))}
                 </ul>
               </div>
+            )}
+
+            {!calling && session.call_placed && !callError && (
+              <Button
+                onClick={() => placeCall(session.id, true)}
+                variant="outline"
+                size="sm"
+                className="mt-8"
+              >
+                Call me again
+              </Button>
             )}
 
             <p className="mt-8 text-xs text-muted-foreground">
