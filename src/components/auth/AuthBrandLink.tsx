@@ -5,10 +5,16 @@ import Image from "next/image";
 
 type AuthBrandLinkProps = {
   href?: string;
+  /**
+   * "onDark" renders the mark in solid white. The PNG's "riser" wordmark is
+   * near-black and disappears on a dark background; until there's a proper
+   * light-variant asset, knocking it out to mono is the legible option.
+   */
+  variant?: "default" | "onDark";
 };
 
 /** Top-left brand mark for auth screens (login, signup-demo). */
-export function AuthBrandLink({ href = "/" }: AuthBrandLinkProps) {
+export function AuthBrandLink({ href = "/", variant = "default" }: AuthBrandLinkProps) {
   return (
     <Link
       href={href}
@@ -25,7 +31,11 @@ export function AuthBrandLink({ href = "/" }: AuthBrandLinkProps) {
         alt="Upriser"
         width={151}
         height={48}
-        className="h-9 w-auto"
+        className={
+          variant === "onDark"
+            ? "h-9 w-auto brightness-0 invert"
+            : "h-9 w-auto"
+        }
         priority
         unoptimized
       />
