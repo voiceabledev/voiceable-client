@@ -115,19 +115,11 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
       console.error('Error fetching available numbers:', err);
       setAvailableNumbers([]);
       
-      if (err?.response?.status === 403 && err?.response?.data?.error === 'purchase_requirement') {
-        toast({
-          title: 'Purchase Required',
-          description: 'Phone number purchases require at least one successful payment. You can use the widget to test your agent without purchasing a phone number.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Error loading available numbers',
-          description: err instanceof Error ? err.message : 'Failed to fetch available phone numbers',
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Error loading available numbers',
+        description: err instanceof Error ? err.message : 'Failed to fetch available phone numbers',
+        variant: 'destructive',
+      });
     } finally {
       setLoadingNumbers(false);
     }
@@ -173,13 +165,11 @@ export function PhoneNumberModal({ open, onOpenChange, defaultAgentId }: PhoneNu
         onOpenChange(false);
       }
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.status?.message || 
-                           (err?.response?.data?.error === 'purchase_requirement'
-                             ? 'Phone number purchases require at least one successful payment. You can use the widget to test your agent without purchasing a phone number.'
-                             : (err instanceof Error ? err.message : 'Failed to assign phone number'));
-      
+      const errorMessage = err?.response?.data?.status?.message ||
+                           (err instanceof Error ? err.message : 'Failed to assign phone number');
+
       toast({
-        title: err?.response?.data?.error === 'purchase_requirement' ? 'Purchase Required' : 'Error',
+        title: 'Error',
         description: errorMessage,
         variant: 'destructive',
       });

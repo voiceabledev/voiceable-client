@@ -313,8 +313,11 @@ export default function AiReceptionistDemo() {
               The demo line is in use right now
             </h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              Someone else is trying theirs out. Give it a few minutes and try again —
-              we&apos;ve saved your details.
+              {session.retry_after_seconds && session.retry_after_seconds > 0
+                ? `Someone else is trying theirs out. It frees up in about ${Math.ceil(
+                    session.retry_after_seconds / 60,
+                  )} minute${Math.ceil(session.retry_after_seconds / 60) === 1 ? "" : "s"} — we've saved your details.`
+                : "Someone else is trying theirs out. Try again in a moment — we've saved your details."}
             </p>
             <Button onClick={reset} variant="outline" className="mt-8">
               Try again

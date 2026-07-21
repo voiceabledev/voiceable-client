@@ -2359,6 +2359,7 @@ export interface DemoSession {
   call_placed: boolean;
   phone_e164: string | null;
   expires_at: string | null;
+  retry_after_seconds: number | null;
 }
 
 export const demoSessionsApi = {
